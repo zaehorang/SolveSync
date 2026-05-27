@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "PS-LP-Sync",
+  "version": "0.1.0",
+  "description": "Sync accepted LeetCode Swift and Python3 submissions to a selected GitHub repository.",
+  "permissions": ["storage"],
+  "host_permissions": ["https://leetcode.com/*", "https://api.github.com/*"],
+  "background": {
+    "service_worker": "background/index.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://leetcode.com/problems/*"],
+      "js": ["content/index.js"]
+    }
+  ],
+  "options_page": "options/index.html",
+  "action": {
+    "default_title": "PS-LP-Sync",
+    "default_popup": "popup/index.html"
+  }
+}
