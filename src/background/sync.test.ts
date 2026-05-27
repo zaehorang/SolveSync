@@ -1,0 +1,451 @@
+import { describe, expect, it, vi } from "vitest";
+
+import { normalizeError } from "../shared/errorNormalize";
+import { createExtensionStorage, type StorageAreaAdapter } from "./storage";
+import type {
+  BranchRef,
+  ProblemMetadata,
+  RepositoryRef,
+  RetryPayload,
+  SubmissionIdentity
+} from "../shared/types";
+import type { LatestAcceptedSubmissionResult } from "./client/leetcode";
+import type {
+  CommitGitDataInput,
+  CommitGitDataResult,
+  ReadTextFileInput
+} from "./client/github";
+import {
+  createSyncOrchestrator,
+  type GitHubClientFactory,
+  type SyncGitHubClient,
+  type SyncLeetCodeClient
+} from "./sync";
+
+describe("background sync orchestrator", () => {
+  it("records setup required without fetching LeetCode or committing", async () => {
+    const harness = makeHarness();
+
+    const outcome = await harness.sync.handleAcceptedDetected(makeAcceptedDetected());
+
+    expect(outcome.kind).toBe("recorded");
+    expect(harness.leetcode.fetchProblemMetadata).not.toHaveBeenCalled();
+    expect(harness.github.commits).toHaveLength(0);
+    await expect(historyStatuses(harness.storage)).resolves.toEqual(["setup_required"]);
+  });
+
+  it("records Auto Sync off without fetching LeetCode or committing", async () => {
+    const harness = makeHarness();
+    await harness.saveSettings({ autoSyncEnabled: false });
+
+    await harness.sync.handleAcceptedDetected(makeAcceptedDetected());
+
+    expect(harness.leetcode.fetchLatestAcceptedSubmission).not.toHaveBeenCalled();
+    expect(harness.github.commits).toHaveLength(0);
+    await expect(historyStatuses(harness.storage)).resolves.toEqual([
+      "auto_sync_disabled"
+    ]);
+  });
+
+  it("records unsupported languages without committing", async () => {
+    const harness = makeHarness();
+    await harness.saveSettings();
+    harness.leetcode.fetchProblemMetadata.mockResolvedValue(problem);
+    harness.leetcode.fetchLatestAcceptedSubmission.mockResolvedValue(
+      unsupportedAcceptedSubmission()
+    );
+
+    await harness.sync.handleAcceptedDetected(makeAcceptedDetected());
+
+    expect(harness.github.commits).toHaveLength(0);
+    const records = await harness.storage.listHistory();
+    expect(records[0]).toMatchObject({
+      status: "unsupported_language",
+      language: "Java",
+      supportedLanguage: null,
+      problemTitle: "Two Sum"
+    });
+  });
+
+  it("skips already processed identities without a duplicate commit", async () => {
+    const harness = makeHarness();
+    await harness.saveSettings();
+    await harness.storage.markProcessed(
+      identity,
+      {
+        commitSha: "existing-commit",
+        solutionPath: "swift/leetcode/0001_two_sum.swift"
+      },
+      "2026-01-01T00:00:00.000Z"
+    );
+    harness.leetcode.fetchProblemMetadata.mockResolvedValue(problem);
+    harness.leetcode.fetchLatestAcceptedSubmission.mockResolvedValue(
+      syncableAcceptedSubmission()
+    );
+
+    const outcome = await harness.sync.handleAcceptedDetected(makeAcceptedDetected());
+
+    expect(outcome).toEqual({
+      kind: "duplicate_processed",
+      identity
+    });
+    expect(harness.github.commits).toHaveLength(0);
+    await expect(harness.storage.listHistory()).resolves.toHaveLength(0);
+  });
+
+  it("skips identities that already have an in-flight lock", async () => {
+    const harness = makeHarness();
+    await harness.saveSettings();
+    await harness.storage.acquireInFlightLock(identity, "2026-01-01T00:00:00.000Z");
+    harness.leetcode.fetchProblemMetadata.mockResolvedValue(problem);
+    harness.leetcode.fetchLatestAcceptedSubmission.mockResolvedValue(
+      syncableAcceptedSubmission()
+    );
+
+    const outcome = await harness.sync.handleAcceptedDetected(makeAcceptedDetected());
+
+    expect(outcome).toEqual({
+      kind: "duplicate_in_flight",
+      identity
+    });
+    expect(harness.github.commits).toHaveLength(0);
+  });
+
+  it("commits solution, marks processed, and appends success history", async () => {
+    const harness = makeHarness();
+    await harness.saveSettings();
+    harness.github.files.set("README.md", "# Existing\n");
+    harness.leetcode.fetchProblemMetadata.mockResolvedValue(problem);
+    harness.leetcode.fetchLatestAcceptedSubmission.mockResolvedValue(
+      syncableAcceptedSubmission()
+    );
+
+    await harness.sync.handleAcceptedDetected(makeAcceptedDetected());
+
+    expect(harness.github.commits).toHaveLength(1);
+    expect(await harness.storage.isProcessed(identity)).toBe(true);
+    await expect(historyStatuses(harness.storage)).resolves.toEqual(["synced"]);
+    expect(harness.github.commits[0]?.files.map((file) => file.path)).toEqual([
+      "swift/leetcode/0001_two_sum.swift",
+      "README.md",
+      ".leetcode-sync/index.json"
+    ]);
+    expect(
+      harness.github.commits[0]?.files.find((file) => file.path === "README.md")?.content
+    ).toContain("# Existing");
+  });
+
+  it("stores retry payloads for GitHub commit failures without marking processed", async () => {
+    const harness = makeHarness();
+    await harness.saveSettings();
+    harness.github.commitError = normalizeError({
+      code: "github_commit_failed",
+      message: "commit failed"
+    });
+    harness.leetcode.fetchProblemMetadata.mockResolvedValue(problem);
+    harness.leetcode.fetchLatestAcceptedSubmission.mockResolvedValue(
+      syncableAcceptedSubmission()
+    );
+
+    await harness.sync.handleAcceptedDetected(makeAcceptedDetected());
+
+    expect(await harness.storage.isProcessed(identity)).toBe(false);
+    const payloads = await harness.storage.listRetryPayloads();
+    expect(payloads).toHaveLength(1);
+    expect(payloads[0]).toMatchObject({
+      identity,
+      solutionPath: "swift/leetcode/0001_two_sum.swift",
+      attempts: 0
+    });
+    const records = await harness.storage.listHistory();
+    expect(records[0]).toMatchObject({
+      status: "failed",
+      retryPayloadId: payloads[0]?.id
+    });
+  });
+
+  it("does not store retry payloads when commit files cannot be prepared", async () => {
+    const harness = makeHarness();
+    await harness.saveSettings();
+    harness.github.files.set(".leetcode-sync/index.json", "{not-json");
+    harness.leetcode.fetchProblemMetadata.mockResolvedValue(problem);
+    harness.leetcode.fetchLatestAcceptedSubmission.mockResolvedValue(
+      syncableAcceptedSubmission()
+    );
+
+    await harness.sync.handleAcceptedDetected(makeAcceptedDetected());
+
+    expect(harness.github.commits).toHaveLength(0);
+    await expect(harness.storage.listRetryPayloads()).resolves.toHaveLength(0);
+    const records = await harness.storage.listHistory();
+    expect(records[0]).toMatchObject({
+      status: "failed",
+      retryPayloadId: null,
+      error: {
+        code: "malformed_index"
+      }
+    });
+  });
+
+  it("retries a saved payload, deletes it, and marks processed on success", async () => {
+    const harness = makeHarness();
+    await harness.saveSettings();
+    await harness.storage.saveRetryPayload(makeRetryPayload("retry-1"));
+
+    await harness.sync.handleRetry("retry-1");
+
+    expect(harness.leetcode.fetchProblemMetadata).not.toHaveBeenCalled();
+    expect(harness.github.commits).toHaveLength(1);
+    expect(await harness.storage.isProcessed(identity)).toBe(true);
+    await expect(harness.storage.getRetryPayload("retry-1")).resolves.toBeNull();
+    await expect(historyStatuses(harness.storage)).resolves.toEqual(["synced"]);
+  });
+
+  it("keeps retry payloads and updates failure detail when retry fails", async () => {
+    const harness = makeHarness();
+    await harness.saveSettings();
+    await harness.storage.saveRetryPayload(makeRetryPayload("retry-1"));
+    harness.github.commitError = normalizeError({
+      code: "github_commit_failed",
+      message: "retry failed"
+    });
+
+    await harness.sync.handleRetry("retry-1");
+
+    const payload = await harness.storage.getRetryPayload("retry-1");
+    expect(payload).toMatchObject({
+      attempts: 1,
+      lastError: {
+        code: "github_commit_failed"
+      }
+    });
+    expect(await harness.storage.isProcessed(identity)).toBe(false);
+    await expect(historyStatuses(harness.storage)).resolves.toEqual(["failed"]);
+  });
+});
+
+interface Harness {
+  storage: ReturnType<typeof createExtensionStorage>;
+  leetcode: SyncLeetCodeClient & {
+    fetchProblemMetadata: ReturnType<typeof vi.fn>;
+    fetchLatestAcceptedSubmission: ReturnType<typeof vi.fn>;
+  };
+  github: FakeGitHubClient;
+  sync: ReturnType<typeof createSyncOrchestrator>;
+  saveSettings(update?: { autoSyncEnabled?: boolean }): Promise<void>;
+}
+
+function makeHarness(): Harness {
+  const storage = createExtensionStorage(createMemoryStorageArea());
+  const leetcode = {
+    fetchProblemMetadata: vi.fn(),
+    fetchLatestAcceptedSubmission: vi.fn()
+  } as Harness["leetcode"];
+  const github = new FakeGitHubClient();
+  const githubClientFactory: GitHubClientFactory = () => github;
+  let id = 0;
+  const sync = createSyncOrchestrator({
+    storage,
+    leetcode,
+    githubClientFactory,
+    broadcast: vi.fn(),
+    now: () => "2026-01-01T00:00:00.000Z",
+    createId: (prefix) => `${prefix}-${id++}`
+  });
+
+  return {
+    storage,
+    leetcode,
+    github,
+    sync,
+    async saveSettings(update = {}) {
+      await storage.saveSettings({
+        githubPat: "test-pat-placeholder",
+        selectedRepository: repository,
+        selectedBranch: branch,
+        autoSyncEnabled: update.autoSyncEnabled ?? true
+      });
+    }
+  };
+}
+
+class FakeGitHubClient implements SyncGitHubClient {
+  readonly commits: CommitGitDataInput[] = [];
+  readonly files = new Map<string, string>();
+  commitError: unknown = null;
+
+  async readTextFile(input: ReadTextFileInput): Promise<string | null> {
+    return this.files.get(input.path) ?? null;
+  }
+
+  async commitFiles(input: CommitGitDataInput): Promise<CommitGitDataResult> {
+    this.commits.push(input);
+
+    if (this.commitError !== null) {
+      throw this.commitError;
+    }
+
+    return {
+      repository,
+      branch: {
+        ...branch,
+        sha: "commit-sha"
+      },
+      baseCommitSha: "base-sha",
+      baseTreeSha: "base-tree-sha",
+      commitSha: "commit-sha",
+      commitUrl: "https://github.com/octo/algorithms/commit/commit-sha",
+      fileUrls: Object.fromEntries(
+        input.files.map((file) => [
+          file.path,
+          `https://github.com/octo/algorithms/blob/main/${file.path}`
+        ])
+      )
+    };
+  }
+}
+
+function createMemoryStorageArea(seed: Record<string, unknown> = {}): StorageAreaAdapter {
+  let data = cloneRecord(seed);
+
+  return {
+    async get(keys?: string | string[] | Record<string, unknown> | null) {
+      if (keys === null || keys === undefined) {
+        return cloneRecord(data);
+      }
+
+      if (typeof keys === "string") {
+        return { [keys]: cloneValue(data[keys]) };
+      }
+
+      if (Array.isArray(keys)) {
+        return Object.fromEntries(keys.map((key) => [key, cloneValue(data[key])]));
+      }
+
+      return {
+        ...cloneRecord(keys),
+        ...Object.fromEntries(
+          Object.keys(keys)
+            .filter((key) => key in data)
+            .map((key) => [key, cloneValue(data[key])])
+        )
+      };
+    },
+    async set(items: Record<string, unknown>) {
+      data = {
+        ...data,
+        ...cloneRecord(items)
+      };
+    },
+    async remove(keys: string | string[]) {
+      const keysToRemove = Array.isArray(keys) ? keys : [keys];
+
+      for (const key of keysToRemove) {
+        delete data[key];
+      }
+    }
+  };
+}
+
+const repository: RepositoryRef = {
+  owner: "octo",
+  name: "algorithms",
+  fullName: "octo/algorithms",
+  defaultBranch: "main",
+  private: true,
+  htmlUrl: "https://github.com/octo/algorithms"
+};
+
+const branch: BranchRef = {
+  name: "main",
+  sha: "base-sha",
+  protected: false
+};
+
+const problem: ProblemMetadata = {
+  problemId: "1",
+  frontendId: "1",
+  title: "Two Sum",
+  titleSlug: "two-sum",
+  difficulty: "Easy",
+  url: "https://leetcode.com/problems/two-sum/"
+};
+
+const identity: SubmissionIdentity = {
+  submissionId: "123456789",
+  titleSlug: "two-sum",
+  language: "swift"
+};
+
+function makeAcceptedDetected() {
+  return {
+    titleSlug: "two-sum",
+    pageUrl: "https://leetcode.com/problems/two-sum/",
+    detectedAt: "2026-01-01T00:00:00.000Z"
+  };
+}
+
+function syncableAcceptedSubmission(): LatestAcceptedSubmissionResult {
+  return {
+    syncable: true,
+    supportedLanguage: "swift",
+    identity,
+    submittedAt: "2026-01-01T00:00:00.000Z",
+    submission: {
+      submissionId: identity.submissionId,
+      titleSlug: identity.titleSlug,
+      language: "Swift",
+      code: "class Solution {}",
+      acceptedAt: "2026-01-01T00:00:00.000Z"
+    }
+  };
+}
+
+function unsupportedAcceptedSubmission(): LatestAcceptedSubmissionResult {
+  return {
+    syncable: false,
+    supportedLanguage: null,
+    identity: null,
+    submittedAt: "2026-01-01T00:00:00.000Z",
+    submission: {
+      submissionId: "987654321",
+      titleSlug: "two-sum",
+      language: "Java",
+      code: "class Solution {}",
+      acceptedAt: "2026-01-01T00:00:00.000Z"
+    }
+  };
+}
+
+function makeRetryPayload(id: string): RetryPayload {
+  return {
+    id,
+    identity,
+    repository,
+    branch,
+    problem,
+    submission: syncableAcceptedSubmission().submission,
+    solutionPath: "swift/leetcode/0001_two_sum.swift",
+    readmePath: "README.md",
+    indexPath: ".leetcode-sync/index.json",
+    commitMessage: "solve: leetcode 0001 two sum in swift",
+    attempts: 0,
+    createdAt: "2026-01-01T00:00:00.000Z",
+    expiresAt: "2026-01-08T00:00:00.000Z",
+    lastError: null
+  };
+}
+
+async function historyStatuses(
+  storage: ReturnType<typeof createExtensionStorage>
+): Promise<string[]> {
+  return (await storage.listHistory()).map((record) => record.status);
+}
+
+function cloneRecord(value: Record<string, unknown>): Record<string, unknown> {
+  return JSON.parse(JSON.stringify(value)) as Record<string, unknown>;
+}
+
+function cloneValue<T>(value: T): T {
+  return value === undefined ? value : (JSON.parse(JSON.stringify(value)) as T);
+}

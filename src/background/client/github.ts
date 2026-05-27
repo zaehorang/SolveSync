@@ -36,6 +36,12 @@ export interface TestConnectionInput extends GitHubRepositoryInput {
   branchName: string;
 }
 
+export interface ReadTextFileInput extends GitHubRepositoryInput {
+  repository?: RepositoryRef;
+  branchName: string;
+  path: string;
+}
+
 export interface TestConnectionResult {
   repository: RepositoryRef;
   branch: BranchRef;
@@ -233,6 +239,15 @@ export class GitHubClient {
         baseCommitSha: base.baseCommitSha,
         baseTreeSha: base.baseTreeSha
       };
+    });
+  }
+
+  async readTextFile(input: ReadTextFileInput): Promise<string | null> {
+    return this.withNormalizedErrors(async () => {
+      const repository = input.repository ?? (await this.getRepository(input));
+      const base = await this.readBranchBaseContext(repository, input.branchName);
+
+      return this.readTextFileFromTree(repository, base.tree, input.path);
     });
   }
 
