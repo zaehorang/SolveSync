@@ -10,7 +10,7 @@
 PS-LP-Sync의 사용자 화면은 세 가지다.
 - Options page
 - Popup page
-- LeetCode page toast
+- Problem page toast
 
 ## Options Page
 목적: 첫 설정과 GitHub 연결 관리.
@@ -58,6 +58,7 @@ Security disclosure는 다음을 명시해야 한다.
 - retry payload는 최대 20개, 최대 7일 보관하고 retry 성공 후 삭제한다.
 - v1 확장은 별도 backend server를 운영하지 않는다.
 - Solution code는 설정된 GitHub sync commit을 위해서만 GitHub로 전송된다.
+- LeetCode/Programmers 문제 설명 전문은 저장하지 않는다.
 
 Connection test 상태:
 - Not tested.
@@ -85,6 +86,7 @@ Connection test 상태:
 - Options link.
 
 History item 내용:
+- Platform label. `LeetCode` 또는 `Programmers`를 짧게 표시한다.
 - Problem title.
 - Language.
 - Status.
@@ -105,11 +107,11 @@ Retry behavior:
 - Retry 실패 후 payload는 유지하고 error detail을 갱신한다.
 - retry payload가 만료되었거나 삭제된 항목에는 Retry button을 숨기고 Options 또는 문제 재제출 같은 다음 행동을 안내한다.
 
-## LeetCode Toast
+## Problem Page Toast
 목적: 문제 풀이 흐름을 끊지 않는 즉시 feedback.
 
 위치:
-- LeetCode 페이지 오른쪽 아래.
+- LeetCode와 Programmers 문제 페이지 오른쪽 아래.
 - Fixed position.
 - 일반적인 desktop width에서 code editor control이나 submit button을 가리지 않아야 한다.
 

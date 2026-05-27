@@ -21,6 +21,7 @@ export function createAcceptedDetectedMessage(
   return {
     type: "content:accepted_detected",
     payload: {
+      platform: "leetcode",
       titleSlug,
       pageUrl,
       detectedAt

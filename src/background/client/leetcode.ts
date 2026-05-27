@@ -219,6 +219,7 @@ export class LeetCodeClient {
         supportedLanguage,
         syncable: true,
         identity: {
+          platform: "leetcode",
           submissionId: submission.submissionId,
           titleSlug: submission.titleSlug,
           language: supportedLanguage

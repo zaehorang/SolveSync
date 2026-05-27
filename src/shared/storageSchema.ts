@@ -1,6 +1,7 @@
 import type { NormalizedError } from "./errors";
 import {
   isBranchRef,
+  isPlatform,
   isPlainRecord,
   isRetryPayload,
   isRepositoryRef,
@@ -8,13 +9,15 @@ import {
   isSyncRecord,
   type BranchRef,
   type IsoDateString,
+  type Platform,
   type RepositoryRef,
   type RetryPayload,
   type SubmissionIdentity,
   type SyncRecord
 } from "./types";
 
-export const STORAGE_SCHEMA_VERSION = 1;
+export const STORAGE_SCHEMA_VERSION = 2;
+const LEGACY_STORAGE_SCHEMA_VERSION = 1;
 
 export const STORAGE_KEYS = {
   settings: "settings",
@@ -168,6 +171,19 @@ export function isSettingsState(value: unknown): value is SettingsState {
   );
 }
 
+export function parseSettingsState(value: unknown): SettingsState | null {
+  if (!isPlainRecord(value) || !isSupportedStorageVersion(value.version)) {
+    return null;
+  }
+
+  const candidate = {
+    ...value,
+    version: STORAGE_SCHEMA_VERSION
+  };
+
+  return isSettingsState(candidate) ? candidate : null;
+}
+
 export function isProcessedSubmissionEntry(
   value: unknown
 ): value is ProcessedSubmissionEntry {
@@ -193,6 +209,29 @@ export function isProcessedSubmissionsState(
   return Array.isArray(value.entries) && value.entries.every(isProcessedSubmissionEntry);
 }
 
+export function parseProcessedSubmissionsState(
+  value: unknown
+): ProcessedSubmissionsState | null {
+  if (!isPlainRecord(value) || !isSupportedStorageVersion(value.version)) {
+    return null;
+  }
+
+  if (!Array.isArray(value.entries)) {
+    return null;
+  }
+
+  const entries = value.entries.map(normalizeProcessedSubmissionEntry);
+
+  if (entries.some((entry) => entry === null)) {
+    return null;
+  }
+
+  return {
+    version: STORAGE_SCHEMA_VERSION,
+    entries: entries as ProcessedSubmissionEntry[]
+  };
+}
+
 export function isSyncHistoryState(value: unknown): value is SyncHistoryState {
   if (!isVersionedStorageState(value)) {
     return false;
@@ -201,12 +240,54 @@ export function isSyncHistoryState(value: unknown): value is SyncHistoryState {
   return Array.isArray(value.records) && value.records.every(isSyncRecord);
 }
 
+export function parseSyncHistoryState(value: unknown): SyncHistoryState | null {
+  if (!isPlainRecord(value) || !isSupportedStorageVersion(value.version)) {
+    return null;
+  }
+
+  if (!Array.isArray(value.records)) {
+    return null;
+  }
+
+  const records = value.records.map(normalizeSyncRecord);
+
+  if (records.some((record) => record === null)) {
+    return null;
+  }
+
+  return {
+    version: STORAGE_SCHEMA_VERSION,
+    records: records as SyncRecord[]
+  };
+}
+
 export function isRetryPayloadsState(value: unknown): value is RetryPayloadsState {
   if (!isVersionedStorageState(value)) {
     return false;
   }
 
   return Array.isArray(value.payloads) && value.payloads.every(isRetryPayload);
+}
+
+export function parseRetryPayloadsState(value: unknown): RetryPayloadsState | null {
+  if (!isPlainRecord(value) || !isSupportedStorageVersion(value.version)) {
+    return null;
+  }
+
+  if (!Array.isArray(value.payloads)) {
+    return null;
+  }
+
+  const payloads = value.payloads.map(normalizeRetryPayload);
+
+  if (payloads.some((payload) => payload === null)) {
+    return null;
+  }
+
+  return {
+    version: STORAGE_SCHEMA_VERSION,
+    payloads: payloads as RetryPayload[]
+  };
 }
 
 export function isInFlightSyncLock(value: unknown): value is InFlightSyncLock {
@@ -227,6 +308,27 @@ export function isInFlightSyncsState(value: unknown): value is InFlightSyncsStat
   }
 
   return Array.isArray(value.locks) && value.locks.every(isInFlightSyncLock);
+}
+
+export function parseInFlightSyncsState(value: unknown): InFlightSyncsState | null {
+  if (!isPlainRecord(value) || !isSupportedStorageVersion(value.version)) {
+    return null;
+  }
+
+  if (!Array.isArray(value.locks)) {
+    return null;
+  }
+
+  const locks = value.locks.map(normalizeInFlightSyncLock);
+
+  if (locks.some((lock) => lock === null)) {
+    return null;
+  }
+
+  return {
+    version: STORAGE_SCHEMA_VERSION,
+    locks: locks as InFlightSyncLock[]
+  };
 }
 
 export function isConnectionStatus(value: unknown): value is ConnectionStatus {
@@ -255,4 +357,94 @@ export function isConnectionStatusCode(value: unknown): value is ConnectionStatu
     value === "rate_limited" ||
     value === "network_failed"
   );
+}
+
+function isSupportedStorageVersion(value: unknown): boolean {
+  return value === STORAGE_SCHEMA_VERSION || value === LEGACY_STORAGE_SCHEMA_VERSION;
+}
+
+function normalizeProcessedSubmissionEntry(
+  value: unknown
+): ProcessedSubmissionEntry | null {
+  if (!isPlainRecord(value)) {
+    return null;
+  }
+
+  const identity = normalizeSubmissionIdentity(value.identity);
+  const candidate = {
+    ...value,
+    identity
+  };
+
+  return isProcessedSubmissionEntry(candidate) ? candidate : null;
+}
+
+function normalizeSyncRecord(value: unknown): SyncRecord | null {
+  if (!isPlainRecord(value)) {
+    return null;
+  }
+
+  const platform = normalizePlatform(value.platform);
+  const identity =
+    value.identity === null ? null : normalizeSubmissionIdentity(value.identity, platform);
+  const candidate = {
+    ...value,
+    platform,
+    identity
+  };
+
+  return isSyncRecord(candidate) ? candidate : null;
+}
+
+function normalizeRetryPayload(value: unknown): RetryPayload | null {
+  if (!isPlainRecord(value)) {
+    return null;
+  }
+
+  const platform = normalizePlatform(value.platform);
+  const identity = normalizeSubmissionIdentity(value.identity, platform);
+  const candidate = {
+    ...value,
+    platform,
+    identity
+  };
+
+  return isRetryPayload(candidate) ? candidate : null;
+}
+
+function normalizeInFlightSyncLock(value: unknown): InFlightSyncLock | null {
+  if (!isPlainRecord(value)) {
+    return null;
+  }
+
+  const identity = normalizeSubmissionIdentity(value.identity);
+  const candidate = {
+    ...value,
+    identity
+  };
+
+  return isInFlightSyncLock(candidate) ? candidate : null;
+}
+
+function normalizeSubmissionIdentity(
+  value: unknown,
+  defaultPlatform: Platform = "leetcode"
+): SubmissionIdentity | null {
+  if (!isPlainRecord(value)) {
+    return null;
+  }
+
+  const candidate = {
+    ...value,
+    platform: normalizePlatform(value.platform, defaultPlatform)
+  };
+
+  return isSubmissionIdentity(candidate) ? candidate : null;
+}
+
+function normalizePlatform(
+  value: unknown,
+  defaultPlatform: Platform = "leetcode"
+): Platform {
+  return isPlatform(value) ? value : defaultPlatform;
 }

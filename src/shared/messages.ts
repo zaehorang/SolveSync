@@ -15,13 +15,31 @@ export interface ScaffoldReadyMessage {
   surface: ExtensionSurface;
 }
 
+export interface LeetCodeAcceptedDetectedPayload {
+  platform: "leetcode";
+  titleSlug: string;
+  pageUrl: string;
+  detectedAt: string;
+}
+
+export interface ProgrammersAcceptedDetectedPayload {
+  platform: "programmers";
+  courseId: string;
+  lessonId: string;
+  problemTitle: string;
+  language: string;
+  code: string;
+  pageUrl: string;
+  detectedAt: string;
+}
+
+export type AcceptedDetectedPayload =
+  | LeetCodeAcceptedDetectedPayload
+  | ProgrammersAcceptedDetectedPayload;
+
 export interface AcceptedDetectedMessage {
   type: "content:accepted_detected";
-  payload: {
-    titleSlug: string;
-    pageUrl: string;
-    detectedAt: string;
-  };
+  payload: AcceptedDetectedPayload;
 }
 
 export type ToastAction =

@@ -109,6 +109,7 @@ describe("LeetCode background client", () => {
       submittedAt: "2026-01-01T00:00:00.000Z",
       syncable: true,
       identity: {
+        platform: "leetcode",
         submissionId: "123456789",
         titleSlug: "two-sum",
         language: "swift"

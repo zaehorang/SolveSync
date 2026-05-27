@@ -6,11 +6,11 @@ import {
   EMPTY_SYNC_HISTORY_STATE,
   STORAGE_KEYS,
   STORAGE_SCHEMA_VERSION,
-  isInFlightSyncsState,
-  isProcessedSubmissionsState,
-  isRetryPayloadsState,
-  isSettingsState,
-  isSyncHistoryState,
+  parseInFlightSyncsState,
+  parseProcessedSubmissionsState,
+  parseRetryPayloadsState,
+  parseSettingsState,
+  parseSyncHistoryState,
   type InFlightSyncsState,
   type ProcessedSubmissionEntry,
   type ProcessedSubmissionsState,
@@ -82,7 +82,7 @@ export function createExtensionStorage(area: StorageAreaAdapter): ExtensionStora
       area,
       STORAGE_KEYS.settings,
       DEFAULT_SETTINGS_STATE,
-      isSettingsState
+      parseSettingsState
     );
   }
 
@@ -106,7 +106,7 @@ export function createExtensionStorage(area: StorageAreaAdapter): ExtensionStora
       area,
       STORAGE_KEYS.processedSubmissions,
       EMPTY_PROCESSED_SUBMISSIONS_STATE,
-      isProcessedSubmissionsState
+      parseProcessedSubmissionsState
     );
   }
 
@@ -152,7 +152,7 @@ export function createExtensionStorage(area: StorageAreaAdapter): ExtensionStora
       area,
       STORAGE_KEYS.syncHistory,
       EMPTY_SYNC_HISTORY_STATE,
-      isSyncHistoryState
+      parseSyncHistoryState
     );
   }
 
@@ -177,7 +177,7 @@ export function createExtensionStorage(area: StorageAreaAdapter): ExtensionStora
       area,
       STORAGE_KEYS.retryPayloads,
       EMPTY_RETRY_PAYLOADS_STATE,
-      isRetryPayloadsState
+      parseRetryPayloadsState
     );
   }
 
@@ -236,7 +236,7 @@ export function createExtensionStorage(area: StorageAreaAdapter): ExtensionStora
       area,
       STORAGE_KEYS.inFlightSyncs,
       EMPTY_IN_FLIGHT_SYNCS_STATE,
-      isInFlightSyncsState
+      parseInFlightSyncsState
     );
   }
 
@@ -331,12 +331,13 @@ async function readState<T>(
   area: StorageAreaAdapter,
   key: StorageKey,
   fallback: T,
-  guard: (value: unknown) => value is T
+  parse: (value: unknown) => T | null
 ): Promise<T> {
   const values = await area.get([key]);
   const value = values[key];
+  const parsed = parse(value);
 
-  return guard(value) ? cloneState(value) : cloneState(fallback);
+  return parsed !== null ? cloneState(parsed) : cloneState(fallback);
 }
 
 async function writeState<T>(
@@ -351,6 +352,7 @@ async function writeState<T>(
 function isSameIdentity(left: SubmissionIdentity, right: SubmissionIdentity): boolean {
   return (
     left.submissionId === right.submissionId &&
+    left.platform === right.platform &&
     left.titleSlug === right.titleSlug &&
     left.language === right.language
   );

@@ -6,6 +6,7 @@ import {
 import { mergeReadmeManagedBlock, renderManagedReadmeTable } from "../shared/readme";
 import { buildGitTreeFiles, type GitTreeFile } from "../shared/githubTree";
 import { buildSolutionPath } from "../shared/paths";
+import { getPlatformPolicy } from "../shared/platformPolicy";
 import { normalizeError, normalizeLeetCodeError } from "../shared/errorNormalize";
 import type { NormalizedError, NormalizedErrorCode } from "../shared/errors";
 import type {
@@ -21,8 +22,8 @@ import type {
 } from "../shared/types";
 import type { SyncHistoryState } from "../shared/storageSchema";
 import type {
-  AcceptedDetectedMessage,
-  BackgroundToContentPopupMessage
+  BackgroundToContentPopupMessage,
+  LeetCodeAcceptedDetectedPayload
 } from "../shared/messages";
 import {
   RETRY_PAYLOAD_TTL_MS,
@@ -37,8 +38,9 @@ import {
 } from "./client/github";
 import type { LatestAcceptedSubmissionResult } from "./client/leetcode";
 
-const README_PATH = "leetcode/README.md";
-const INDEX_PATH = "leetcode/.leetcode-sync/index.json";
+const LEETCODE_POLICY = getPlatformPolicy("leetcode");
+const README_PATH = LEETCODE_POLICY.readmePath;
+const INDEX_PATH = LEETCODE_POLICY.indexPath;
 
 export type SyncBroadcast = (
   message: BackgroundToContentPopupMessage,
@@ -88,7 +90,7 @@ export type RetrySyncOutcome =
 
 export interface SyncOrchestrator {
   handleAcceptedDetected(
-    payload: AcceptedDetectedMessage["payload"],
+    payload: LeetCodeAcceptedDetectedPayload,
     target?: SyncBroadcastTarget
   ): Promise<AcceptedSyncOutcome>;
   handleRetry(
@@ -119,6 +121,7 @@ interface CommitFilesBuildInput {
 
 interface RecordInput {
   status: SyncStatus;
+  platform?: SubmissionIdentity["platform"];
   titleSlug: string;
   problemTitle?: string | null;
   problemFrontendId?: string | null;
@@ -144,7 +147,7 @@ export function createSyncOrchestrator(
   const createId = options.createId ?? defaultCreateId;
 
   async function handleAcceptedDetected(
-    payload: AcceptedDetectedMessage["payload"],
+    payload: LeetCodeAcceptedDetectedPayload,
     target?: SyncBroadcastTarget
   ): Promise<AcceptedSyncOutcome> {
     const settings = await options.storage.getSettings();
@@ -609,6 +612,7 @@ export function createSyncOrchestrator(
 
     return {
       id: createId("record"),
+      platform: input.platform ?? "leetcode",
       status: input.status,
       titleSlug: input.titleSlug,
       problemTitle: input.problemTitle ?? null,
@@ -636,6 +640,7 @@ export function createSyncOrchestrator(
   ): RetryPayload {
     return {
       id: createId("retry"),
+      platform: prepared.identity.platform,
       identity: prepared.identity,
       repository: prepared.repository,
       branch: prepared.branch,
@@ -682,7 +687,7 @@ function prepareCommit(
   repository: RepositoryRef,
   branch: BranchRef
 ): PreparedCommit {
-  const solutionPath = buildSolutionPath(problem, identity.language);
+  const solutionPath = buildSolutionPath(identity.platform, problem, identity.language);
 
   return {
     identity,

@@ -36,7 +36,7 @@ describe("popup index owner repository copy", () => {
 
 function makePublicSettings(): PublicSettingsState {
   return {
-    version: 1,
+    version: 2,
     hasGithubPat: true,
     selectedRepository: {
       owner: "octo",

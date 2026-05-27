@@ -23,6 +23,10 @@ describe("error normalization", () => {
       code: "github_no_accessible_repos",
       userMessage: "No owned GitHub repositories found."
     });
+    expect(normalizeError({ code: "programmers_extract_failed" })).toMatchObject({
+      code: "programmers_extract_failed",
+      userMessage: "Could not extract the Programmers submission."
+    });
     expect(normalizeError(new MalformedIndexError("bad index")).code).toBe(
       "malformed_index"
     );

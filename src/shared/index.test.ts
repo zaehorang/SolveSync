@@ -11,7 +11,7 @@ import {
 describe("shared public barrel", () => {
   it("exports scaffold and shared contract symbols", () => {
     expect(APP_NAME).toBe("PS-LP-Sync");
-    expect(STORAGE_SCHEMA_VERSION).toBe(1);
+    expect(STORAGE_SCHEMA_VERSION).toBe(2);
     expect(NORMALIZED_ERROR_CODES).toContain("setup_required");
     expect(RUNTIME_MESSAGE_TYPES).toContain("scaffold:ready");
     expect(isSupportedLanguage("python3")).toBe(true);

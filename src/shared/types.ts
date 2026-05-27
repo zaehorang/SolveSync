@@ -2,6 +2,8 @@ import { isNormalizedError, type NormalizedError } from "./errors";
 
 export type IsoDateString = string;
 
+export type Platform = "leetcode" | "programmers";
+
 export type SupportedLanguage = "swift" | "python3";
 
 export type LeetCodeLanguage =
@@ -47,6 +49,7 @@ export interface AcceptedSubmission {
 }
 
 export interface SubmissionIdentity {
+  platform: Platform;
   submissionId: string;
   titleSlug: string;
   language: SupportedLanguage;
@@ -78,6 +81,7 @@ export type SyncStatus =
 
 export interface SyncRecord {
   id: string;
+  platform: Platform;
   status: SyncStatus;
   titleSlug: string;
   problemTitle: string | null;
@@ -99,6 +103,7 @@ export interface SyncRecord {
 
 export interface RetryPayload {
   id: string;
+  platform: Platform;
   identity: SubmissionIdentity;
   repository: RepositoryRef;
   branch: BranchRef;
@@ -116,6 +121,7 @@ export interface RetryPayload {
 
 export interface RetryPayloadSummary {
   id: string;
+  platform: Platform;
   identity: SubmissionIdentity;
   attempts: number;
   expiresAt: IsoDateString;
@@ -138,6 +144,10 @@ export function isSupportedLanguage(value: unknown): value is SupportedLanguage 
   return value === "swift" || value === "python3";
 }
 
+export function isPlatform(value: unknown): value is Platform {
+  return value === "leetcode" || value === "programmers";
+}
+
 export function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -148,6 +158,7 @@ export function isSubmissionIdentity(value: unknown): value is SubmissionIdentit
   }
 
   return (
+    isPlatform(value.platform) &&
     typeof value.submissionId === "string" &&
     typeof value.titleSlug === "string" &&
     isSupportedLanguage(value.language)
@@ -217,6 +228,7 @@ export function isSyncRecord(value: unknown): value is SyncRecord {
 
   return (
     typeof value.id === "string" &&
+    isPlatform(value.platform) &&
     isSyncStatus(value.status) &&
     typeof value.titleSlug === "string" &&
     (typeof value.problemTitle === "string" || value.problemTitle === null) &&
@@ -244,6 +256,7 @@ export function isRetryPayload(value: unknown): value is RetryPayload {
 
   return (
     typeof value.id === "string" &&
+    isPlatform(value.platform) &&
     isSubmissionIdentity(value.identity) &&
     isRepositoryRef(value.repository) &&
     isBranchRef(value.branch) &&

@@ -162,6 +162,7 @@ function makeRecord(overrides: Partial<SyncRecord> = {}): SyncRecord {
 
   return {
     id: "record-1",
+    platform: "leetcode",
     status: "synced",
     titleSlug: "two-sum",
     problemTitle: "Two Sum",
@@ -169,6 +170,7 @@ function makeRecord(overrides: Partial<SyncRecord> = {}): SyncRecord {
     language: "Swift",
     supportedLanguage: "swift",
     identity: {
+      platform: "leetcode",
       submissionId: "123",
       titleSlug: "two-sum",
       language: "swift"
@@ -191,7 +193,9 @@ function makeRecord(overrides: Partial<SyncRecord> = {}): SyncRecord {
 function makeRetryPayloadSummary(id: string): RetryPayloadSummary {
   return {
     id,
+    platform: "leetcode",
     identity: {
+      platform: "leetcode",
       submissionId: "123",
       titleSlug: "two-sum",
       language: "swift"
@@ -216,7 +220,7 @@ function makeError(
 
 function makePublicSettings(): PublicSettingsState {
   return {
-    version: 1,
+    version: 2,
     hasGithubPat: true,
     selectedRepository: repository,
     selectedBranch: {

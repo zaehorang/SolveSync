@@ -1,7 +1,7 @@
 # Architecture Decision Records
 
 ## 철학
-PS-LP-Sync는 안정적인 개인 워크플로우를 먼저 최적화한다. 확장은 로컬에서 간단히 설치할 수 있어야 하고, 보안 tradeoff를 명확히 알려야 하며, LeetCode나 GitHub API 변경이 생겨도 영향 범위가 좁아야 한다.
+PS-LP-Sync는 안정적인 개인 워크플로우를 먼저 최적화한다. 확장은 로컬에서 간단히 설치할 수 있어야 하고, 보안 tradeoff를 명확히 알려야 하며, LeetCode, Programmers, GitHub 변경이 생겨도 영향 범위가 좁아야 한다.
 
 ---
 
@@ -41,12 +41,12 @@ PS-LP-Sync는 안정적인 개인 워크플로우를 먼저 최적화한다. 확
 
 ---
 
-### ADR-005: DOM 감지와 LeetCode API 조회 결합
-**결정**: DOM 관찰로 Accepted 이벤트를 감지하고, 실제 submission 상세는 LeetCode GraphQL 우선 API client로 가져온다.
+### ADR-005: DOM 감지와 플랫폼별 source 조회 결합
+**결정**: DOM 관찰로 Accepted 이벤트를 감지하고, 실제 sync source는 플랫폼별 adapter에서 확정한다. LeetCode는 GraphQL 우선 API client로 submission 상세를 가져오고, Programmers는 Accepted 직후 현재 문제 페이지의 editor snapshot을 사용한다.
 
-**이유**: DOM은 사용자가 보는 결과 이벤트 감지에 적합하고, API는 정확한 code, language, submission id, problem metadata를 얻는 데 적합하다.
+**이유**: DOM은 사용자가 보는 결과 이벤트 감지에 적합하다. LeetCode는 API로 정확한 code, language, submission id, problem metadata를 얻을 수 있다. Programmers는 공식 제출 상세 API를 전제로 하지 않고, 사용자가 Accepted를 받은 현재 editor 상태를 source로 삼는 편이 v1 local extension 범위에 맞다.
 
-**트레이드오프**: LeetCode internal API는 안정성이 보장되지 않으므로 client 코드를 격리하고 변경에 대응해야 한다.
+**트레이드오프**: LeetCode internal API와 Programmers DOM/editor 구조 모두 안정성이 보장되지 않는다. API client와 DOM/editor snapshot 코드를 각각 격리하고 실제 브라우저 수동 검증으로 보완해야 한다.
 
 ---
 
@@ -68,21 +68,21 @@ PS-LP-Sync는 안정적인 개인 워크플로우를 먼저 최적화한다. 확
 
 ---
 
-### ADR-008: Index file을 README source of truth로 사용
-**결정**: LeetCode sync metadata는 `leetcode/.leetcode-sync/index.json`에 저장하고 `leetcode/README.md`는 이 index에서 생성한다.
+### ADR-008: Platform index file을 README source of truth로 사용
+**결정**: 플랫폼별 sync metadata는 각 플랫폼 index에 저장하고 플랫폼 README는 해당 index에서 생성한다. LeetCode는 `leetcode/.leetcode-sync/index.json`, Programmers는 `programmers/.programmers-sync/index.json`을 사용한다.
 
 **이유**: README table을 상태로 파싱하는 방식은 깨지기 쉽다. 구조화된 index를 두면 README 생성이 결정적이고 복구 가능하다.
 
-**트레이드오프**: 대상 저장소의 플랫폼 폴더 안에 추가 metadata file이 생긴다.
+**트레이드오프**: 대상 저장소의 각 플랫폼 폴더 안에 추가 metadata file이 생긴다.
 
 ---
 
 ### ADR-009: Swift solution은 Xcode build folder 밖에 저장
-**결정**: 대상 저장소에서 Swift LeetCode 풀이는 `leetcode/swift`에 저장한다.
+**결정**: 대상 저장소에서 Swift 풀이는 플랫폼별 풀이 폴더인 `leetcode/swift` 또는 `programmers/swift`에 저장한다.
 
-**이유**: 검증 대상 저장소의 `swift/SwiftAlgorithm`은 Xcode build target에 동기화된다. LeetCode 파일은 흔히 `Solution` class와 플랫폼별 helper type을 정의하므로 한 모듈로 컴파일되면 충돌할 수 있다.
+**이유**: 검증 대상 저장소의 `swift/SwiftAlgorithm`은 Xcode build target에 동기화된다. 온라인 저지 풀이 파일은 흔히 `Solution` 함수/class와 플랫폼별 helper type을 정의하므로 한 모듈로 컴파일되면 충돌할 수 있다.
 
-**트레이드오프**: Swift LeetCode 풀이는 Xcode project source folder 내부가 아니라 플랫폼 기준 풀이 폴더에 저장된다.
+**트레이드오프**: Swift 풀이는 Xcode project source folder 내부가 아니라 플랫폼 기준 풀이 폴더에 저장된다.
 
 ---
 
@@ -96,7 +96,7 @@ PS-LP-Sync는 안정적인 개인 워크플로우를 먼저 최적화한다. 확
 ---
 
 ### ADR-011: 외부 API client는 background에 둔다
-**결정**: LeetCode와 GitHub API 실행 코드는 `src/background/client` 아래에 둔다. `src/shared`는 타입, 순수 함수, request payload builder, error normalization만 제공한다.
+**결정**: LeetCode와 GitHub API 실행 코드는 `src/background/client` 아래에 둔다. Programmers는 현재 페이지 snapshot 기반이므로 content platform adapter에서 수집하고, background에서는 platform source resolver가 공통 sync source로 변환한다. `src/shared`는 타입, 순수 함수, request payload builder, error normalization만 제공한다.
 
 **이유**: content script와 UI가 외부 API 세부사항을 알면 권한, 보안, 장애 처리가 여러 계층으로 퍼진다. Background service worker를 orchestration owner로 두면 API 변경 영향이 좁아진다.
 
@@ -114,7 +114,7 @@ PS-LP-Sync는 안정적인 개인 워크플로우를 먼저 최적화한다. 확
 ---
 
 ### ADR-013: README는 v1에서 항상 갱신한다
-**결정**: v1은 solution file, `leetcode/.leetcode-sync/index.json`, `leetcode/README.md`를 항상 같은 GitHub commit에 포함한다. README 갱신을 끄는 UI나 설정은 제공하지 않는다.
+**결정**: v1은 solution file, platform index, platform README를 항상 같은 GitHub commit에 포함한다. README 갱신을 끄는 UI나 설정은 제공하지 않는다.
 
 **이유**: README가 index의 projection이라는 규칙을 단순하게 유지해야 sync 결과를 예측하기 쉽다. Toggle을 두면 README와 index가 의도적으로 불일치하는 상태가 생긴다.
 
@@ -123,7 +123,7 @@ PS-LP-Sync는 안정적인 개인 워크플로우를 먼저 최적화한다. 확
 ---
 
 ### ADR-023: 대상 저장소는 플랫폼 기준 폴더를 우선한다
-**결정**: 대상 저장소의 풀이 구조는 `leetcode`, `programmers` 같은 플랫폼 폴더를 먼저 두고, 각 플랫폼 내부를 `swift`, `python` 같은 언어 폴더로 나눈다. v1 자동 sync는 `leetcode`만 갱신하고 Programmers 자동 sync는 v2 후보로 둔다.
+**결정**: 대상 저장소의 풀이 구조는 `leetcode`, `programmers` 같은 플랫폼 폴더를 먼저 두고, 각 플랫폼 내부를 `swift`, `python` 같은 언어 폴더로 나눈다. v1 자동 sync는 LeetCode와 Programmers 플랫폼 폴더를 모두 갱신할 수 있다.
 
 **이유**: 사용자의 문제 풀이 저장소는 플랫폼별 진행 현황과 README를 따로 보는 편이 자연스럽다. Swift 풀이도 Xcode build source folder와 분리해야 하므로 플랫폼 기준 루트 폴더가 더 안전하다.
 
@@ -168,11 +168,11 @@ PS-LP-Sync는 안정적인 개인 워크플로우를 먼저 최적화한다. 확
 ---
 
 ### ADR-018: 최소 host permission만 요청한다
-**결정**: v1 manifest는 `storage`, `https://leetcode.com/*`, `https://api.github.com/*`, `https://leetcode.com/problems/*` content script match로 제한한다.
+**결정**: v1 manifest는 `storage`, `https://leetcode.com/*`, `https://school.programmers.co.kr/*`, `https://api.github.com/*`, LeetCode/Programmers 문제 페이지 content script match로 제한한다.
 
 **이유**: 개인용 local extension이라도 PAT와 solution code를 다루므로 권한 범위를 좁게 유지해야 한다.
 
-**트레이드오프**: 다른 LeetCode domain이나 플랫폼은 v1에서 동작하지 않는다.
+**트레이드오프**: 다른 LeetCode domain, Programmers domain, 다른 문제 플랫폼은 v1에서 동작하지 않는다.
 
 ---
 
@@ -195,11 +195,11 @@ PS-LP-Sync는 안정적인 개인 워크플로우를 먼저 최적화한다. 확
 ---
 
 ### ADR-021: Accepted 감지는 mutation 범위의 bounded text traversal을 사용한다
-**결정**: Content script는 LeetCode DOM class selector나 페이지 전체 텍스트 scan 대신, `MutationObserver`가 전달한 변경 node 범위 안에서 제한된 leaf text 후보를 검사해 Accepted 이벤트를 감지한다.
+**결정**: Content script는 플랫폼 DOM class selector나 페이지 전체 텍스트 scan 대신, `MutationObserver`가 전달한 변경 node 범위 안에서 제한된 leaf text 후보를 검사해 Accepted 이벤트를 감지한다.
 
-**이유**: LeetCode 결과 panel은 Accepted 상태, runtime, memory, code, 추천 문제 텍스트를 큰 container 안에 함께 렌더링할 수 있다. 큰 container의 전체 `textContent`를 판정하면 길이 제한이나 generic 문구 때문에 Accepted를 놓치거나 오탐할 수 있다. Class name과 layout도 안정적인 계약으로 보기 어렵다.
+**이유**: LeetCode와 Programmers 결과 UI는 성공 상태, runtime, memory, code, 링크, 추천 문제 텍스트를 큰 container 안에 함께 렌더링할 수 있다. 큰 container의 전체 `textContent`를 판정하면 길이 제한이나 generic 문구 때문에 Accepted를 놓치거나 오탐할 수 있다. Class name과 layout도 안정적인 계약으로 보기 어렵다.
 
-**트레이드오프**: DOM 텍스트 패턴 변화에는 여전히 영향을 받는다. 대신 `Accepted n / n testcases passed` 같은 짧은 결과 문구를 우선 감지하고, detector 단위 테스트와 실제 브라우저 수동 검증으로 보완한다.
+**트레이드오프**: DOM 텍스트 패턴 변화에는 여전히 영향을 받는다. 대신 LeetCode는 `Accepted n / n testcases passed`, Programmers는 `정답입니다!` 같은 짧은 결과 문구를 우선 감지하고, detector 단위 테스트와 실제 브라우저 수동 검증으로 보완한다.
 
 ---
 
@@ -208,4 +208,13 @@ PS-LP-Sync는 안정적인 개인 워크플로우를 먼저 최적화한다. 확
 
 **이유**: MV3 background service worker는 module로 실행할 수 있지만, manifest `content_scripts`로 주입되는 script는 classic script로 로드된다. Multi-entry Vite build가 shared chunk를 만들면 content entry에 `import`가 남아 Chrome에서 `Cannot use import statement outside a module` 오류로 content script가 실행되지 않는다.
 
-**트레이드오프**: build step이 둘로 나뉘고 content bundle이 shared code를 중복 포함할 수 있다. 대신 LeetCode page에서 content script가 확실히 실행되고, bundle 회귀를 build verification으로 빠르게 잡을 수 있다.
+**트레이드오프**: build step이 둘로 나뉘고 content bundle이 shared code를 중복 포함할 수 있다. 대신 문제 페이지에서 content script가 확실히 실행되고, bundle 회귀를 build verification으로 빠르게 잡을 수 있다.
+
+---
+
+### ADR-024: Platform-specific source adapter와 shared sync core를 분리한다
+**결정**: Accepted 감지, metadata/source 수집, 사이트별 parsing은 platform adapter에 둔다. GitHub commit, storage, retry, history, README/index merge는 shared sync core에서 처리한다.
+
+**이유**: LeetCode와 Programmers는 code source가 다르지만 GitHub에 commit하고 상태를 복구하는 제품 로직은 같다. 공통 core와 platform adapter를 분리하면 중복을 줄이면서 사이트 변경 영향 범위를 좁힐 수 있다.
+
+**트레이드오프**: `platform` 필드와 platform policy layer가 추가되어 타입과 migration 작업이 늘어난다. 대신 새 플랫폼 추가 시 GitHub, storage, retry 로직을 다시 만들지 않아도 된다.

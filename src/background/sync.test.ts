@@ -372,6 +372,7 @@ const problem: ProblemMetadata = {
 };
 
 const identity: SubmissionIdentity = {
+  platform: "leetcode",
   submissionId: "123456789",
   titleSlug: "two-sum",
   language: "swift"
@@ -379,6 +380,7 @@ const identity: SubmissionIdentity = {
 
 function makeAcceptedDetected() {
   return {
+    platform: "leetcode" as const,
     titleSlug: "two-sum",
     pageUrl: "https://leetcode.com/problems/two-sum/",
     detectedAt: "2026-01-01T00:00:00.000Z"
@@ -420,6 +422,7 @@ function unsupportedAcceptedSubmission(): LatestAcceptedSubmissionResult {
 function makeRetryPayload(id: string): RetryPayload {
   return {
     id,
+    platform: "leetcode",
     identity,
     repository,
     branch,

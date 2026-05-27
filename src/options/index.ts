@@ -232,6 +232,7 @@ export function mapConnectionErrorCode(
     case "unsupported_language":
     case "leetcode_auth_required":
     case "leetcode_fetch_failed":
+    case "programmers_extract_failed":
     case "malformed_index":
       return "branch_create_failed";
   }

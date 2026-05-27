@@ -70,6 +70,37 @@ describe("background extension storage", () => {
     expect(await storage.listProcessedSubmissions()).toHaveLength(1);
   });
 
+  it("migrates legacy processed identities before duplicate checks", async () => {
+    const area = createMemoryStorageArea({
+      [STORAGE_KEYS.processedSubmissions]: {
+        version: 1,
+        entries: [
+          {
+            identity: {
+              submissionId: "submission-1",
+              titleSlug: "two-sum",
+              language: "swift"
+            },
+            processedAt: "2026-01-01T00:00:00.000Z",
+            commitSha: "commit-sha-1",
+            solutionPath: "leetcode/swift/0001_two_sum.swift"
+          }
+        ]
+      }
+    });
+    const storage = createExtensionStorage(area);
+
+    expect(await storage.isProcessed(makeIdentity("submission-1"))).toBe(true);
+    await expect(storage.listProcessedSubmissions()).resolves.toEqual([
+      {
+        identity: makeIdentity("submission-1"),
+        processedAt: "2026-01-01T00:00:00.000Z",
+        commitSha: "commit-sha-1",
+        solutionPath: "leetcode/swift/0001_two_sum.swift"
+      }
+    ]);
+  });
+
   it("keeps only the latest 20 sync history records", async () => {
     const storage = createExtensionStorage(createMemoryStorageArea());
 
@@ -244,6 +275,7 @@ const problem: ProblemMetadata = {
 
 function makeIdentity(submissionId: string): SubmissionIdentity {
   return {
+    platform: "leetcode",
     submissionId,
     titleSlug: "two-sum",
     language: "swift"
@@ -255,6 +287,7 @@ function makeSyncRecord(index: number): SyncRecord {
 
   return {
     id: `record-${index}`,
+    platform: "leetcode",
     status: "synced",
     titleSlug: "two-sum",
     problemTitle: "Two Sum",
@@ -278,6 +311,7 @@ function makeSyncRecord(index: number): SyncRecord {
 function makeRetryPayload(id: string, createdAt: string): RetryPayload {
   return {
     id,
+    platform: "leetcode",
     identity: makeIdentity(id),
     repository,
     branch,

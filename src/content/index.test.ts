@@ -13,6 +13,7 @@ describe("content runtime wiring helpers", () => {
     expect(message).toEqual({
       type: "content:accepted_detected",
       payload: {
+        platform: "leetcode",
         titleSlug: "two-sum",
         pageUrl: "https://leetcode.com/problems/two-sum/",
         detectedAt: "2026-01-01T00:00:00.000Z"

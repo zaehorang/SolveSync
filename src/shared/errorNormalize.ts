@@ -27,6 +27,10 @@ const ERROR_DESCRIPTORS = {
     userMessage: "Could not read the LeetCode submission.",
     retryable: true
   },
+  programmers_extract_failed: {
+    userMessage: "Could not extract the Programmers submission.",
+    retryable: false
+  },
   github_auth_failed: {
     userMessage: "GitHub authentication failed.",
     retryable: false

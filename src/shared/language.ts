@@ -1,10 +1,25 @@
-import type { LeetCodeLanguage, SubmissionIdentity, SupportedLanguage } from "./types";
+import type {
+  LeetCodeLanguage,
+  Platform,
+  SubmissionIdentity,
+  SupportedLanguage
+} from "./types";
 import { isSupportedLanguage } from "./types";
 
 export interface BuildSubmissionIdentityInput {
+  platform?: Platform;
   submissionId: string;
   titleSlug: string;
   language: LeetCodeLanguage | SupportedLanguage | string;
+}
+
+export class UnsupportedLanguageError extends Error {
+  readonly code = "unsupported_language";
+
+  constructor(rawLanguage: string) {
+    super(`Unsupported language: ${rawLanguage}`);
+    this.name = "UnsupportedLanguageError";
+  }
 }
 
 export class UnsupportedLeetCodeLanguageError extends Error {
@@ -17,6 +32,14 @@ export class UnsupportedLeetCodeLanguageError extends Error {
 }
 
 export function mapLeetCodeLanguage(raw: string): SupportedLanguage | null {
+  return mapSupportedLanguage(raw);
+}
+
+export function mapProgrammersLanguage(raw: string): SupportedLanguage | null {
+  return mapSupportedLanguage(raw);
+}
+
+export function mapSupportedLanguage(raw: string): SupportedLanguage | null {
   const normalized = raw.trim().toLowerCase().replace(/[\s_-]+/g, "");
 
   if (normalized === "swift") {
@@ -35,13 +58,14 @@ export function buildSubmissionIdentity(
 ): SubmissionIdentity {
   const language = isSupportedLanguage(input.language)
     ? input.language
-    : mapLeetCodeLanguage(input.language);
+    : mapSupportedLanguage(input.language);
 
   if (language === null) {
     throw new UnsupportedLeetCodeLanguageError(input.language);
   }
 
   return {
+    platform: input.platform ?? "leetcode",
     submissionId: input.submissionId,
     titleSlug: input.titleSlug,
     language

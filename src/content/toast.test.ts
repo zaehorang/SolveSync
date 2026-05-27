@@ -81,6 +81,7 @@ describe("content toast model", () => {
 function makeRecord(overrides: Partial<SyncRecord>): SyncRecord {
   return {
     id: "record-1",
+    platform: "leetcode",
     status: "syncing",
     titleSlug: "two-sum",
     problemTitle: "Two Sum",
@@ -88,6 +89,7 @@ function makeRecord(overrides: Partial<SyncRecord>): SyncRecord {
     language: "Swift",
     supportedLanguage: "swift",
     identity: {
+      platform: "leetcode",
       submissionId: "123",
       titleSlug: "two-sum",
       language: "swift"

@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import { createEmptyIndex, mergeIndexEntry } from "./indexFile";
 import {
+  PROGRAMMERS_README_TABLE_END_MARKER,
+  PROGRAMMERS_README_TABLE_START_MARKER,
   README_TABLE_END_MARKER,
   README_TABLE_START_MARKER,
   buildInitialReadme,
@@ -97,5 +99,51 @@ describe("README managed block", () => {
     expect(readme).toContain(README_TABLE_START_MARKER);
     expect(readme).toContain(README_TABLE_END_MARKER);
     expect(mergeReadmeManagedBlock(null, "table")).toBe(readme);
+  });
+
+  it("uses Programmers markers and relative solution links when policy is provided", () => {
+    const programmersIndex = mergeIndexEntry(
+      createEmptyIndex(),
+      {
+        problemId: "120804",
+        frontendId: "120804",
+        title: "두 수의 곱 구하기",
+        titleSlug: "120804",
+        difficulty: "-",
+        url: "https://school.programmers.co.kr/learn/courses/30/lessons/120804",
+        submissionId: "programmers:120804:swift:abc",
+        language: "swift"
+      },
+      "programmers/swift/120804_두_수의_곱_구하기.swift",
+      "2026-05-27T04:05:00.000Z"
+    );
+    const table = renderManagedReadmeTable(programmersIndex, "programmers");
+    const readme = buildInitialReadme(table, "programmers");
+
+    expect(table).toContain("| 120804 | 두 수의 곱 구하기 | - |");
+    expect(table).toContain("[Swift](swift/120804_두_수의_곱_구하기.swift)");
+    expect(readme).toContain("# Programmers Solutions");
+    expect(readme).toContain(PROGRAMMERS_README_TABLE_START_MARKER);
+    expect(readme).toContain(PROGRAMMERS_README_TABLE_END_MARKER);
+  });
+
+  it("replaces only the Programmers marker block", () => {
+    const merged = mergeReadmeManagedBlock(
+      [
+        "# Custom",
+        README_TABLE_START_MARKER,
+        "leetcode table",
+        README_TABLE_END_MARKER,
+        PROGRAMMERS_README_TABLE_START_MARKER,
+        "old programmers table",
+        PROGRAMMERS_README_TABLE_END_MARKER
+      ].join("\n"),
+      "new programmers table",
+      "programmers"
+    );
+
+    expect(merged).toContain("leetcode table");
+    expect(merged).not.toContain("old programmers table");
+    expect(merged).toContain("new programmers table");
   });
 });

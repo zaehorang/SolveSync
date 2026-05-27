@@ -38,6 +38,34 @@ describe("runtime message contracts", () => {
     );
   });
 
+  it("supports platform-discriminated accepted detected messages", () => {
+    const leetcodeMessage: RuntimeMessage = {
+      type: "content:accepted_detected",
+      payload: {
+        platform: "leetcode",
+        titleSlug: "two-sum",
+        pageUrl: "https://leetcode.com/problems/two-sum/",
+        detectedAt: "2026-01-01T00:00:00.000Z"
+      }
+    };
+    const programmersMessage: RuntimeMessage = {
+      type: "content:accepted_detected",
+      payload: {
+        platform: "programmers",
+        courseId: "30",
+        lessonId: "120804",
+        problemTitle: "두 수의 곱 구하기",
+        language: "Swift",
+        code: "import Foundation\n",
+        pageUrl: "https://school.programmers.co.kr/learn/courses/30/lessons/120804",
+        detectedAt: "2026-01-01T00:00:00.000Z"
+      }
+    };
+
+    expect(isRuntimeMessage(leetcodeMessage)).toBe(true);
+    expect(isRuntimeMessage(programmersMessage)).toBe(true);
+  });
+
   it("rejects runtime messages with secret-bearing payload keys", () => {
     const unsafeMessage = {
       type: "settings:write",

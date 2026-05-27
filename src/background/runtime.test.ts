@@ -54,6 +54,7 @@ describe("background runtime", () => {
       {
         type: "content:accepted_detected",
         payload: {
+          platform: "leetcode",
           titleSlug: "two-sum",
           pageUrl: "https://leetcode.com/problems/two-sum/",
           detectedAt: "2026-01-01T00:00:00.000Z"
@@ -161,6 +162,7 @@ function makeOrchestrator(): SyncOrchestrator {
   const duplicateOutcome = {
     kind: "duplicate_in_flight" as const,
     identity: {
+      platform: "leetcode" as const,
       submissionId: "123456789",
       titleSlug: "two-sum",
       language: "swift" as const
@@ -176,7 +178,9 @@ function makeOrchestrator(): SyncOrchestrator {
 function makeRetryPayload(id: string): RetryPayload {
   return {
     id,
+    platform: "leetcode",
     identity: {
+      platform: "leetcode",
       submissionId: "123456789",
       titleSlug: "two-sum",
       language: "swift"

@@ -4,6 +4,7 @@ export const NORMALIZED_ERROR_CODES = [
   "unsupported_language",
   "leetcode_auth_required",
   "leetcode_fetch_failed",
+  "programmers_extract_failed",
   "github_auth_failed",
   "github_token_expired",
   "github_no_accessible_repos",
