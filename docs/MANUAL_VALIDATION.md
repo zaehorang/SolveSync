@@ -6,8 +6,9 @@
 - Chrome에서 Developer mode를 켤 수 있다.
 - LeetCode에 로그인되어 있다.
 - GitHub fine-grained PAT가 준비되어 있다.
-- PAT는 대상 저장소만 선택하고 Contents read/write 권한을 가진다.
-- 대상 branch 이름을 알고 있다. 기본값은 `main`이다.
+- PAT는 검증 대상 저장소를 선택하고 Metadata read, Contents read/write 권한을 가진다.
+- 검증 대상은 repository picker에서 선택한다. 권장 수동 검증 repository는 `zaehorang/Swift_Algorithm`이다.
+- 실제 풀이 기록 branch를 오염시키지 않기 위해 `leetcode-sync-test` branch를 사용한다. 이 branch는 Options의 Create branch action으로 생성할 수 있다.
 
 ## Build와 Load
 1. 저장소 루트에서 build를 실행한다.
@@ -27,19 +28,24 @@ npm run build
 3. toast의 Options action으로 Options page를 열 수 있는지 확인한다.
 
 ## GitHub Connection Flow
-1. Options page에서 PAT, owner, repo, branch를 입력한다.
-2. connection test를 실행한다.
-3. 성공 시 Connected 상태가 표시되는지 확인한다.
-4. 잘못된 PAT로 Auth failed 또는 Token expired에 해당하는 상태가 표시되는지 확인한다.
-5. 잘못된 repo나 branch로 Repository not found 또는 Branch not found가 표시되는지 확인한다.
-6. 설정 저장 후 Options를 다시 열어 값이 유지되는지 확인한다.
+1. Options page에서 PAT를 입력한다.
+2. Load repositories를 실행한다.
+3. `zaehorang/Swift_Algorithm` 또는 검증 대상 repository가 목록에 표시되는지 확인한다.
+4. repository를 선택한 뒤 branch 목록이 표시되는지 확인한다.
+5. `leetcode-sync-test` branch가 없으면 Create branch action으로 생성한다.
+6. connection test를 실행한다.
+7. 성공 시 Connected 상태가 표시되는지 확인한다.
+8. 잘못된 PAT로 Auth failed 또는 Token expired에 해당하는 상태가 표시되는지 확인한다.
+9. 접근 가능한 repository가 없는 PAT로 No accessible repositories 상태가 표시되는지 확인한다.
+10. 잘못된 branch 상태로 Branch not found 또는 Branch create failed에 해당하는 상태가 표시되는지 확인한다.
+11. 설정 저장 후 Options를 다시 열어 선택한 repository와 branch가 유지되는지 확인한다.
 
 ## Successful Sync Flow
 1. Auto Sync를 켠다.
 2. LeetCode에서 Swift 또는 Python3로 Accepted 제출을 만든다.
 3. toast가 Syncing에서 Synced로 바뀌는지 확인한다.
 4. toast 또는 Popup history에서 commit link와 file link를 확인한다.
-5. GitHub 대상 저장소에서 solution file, `README.md`, `.leetcode-sync/index.json`이 같은 commit에 포함되었는지 확인한다.
+5. GitHub 대상 repository의 선택한 branch에서 solution file, `README.md`, `.leetcode-sync/index.json`이 같은 commit에 포함되었는지 확인한다.
 6. 같은 submission이 다시 감지되어도 중복 commit이 생기지 않는지 확인한다.
 
 ## Same Problem Update Flow

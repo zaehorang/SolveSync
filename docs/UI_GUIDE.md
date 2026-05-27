@@ -19,15 +19,16 @@ PS-LP-Sync의 사용자 화면은 세 가지다.
 - 프로젝트 제목과 한 줄 설명.
 - GitHub connection settings.
 - Fine-grained PAT checklist.
+- Repository picker.
+- Branch picker와 branch create action.
 - Connection test result.
 - Security disclosure.
 - Save controls.
 
 필수 field:
 - GitHub PAT input. 기본은 masked display다.
-- Owner input. 설정이 없으면 `zaehorang`을 기본값으로 사용한다.
-- Repository input. 설정이 없으면 `Swift_Algorithm`을 기본값으로 사용한다.
-- Branch input. 설정이 없으면 `main`을 기본값으로 사용한다.
+- Repository picker. 설정이 없으면 비어 있고, PAT 입력 후 접근 가능한 repository 목록에서 선택한다.
+- Branch picker. repository 선택 전에는 disabled 상태이며, repository 선택 후 branch 목록에서 선택한다. 기본 선택값은 repository default branch다.
 - Auto Sync enabled checkbox 또는 switch.
 
 PAT checklist는 다음 내용을 포함해야 한다.
@@ -36,6 +37,20 @@ PAT checklist는 다음 내용을 포함해야 한다.
 - Contents read/write 권한을 부여한다.
 - Metadata는 GitHub가 제공하는 read-only 기본 권한을 사용한다.
 - 사용자가 감당할 수 있는 만료일을 설정한다.
+
+Repository picker:
+- PAT 입력 후 Load repositories action을 제공한다.
+- 목록은 입력된 PAT로 접근 가능한 repository만 보여준다.
+- 목록이 비어 있으면 token의 selected repository 권한을 확인하라는 상태를 보여준다.
+- 목록이 길 수 있으므로 검색 가능한 UI를 제공한다.
+- repository를 자동 선택하지 않는다.
+
+Branch picker:
+- repository 선택 후 branch 목록을 불러온다.
+- repository default branch를 기본 선택값으로 표시한다.
+- 원하는 branch가 없으면 Create branch action을 제공한다.
+- Create branch는 사용자가 명시적으로 실행한 경우에만 동작한다.
+- branch 생성 실패 시 원인과 다음 행동을 보여준다.
 
 Security disclosure는 다음을 명시해야 한다.
 - PAT는 Chrome extension local storage에 저장된다.
@@ -48,8 +63,11 @@ Connection test 상태:
 - Not tested.
 - Testing.
 - Connected.
+- No accessible repositories.
 - Repository not found.
 - Branch not found.
+- Branch created.
+- Branch create failed.
 - Auth failed.
 - Token expired.
 - Rate limited.

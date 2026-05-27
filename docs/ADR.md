@@ -80,7 +80,7 @@ PS-LP-Sync는 안정적인 개인 워크플로우를 먼저 최적화한다. 확
 ### ADR-009: Swift solution은 Xcode build folder 밖에 저장
 **결정**: 대상 저장소에서 Swift LeetCode 풀이는 `swift/leetcode`에 저장한다.
 
-**이유**: 기본 대상 저장소의 `swift/SwiftAlgorithm`은 Xcode build target에 동기화된다. LeetCode 파일은 흔히 `Solution` class와 플랫폼별 helper type을 정의하므로 한 모듈로 컴파일되면 충돌할 수 있다.
+**이유**: 검증 대상 저장소의 `swift/SwiftAlgorithm`은 Xcode build target에 동기화된다. LeetCode 파일은 흔히 `Solution` class와 플랫폼별 helper type을 정의하므로 한 모듈로 컴파일되면 충돌할 수 있다.
 
 **트레이드오프**: Swift LeetCode 풀이는 Xcode project source folder 내부가 아니라 인접한 언어별 풀이 폴더에 저장된다.
 
@@ -164,3 +164,21 @@ PS-LP-Sync는 안정적인 개인 워크플로우를 먼저 최적화한다. 확
 **이유**: 개인용 local extension이라도 PAT와 solution code를 다루므로 권한 범위를 좁게 유지해야 한다.
 
 **트레이드오프**: 다른 LeetCode domain이나 플랫폼은 v1에서 동작하지 않는다.
+
+---
+
+### ADR-019: 대상 repository와 branch는 사용자가 선택한다
+**결정**: v1은 특정 GitHub repository를 코드 기본값으로 고정하지 않는다. 사용자가 fine-grained PAT를 입력하면 확장은 PAT로 접근 가능한 repository 목록을 보여주고, 사용자가 repository와 branch를 선택한다.
+
+**이유**: 개인 검증 대상은 `zaehorang/Swift_Algorithm`일 수 있지만, 확장 제품은 다른 repository나 다른 사용자의 GitHub 계정에서도 동작해야 한다. 설정 가능한 owner/repo 입력보다 picker를 제공하면 selected repository 권한과 실제 접근 가능 상태를 사용자가 더 명확히 확인할 수 있다.
+
+**트레이드오프**: Options 구현에 repository list, branch list, empty list, pagination, branch create 실패 처리가 추가된다.
+
+---
+
+### ADR-020: Branch 생성은 명시적 사용자 action으로만 수행한다
+**결정**: 선택한 repository에 원하는 branch가 없으면 확장이 자동으로 생성하지 않는다. Options의 Create branch action을 사용자가 명시적으로 실행한 경우에만 repository default branch HEAD에서 새 branch ref를 생성한다.
+
+**이유**: branch 이름 오타로 불필요한 branch가 생기는 것을 막고, GitHub write 동작을 사용자의 명확한 의사와 연결하기 위해서다.
+
+**트레이드오프**: 첫 설정 때 branch가 없으면 사용자가 한 번 더 action을 실행해야 한다. Empty repository나 default branch 조회 실패 같은 branch 생성 불가 상태를 UI에서 설명해야 한다.
