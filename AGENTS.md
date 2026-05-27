@@ -1,23 +1,88 @@
-# 프로젝트: {프로젝트명}
+# PS-LP-Sync 작업 지침
+
+PS-LP-Sync는 LeetCode에서 Accepted 된 풀이를 GitHub 문제 풀이 저장소로 자동 커밋하는 Chrome 확장 프로젝트다.
+
+## 제품 범위
+- v1은 개인 사용용 local unpacked Chrome extension이다.
+- v1은 LeetCode의 Swift, Python3 제출만 지원한다.
+- v1은 Accepted 된 풀이를 설정된 GitHub 저장소로 동기화한다. 기본 대상 저장소는 `zaehorang/Swift_Algorithm`이다.
+- Chrome Web Store 배포, GitHub OAuth, Swift/Python3 외 언어 지원은 v1 범위가 아니다.
 
 ## 기술 스택
-- {프레임워크 (예: Next.js 15)}
-- {언어 (예: TypeScript strict mode)}
-- {스타일링 (예: Tailwind CSS)}
+- Chrome Extension Manifest V3.
+- TypeScript strict mode.
+- Vite 기반 확장 번들링.
+- npm 패키지 관리.
+- Vitest 단위 테스트.
+- Options, Popup, Toast UI는 Vanilla HTML/CSS/TypeScript로 작성한다.
 
 ## 아키텍처 규칙
-- CRITICAL: {절대 지켜야 할 규칙 1 (예: 모든 API 로직은 app/api/ 라우트 핸들러에서만 처리)}
-- CRITICAL: {절대 지켜야 할 규칙 2 (예: 클라이언트 컴포넌트에서 직접 외부 API를 호출하지 말 것)}
-- {일반 규칙 (예: 컴포넌트는 components/ 폴더에, 타입은 types/ 폴더에 분리)}
+- 이 저장소는 standalone extension 제품이므로 소스 코드는 루트의 `src/` 아래에 둔다.
+- 런타임 모듈은 다음 책임으로 분리한다.
+  - `src/content`: LeetCode 페이지 관찰, Accepted 감지, toast 렌더링, background 메시징.
+  - `src/background`: sync orchestration, LeetCode/GitHub API client, storage, retry, history.
+  - `src/options`: PAT, owner, repo, branch, Auto Sync, 연결 테스트.
+  - `src/popup`: Auto Sync 토글, 최근 sync 기록, 실패 상세, retry 제어.
+  - `src/shared`: 타입, runtime message union, 언어 매핑, 경로 생성, README/index 생성, storage schema, error normalization.
+- content script는 GitHub API를 직접 호출하지 않는다. 외부 write 작업은 background service worker를 통해서만 수행한다.
+- LeetCode API와 GitHub API 실행 코드는 `src/background/client` 아래에 격리한다. API 변경 영향이 UI 코드로 퍼지면 안 된다.
+- Manifest V3 service worker는 오래 유지되는 in-memory state를 source of truth로 쓰면 안 된다. 진행 상태, retry, processed 제출, history는 `chrome.storage.local` 기준으로 복구 가능해야 한다.
+- path 생성, README 생성, index merge, error normalization은 순수 함수로 분리하고 Vitest 테스트를 작성한다.
+- 빌드 산출물과 설치 의존성은 커밋하지 않는다. `dist/`, `node_modules/`, coverage output은 gitignore 대상이다.
+
+## 동기화 규칙
+- LeetCode 페이지에서는 DOM 관찰로 `Accepted`를 감지한다.
+- 실제 제출 코드와 문제 메타데이터는 현재 브라우저 로그인 세션으로 LeetCode GraphQL API를 우선 호출해 가져온다.
+- 실패, pending, runtime error, wrong answer, 미지원 언어 제출은 동기화하지 않는다.
+- 처리된 제출의 안정적인 식별자는 `submissionId`, `titleSlug`, language 조합이다.
+- 같은 identity는 storage 기반 in-flight lock으로 동시에 하나만 처리한다. in-flight lock은 10분 TTL을 두고 stale lock은 새 sync 시작 전에 정리한다.
+- `processedSubmissions`에는 GitHub commit 성공 후에만 기록한다.
+- 같은 문제/언어의 새 Accepted 제출은 같은 solution path를 최신 풀이로 덮어쓴다.
+- Swift 풀이는 대상 저장소의 `swift/leetcode/0001_two_sum.swift` 형식 경로에 저장한다.
+- Python3 풀이는 대상 저장소의 `python/leetcode/0001_two_sum.py` 형식 경로에 저장한다.
+- 생성된 Swift LeetCode 파일을 대상 저장소의 `swift/SwiftAlgorithm` 아래에 두지 않는다. 해당 폴더는 Xcode 빌드 소스 전용이다.
+- 대상 저장소에 풀이 폴더, `README.md`, `.leetcode-sync/index.json`이 없어도 첫 GitHub commit에서 생성해야 한다.
+- GitHub에는 폴더 생성 API를 따로 쓰지 않는다. 원하는 경로에 파일을 커밋해 중간 폴더가 생기게 한다.
+
+## README와 Index 규칙
+- 대상 저장소의 `.leetcode-sync/index.json`이 LeetCode 동기화 메타데이터의 source of truth다.
+- v1은 README를 항상 갱신한다. README 갱신 토글이나 README 비갱신 모드는 만들지 않는다.
+- `README.md`는 index를 기준으로 생성한다.
+- README의 managed marker 밖 내용은 보존한다.
+- managed marker는 반드시 아래 문자열을 그대로 사용한다.
+  - `<!-- LEETCODE_TABLE_START -->`
+  - `<!-- LEETCODE_TABLE_END -->`
+- README가 있지만 marker가 없으면 파일 하단에 marker block을 추가한다.
+- README가 없으면 marker block을 포함한 최소 README를 생성한다.
+
+## 보안 규칙
+- CRITICAL: GitHub PAT, LeetCode cookie, session token, 실제 사용자 secret을 source, test fixture, 문서 예시에 하드코딩하지 않는다.
+- CRITICAL: LeetCode 문제 설명 전문을 저장하지 않는다. 저장 대상은 풀이 코드, 문제 메타데이터, README 진행표, sync 상태뿐이다.
+- v1에서 PAT는 `chrome.storage.local`에 저장한다. Options UI와 문서는 이 한계를 명확히 알려야 한다.
+- retry payload에는 실패한 제출 코드가 브라우저 local storage에 임시 저장될 수 있다. UI와 문서에 이 사실을 명시한다.
+- retry payload는 최대 20개, 최대 7일 보관하고 retry 성공 후 삭제한다.
+- GitHub 권한은 v1에 필요한 최소 범위만 요구한다. selected repository 접근과 Contents read/write 권한만 사용한다.
 
 ## 개발 프로세스
-- CRITICAL: 새 기능 구현 시 반드시 테스트를 먼저 작성하고, 테스트가 통과하는 구현을 작성할 것 (TDD)
-- 커밋 메시지는 conventional commits 형식을 따를 것 (feat:, fix:, docs:, refactor:)
+- 변경은 작고 테스트 가능하게 나눈다.
+- shared logic을 추가하거나 변경할 때는 Vitest 테스트를 함께 작성한다.
+- UI 코드는 얇게 유지한다. 업무 규칙은 shared 모듈 또는 background orchestration에 둔다.
+- 외부 API error는 사용자에게 보여주기 전에 normalize 한다.
+- 커밋 메시지는 `feat:`, `fix:`, `docs:`, `test:`, `refactor:` 같은 conventional commits 형식을 따른다.
+- 사용자가 명시적으로 요청하지 않는 한 README는 수정하지 않는다.
 
 ## 명령어
+확장 프로젝트 파일이 생성된 뒤 저장소 루트에서 실행한다.
+
 ```bash
-npm run dev      # 개발 서버
-npm run build    # 프로덕션 빌드
-npm run lint     # ESLint
-npm run test     # 테스트
+npm install
+npm run typecheck
+npm test
+npm run build
+```
+
+Chrome 확장 수동 검증은 빌드 후 `chrome://extensions`에서 Developer mode를 켜고 `dist` 디렉터리를 unpacked로 로드한다.
+
+```bash
+npm run build
 ```

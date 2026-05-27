@@ -1,21 +1,118 @@
-# PRD: {프로젝트명}
+# PRD: PS-LP-Sync
+
+## 개요
+PS-LP-Sync는 LeetCode에서 Accepted 된 풀이를 GitHub 문제 풀이 저장소로 자동 동기화하는 개인용 Chrome 확장이다. 사용자가 문제를 푼 뒤 코드 복사, 파일 위치 선택, 커밋, README 갱신, push를 반복하지 않도록 만드는 것이 목적이다.
+
+## 해결하려는 문제
+사용자는 Swift와 Python3를 번갈아 사용해 알고리즘 문제를 푼다. 수동으로 GitHub에 풀이를 반영하면 번거롭고 누락되기 쉽다. 기존 LeetCode-to-GitHub 확장은 풀이 sync 자체는 가능하지만, 원하는 저장소 구조와 Swift Xcode 빌드 제약을 자연스럽게 맞추기 어렵다.
+
+## 대상 사용자
+- 주 사용자: 코딩 테스트와 알고리즘 인터뷰를 준비하는 개발자.
+- 사용 환경: Chrome, 로그인된 LeetCode 세션, 개인 GitHub 계정, 개인 문제 풀이 저장소.
+- 기본 대상 저장소: `zaehorang/Swift_Algorithm`.
 
 ## 목표
-{이 프로젝트가 해결하려는 문제를 한 줄로 요약}
+- LeetCode Swift/Python3 Accepted 제출을 자동으로 GitHub에 반영한다.
+- Swift LeetCode 파일을 Xcode 빌드 소스 폴더 밖에 저장한다.
+- 성공, 실패, retry 상태를 문제 풀이 흐름을 방해하지 않는 방식으로 보여준다.
+- Accepted 제출 하나당 GitHub commit 하나를 만들어 history를 깔끔하게 유지한다.
+- 구조화된 index 파일을 기준으로 README 진행표를 자동 생성한다.
 
-## 사용자
-{누가 이 제품을 쓰는지}
+## 사용자 여정
+### 첫 설치
+- 사용자는 Chrome에서 확장을 unpacked extension으로 로드한다.
+- 사용자가 LeetCode 문제 페이지에 들어간다.
+- 설정이 없으면 확장이 작은 toast로 GitHub 연결이 필요하다고 알려준다.
+- toast에는 Options 페이지로 이동하는 버튼이 있다.
 
-## 핵심 기능
-1. {기능 1}
-2. {기능 2}
-3. {기능 3}
+### GitHub 연결
+- 사용자가 Options 페이지를 연다.
+- Options는 fine-grained GitHub PAT 생성 방법을 체크리스트로 안내한다.
+- 사용자는 GitHub에서 대상 저장소만 선택하고 Contents read/write 권한을 부여한다.
+- 사용자는 PAT, owner, repo, branch를 입력한다.
+- Options는 필수 입력값 누락과 명백히 잘못된 owner/repo/branch 형식을 저장 전에 표시한다.
+- 사용자는 connection test를 실행한다.
+- 확장은 저장소 접근과 branch ref 접근 가능 여부를 확인한다.
+- 테스트가 성공하면 사용자가 설정을 저장한다.
+- 테스트가 실패하면 Options는 auth failed, token expired, repository not found, branch not found, rate limited, network failed 중 가장 가까운 복구 가능한 상태를 보여준다.
 
-## MVP 제외 사항
-- {안 만들 것 1}
-- {안 만들 것 2}
-- {안 만들 것 3}
+### Auto Sync on 문제 풀이
+- 사용자는 LeetCode에서 Swift 또는 Python3로 문제를 푼다.
+- 사용자는 평소처럼 제출한다.
+- 결과가 Accepted가 아니면 확장은 아무 commit도 만들지 않는다.
+- 결과가 Accepted면 확장은 `Syncing to GitHub...` toast를 보여준다.
+- 확장은 현재 문제의 최신 Accepted submission 상세를 가져오고 `submissionId`, `titleSlug`, language 조합으로 sync identity를 확정한다.
+- 같은 identity가 이미 처리되었거나 처리 중이면 중복 commit을 만들지 않는다.
+- 같은 문제/언어의 새 Accepted 제출이면 기존 solution path를 최신 풀이로 덮어쓴다.
 
-## 디자인
-- {디자인 방향 (예: 다크모드 고정, 미니멀)}
-- {색상 (예: 무채색 + 포인트 1가지)}
+### 성공 흐름
+- toast가 `Synced to GitHub` 상태로 바뀐다.
+- toast는 commit link와 file link를 제공한다.
+- Popup history에는 문제 제목, 언어, 시간, 상태, GitHub 링크가 표시된다.
+- 대상 저장소에는 solution file, README 갱신, index 갱신이 한 commit으로 반영된다.
+- commit 성공 후에만 해당 sync identity를 processed 상태로 기록한다.
+
+### 실패 흐름
+- toast는 짧은 실패 원인을 보여준다.
+- Popup은 상세 error 정보를 보여준다.
+- GitHub commit 단계에서 실패한 경우에만 retry payload를 저장하고 Popup에 Retry 버튼을 보여준다.
+- Retry는 저장된 실패 payload를 사용해 GitHub commit 단계만 다시 시도한다.
+- Retry 성공 후에는 processed 상태를 기록하고 retry payload를 삭제한다.
+- Retry 실패 후에는 payload를 유지하고 실패 상세를 갱신한다.
+
+### 미지원 언어 흐름
+- 사용자가 Swift 또는 Python3가 아닌 언어로 Accepted를 받으면 확장은 GitHub commit을 만들지 않는다.
+- toast는 `Unsupported language` 상태를 짧게 보여준다.
+- Popup history에는 unsupported 상태를 기록해 사용자가 commit이 생기지 않은 이유를 확인할 수 있게 한다.
+
+### 일시 중지 흐름
+- 사용자는 Popup에서 Auto Sync를 끌 수 있다.
+- Auto Sync가 꺼져 있으면 Accepted 제출도 commit하지 않는다.
+- 확장은 사용자가 이유를 알 수 있도록 `Auto Sync is off` 상태를 보여줄 수 있다.
+- v1은 일반 수동 sync action을 제공하지 않는다. Popup의 Retry는 실패한 GitHub commit payload에만 제공된다.
+
+## MVP 기능
+- Local unpacked Chrome extension.
+- GitHub PAT, repository, branch, Auto Sync, connection test를 설정하는 Options 페이지.
+- Auto Sync 토글, 최근 20개 기록, 실패 상세, retry를 제공하는 Popup.
+- LeetCode Accepted 감지와 toast feedback을 담당하는 content script.
+- LeetCode GraphQL 우선 API client를 통한 문제 메타데이터와 Accepted submission code 조회.
+- GitHub Git Data API를 통한 solution code, README, `.leetcode-sync/index.json` 단일 commit.
+- README는 v1에서 항상 갱신한다.
+- Swift path 생성: `swift/leetcode`.
+- Python3 path 생성: `python/leetcode`.
+- 대상 폴더, README, index가 없을 때도 첫 sync에서 생성하는 missing path handling.
+
+## v1 제외 사항
+- Chrome Web Store 배포.
+- GitHub OAuth 로그인.
+- Swift/Python3 외 언어 지원.
+- LeetCode 문제 설명 전문 저장.
+- 다중 GitHub 계정 관리.
+- 팀 또는 조직 워크플로우.
+- 별도 cloud backend service.
+- Programmers나 다른 문제 플랫폼 자동 sync.
+- 일반 수동 sync. v1에서 사용자가 직접 실행할 수 있는 것은 실패 항목 Retry뿐이다.
+
+## 성공 기준
+- Swift Accepted 제출이 대상 저장소에 `swift/leetcode/0001_two_sum.swift` 형식 파일을 생성하거나 갱신한다.
+- Python3 Accepted 제출이 대상 저장소에 `python/leetcode/0001_two_sum.py` 형식 파일을 생성하거나 갱신한다.
+- README와 `.leetcode-sync/index.json`이 solution file과 같은 commit에 포함된다.
+- 같은 submission id가 반복 감지되어도 중복 commit이 생기지 않는다.
+- 같은 문제/언어의 새 Accepted 제출은 기존 solution file을 최신 풀이로 갱신한다.
+- GitHub commit 실패는 processed로 기록되지 않고 retry 가능한 실패로 남는다.
+- 대상 폴더가 없어도 sync가 실패하지 않는다.
+- 일반적인 실패는 DevTools 없이 Popup에서 원인과 다음 행동을 이해할 수 있다.
+- Chrome unpacked extension으로 setup required, connection test, successful sync, Auto Sync off, unsupported language, retry success 시나리오를 수동 검증할 수 있다.
+
+## 보안과 개인정보 요구사항
+- PAT는 사용자가 직접 입력하고 v1에서는 Chrome extension local storage에만 저장한다.
+- 확장은 PAT와 retry payload code가 local storage에 저장된다는 사실을 UI에서 명시해야 한다.
+- retry payload는 최대 20개, 최대 7일 보관하고 retry 성공 후 삭제한다.
+- solution code는 의도한 sync 흐름에서 LeetCode와 GitHub에만 전송된다.
+- LeetCode 문제 설명 전문은 저장하지 않는다.
+- test fixture에는 실제 token, cookie, private code를 넣지 않는다.
+
+## 릴리즈 전략
+- v1: Accepted-to-GitHub 전체 흐름을 검증하기 위한 개인용 local unpacked extension.
+- v2: v1 안정화 후 Chrome Web Store 패키징, 아이콘, 스크린샷, privacy policy, 권한 설명, 심사 대응을 진행한다.

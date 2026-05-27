@@ -159,7 +159,15 @@ python3 scripts/execute.py {task-name} --push
 - 자동 커밋 전에 `scripts/quality_gate.py` 실행
 - `started_at`, `completed_at`, `failed_at`, `blocked_at` 기록
 
+실행 계약:
+
+- 하위 Codex agent는 step 구현, 인수 기준 실행, `phases/{task-name}/index.json` status/summary 업데이트까지만 수행한다.
+- 하위 Codex agent에게 `git commit`을 지시하지 않는다. Step별 commit은 `execute.py` runner가 수행한다.
+- 메인 agent는 `scripts/execute.py` 실행 중단 후 step 파일을 따라 남은 구현을 수동으로 이어서 하지 않는다.
+- 실행이 오래 걸리거나 멈춘 것처럼 보이면 `phases/{task-name}/stepN-live.log`와 `stepN-output.json`을 확인한다.
+
 복구:
 
 - `error` step의 경우 `phases/{task-name}/index.json`을 수정해 해당 step을 `"pending"`으로 되돌리고 `error_message`를 삭제한 뒤 다시 실행한다.
 - `blocked` step의 경우 `blocked_reason`을 해결하고 해당 step을 `"pending"`으로 되돌린 뒤 `blocked_reason`을 삭제하고 다시 실행한다.
+- runner가 kill되거나 비정상 중단된 경우 메인 agent는 phase index, live log, output json, git status만 확인한다. 복구 가능하면 status를 정리한 뒤 `python3 scripts/execute.py {task-name}`로 같은 runner 경로를 다시 탄다.

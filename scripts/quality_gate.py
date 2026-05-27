@@ -3,7 +3,7 @@
 Codex Harness 품질 검증기.
 
 package.json, Python 테스트, Package.swift를 감지해 대상 프로젝트에 이미 선언된
-lint/test/build 계열 명령만 실행한다. 검증 명령이 없으면 실패가 아니라 skip으로
+typecheck/lint/test/build 계열 명령만 실행한다. 검증 명령이 없으면 실패가 아니라 skip으로
 처리해 여러 종류의 프로젝트에 그대로 복사해 쓸 수 있게 한다.
 """
 
@@ -54,7 +54,7 @@ def _node_commands() -> list[list[str]]:
         return []
 
     commands: list[list[str]] = []
-    for name in ("lint", "test", "build"):
+    for name in ("typecheck", "lint", "test", "build"):
         if name not in scripts:
             continue
         if manager[0] == "npm":
