@@ -156,7 +156,7 @@ export class LeetCodeClient {
 
   constructor(options: LeetCodeClientOptions = {}) {
     this.context = {
-      fetchImpl: options.fetchImpl ?? fetch,
+      fetchImpl: options.fetchImpl ?? defaultFetch,
       graphqlUrl: options.graphqlUrl ?? LEETCODE_GRAPHQL_URL
     };
   }
@@ -300,6 +300,8 @@ export class LeetCodeClient {
     }
   }
 }
+
+const defaultFetch: LeetCodeFetch = (input, init) => globalThis.fetch(input, init);
 
 export function createLeetCodeClient(
   options: LeetCodeClientOptions = {}

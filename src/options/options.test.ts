@@ -53,7 +53,7 @@ describe("options state helpers", () => {
     expect(validation.isValid).toBe(false);
     expect(validation.errors).toMatchObject({
       githubPat: "GitHub PAT is required.",
-      repository: "Choose a repository from the accessible repository list.",
+      repository: "Choose a repository from the owned repository list.",
       branch: "Choose an existing branch or create one first."
     });
   });

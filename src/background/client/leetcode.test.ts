@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   LeetCodeClient,
@@ -8,6 +8,10 @@ import {
 } from "./leetcode";
 
 describe("LeetCode background client", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it("parses problem metadata without requesting problem content", async () => {
     const fetchImpl = mockFetch(
       graphQLResponse({
@@ -32,6 +36,36 @@ describe("LeetCode background client", () => {
     });
     expect(requestBody(fetchImpl, 0).query).not.toContain("content");
     expect(fetchCalls(fetchImpl)[0]?.[1]?.credentials).toBe("include");
+  });
+
+  it("uses the default fetch wrapper with the global fetch receiver", async () => {
+    const fetchImpl = vi.fn(function (
+      this: typeof globalThis,
+      input: RequestInfo | URL,
+      init?: RequestInit
+    ) {
+      expect(this).toBe(globalThis);
+      expect(String(input)).toBe("https://leetcode.com/graphql");
+      expect(init?.method).toBe("POST");
+
+      return Promise.resolve(
+        graphQLResponse({
+          question: {
+            questionId: "1",
+            questionFrontendId: "1",
+            title: "Two Sum",
+            titleSlug: "two-sum",
+            difficulty: "Easy"
+          }
+        })
+      );
+    }) as unknown as LeetCodeFetch;
+    vi.stubGlobal("fetch", fetchImpl);
+
+    await expect(fetchProblemMetadata("two-sum")).resolves.toMatchObject({
+      titleSlug: "two-sum"
+    });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 
   it("parses the latest accepted submission detail and supported language", async () => {

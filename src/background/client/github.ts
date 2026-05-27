@@ -182,15 +182,14 @@ export class GitHubClient {
   constructor(options: GitHubClientOptions) {
     this.auth = {
       pat: options.pat,
-      fetchImpl: options.fetchImpl ?? fetch,
+      fetchImpl: options.fetchImpl ?? defaultFetch,
       apiBaseUrl: options.apiBaseUrl ?? GITHUB_API_BASE_URL
     };
   }
 
   async listRepositories(input: ListRepositoriesInput = {}): Promise<RepositoryRef[]> {
     return this.withNormalizedErrors(async () => {
-      const affiliation =
-        input.affiliation ?? "owner,collaborator,organization_member";
+      const affiliation = input.affiliation ?? "owner";
       const repositories = await this.listPages<GitHubRepoResponse>(
         (page) =>
           `/user/repos?affiliation=${encodeURIComponent(
@@ -613,6 +612,8 @@ export class GitHubClient {
     }
   }
 }
+
+const defaultFetch: GitHubFetch = (input, init) => globalThis.fetch(input, init);
 
 export function createGitHubClient(options: GitHubClientOptions): GitHubClient {
   return new GitHubClient(options);

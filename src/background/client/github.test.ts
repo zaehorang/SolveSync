@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   GitHubClient,
@@ -10,6 +10,10 @@ import type { GitTreeFile } from "../../shared/githubTree";
 const PAT = "test-pat-placeholder";
 
 describe("GitHub background client", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it("loads repositories across GitHub pagination", async () => {
     const fetchImpl = mockFetch(
       jsonResponse(
@@ -31,9 +35,32 @@ describe("GitHub background client", () => {
       "octo/beta"
     ]);
     expect(requestUrls(fetchImpl)).toEqual([
-      "https://api.github.com/user/repos?affiliation=owner%2Ccollaborator%2Corganization_member&sort=full_name&direction=asc&per_page=100&page=1",
-      "https://api.github.com/user/repos?affiliation=owner%2Ccollaborator%2Corganization_member&sort=full_name&direction=asc&per_page=100&page=2"
+      "https://api.github.com/user/repos?affiliation=owner&sort=full_name&direction=asc&per_page=100&page=1",
+      "https://api.github.com/user/repos?affiliation=owner&sort=full_name&direction=asc&per_page=100&page=2"
     ]);
+  });
+
+  it("uses the default fetch wrapper with the global fetch receiver", async () => {
+    const fetchImpl = vi.fn(function (
+      this: typeof globalThis,
+      input: RequestInfo | URL
+    ) {
+      expect(this).toBe(globalThis);
+      expect(String(input)).toBe(
+        "https://api.github.test/user/repos?affiliation=owner&sort=full_name&direction=asc&per_page=100&page=1"
+      );
+
+      return Promise.resolve(jsonResponse([]));
+    }) as unknown as GitHubFetch;
+    vi.stubGlobal("fetch", fetchImpl);
+
+    const client = new GitHubClient({
+      pat: PAT,
+      apiBaseUrl: "https://api.github.test"
+    });
+
+    await expect(client.listRepositories()).resolves.toEqual([]);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 
   it("creates a branch from the repository default branch HEAD", async () => {

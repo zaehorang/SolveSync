@@ -190,7 +190,7 @@ export function validateSettingsDraft(
   }
 
   if (draft.selectedRepository === null) {
-    errors.repository = "Choose a repository from the accessible repository list.";
+    errors.repository = "Choose a repository from the owned repository list.";
   }
 
   if (draft.selectedBranch === null) {
@@ -272,8 +272,10 @@ export function getConnectionStatusView(
       };
     case "no_accessible_repositories":
       return {
-        label: "No accessible repositories",
-        detail: detail ?? "Check the selected repository access on the token.",
+        label: "No owned repositories",
+        detail:
+          detail ??
+          "Check that the token includes a repository owned by your account.",
         tone: "warning"
       };
     case "repository_not_found":
@@ -501,7 +503,8 @@ async function loadRepositories(
     if (response.data.totalCount === 0) {
       state.connectionStatus = createConnectionStatus("no_accessible_repositories");
       state.repositoryMessage = {
-        text: "No accessible repositories. Check the token selected repository permission.",
+        text:
+          "No owned repositories. Check that the token includes a repository owned by your account.",
         tone: "warning"
       };
       await saveSettings({

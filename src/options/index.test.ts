@@ -1,0 +1,25 @@
+import { describe, expect, it } from "vitest";
+
+import { getConnectionStatusView, validateSettingsDraft } from "./index";
+
+describe("options index owner repository copy", () => {
+  it("asks users to choose from owned repositories", () => {
+    const validation = validateSettingsDraft({
+      githubPat: "pat",
+      selectedRepository: null,
+      selectedBranch: null
+    });
+
+    expect(validation.errors.repository).toBe(
+      "Choose a repository from the owned repository list."
+    );
+  });
+
+  it("labels empty repository state as no owned repositories", () => {
+    expect(getConnectionStatusView("no_accessible_repositories")).toMatchObject({
+      label: "No owned repositories",
+      detail: "Check that the token includes a repository owned by your account.",
+      tone: "warning"
+    });
+  });
+});

@@ -36,7 +36,7 @@ const ERROR_DESCRIPTORS = {
     retryable: false
   },
   github_no_accessible_repos: {
-    userMessage: "No accessible GitHub repositories found.",
+    userMessage: "No owned GitHub repositories found.",
     retryable: false
   },
   github_repo_not_found: {

@@ -123,6 +123,31 @@ describe("popup state helpers", () => {
     expect(
       getSetupStatusView({
         ...makePublicSettings(),
+        selectedRepository: null
+      })
+    ).toMatchObject({
+      label: "Repository required",
+      detail: "Open Options and choose an owned repository.",
+      tone: "warning"
+    });
+
+    expect(
+      getSetupStatusView({
+        ...makePublicSettings(),
+        connectionStatus: {
+          code: "no_accessible_repositories",
+          checkedAt: "2026-01-01T00:00:00.000Z",
+          error: null
+        }
+      })
+    ).toMatchObject({
+      label: "No owned repositories",
+      tone: "warning"
+    });
+
+    expect(
+      getSetupStatusView({
+        ...makePublicSettings(),
         autoSyncEnabled: false
       })
     ).toMatchObject({

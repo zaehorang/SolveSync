@@ -123,7 +123,7 @@ export function getSetupStatusView(
   if (settings.selectedRepository === null) {
     return {
       label: "Repository required",
-      detail: "Open Options and choose an accessible repository.",
+      detail: "Open Options and choose an owned repository.",
       tone: "warning"
     };
   }
@@ -167,7 +167,7 @@ export function getSetupStatusView(
         tone: "neutral"
       };
     case "no_accessible_repositories":
-      return statusFromConnection("No accessible repositories", settings, "warning");
+      return statusFromConnection("No owned repositories", settings, "warning");
     case "repository_not_found":
       return statusFromConnection("Repository not found", settings, "error");
     case "branch_not_found":

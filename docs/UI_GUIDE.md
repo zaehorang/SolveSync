@@ -27,7 +27,7 @@ PS-LP-Sync의 사용자 화면은 세 가지다.
 
 필수 field:
 - GitHub PAT input. 기본은 masked display다.
-- Repository picker. 설정이 없으면 비어 있고, PAT 입력 후 접근 가능한 repository 목록에서 선택한다.
+- Repository picker. 설정이 없으면 비어 있고, PAT 입력 후 접근 가능한 본인 owner repository 목록에서 선택한다.
 - Branch picker. repository 선택 전에는 disabled 상태이며, repository 선택 후 branch 목록에서 선택한다. 기본 선택값은 repository default branch다.
 - Auto Sync enabled checkbox 또는 switch.
 
@@ -40,8 +40,8 @@ PAT checklist는 다음 내용을 포함해야 한다.
 
 Repository picker:
 - PAT 입력 후 Load repositories action을 제공한다.
-- 목록은 입력된 PAT로 접근 가능한 repository만 보여준다.
-- 목록이 비어 있으면 token의 selected repository 권한을 확인하라는 상태를 보여준다.
+- 목록은 입력된 PAT로 접근 가능한 본인 owner repository만 보여준다.
+- 목록이 비어 있으면 token에 본인 owner repository가 포함되어 있는지 확인하라는 상태를 보여준다.
 - 목록이 길 수 있으므로 검색 가능한 UI를 제공한다.
 - repository를 자동 선택하지 않는다.
 
@@ -63,7 +63,7 @@ Connection test 상태:
 - Not tested.
 - Testing.
 - Connected.
-- No accessible repositories.
+- No owned repositories.
 - Repository not found.
 - Branch not found.
 - Branch created.

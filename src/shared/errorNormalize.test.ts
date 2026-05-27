@@ -19,6 +19,10 @@ describe("error normalization", () => {
     expect(normalizeError({ code: "unsupported_language" }).code).toBe(
       "unsupported_language"
     );
+    expect(normalizeError({ code: "github_no_accessible_repos" })).toMatchObject({
+      code: "github_no_accessible_repos",
+      userMessage: "No owned GitHub repositories found."
+    });
     expect(normalizeError(new MalformedIndexError("bad index")).code).toBe(
       "malformed_index"
     );
