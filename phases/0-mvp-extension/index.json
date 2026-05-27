@@ -21,7 +21,10 @@
     {
       "step": 2,
       "name": "shared-sync-logic",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-05-27T13:52:49+0900",
+      "summary": "shared pure sync logic for language mapping, paths, index, README, tree payload, and errors",
+      "completed_at": "2026-05-27T13:58:30+0900"
     },
     {
       "step": 3,
