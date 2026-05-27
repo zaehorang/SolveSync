@@ -13,7 +13,10 @@
     {
       "step": 1,
       "name": "shared-contracts",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-05-27T13:47:01+0900",
+      "summary": "shared TypeScript contracts for storage, messages, sync records, and normalized errors",
+      "completed_at": "2026-05-27T13:52:47+0900"
     },
     {
       "step": 2,
