@@ -114,6 +114,14 @@ export interface RetryPayload {
   lastError: NormalizedError | null;
 }
 
+export interface RetryPayloadSummary {
+  id: string;
+  identity: SubmissionIdentity;
+  attempts: number;
+  expiresAt: IsoDateString;
+  lastError: NormalizedError | null;
+}
+
 export function isSyncStatus(value: unknown): value is SyncStatus {
   return (
     value === "setup_required" ||

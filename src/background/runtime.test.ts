@@ -4,6 +4,7 @@ import { createExtensionStorage, type StorageAreaAdapter } from "./storage";
 import { registerBackgroundRuntime } from "./runtime";
 import type { RuntimeMessage } from "../shared/messages";
 import type { SyncOrchestrator } from "./sync";
+import type { RetryPayload } from "../shared/types";
 
 describe("background runtime", () => {
   afterEach(() => {
@@ -81,6 +82,37 @@ describe("background runtime", () => {
     );
     expect(orchestrator.handleRetry).toHaveBeenCalledWith("retry-1");
   });
+
+  it("returns retry payload summaries without exposing stored solution code", async () => {
+    const chromeMock = installChromeRuntimeMock();
+    const storage = createExtensionStorage(createMemoryStorageArea());
+    const orchestrator = makeOrchestrator();
+    await storage.saveRetryPayload(makeRetryPayload("retry-1"));
+
+    registerBackgroundRuntime({
+      storage,
+      orchestrator,
+      githubClientFactory: () => {
+        throw new Error("GitHub client should not be created.");
+      }
+    });
+
+    const response = await dispatchMessage(chromeMock.listener, {
+      type: "retry-payloads:read"
+    });
+
+    expect(response).toMatchObject({
+      ok: true,
+      data: [
+        {
+          id: "retry-1",
+          attempts: 0,
+          expiresAt: "2099-01-08T00:00:00.000Z"
+        }
+      ]
+    });
+    expect(JSON.stringify(response)).not.toContain("class Solution");
+  });
 });
 
 interface ChromeRuntimeMock {
@@ -138,6 +170,53 @@ function makeOrchestrator(): SyncOrchestrator {
   return {
     handleAcceptedDetected: vi.fn(async () => duplicateOutcome),
     handleRetry: vi.fn(async () => duplicateOutcome)
+  };
+}
+
+function makeRetryPayload(id: string): RetryPayload {
+  return {
+    id,
+    identity: {
+      submissionId: "123456789",
+      titleSlug: "two-sum",
+      language: "swift"
+    },
+    repository: {
+      owner: "octo",
+      name: "algorithms",
+      fullName: "octo/algorithms",
+      defaultBranch: "main",
+      private: true,
+      htmlUrl: "https://github.com/octo/algorithms"
+    },
+    branch: {
+      name: "main",
+      sha: "branch-sha",
+      protected: false
+    },
+    problem: {
+      problemId: "1",
+      frontendId: "1",
+      title: "Two Sum",
+      titleSlug: "two-sum",
+      difficulty: "Easy",
+      url: "https://leetcode.com/problems/two-sum/"
+    },
+    submission: {
+      submissionId: "123456789",
+      titleSlug: "two-sum",
+      language: "Swift",
+      code: "class Solution {}",
+      acceptedAt: "2099-01-01T00:00:00.000Z"
+    },
+    solutionPath: "swift/leetcode/0001_two_sum.swift",
+    readmePath: "README.md",
+    indexPath: ".leetcode-sync/index.json",
+    commitMessage: "solve: leetcode 0001 two sum in swift",
+    attempts: 0,
+    createdAt: "2099-01-01T00:00:00.000Z",
+    expiresAt: "2099-01-08T00:00:00.000Z",
+    lastError: null
   };
 }
 

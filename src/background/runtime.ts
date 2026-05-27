@@ -2,7 +2,7 @@ import { normalizeError } from "../shared/errorNormalize";
 import { isRuntimeMessage, type RuntimeMessage } from "../shared/messages";
 import { toPublicSettingsState, type ConnectionStatusCode } from "../shared/storageSchema";
 import type { NormalizedError, NormalizedErrorCode } from "../shared/errors";
-import type { RepositoryRef } from "../shared/types";
+import type { RepositoryRef, RetryPayload, RetryPayloadSummary } from "../shared/types";
 import { createDefaultExtensionStorage, type ExtensionStorage } from "./storage";
 import { createGitHubClient, type GitHubClient } from "./client/github";
 import { createLeetCodeClient } from "./client/leetcode";
@@ -185,6 +185,12 @@ async function handleRuntimeMessage(
       return success(records.slice(0, limit));
     }
 
+    case "retry-payloads:read": {
+      const state = await context.storage.pruneRetryPayloads(new Date().toISOString());
+
+      return success(state.payloads.map(toRetryPayloadSummary));
+    }
+
     case "sync:status":
     case "history:updated":
       return success(null);
@@ -275,6 +281,16 @@ function filterRepositories(
   return repositories.filter((repository) =>
     repository.fullName.toLowerCase().includes(normalized)
   );
+}
+
+function toRetryPayloadSummary(payload: RetryPayload): RetryPayloadSummary {
+  return {
+    id: payload.id,
+    identity: payload.identity,
+    attempts: payload.attempts,
+    expiresAt: payload.expiresAt,
+    lastError: payload.lastError
+  };
 }
 
 async function saveConnectionFailure(

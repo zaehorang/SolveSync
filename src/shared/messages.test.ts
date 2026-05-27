@@ -31,6 +31,7 @@ describe("runtime message contracts", () => {
         "github:connection:test",
         "sync:retry",
         "history:read",
+        "retry-payloads:read",
         "sync:status",
         "history:updated"
       ])

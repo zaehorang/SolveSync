@@ -1,5 +1,10 @@
 import type { NormalizedError } from "./errors";
-import type { RepositoryRef, SyncRecord, SyncStatus } from "./types";
+import type {
+  RepositoryRef,
+  RetryPayloadSummary,
+  SyncRecord,
+  SyncStatus
+} from "./types";
 import { isPlainRecord } from "./types";
 import type { PublicSettingsUpdate, SyncHistoryState } from "./storageSchema";
 
@@ -93,6 +98,10 @@ export interface HistoryReadMessage {
   };
 }
 
+export interface RetryPayloadsReadMessage {
+  type: "retry-payloads:read";
+}
+
 export type PopupOptionsToBackgroundMessage =
   | SettingsReadMessage
   | SettingsWriteMessage
@@ -101,7 +110,10 @@ export type PopupOptionsToBackgroundMessage =
   | BranchCreateMessage
   | ConnectionTestMessage
   | RetrySyncMessage
-  | HistoryReadMessage;
+  | HistoryReadMessage
+  | RetryPayloadsReadMessage;
+
+export type RetryPayloadsReadResponse = RetryPayloadSummary[];
 
 export interface SyncStatusMessage {
   type: "sync:status";
@@ -139,6 +151,7 @@ export const RUNTIME_MESSAGE_TYPES = [
   "github:connection:test",
   "sync:retry",
   "history:read",
+  "retry-payloads:read",
   "sync:status",
   "history:updated"
 ] as const satisfies readonly RuntimeMessage["type"][];

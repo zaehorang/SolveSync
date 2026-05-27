@@ -8,10 +8,49 @@
   </head>
   <body>
     <main class="popup-shell" aria-labelledby="popup-title">
-      <header>
-        <h1 id="popup-title">PS-LP-Sync</h1>
-        <p id="popup-status">Popup scaffold ready</p>
+      <header class="popup-header">
+        <div>
+          <p class="eyebrow">LeetCode sync</p>
+          <h1 id="popup-title">PS-LP-Sync</h1>
+        </div>
+        <button id="open-options" class="button secondary" type="button">
+          Options
+        </button>
       </header>
+
+      <section class="panel" aria-labelledby="setup-title">
+        <div class="section-heading">
+          <h2 id="setup-title">Setup status</h2>
+          <p id="popup-status" class="status-text" aria-live="polite">
+            Loading...
+          </p>
+        </div>
+
+        <div id="setup-summary" class="status-box neutral" aria-live="polite">
+          Loading settings...
+        </div>
+
+        <label class="toggle-row" for="auto-sync-toggle">
+          <input id="auto-sync-toggle" type="checkbox" />
+          <span>
+            <strong>Auto Sync</strong>
+            <small id="auto-sync-copy">Accepted submissions sync automatically.</small>
+          </span>
+        </label>
+        <p id="auto-sync-status" class="field-message" aria-live="polite"></p>
+      </section>
+
+      <section class="panel history-panel" aria-labelledby="history-title">
+        <div class="section-heading">
+          <h2 id="history-title">Recent syncs</h2>
+          <p id="history-count" class="status-text">0 records</p>
+        </div>
+
+        <p id="history-empty" class="empty-state">
+          Accepted submissions will appear here after sync runs.
+        </p>
+        <ul id="history-list" class="history-list" aria-live="polite"></ul>
+      </section>
     </main>
     <script type="module" src="./index.ts"></script>
   </body>
