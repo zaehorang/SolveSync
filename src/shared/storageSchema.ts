@@ -2,7 +2,10 @@ import type { NormalizedError } from "./errors";
 import {
   isBranchRef,
   isPlainRecord,
+  isRetryPayload,
   isRepositoryRef,
+  isSubmissionIdentity,
+  isSyncRecord,
   type BranchRef,
   type IsoDateString,
   type RepositoryRef,
@@ -163,6 +166,67 @@ export function isSettingsState(value: unknown): value is SettingsState {
     isConnectionStatus(value.connectionStatus) &&
     (typeof value.updatedAt === "string" || value.updatedAt === null)
   );
+}
+
+export function isProcessedSubmissionEntry(
+  value: unknown
+): value is ProcessedSubmissionEntry {
+  if (!isPlainRecord(value)) {
+    return false;
+  }
+
+  return (
+    isSubmissionIdentity(value.identity) &&
+    typeof value.processedAt === "string" &&
+    typeof value.commitSha === "string" &&
+    typeof value.solutionPath === "string"
+  );
+}
+
+export function isProcessedSubmissionsState(
+  value: unknown
+): value is ProcessedSubmissionsState {
+  if (!isVersionedStorageState(value)) {
+    return false;
+  }
+
+  return Array.isArray(value.entries) && value.entries.every(isProcessedSubmissionEntry);
+}
+
+export function isSyncHistoryState(value: unknown): value is SyncHistoryState {
+  if (!isVersionedStorageState(value)) {
+    return false;
+  }
+
+  return Array.isArray(value.records) && value.records.every(isSyncRecord);
+}
+
+export function isRetryPayloadsState(value: unknown): value is RetryPayloadsState {
+  if (!isVersionedStorageState(value)) {
+    return false;
+  }
+
+  return Array.isArray(value.payloads) && value.payloads.every(isRetryPayload);
+}
+
+export function isInFlightSyncLock(value: unknown): value is InFlightSyncLock {
+  if (!isPlainRecord(value)) {
+    return false;
+  }
+
+  return (
+    isSubmissionIdentity(value.identity) &&
+    typeof value.lockedAt === "string" &&
+    typeof value.expiresAt === "string"
+  );
+}
+
+export function isInFlightSyncsState(value: unknown): value is InFlightSyncsState {
+  if (!isVersionedStorageState(value)) {
+    return false;
+  }
+
+  return Array.isArray(value.locks) && value.locks.every(isInFlightSyncLock);
 }
 
 export function isConnectionStatus(value: unknown): value is ConnectionStatus {

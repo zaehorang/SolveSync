@@ -1,4 +1,4 @@
-import type { NormalizedError } from "./errors";
+import { isNormalizedError, type NormalizedError } from "./errors";
 
 export type IsoDateString = string;
 
@@ -114,6 +114,18 @@ export interface RetryPayload {
   lastError: NormalizedError | null;
 }
 
+export function isSyncStatus(value: unknown): value is SyncStatus {
+  return (
+    value === "setup_required" ||
+    value === "auto_sync_disabled" ||
+    value === "syncing" ||
+    value === "synced" ||
+    value === "unsupported_language" ||
+    value === "failed" ||
+    value === "retrying"
+  );
+}
+
 export function isSupportedLanguage(value: unknown): value is SupportedLanguage {
   return value === "swift" || value === "python3";
 }
@@ -158,5 +170,86 @@ export function isBranchRef(value: unknown): value is BranchRef {
     typeof value.name === "string" &&
     typeof value.sha === "string" &&
     typeof value.protected === "boolean"
+  );
+}
+
+export function isProblemMetadata(value: unknown): value is ProblemMetadata {
+  if (!isPlainRecord(value)) {
+    return false;
+  }
+
+  return (
+    typeof value.problemId === "string" &&
+    typeof value.frontendId === "string" &&
+    typeof value.title === "string" &&
+    typeof value.titleSlug === "string" &&
+    typeof value.difficulty === "string" &&
+    typeof value.url === "string"
+  );
+}
+
+export function isAcceptedSubmission(value: unknown): value is AcceptedSubmission {
+  if (!isPlainRecord(value)) {
+    return false;
+  }
+
+  return (
+    typeof value.submissionId === "string" &&
+    typeof value.titleSlug === "string" &&
+    typeof value.language === "string" &&
+    typeof value.code === "string" &&
+    typeof value.acceptedAt === "string"
+  );
+}
+
+export function isSyncRecord(value: unknown): value is SyncRecord {
+  if (!isPlainRecord(value)) {
+    return false;
+  }
+
+  return (
+    typeof value.id === "string" &&
+    isSyncStatus(value.status) &&
+    typeof value.titleSlug === "string" &&
+    (typeof value.problemTitle === "string" || value.problemTitle === null) &&
+    (typeof value.problemFrontendId === "string" || value.problemFrontendId === null) &&
+    typeof value.language === "string" &&
+    (isSupportedLanguage(value.supportedLanguage) || value.supportedLanguage === null) &&
+    (isSubmissionIdentity(value.identity) || value.identity === null) &&
+    (isRepositoryRef(value.repository) || value.repository === null) &&
+    (typeof value.branchName === "string" || value.branchName === null) &&
+    (typeof value.solutionPath === "string" || value.solutionPath === null) &&
+    (typeof value.commitSha === "string" || value.commitSha === null) &&
+    (typeof value.commitUrl === "string" || value.commitUrl === null) &&
+    (typeof value.fileUrl === "string" || value.fileUrl === null) &&
+    (isNormalizedError(value.error) || value.error === null) &&
+    (typeof value.retryPayloadId === "string" || value.retryPayloadId === null) &&
+    typeof value.createdAt === "string" &&
+    typeof value.updatedAt === "string"
+  );
+}
+
+export function isRetryPayload(value: unknown): value is RetryPayload {
+  if (!isPlainRecord(value)) {
+    return false;
+  }
+
+  return (
+    typeof value.id === "string" &&
+    isSubmissionIdentity(value.identity) &&
+    isRepositoryRef(value.repository) &&
+    isBranchRef(value.branch) &&
+    isProblemMetadata(value.problem) &&
+    isAcceptedSubmission(value.submission) &&
+    typeof value.solutionPath === "string" &&
+    value.readmePath === "README.md" &&
+    value.indexPath === ".leetcode-sync/index.json" &&
+    typeof value.commitMessage === "string" &&
+    typeof value.attempts === "number" &&
+    Number.isInteger(value.attempts) &&
+    value.attempts >= 0 &&
+    typeof value.createdAt === "string" &&
+    typeof value.expiresAt === "string" &&
+    (isNormalizedError(value.lastError) || value.lastError === null)
   );
 }
