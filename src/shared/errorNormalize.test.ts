@@ -29,6 +29,10 @@ describe("error normalization", () => {
       code: "github_rate_limited",
       retryable: true
     });
+    expect(normalizeError({ status: 429, message: "Too Many Requests" })).toMatchObject({
+      code: "github_rate_limited",
+      retryable: true
+    });
     expect(normalizeError({ status: 404, message: "Branch not found" }).code).toBe(
       "github_branch_not_found"
     );

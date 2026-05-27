@@ -117,6 +117,10 @@ export function normalizeError(error: unknown): NormalizedError {
     return buildNormalizedError("github_auth_failed", debugMessage);
   }
 
+  if (status === 429) {
+    return buildNormalizedError("github_rate_limited", debugMessage);
+  }
+
   if (status === 404) {
     return buildNormalizedError(
       searchableMessage.includes("branch")
