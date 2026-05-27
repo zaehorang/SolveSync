@@ -69,7 +69,10 @@
     {
       "step": 8,
       "name": "options-ui",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-05-27T14:43:43+0900",
+      "summary": "Options UI for PAT, repository and branch pickers, branch create, connection test, Auto Sync, and security disclosure",
+      "completed_at": "2026-05-27T14:55:04+0900"
     },
     {
       "step": 9,
