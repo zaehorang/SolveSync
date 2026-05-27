@@ -7,11 +7,14 @@ const NON_ACCEPTED_RESULT_PATTERN =
   /\b(wrong answer|runtime error|compile error|time limit exceeded|memory limit exceeded|pending|judging|not accepted)\b/i;
 const GENERIC_ACCEPTED_PAGE_TEXT_PATTERN =
   /\b(accepted submissions|accepted solutions|acceptance rate)\b/i;
+const PROGRAMMERS_ACCEPTED_PATTERN = /(^|\s)정답입니다!(\s|$)/;
 const MAX_RESULT_TEXT_LENGTH = 180;
 const MAX_TRAVERSAL_DEPTH = 6;
 const MAX_TEXT_CANDIDATES = 80;
 const MAX_JOINED_LEAF_TEXTS = 8;
 const IGNORED_ELEMENT_NAMES = new Set(["script", "style", "noscript"]);
+
+export type AcceptedDetectionPlatform = "leetcode" | "programmers";
 
 export interface DebounceScheduler {
   setTimeout(callback: () => void, delayMs: number): ReturnType<typeof setTimeout>;
@@ -39,6 +42,33 @@ export function extractTitleSlugFromPathname(pathname: string): string | null {
   return slug === undefined || slug.length === 0 ? null : decodeURIComponent(slug);
 }
 
+export interface ProgrammersRoute {
+  courseId: string;
+  lessonId: string;
+}
+
+export function extractProgrammersRouteFromPathname(
+  pathname: string
+): ProgrammersRoute | null {
+  const match = pathname.match(/^\/learn\/courses\/([^/?#]+)\/lessons\/([^/?#]+)/);
+  const courseId = match?.[1]?.trim();
+  const lessonId = match?.[2]?.trim();
+
+  if (
+    courseId === undefined ||
+    courseId.length === 0 ||
+    lessonId === undefined ||
+    lessonId.length === 0
+  ) {
+    return null;
+  }
+
+  return {
+    courseId: decodeURIComponent(courseId),
+    lessonId: decodeURIComponent(lessonId)
+  };
+}
+
 export function isAcceptedResultText(text: string): boolean {
   const normalized = normalizeCandidateText(text);
 
@@ -52,16 +82,27 @@ export function isAcceptedResultText(text: string): boolean {
   );
 }
 
+export function isProgrammersAcceptedResultText(text: string): boolean {
+  const normalized = normalizeCandidateText(text);
+
+  return (
+    normalized.length > 0 &&
+    normalized.length <= MAX_RESULT_TEXT_LENGTH &&
+    PROGRAMMERS_ACCEPTED_PATTERN.test(normalized)
+  );
+}
+
 export function mutationListHasAccepted(
-  mutations: readonly MutationRecord[]
+  mutations: readonly MutationRecord[],
+  platform: AcceptedDetectionPlatform = "leetcode"
 ): boolean {
   return mutations.some((mutation) => {
-    if (nodeHasAcceptedText(toCandidateNode(mutation.target))) {
+    if (nodeHasAcceptedText(toCandidateNode(mutation.target), platform)) {
       return true;
     }
 
     return Array.from(mutation.addedNodes).some((node) =>
-      nodeHasAcceptedText(toCandidateNode(node))
+      nodeHasAcceptedText(toCandidateNode(node), platform)
     );
   });
 }
@@ -85,9 +126,12 @@ export function createDebouncedCallback(
   };
 }
 
-function nodeHasAcceptedText(node: TextCandidateNode): boolean {
+function nodeHasAcceptedText(
+  node: TextCandidateNode,
+  platform: AcceptedDetectionPlatform
+): boolean {
   return collectCandidateTexts(node).some((candidate) =>
-    isAcceptedTextCandidate(candidate)
+    isAcceptedTextCandidate(candidate, platform)
   );
 }
 
@@ -186,7 +230,14 @@ function addTextCandidate(
   return normalized;
 }
 
-function isAcceptedTextCandidate(candidate: TextCandidate): boolean {
+function isAcceptedTextCandidate(
+  candidate: TextCandidate,
+  platform: AcceptedDetectionPlatform
+): boolean {
+  if (platform === "programmers") {
+    return isProgrammersAcceptedResultText(candidate.text);
+  }
+
   if (!isResultTextCandidate(candidate.text)) {
     return false;
   }

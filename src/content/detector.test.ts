@@ -2,8 +2,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   createDebouncedCallback,
+  extractProgrammersRouteFromPathname,
   extractTitleSlugFromPathname,
   isAcceptedResultText,
+  isProgrammersAcceptedResultText,
   mutationListHasAccepted
 } from "./detector";
 
@@ -156,6 +158,51 @@ describe("LeetCode content detector", () => {
 
     vi.advanceTimersByTime(1);
     expect(callback).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("Programmers content detector", () => {
+  it("extracts course and lesson ids from Programmers lesson paths", () => {
+    expect(
+      extractProgrammersRouteFromPathname("/learn/courses/30/lessons/120804")
+    ).toEqual({
+      courseId: "30",
+      lessonId: "120804"
+    });
+    expect(
+      extractProgrammersRouteFromPathname("/learn/courses/30/lessons/120804?foo=bar")
+    ).toEqual({
+      courseId: "30",
+      lessonId: "120804"
+    });
+    expect(extractProgrammersRouteFromPathname("/learn/courses/30")).toBeNull();
+  });
+
+  it("detects the Programmers accepted modal text", () => {
+    const mutation = mutationRecord({
+      target: textNode("채점 결과"),
+      addedNodes: [elementNode([textNode("정답입니다!")])]
+    });
+
+    expect(isProgrammersAcceptedResultText("정답입니다!")).toBe(true);
+    expect(mutationListHasAccepted([mutation], "programmers")).toBe(true);
+  });
+
+  it("does not treat Programmers result summary text as accepted", () => {
+    const passed = mutationRecord({
+      target: textNode("실행 결과"),
+      addedNodes: [elementNode([textNode("통과")])]
+    });
+    const summary = mutationRecord({
+      target: textNode("채점 결과"),
+      addedNodes: [elementNode([textNode("합계: 100.0 / 100.0")])]
+    });
+
+    expect(isProgrammersAcceptedResultText("통과")).toBe(false);
+    expect(isProgrammersAcceptedResultText("채점 결과")).toBe(false);
+    expect(isProgrammersAcceptedResultText("합계: 100.0 / 100.0")).toBe(false);
+    expect(mutationListHasAccepted([passed], "programmers")).toBe(false);
+    expect(mutationListHasAccepted([summary], "programmers")).toBe(false);
   });
 });
 

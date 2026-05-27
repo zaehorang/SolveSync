@@ -1,8 +1,33 @@
 import { describe, expect, it } from "vitest";
 
-import { createAcceptedDetectedMessage } from "./index";
+import {
+  createAcceptedDetectedMessage,
+  createProgrammersAcceptedDetectedMessage,
+  extractProgrammersAcceptedSnapshot,
+  extractProgrammersEditorCode,
+  resolveContentPage
+} from "./index";
 
 describe("content runtime wiring helpers", () => {
+  it("resolves LeetCode and Programmers content page contexts", () => {
+    expect(resolveContentPage(new URL("https://leetcode.com/problems/two-sum/"))).toEqual({
+      platform: "leetcode",
+      titleSlug: "two-sum"
+    });
+    expect(
+      resolveContentPage(
+        new URL("https://school.programmers.co.kr/learn/courses/30/lessons/120804")
+      )
+    ).toEqual({
+      platform: "programmers",
+      courseId: "30",
+      lessonId: "120804"
+    });
+    expect(resolveContentPage(new URL("https://example.com/problems/two-sum/"))).toEqual({
+      platform: "unsupported"
+    });
+  });
+
   it("creates accepted detected messages without solution code", () => {
     const message = createAcceptedDetectedMessage(
       "two-sum",
@@ -21,4 +46,119 @@ describe("content runtime wiring helpers", () => {
     });
     expect(Object.hasOwn(message.payload, "code")).toBe(false);
   });
+
+  it("extracts Programmers textarea code and metadata into a snapshot", () => {
+    const documentRef = makeDocument({
+      "textarea#code": element({ value: "print(120804)\n" }),
+      h1: element({ textContent: "코딩테스트 연습" }),
+      h2: element({ textContent: "두 수의 곱 구하기" }),
+      'select[name="language"]': element({
+        value: "swift",
+        selectedOption: element({ textContent: "Swift" })
+      })
+    });
+
+    const snapshot = extractProgrammersAcceptedSnapshot(
+      documentRef,
+      {
+        courseId: "30",
+        lessonId: "120804"
+      },
+      "https://school.programmers.co.kr/learn/courses/30/lessons/120804",
+      "2026-01-01T00:00:00.000Z"
+    );
+
+    expect(snapshot).toEqual({
+      courseId: "30",
+      lessonId: "120804",
+      problemTitle: "두 수의 곱 구하기",
+      rawLanguage: "Swift",
+      code: "print(120804)\n",
+      pageUrl: "https://school.programmers.co.kr/learn/courses/30/lessons/120804",
+      detectedAt: "2026-01-01T00:00:00.000Z"
+    });
+  });
+
+  it("does not use rendered CodeMirror lines as solution code", () => {
+    const documentRef = makeDocument({
+      ".cm-line": element({ textContent: "visible only" })
+    });
+
+    expect(extractProgrammersEditorCode(documentRef)).toBeNull();
+  });
+
+  it("creates Programmers accepted detected messages from the editor snapshot", () => {
+    const message = createProgrammersAcceptedDetectedMessage({
+      courseId: "30",
+      lessonId: "120804",
+      problemTitle: "두 수의 곱 구하기",
+      rawLanguage: "Swift",
+      code: "import Foundation\n",
+      pageUrl: "https://school.programmers.co.kr/learn/courses/30/lessons/120804",
+      detectedAt: "2026-01-01T00:00:00.000Z"
+    });
+
+    expect(message).toEqual({
+      type: "content:accepted_detected",
+      payload: {
+        platform: "programmers",
+        courseId: "30",
+        lessonId: "120804",
+        problemTitle: "두 수의 곱 구하기",
+        language: "Swift",
+        code: "import Foundation\n",
+        pageUrl: "https://school.programmers.co.kr/learn/courses/30/lessons/120804",
+        detectedAt: "2026-01-01T00:00:00.000Z"
+      }
+    });
+  });
 });
+
+interface FakeElement {
+  textContent: string | null;
+  value?: string;
+  content?: string;
+  selectedOptions?: {
+    item(index: number): FakeElement | null;
+  };
+  getAttribute(name: string): string | null;
+}
+
+function element(input: {
+  textContent?: string | null;
+  value?: string;
+  content?: string;
+  selectedOption?: FakeElement;
+  attrs?: Record<string, string>;
+}): FakeElement {
+  const attrs = input.attrs ?? {};
+
+  return {
+    textContent: input.textContent ?? null,
+    value: input.value,
+    content: input.content,
+    selectedOptions:
+      input.selectedOption === undefined
+        ? undefined
+        : {
+            item(index: number) {
+              return index === 0 ? input.selectedOption ?? null : null;
+            }
+          },
+    getAttribute(name: string) {
+      return attrs[name] ?? null;
+    }
+  };
+}
+
+function makeDocument(
+  nodes: Record<string, FakeElement | null>,
+  title = "코딩테스트 연습 - fallback | 프로그래머스"
+): Pick<Document, "querySelector" | "title"> {
+  return {
+    title,
+    querySelector(selector: string) {
+      return (nodes[selector] ?? null) as Element | null;
+    }
+  } as unknown as Pick<Document, "querySelector" | "title">;
+}

@@ -4,14 +4,21 @@
   "version": "0.1.0",
   "description": "Sync accepted LeetCode Swift and Python3 submissions to a selected GitHub repository.",
   "permissions": ["storage"],
-  "host_permissions": ["https://leetcode.com/*", "https://api.github.com/*"],
+  "host_permissions": [
+    "https://leetcode.com/*",
+    "https://school.programmers.co.kr/*",
+    "https://api.github.com/*"
+  ],
   "background": {
     "service_worker": "background/index.js",
     "type": "module"
   },
   "content_scripts": [
     {
-      "matches": ["https://leetcode.com/problems/*"],
+      "matches": [
+        "https://leetcode.com/problems/*",
+        "https://school.programmers.co.kr/learn/courses/*/lessons/*"
+      ],
       "js": ["content/index.js"]
     }
   ],
