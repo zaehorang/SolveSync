@@ -13,7 +13,10 @@
     {
       "step": 1,
       "name": "content-programmers-adapter",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-05-27T19:58:20+0900",
+      "summary": "Added content platform routing, Programmers accepted detection, textarea snapshot/message creation, manifest matches, and content tests.",
+      "completed_at": "2026-05-27T20:04:05+0900"
     },
     {
       "step": 2,
