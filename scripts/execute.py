@@ -5,7 +5,8 @@ Codex Harness step 실행기.
 phases/{phase}/index.json에서 pending step을 찾고, AGENTS.md와 docs/*.md,
 이전 step summary, 현재 step 파일을 합쳐 codex exec headless 세션으로 실행한다.
 step이 completed/error/blocked 상태를 기록할 때까지 최대 3회 재시도하며,
-코드 변경 commit 전에는 scripts/quality_gate.py로 검증한다.
+코드 변경 commit 전에는 scripts/quality_gate.py로 검증한다. 실행 중 원문 이벤트는
+step별 live log에 남기고, 정상 완료된 step의 live log는 삭제한다.
 
 Usage:
     python3 scripts/execute.py <phase-dir> [--push]
@@ -50,8 +51,9 @@ class StepExecutor:
     """Phase 디렉토리 안의 step들을 순차 실행하는 하네스."""
 
     MAX_RETRIES = 3
+    HEARTBEAT_INTERVAL_SEC = 60
     FEAT_MSG = "feat({phase}): step {num} — {name}"
-    CHORE_MSG = "chore({phase}): step {num} output"
+    CHORE_MSG = "chore({phase}): step {num} metadata"
     TZ = timezone(timedelta(hours=9))
 
     # 실행 대상 phase와 옵션을 검증하고, 이후 흐름에서 공통으로 쓰는 경로와 메타데이터를 준비한다.
@@ -168,19 +170,16 @@ class StepExecutor:
 
     # step 실행으로 생긴 코드 변경과 하네스 산출물을 나눠 커밋한다.
     def _commit_step(self, step_num: int, step_name: str):
-        output_rel = f"phases/{self._phase_dir_name}/step{step_num}-output.json"
         live_log_rel = f"phases/{self._phase_dir_name}/step{step_num}-live.log"
         index_rel = f"phases/{self._phase_dir_name}/index.json"
         has_head = self._run_git("rev-parse", "--verify", "HEAD").returncode == 0
 
-        # 전체 변경을 stage한 뒤, step output/index는 먼저 제외해서 코드 변경 커밋과 분리한다.
+        # 전체 변경을 stage한 뒤, live log/index는 먼저 제외해서 코드 변경 커밋과 분리한다.
         self._run_git("add", "-A")
         if has_head:
-            self._run_git("reset", "HEAD", "--", output_rel)
             self._run_git("reset", "HEAD", "--", live_log_rel)
             self._run_git("reset", "HEAD", "--", index_rel)
         else:
-            self._run_git("rm", "--cached", "--ignore-unmatch", "--", output_rel)
             self._run_git("rm", "--cached", "--ignore-unmatch", "--", live_log_rel)
             self._run_git("rm", "--cached", "--ignore-unmatch", "--", index_rel)
 
@@ -195,8 +194,12 @@ class StepExecutor:
             else:
                 print(f"  WARN: 코드 커밋 실패: {r.stderr.strip()}")
 
-        # 마지막으로 index와 output 같은 실행 기록을 housekeeping commit으로 남긴다.
+        # 마지막으로 index 같은 실행 기록을 housekeeping commit으로 남긴다. live log는 로컬 관찰용이다.
         self._run_git("add", "-A")
+        if has_head:
+            self._run_git("reset", "HEAD", "--", live_log_rel)
+        else:
+            self._run_git("rm", "--cached", "--ignore-unmatch", "--", live_log_rel)
         if self._run_git("diff", "--cached", "--quiet").returncode != 0:
             msg = self.CHORE_MSG.format(phase=self._phase_name, num=step_num)
             r = self._run_git("commit", "-m", msg)
@@ -363,7 +366,7 @@ class StepExecutor:
             summary["error"] = StepExecutor._truncate(errors[0])
         return summary
 
-    # stderr tail은 output json과 retry prompt에 들어가므로 작은 크기로 제한한다.
+    # stderr tail은 retry prompt에 들어가므로 작은 크기로 제한한다.
     @staticmethod
     def _append_tail(lines: list[str], line: str, limit: int = 20):
         clean = line.rstrip("\n")
@@ -371,7 +374,21 @@ class StepExecutor:
             lines.append(clean)
             del lines[:-limit]
 
-    # step markdown과 공통 preamble을 합쳐 headless Codex 실행을 호출하고 raw output을 저장한다.
+    # step live log 경로를 만든다.
+    def _live_log_path(self, step_num: int) -> Path:
+        return self._phase_dir / f"step{step_num}-live.log"
+
+    # 성공한 step의 live log를 지운다. 실패/blocked 상태의 log는 복구와 디버깅을 위해 보존한다.
+    def _delete_live_log(self, step_num: int):
+        live_log_path = self._live_log_path(step_num)
+        try:
+            live_log_path.unlink()
+        except FileNotFoundError:
+            return
+        except OSError as exc:
+            print(f"  WARN: live log cleanup failed: {exc}")
+
+    # step markdown과 공통 preamble을 합쳐 headless Codex 실행을 호출하고 live log를 기록한다.
     def _invoke_codex(self, step: dict, preamble: str, attempt: int) -> dict:
         step_num, step_name = step["step"], step["name"]
         step_file = self._phase_dir / f"step{step_num}.md"
@@ -382,7 +399,7 @@ class StepExecutor:
 
         # 실행 agent가 필요한 모든 맥락을 한 prompt로 합친 뒤 sandbox/approval 설정과 함께 실행한다.
         prompt = preamble + step_file.read_text(encoding="utf-8")
-        live_log_path = self._phase_dir / f"step{step_num}-live.log"
+        live_log_path = self._live_log_path(step_num)
         summary = CodexRunSummary(live_log_path=str(live_log_path.relative_to(ROOT)))
         started = time.monotonic()
         events: queue.Queue[tuple[str, Optional[str]]] = queue.Queue()
@@ -420,7 +437,7 @@ class StepExecutor:
 
         finished_streams: set[str] = set()
         deadline = started + 1800
-        next_heartbeat = started
+        next_heartbeat = started + self.HEARTBEAT_INTERVAL_SEC
         timed_out = False
 
         with open(live_log_path, "a", encoding="utf-8") as live_log:
@@ -454,7 +471,7 @@ class StepExecutor:
                     if now >= next_heartbeat:
                         elapsed = int(now - started)
                         print(f"    ... {elapsed}s elapsed; live log: {summary.live_log_path}", flush=True)
-                        next_heartbeat = now + 30
+                        next_heartbeat = now + self.HEARTBEAT_INTERVAL_SEC
                     if process.poll() is not None and len(finished_streams) == 2:
                         break
                     continue
@@ -496,18 +513,13 @@ class StepExecutor:
             if summary.stderr_tail:
                 print(f"  stderr tail: {self._truncate(' | '.join(summary.stderr_tail), 500)}")
 
-        # 재현과 디버깅을 위해 Codex의 stdout/stderr를 step별 output 파일에 남긴다.
-        output = {
+        # 재시도 prompt와 실행 요약에 필요한 값만 같은 runner 프로세스 안에서 반환한다.
+        return {
             "step": step_num, "name": step_name,
             "attempt": attempt,
             "elapsedSec": int(elapsed),
             **summary.to_dict(),
         }
-        out_path = self._phase_dir / f"step{step_num}-output.json"
-        with open(out_path, "w", encoding="utf-8") as f:
-            json.dump(output, f, indent=2, ensure_ascii=False)
-
-        return output
 
     # --- 헤더 & 검증 ---
 
@@ -557,6 +569,7 @@ class StepExecutor:
                 break
         self._write_json(self._index_file, index)
         self._commit_step(step_num, step_name)
+        self._delete_live_log(step_num)
         print(f"  ✓ Step {step_num}: {step_name} finalized from completed status")
 
     # 재시도 prompt에 live log 위치와 마지막 stderr를 포함해 같은 실패를 반복하지 않게 한다.
@@ -607,6 +620,7 @@ class StepExecutor:
                         s["completed_at"] = ts
                 self._write_json(self._index_file, index)
                 self._commit_step(step_num, step_name)
+                self._delete_live_log(step_num)
                 print(f"  ✓ Step {step_num}: {step_name} [{elapsed}s]")
                 return True
 

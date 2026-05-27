@@ -15,3 +15,4 @@ build/
 coverage/
 
 phases/*/step*-output.json
+phases/*/step*-live.log
