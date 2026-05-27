@@ -141,6 +141,37 @@ export function normalizeError(error: unknown): NormalizedError {
   return buildNormalizedError("github_commit_failed", debugMessage);
 }
 
+export function normalizeLeetCodeError(error: unknown): NormalizedError {
+  if (isNormalizedError(error)) {
+    return error;
+  }
+
+  const explicitCode = getExplicitErrorCode(error);
+  if (explicitCode !== null) {
+    return buildNormalizedError(explicitCode, getDebugMessage(error));
+  }
+
+  const status = getHttpStatus(error);
+  const debugMessage = getDebugMessage(error);
+  const searchableMessage = debugMessage?.toLowerCase() ?? "";
+
+  if (
+    status === 401 ||
+    status === 403 ||
+    searchableMessage.includes("login") ||
+    searchableMessage.includes("auth") ||
+    searchableMessage.includes("csrf")
+  ) {
+    return buildNormalizedError("leetcode_auth_required", debugMessage);
+  }
+
+  if (isNetworkLikeError(error, searchableMessage)) {
+    return buildNormalizedError("network_failed", debugMessage);
+  }
+
+  return buildNormalizedError("leetcode_fetch_failed", debugMessage);
+}
+
 function buildNormalizedError(
   code: NormalizedErrorCode,
   debugMessage: string | null

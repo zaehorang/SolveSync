@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { MalformedIndexError } from "./indexFile";
-import { normalizeError } from "./errorNormalize";
+import { normalizeError, normalizeLeetCodeError } from "./errorNormalize";
 
 describe("error normalization", () => {
   it("passes through already normalized errors", () => {
@@ -37,6 +37,20 @@ describe("error normalization", () => {
       "github_branch_not_found"
     );
     expect(normalizeError(new TypeError("Failed to fetch")).code).toBe(
+      "network_failed"
+    );
+  });
+
+  it("normalizes LeetCode auth, fetch, and network failures", () => {
+    expect(normalizeLeetCodeError({ status: 403, message: "Please login" })).toMatchObject({
+      code: "leetcode_auth_required",
+      retryable: false
+    });
+    expect(normalizeLeetCodeError({ status: 500, message: "Bad response" })).toMatchObject({
+      code: "leetcode_fetch_failed",
+      retryable: true
+    });
+    expect(normalizeLeetCodeError(new TypeError("Failed to fetch")).code).toBe(
       "network_failed"
     );
   });
