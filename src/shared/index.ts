@@ -1,10 +1,6 @@
 export const APP_NAME = "PS-LP-Sync";
 
-export type ExtensionSurface = "background" | "content" | "options" | "popup";
-
-export interface ScaffoldReadyMessage {
-  type: "scaffold:ready";
-  surface: ExtensionSurface;
-}
-
-export type RuntimeMessage = ScaffoldReadyMessage;
+export * from "./errors";
+export * from "./messages";
+export * from "./storageSchema";
+export * from "./types";
