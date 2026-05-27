@@ -77,7 +77,10 @@
     {
       "step": 9,
       "name": "popup-ui",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-05-27T14:55:06+0900",
+      "summary": "Popup UI for Auto Sync, setup status, recent history, failure detail, and retry controls",
+      "completed_at": "2026-05-27T15:05:30+0900"
     },
     {
       "step": 10,
