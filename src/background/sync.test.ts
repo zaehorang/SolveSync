@@ -135,6 +135,127 @@ describe("background sync orchestrator", () => {
     ).toContain("# Existing");
   });
 
+  it("commits Programmers snapshots with platform README and index files", async () => {
+    const harness = makeHarness();
+    await harness.saveSettings();
+    harness.github.files.set("programmers/README.md", "# Programmers\n");
+
+    await harness.sync.handleAcceptedDetected(makeProgrammersAcceptedDetected());
+
+    expect(harness.leetcode.fetchProblemMetadata).not.toHaveBeenCalled();
+    expect(harness.github.commits).toHaveLength(1);
+    expect(await harness.storage.isProcessed(programmersIdentity)).toBe(true);
+    expect(harness.github.commits[0]).toMatchObject({
+      message: "solve: programmers 120804 두 수의 곱 구하기 in swift"
+    });
+    expect(harness.github.commits[0]?.files.map((file) => file.path)).toEqual([
+      "programmers/swift/120804_두_수의_곱_구하기.swift",
+      "programmers/README.md",
+      "programmers/.programmers-sync/index.json"
+    ]);
+    expect(
+      harness.github.commits[0]?.files.find((file) => file.path === "programmers/README.md")
+        ?.content
+    ).toContain("<!-- PROGRAMMERS_TABLE_START -->");
+    await expect(historyStatuses(harness.storage)).resolves.toEqual(["synced"]);
+  });
+
+  it("skips already processed Programmers identities without a duplicate commit", async () => {
+    const harness = makeHarness();
+    await harness.saveSettings();
+
+    await harness.sync.handleAcceptedDetected(makeProgrammersAcceptedDetected());
+    const outcome = await harness.sync.handleAcceptedDetected(makeProgrammersAcceptedDetected());
+
+    expect(outcome).toEqual({
+      kind: "duplicate_processed",
+      identity: programmersIdentity
+    });
+    expect(harness.github.commits).toHaveLength(1);
+  });
+
+  it("skips Programmers identities that already have an in-flight lock", async () => {
+    const harness = makeHarness();
+    await harness.saveSettings();
+    await harness.storage.acquireInFlightLock(
+      programmersIdentity,
+      "2026-01-01T00:00:00.000Z"
+    );
+
+    const outcome = await harness.sync.handleAcceptedDetected(makeProgrammersAcceptedDetected());
+
+    expect(outcome).toEqual({
+      kind: "duplicate_in_flight",
+      identity: programmersIdentity
+    });
+    expect(harness.github.commits).toHaveLength(0);
+  });
+
+  it("records unsupported Programmers languages without committing", async () => {
+    const harness = makeHarness();
+    await harness.saveSettings();
+
+    await harness.sync.handleAcceptedDetected(
+      makeProgrammersAcceptedDetected({
+        language: "JavaScript"
+      })
+    );
+
+    expect(harness.github.commits).toHaveLength(0);
+    await expect(harness.storage.listRetryPayloads()).resolves.toHaveLength(0);
+    const records = await harness.storage.listHistory();
+    expect(records[0]).toMatchObject({
+      platform: "programmers",
+      status: "unsupported_language",
+      language: "JavaScript",
+      supportedLanguage: null,
+      problemTitle: "두 수의 곱 구하기"
+    });
+  });
+
+  it("records Programmers extract failures without retry payloads", async () => {
+    const harness = makeHarness();
+    await harness.saveSettings();
+
+    await harness.sync.handleAcceptedDetected(
+      makeProgrammersAcceptedDetected({
+        code: ""
+      })
+    );
+
+    expect(harness.github.commits).toHaveLength(0);
+    await expect(harness.storage.listRetryPayloads()).resolves.toHaveLength(0);
+    const records = await harness.storage.listHistory();
+    expect(records[0]).toMatchObject({
+      platform: "programmers",
+      status: "failed",
+      retryPayloadId: null,
+      error: {
+        code: "programmers_extract_failed"
+      }
+    });
+  });
+
+  it("does not store retry payloads when Programmers index cannot be parsed", async () => {
+    const harness = makeHarness();
+    await harness.saveSettings();
+    harness.github.files.set("programmers/.programmers-sync/index.json", "{not-json");
+
+    await harness.sync.handleAcceptedDetected(makeProgrammersAcceptedDetected());
+
+    expect(harness.github.commits).toHaveLength(0);
+    await expect(harness.storage.listRetryPayloads()).resolves.toHaveLength(0);
+    const records = await harness.storage.listHistory();
+    expect(records[0]).toMatchObject({
+      platform: "programmers",
+      status: "failed",
+      retryPayloadId: null,
+      error: {
+        code: "malformed_index"
+      }
+    });
+  });
+
   it("stores retry payloads for GitHub commit failures without marking processed", async () => {
     const harness = makeHarness();
     await harness.saveSettings();
@@ -199,6 +320,26 @@ describe("background sync orchestrator", () => {
     expect(await harness.storage.isProcessed(identity)).toBe(true);
     await expect(harness.storage.getRetryPayload("retry-1")).resolves.toBeNull();
     await expect(historyStatuses(harness.storage)).resolves.toEqual(["synced"]);
+  });
+
+  it("retries a saved Programmers payload with the platform commit files", async () => {
+    const harness = makeHarness();
+    await harness.saveSettings();
+    await harness.storage.saveRetryPayload(makeProgrammersRetryPayload("retry-programmers"));
+
+    await harness.sync.handleRetry("retry-programmers");
+
+    expect(harness.github.commits).toHaveLength(1);
+    expect(await harness.storage.isProcessed(programmersIdentity)).toBe(true);
+    await expect(harness.storage.getRetryPayload("retry-programmers")).resolves.toBeNull();
+    expect(harness.github.commits[0]).toMatchObject({
+      message: "solve: programmers 120804 두 수의 곱 구하기 in swift"
+    });
+    expect(harness.github.commits[0]?.files.map((file) => file.path)).toEqual([
+      "programmers/swift/120804_두_수의_곱_구하기.swift",
+      "programmers/README.md",
+      "programmers/.programmers-sync/index.json"
+    ]);
   });
 
   it("keeps retry payloads and updates failure detail when retry fails", async () => {
@@ -378,12 +519,50 @@ const identity: SubmissionIdentity = {
   language: "swift"
 };
 
+const programmersCode = [
+  "func solution(_ num1: Int, _ num2: Int) -> Int {",
+  "  num1 * num2",
+  "}"
+].join("\n");
+
+const programmersIdentity: SubmissionIdentity = {
+  platform: "programmers",
+  submissionId: `programmers:120804:swift:${buildShortCodeHash(programmersCode)}`,
+  titleSlug: "120804_두_수의_곱_구하기",
+  language: "swift"
+};
+
 function makeAcceptedDetected() {
   return {
     platform: "leetcode" as const,
     titleSlug: "two-sum",
     pageUrl: "https://leetcode.com/problems/two-sum/",
     detectedAt: "2026-01-01T00:00:00.000Z"
+  };
+}
+
+function makeProgrammersAcceptedDetected(
+  overrides: Partial<{
+    courseId: string;
+    lessonId: string;
+    problemTitle: string;
+    language: string;
+    code: string;
+    pageUrl: string;
+    detectedAt: string;
+  }> = {}
+) {
+  return {
+    platform: "programmers" as const,
+    courseId: overrides.courseId ?? "30",
+    lessonId: overrides.lessonId ?? "120804",
+    problemTitle: overrides.problemTitle ?? "두 수의 곱 구하기",
+    language: overrides.language ?? "Swift",
+    code: overrides.code ?? programmersCode,
+    pageUrl:
+      overrides.pageUrl ??
+      "https://school.programmers.co.kr/learn/courses/30/lessons/120804",
+    detectedAt: overrides.detectedAt ?? "2026-01-01T00:00:00.000Z"
   };
 }
 
@@ -419,6 +598,39 @@ function unsupportedAcceptedSubmission(): LatestAcceptedSubmissionResult {
   };
 }
 
+function makeProgrammersRetryPayload(id: string): RetryPayload {
+  return {
+    id,
+    platform: "programmers",
+    identity: programmersIdentity,
+    repository,
+    branch,
+    problem: {
+      problemId: "120804",
+      frontendId: "120804",
+      title: "두 수의 곱 구하기",
+      titleSlug: programmersIdentity.titleSlug,
+      difficulty: "-",
+      url: "https://school.programmers.co.kr/learn/courses/30/lessons/120804"
+    },
+    submission: {
+      submissionId: programmersIdentity.submissionId,
+      titleSlug: programmersIdentity.titleSlug,
+      language: "Swift",
+      code: programmersCode,
+      acceptedAt: "2026-01-01T00:00:00.000Z"
+    },
+    solutionPath: "programmers/swift/120804_두_수의_곱_구하기.swift",
+    readmePath: "programmers/README.md",
+    indexPath: "programmers/.programmers-sync/index.json",
+    commitMessage: "solve: programmers 120804 두 수의 곱 구하기 in swift",
+    attempts: 0,
+    createdAt: "2026-01-01T00:00:00.000Z",
+    expiresAt: "2026-01-08T00:00:00.000Z",
+    lastError: null
+  };
+}
+
 function makeRetryPayload(id: string): RetryPayload {
   return {
     id,
@@ -437,6 +649,17 @@ function makeRetryPayload(id: string): RetryPayload {
     expiresAt: "2026-01-08T00:00:00.000Z",
     lastError: null
   };
+}
+
+function buildShortCodeHash(code: string): string {
+  let hash = 0x811c9dc5;
+
+  for (let index = 0; index < code.length; index += 1) {
+    hash ^= code.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193);
+  }
+
+  return (hash >>> 0).toString(36).padStart(7, "0");
 }
 
 async function historyStatuses(

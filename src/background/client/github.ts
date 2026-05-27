@@ -1,8 +1,14 @@
 import { normalizeError } from "../../shared/errorNormalize";
 import type { NormalizedError, NormalizedErrorCode } from "../../shared/errors";
 import type { GitTreeFile } from "../../shared/githubTree";
-import { formatProblemNumber } from "../../shared/paths";
-import type { BranchRef, RepositoryRef, SupportedLanguage } from "../../shared/types";
+import { getPlatformPolicy } from "../../shared/platformPolicy";
+import { formatPlatformProblemNumber } from "../../shared/paths";
+import type {
+  BranchRef,
+  Platform,
+  RepositoryRef,
+  SupportedLanguage
+} from "../../shared/types";
 
 const GITHUB_API_BASE_URL = "https://api.github.com";
 const GITHUB_API_VERSION = "2022-11-28";
@@ -77,6 +83,7 @@ export interface CommitGitDataResult {
 }
 
 export interface BuildGitHubCommitMessageInput {
+  platform?: Platform;
   frontendId: string;
   title: string;
   language: SupportedLanguage;
@@ -622,9 +629,13 @@ export function createGitHubClient(options: GitHubClientOptions): GitHubClient {
 export function buildGitHubCommitMessage(
   input: BuildGitHubCommitMessageInput
 ): string {
-  return `solve: leetcode ${formatProblemNumber(input.frontendId)} ${toCommitTitle(
-    input.title
-  )} in ${input.language}`;
+  const platform = input.platform ?? "leetcode";
+  const policy = getPlatformPolicy(platform);
+
+  return `solve: ${policy.commitPlatformLabel} ${formatPlatformProblemNumber(
+    platform,
+    input.frontendId
+  )} ${toCommitTitle(input.title, platform)} in ${input.language}`;
 }
 
 async function githubRequest<T>(
@@ -838,16 +849,21 @@ function encodePath(path: string): string {
   return path.split("/").map(encodePathPart).join("/");
 }
 
-function toCommitTitle(title: string): string {
-  const normalized = title
-    .trim()
-    .toLowerCase()
-    .replace(/['"]/gu, "")
-    .replace(/[^a-z0-9]+/gu, " ")
-    .replace(/\s+/gu, " ")
-    .trim();
+function toCommitTitle(title: string, platform: Platform): string {
+  const normalized =
+    platform === "leetcode"
+      ? title
+          .trim()
+          .toLowerCase()
+          .replace(/['"]/gu, "")
+          .replace(/[^a-z0-9]+/gu, " ")
+          .replace(/\s+/gu, " ")
+          .trim()
+      : title.normalize("NFC").trim().replace(/['"]/gu, "").replace(/\s+/gu, " ");
 
-  return normalized.length > 0 ? normalized : "solution";
+  const trimmed = normalized.trim();
+
+  return trimmed.length > 0 ? trimmed : "solution";
 }
 
 function decodeBase64(content: string): string {

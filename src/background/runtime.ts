@@ -75,15 +75,6 @@ async function handleRuntimeMessage(
       return success({ surface: message.surface });
 
     case "content:accepted_detected":
-      if (message.payload.platform !== "leetcode") {
-        return failure(
-          explicitError(
-            "programmers_extract_failed",
-            "Programmers sync is not available in this shared-layer step."
-          )
-        );
-      }
-
       return success(
         await context.orchestrator.handleAcceptedDetected(message.payload, {
           tabId: sender.tab?.id

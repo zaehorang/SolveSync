@@ -5,14 +5,16 @@ import {
 } from "../shared/indexFile";
 import { mergeReadmeManagedBlock, renderManagedReadmeTable } from "../shared/readme";
 import { buildGitTreeFiles, type GitTreeFile } from "../shared/githubTree";
-import { buildSolutionPath } from "../shared/paths";
+import { buildSolutionPath, sanitizeProgrammersFilename } from "../shared/paths";
 import { getPlatformPolicy } from "../shared/platformPolicy";
+import { mapProgrammersLanguage } from "../shared/language";
 import { normalizeError, normalizeLeetCodeError } from "../shared/errorNormalize";
 import type { NormalizedError, NormalizedErrorCode } from "../shared/errors";
 import type {
   AcceptedSubmission,
   BranchRef,
   IsoDateString,
+  LeetCodeLanguage,
   ProblemMetadata,
   RepositoryRef,
   RetryPayload,
@@ -22,8 +24,8 @@ import type {
 } from "../shared/types";
 import type { SyncHistoryState } from "../shared/storageSchema";
 import type {
-  BackgroundToContentPopupMessage,
-  LeetCodeAcceptedDetectedPayload
+  AcceptedDetectedPayload,
+  BackgroundToContentPopupMessage
 } from "../shared/messages";
 import {
   RETRY_PAYLOAD_TTL_MS,
@@ -37,10 +39,6 @@ import {
   type ReadTextFileInput
 } from "./client/github";
 import type { LatestAcceptedSubmissionResult } from "./client/leetcode";
-
-const LEETCODE_POLICY = getPlatformPolicy("leetcode");
-const README_PATH = LEETCODE_POLICY.readmePath;
-const INDEX_PATH = LEETCODE_POLICY.indexPath;
 
 export type SyncBroadcast = (
   message: BackgroundToContentPopupMessage,
@@ -90,7 +88,7 @@ export type RetrySyncOutcome =
 
 export interface SyncOrchestrator {
   handleAcceptedDetected(
-    payload: LeetCodeAcceptedDetectedPayload,
+    payload: AcceptedDetectedPayload,
     target?: SyncBroadcastTarget
   ): Promise<AcceptedSyncOutcome>;
   handleRetry(
@@ -106,6 +104,8 @@ interface PreparedCommit {
   repository: RepositoryRef;
   branch: BranchRef;
   solutionPath: string;
+  readmePath: string;
+  indexPath: string;
   commitMessage: string;
 }
 
@@ -114,10 +114,33 @@ interface CommitFilesBuildInput {
   submission: AcceptedSubmission;
   identity: SubmissionIdentity;
   solutionPath: string;
+  readmePath: string;
+  indexPath: string;
   existingIndexText: string | null;
   existingReadmeText: string | null;
   syncedAt: IsoDateString;
 }
+
+type ResolvedSource =
+  | {
+      kind: "syncable";
+      problem: ProblemMetadata;
+      submission: AcceptedSubmission;
+      identity: SubmissionIdentity;
+    }
+  | {
+      kind: "unsupported_language";
+      problem: ProblemMetadata;
+      submission: AcceptedSubmission;
+    }
+  | {
+      kind: "extract_failed";
+      titleSlug: string;
+      problemTitle: string | null;
+      problemFrontendId: string | null;
+      language: string;
+      error: NormalizedError;
+    };
 
 interface RecordInput {
   status: SyncStatus;
@@ -147,18 +170,22 @@ export function createSyncOrchestrator(
   const createId = options.createId ?? defaultCreateId;
 
   async function handleAcceptedDetected(
-    payload: LeetCodeAcceptedDetectedPayload,
+    payload: AcceptedDetectedPayload,
     target?: SyncBroadcastTarget
   ): Promise<AcceptedSyncOutcome> {
     const settings = await options.storage.getSettings();
     const initialTimestamp = now();
+    const initialTitleSlug = getInitialTitleSlug(payload);
     await options.storage.pruneRetryPayloads(initialTimestamp);
     await options.storage.pruneInFlightLocks(initialTimestamp);
 
     if (!hasRequiredSetup(settings)) {
       const record = makeRecord({
         status: "setup_required",
-        titleSlug: payload.titleSlug,
+        platform: payload.platform,
+        titleSlug: initialTitleSlug,
+        problemTitle: getInitialProblemTitle(payload),
+        language: getInitialLanguage(payload),
         error: explicitError("setup_required", "GitHub connection required."),
         timestamp: initialTimestamp
       });
@@ -169,7 +196,10 @@ export function createSyncOrchestrator(
     if (!settings.autoSyncEnabled) {
       const record = makeRecord({
         status: "auto_sync_disabled",
-        titleSlug: payload.titleSlug,
+        platform: payload.platform,
+        titleSlug: initialTitleSlug,
+        problemTitle: getInitialProblemTitle(payload),
+        language: getInitialLanguage(payload),
         repository: settings.selectedRepository,
         branchName: settings.selectedBranch.name,
         error: explicitError("auto_sync_disabled", "Auto Sync is off."),
@@ -179,19 +209,19 @@ export function createSyncOrchestrator(
       return recordAndBroadcast(record, target);
     }
 
-    let problem: ProblemMetadata;
-    let accepted: LatestAcceptedSubmissionResult;
+    let source: ResolvedSource;
 
     try {
-      [problem, accepted] = await Promise.all([
-        options.leetcode.fetchProblemMetadata(payload.titleSlug),
-        options.leetcode.fetchLatestAcceptedSubmission(payload.titleSlug)
-      ]);
+      source = await resolveAcceptedSource(payload);
     } catch (error) {
-      const normalized = normalizeLeetCodeError(error);
+      const normalized =
+        payload.platform === "leetcode" ? normalizeLeetCodeError(error) : normalizeError(error);
       const record = makeRecord({
         status: "failed",
-        titleSlug: payload.titleSlug,
+        platform: payload.platform,
+        titleSlug: initialTitleSlug,
+        problemTitle: getInitialProblemTitle(payload),
+        language: getInitialLanguage(payload),
         repository: settings.selectedRepository,
         branchName: settings.selectedBranch.name,
         error: normalized,
@@ -201,18 +231,36 @@ export function createSyncOrchestrator(
       return recordAndBroadcast(record, target);
     }
 
-    if (!accepted.syncable) {
+    if (source.kind === "extract_failed") {
+      const record = makeRecord({
+        status: "failed",
+        platform: payload.platform,
+        titleSlug: source.titleSlug,
+        problemTitle: source.problemTitle,
+        problemFrontendId: source.problemFrontendId,
+        language: source.language,
+        repository: settings.selectedRepository,
+        branchName: settings.selectedBranch.name,
+        error: source.error,
+        timestamp: now()
+      });
+
+      return recordAndBroadcast(record, target);
+    }
+
+    if (source.kind === "unsupported_language") {
       const record = makeRecord({
         status: "unsupported_language",
-        titleSlug: problem.titleSlug,
-        problemTitle: problem.title,
-        problemFrontendId: problem.frontendId,
-        language: accepted.submission.language,
+        platform: payload.platform,
+        titleSlug: source.problem.titleSlug,
+        problemTitle: source.problem.title,
+        problemFrontendId: source.problem.frontendId,
+        language: source.submission.language,
         repository: settings.selectedRepository,
         branchName: settings.selectedBranch.name,
         error: explicitError(
           "unsupported_language",
-          `Unsupported LeetCode language: ${accepted.submission.language}`
+          `Unsupported ${payload.platform} language: ${source.submission.language}`
         ),
         timestamp: now()
       });
@@ -221,9 +269,9 @@ export function createSyncOrchestrator(
     }
 
     const prepared = prepareCommit(
-      problem,
-      accepted.submission,
-      accepted.identity,
+      source.problem,
+      source.submission,
+      source.identity,
       settings.selectedRepository,
       settings.selectedBranch
     );
@@ -258,6 +306,7 @@ export function createSyncOrchestrator(
       await broadcastStatus(
         makeRecord({
           status: "syncing",
+          platform: prepared.identity.platform,
           titleSlug: prepared.problem.titleSlug,
           problemTitle: prepared.problem.title,
           problemFrontendId: prepared.problem.frontendId,
@@ -282,6 +331,7 @@ export function createSyncOrchestrator(
         const normalized = normalizeError(error);
         const record = makeRecord({
           status: "failed",
+          platform: prepared.identity.platform,
           titleSlug: prepared.problem.titleSlug,
           problemTitle: prepared.problem.title,
           problemFrontendId: prepared.problem.frontendId,
@@ -311,6 +361,7 @@ export function createSyncOrchestrator(
 
       const record = makeRecord({
         status: "synced",
+        platform: prepared.identity.platform,
         titleSlug: prepared.problem.titleSlug,
         problemTitle: prepared.problem.title,
         problemFrontendId: prepared.problem.frontendId,
@@ -334,6 +385,7 @@ export function createSyncOrchestrator(
 
       const record = makeRecord({
         status: "failed",
+        platform: prepared.identity.platform,
         titleSlug: prepared.problem.titleSlug,
         problemTitle: prepared.problem.title,
         problemFrontendId: prepared.problem.frontendId,
@@ -352,6 +404,38 @@ export function createSyncOrchestrator(
     } finally {
       await options.storage.releaseInFlightLock(prepared.identity);
     }
+  }
+
+  async function resolveAcceptedSource(
+    payload: AcceptedDetectedPayload
+  ): Promise<ResolvedSource> {
+    if (payload.platform === "leetcode") {
+      return resolveLeetCodeSource(payload.titleSlug);
+    }
+
+    return resolveProgrammersSource(payload);
+  }
+
+  async function resolveLeetCodeSource(titleSlug: string): Promise<ResolvedSource> {
+    const [problem, accepted] = await Promise.all([
+      options.leetcode.fetchProblemMetadata(titleSlug),
+      options.leetcode.fetchLatestAcceptedSubmission(titleSlug)
+    ]);
+
+    if (!accepted.syncable) {
+      return {
+        kind: "unsupported_language",
+        problem,
+        submission: accepted.submission
+      };
+    }
+
+    return {
+      kind: "syncable",
+      problem,
+      submission: accepted.submission,
+      identity: accepted.identity
+    };
   }
 
   async function handleRetry(
@@ -408,6 +492,7 @@ export function createSyncOrchestrator(
       await broadcastStatus(
         makeRecord({
           status: "retrying",
+          platform: payload.platform,
           titleSlug: payload.problem.titleSlug,
           problemTitle: payload.problem.title,
           problemFrontendId: payload.problem.frontendId,
@@ -440,6 +525,7 @@ export function createSyncOrchestrator(
 
       const record = makeRecord({
         status: "synced",
+        platform: payload.platform,
         titleSlug: payload.problem.titleSlug,
         problemTitle: payload.problem.title,
         problemFrontendId: payload.problem.frontendId,
@@ -467,6 +553,7 @@ export function createSyncOrchestrator(
 
       const record = makeRecord({
         status: "failed",
+        platform: payload.platform,
         titleSlug: payload.problem.titleSlug,
         problemTitle: payload.problem.title,
         problemFrontendId: payload.problem.frontendId,
@@ -521,8 +608,8 @@ export function createSyncOrchestrator(
     syncedAt: IsoDateString
   ): Promise<GitTreeFile[]> {
     const [existingIndexText, existingReadmeText] = await Promise.all([
-      readRepositoryTextFile(github, prepared, INDEX_PATH),
-      readRepositoryTextFile(github, prepared, README_PATH)
+      readRepositoryTextFile(github, prepared, prepared.indexPath),
+      readRepositoryTextFile(github, prepared, prepared.readmePath)
     ]);
 
     return buildCommitFiles({
@@ -530,6 +617,8 @@ export function createSyncOrchestrator(
       submission: prepared.submission,
       identity: prepared.identity,
       solutionPath: prepared.solutionPath,
+      readmePath: prepared.readmePath,
+      indexPath: prepared.indexPath,
       existingIndexText,
       existingReadmeText,
       syncedAt
@@ -542,8 +631,8 @@ export function createSyncOrchestrator(
     syncedAt: IsoDateString
   ): Promise<GitTreeFile[]> {
     const [existingIndexText, existingReadmeText] = await Promise.all([
-      context.readTextFile(INDEX_PATH),
-      context.readTextFile(README_PATH)
+      context.readTextFile(prepared.indexPath),
+      context.readTextFile(prepared.readmePath)
     ]);
 
     return buildCommitFiles({
@@ -551,6 +640,8 @@ export function createSyncOrchestrator(
       submission: prepared.submission,
       identity: prepared.identity,
       solutionPath: prepared.solutionPath,
+      readmePath: prepared.readmePath,
+      indexPath: prepared.indexPath,
       existingIndexText,
       existingReadmeText,
       syncedAt
@@ -647,8 +738,8 @@ export function createSyncOrchestrator(
       problem: prepared.problem,
       submission: prepared.submission,
       solutionPath: prepared.solutionPath,
-      readmePath: README_PATH,
-      indexPath: INDEX_PATH,
+      readmePath: prepared.readmePath,
+      indexPath: prepared.indexPath,
       commitMessage: prepared.commitMessage,
       attempts: 0,
       createdAt,
@@ -661,6 +752,136 @@ export function createSyncOrchestrator(
     handleAcceptedDetected,
     handleRetry
   };
+}
+
+function resolveProgrammersSource(
+  payload: Extract<AcceptedDetectedPayload, { platform: "programmers" }>
+): ResolvedSource {
+  const lessonId = payload.lessonId.trim();
+  const title = payload.problemTitle.trim();
+  const language = payload.language.trim();
+  const code = payload.code;
+  const titleSlug =
+    lessonId.length > 0 && title.length > 0
+      ? buildProgrammersTitleSlug(lessonId, title)
+      : getInitialTitleSlug(payload);
+
+  if (
+    lessonId.length === 0 ||
+    title.length === 0 ||
+    language.length === 0 ||
+    code.trim().length === 0
+  ) {
+    return {
+      kind: "extract_failed",
+      titleSlug,
+      problemTitle: title.length > 0 ? title : null,
+      problemFrontendId: lessonId.length > 0 ? lessonId : null,
+      language,
+      error: explicitError(
+        "programmers_extract_failed",
+        "Programmers snapshot is missing lesson id, title, language, or code."
+      )
+    };
+  }
+
+  const supportedLanguage = mapProgrammersLanguage(language);
+  const codeHash = buildShortCodeHash(code);
+  const submissionId =
+    supportedLanguage === null
+      ? `programmers:${lessonId}:unsupported:${codeHash}`
+      : buildProgrammersSubmissionId(lessonId, supportedLanguage, codeHash);
+  const problem: ProblemMetadata = {
+    problemId: lessonId,
+    frontendId: lessonId,
+    title,
+    titleSlug,
+    difficulty: "-",
+    url: payload.pageUrl
+  };
+  const submission: AcceptedSubmission = {
+    submissionId,
+    titleSlug,
+    language: language as LeetCodeLanguage,
+    code,
+    acceptedAt: payload.detectedAt
+  };
+
+  if (supportedLanguage === null) {
+    return {
+      kind: "unsupported_language",
+      problem,
+      submission
+    };
+  }
+
+  return {
+    kind: "syncable",
+    problem,
+    submission,
+    identity: {
+      platform: "programmers",
+      submissionId,
+      titleSlug,
+      language: supportedLanguage
+    }
+  };
+}
+
+function buildProgrammersSubmissionId(
+  lessonId: string,
+  language: SubmissionIdentity["language"],
+  codeHash: string
+): string {
+  return `programmers:${lessonId}:${language}:${codeHash}`;
+}
+
+function buildProgrammersTitleSlug(lessonId: string, title: string): string {
+  return `${sanitizeProgrammersFilename(lessonId)}_${sanitizeProgrammersFilename(title)}`;
+}
+
+function buildShortCodeHash(code: string): string {
+  let hash = 0x811c9dc5;
+
+  for (let index = 0; index < code.length; index += 1) {
+    hash ^= code.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193);
+  }
+
+  return (hash >>> 0).toString(36).padStart(7, "0");
+}
+
+function getInitialTitleSlug(payload: AcceptedDetectedPayload): string {
+  if (payload.platform === "leetcode") {
+    return payload.titleSlug;
+  }
+
+  const lessonId = payload.lessonId.trim();
+  const title = payload.problemTitle.trim();
+
+  if (lessonId.length > 0 && title.length > 0) {
+    return buildProgrammersTitleSlug(lessonId, title);
+  }
+
+  if (lessonId.length > 0) {
+    return sanitizeProgrammersFilename(lessonId);
+  }
+
+  return "programmers";
+}
+
+function getInitialProblemTitle(payload: AcceptedDetectedPayload): string | null {
+  if (payload.platform === "programmers") {
+    const title = payload.problemTitle.trim();
+
+    return title.length > 0 ? title : null;
+  }
+
+  return null;
+}
+
+function getInitialLanguage(payload: AcceptedDetectedPayload): string {
+  return payload.platform === "programmers" ? payload.language : "";
 }
 
 function hasRequiredSetup(settings: {
@@ -688,6 +909,7 @@ function prepareCommit(
   branch: BranchRef
 ): PreparedCommit {
   const solutionPath = buildSolutionPath(identity.platform, problem, identity.language);
+  const policy = getPlatformPolicy(identity.platform);
 
   return {
     identity,
@@ -696,7 +918,10 @@ function prepareCommit(
     repository,
     branch,
     solutionPath,
+    readmePath: policy.readmePath,
+    indexPath: policy.indexPath,
     commitMessage: buildGitHubCommitMessage({
+      platform: identity.platform,
       frontendId: problem.frontendId,
       title: problem.title,
       language: identity.language
@@ -712,6 +937,8 @@ function payloadToPrepared(payload: RetryPayload): PreparedCommit {
     repository: payload.repository,
     branch: payload.branch,
     solutionPath: payload.solutionPath,
+    readmePath: payload.readmePath,
+    indexPath: payload.indexPath,
     commitMessage: payload.commitMessage
   };
 }
@@ -749,18 +976,19 @@ function buildCommitFiles(input: CommitFilesBuildInput): GitTreeFile[] {
     input.solutionPath,
     input.syncedAt
   );
-  const readmeTable = renderManagedReadmeTable(nextIndex);
+  const readmeTable = renderManagedReadmeTable(nextIndex, input.identity.platform);
   const readmeContent = mergeReadmeManagedBlock(
     input.existingReadmeText,
-    readmeTable
+    readmeTable,
+    input.identity.platform
   );
 
   return buildGitTreeFiles({
     solutionPath: input.solutionPath,
     solutionContent: input.submission.code,
-    readmePath: README_PATH,
+    readmePath: input.readmePath,
     readmeContent,
-    indexPath: INDEX_PATH,
+    indexPath: input.indexPath,
     index: nextIndex
   });
 }

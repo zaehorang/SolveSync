@@ -248,6 +248,15 @@ describe("GitHub background client", () => {
         language: "swift"
       })
     ).toBe("solve: leetcode 0001 two sum in swift");
+
+    expect(
+      buildGitHubCommitMessage({
+        platform: "programmers",
+        frontendId: "120804",
+        title: "두 수의 곱 구하기",
+        language: "swift"
+      })
+    ).toBe("solve: programmers 120804 두 수의 곱 구하기 in swift");
   });
 });
 

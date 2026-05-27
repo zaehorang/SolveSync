@@ -66,6 +66,27 @@ describe("background runtime", () => {
         } as chrome.tabs.Tab
       }
     );
+    await dispatchMessage(
+      chromeMock.listener,
+      {
+        type: "content:accepted_detected",
+        payload: {
+          platform: "programmers",
+          courseId: "30",
+          lessonId: "120804",
+          problemTitle: "두 수의 곱 구하기",
+          language: "Swift",
+          code: "func solution() -> Int { 1 }",
+          pageUrl: "https://school.programmers.co.kr/learn/courses/30/lessons/120804",
+          detectedAt: "2026-01-01T00:00:00.000Z"
+        }
+      },
+      {
+        tab: {
+          id: 456
+        } as chrome.tabs.Tab
+      }
+    );
     await dispatchMessage(chromeMock.listener, {
       type: "sync:retry",
       payload: {
@@ -79,6 +100,15 @@ describe("background runtime", () => {
       }),
       {
         tabId: 123
+      }
+    );
+    expect(orchestrator.handleAcceptedDetected).toHaveBeenCalledWith(
+      expect.objectContaining({
+        platform: "programmers",
+        lessonId: "120804"
+      }),
+      {
+        tabId: 456
       }
     );
     expect(orchestrator.handleRetry).toHaveBeenCalledWith("retry-1");
