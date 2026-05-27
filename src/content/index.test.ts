@@ -52,6 +52,9 @@ describe("content runtime wiring helpers", () => {
       "textarea#code": element({ value: "print(120804)\n" }),
       h1: element({ textContent: "코딩테스트 연습" }),
       h2: element({ textContent: "두 수의 곱 구하기" }),
+      'meta[property="og:title"]': element({
+        content: "코딩테스트 연습 - 두 수의 곱 구하기 | 프로그래머스"
+      }),
       'select[name="language"]': element({
         value: "swift",
         selectedOption: element({ textContent: "Swift" })
@@ -77,6 +80,33 @@ describe("content runtime wiring helpers", () => {
       pageUrl: "https://school.programmers.co.kr/learn/courses/30/lessons/120804",
       detectedAt: "2026-01-01T00:00:00.000Z"
     });
+  });
+
+  it("prefers stable Programmers page metadata over accepted modal headings", () => {
+    const documentRef = makeDocument({
+      "textarea#code": element({ value: "solution code\n" }),
+      h1: element({ textContent: "정답입니다!" }),
+      h2: element({ textContent: "1239 (+1)" }),
+      'meta[property="og:title"]': element({
+        content: "코딩테스트 연습 - 나이 출력 | 프로그래머스"
+      }),
+      'select[name="language"]': element({
+        value: "swift",
+        selectedOption: element({ textContent: "Swift" })
+      })
+    });
+
+    const snapshot = extractProgrammersAcceptedSnapshot(
+      documentRef,
+      {
+        courseId: "30",
+        lessonId: "120820"
+      },
+      "https://school.programmers.co.kr/learn/courses/30/lessons/120820",
+      "2026-01-01T00:00:00.000Z"
+    );
+
+    expect(snapshot.problemTitle).toBe("나이 출력");
   });
 
   it("does not use rendered CodeMirror lines as solution code", () => {

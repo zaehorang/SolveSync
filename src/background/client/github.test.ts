@@ -240,6 +240,17 @@ describe("GitHub background client", () => {
     await expectAuthFailure();
   });
 
+  it("keeps the HTTP status in debug details when GitHub returns an empty error body", async () => {
+    const fetchImpl = mockFetch(new Response("", { status: 500 }));
+    const client = makeClient(fetchImpl);
+
+    await expect(client.listRepositories()).rejects.toMatchObject({
+      code: "github_commit_failed",
+      debugMessage:
+        "GET /user/repos?affiliation=owner&sort=full_name&direction=asc&per_page=100&page=1: GitHub request failed with status 500."
+    });
+  });
+
   it("builds the required solve commit message", () => {
     expect(
       buildGitHubCommitMessage({

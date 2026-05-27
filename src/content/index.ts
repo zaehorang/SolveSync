@@ -188,11 +188,11 @@ function extractProgrammersProblemTitle(
   fallback: string
 ): string {
   const candidates = [
-    readTextContent(documentRef.querySelector<HTMLElement>("h1")),
-    readTextContent(documentRef.querySelector<HTMLElement>("h2")),
     readMetaContent(documentRef.querySelector<HTMLMetaElement>('meta[property="og:title"]')),
     readMetaContent(documentRef.querySelector<HTMLMetaElement>('meta[name="title"]')),
     documentRef.title,
+    readTextContent(documentRef.querySelector<HTMLElement>("h1")),
+    readTextContent(documentRef.querySelector<HTMLElement>("h2")),
     fallback
   ];
 

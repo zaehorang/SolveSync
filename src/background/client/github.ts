@@ -661,7 +661,7 @@ async function githubRequest<T>(
   const text = await response.text();
 
   if (!response.ok) {
-    const message = parseErrorMessage(text) ?? response.statusText;
+    const message = buildRequestErrorMessage(response, path, init.method, text);
     throw new GitHubHttpError(
       response.status,
       message,
@@ -725,6 +725,26 @@ function parseErrorMessage(text: string): string | null {
   }
 
   return text;
+}
+
+function buildRequestErrorMessage(
+  response: Response,
+  path: string,
+  method: string | undefined,
+  text: string
+): string {
+  const requestLabel = `${(method ?? "GET").toUpperCase()} ${path}`;
+  const message = parseErrorMessage(text) ?? buildHttpFallbackMessage(response);
+
+  return `${requestLabel}: ${message}`;
+}
+
+function buildHttpFallbackMessage(response: Response): string {
+  const statusText = response.statusText.trim();
+
+  return statusText.length > 0
+    ? statusText
+    : `GitHub request failed with status ${response.status}.`;
 }
 
 function inferResponseErrorCode(
