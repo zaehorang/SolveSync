@@ -1,0 +1,65 @@
+{
+  "project": "PS-LP-Sync",
+  "phase": "0-mvp-extension",
+  "steps": [
+    {
+      "step": 0,
+      "name": "project-scaffold",
+      "status": "completed",
+      "summary": "project scaffold with MV3 Vite TypeScript Vitest skeleton",
+      "started_at": "2026-05-27T13:40:35+0900",
+      "completed_at": "2026-05-27T13:47:00+0900"
+    },
+    {
+      "step": 1,
+      "name": "shared-contracts",
+      "status": "pending"
+    },
+    {
+      "step": 2,
+      "name": "shared-sync-logic",
+      "status": "pending"
+    },
+    {
+      "step": 3,
+      "name": "background-storage",
+      "status": "pending"
+    },
+    {
+      "step": 4,
+      "name": "github-client",
+      "status": "pending"
+    },
+    {
+      "step": 5,
+      "name": "leetcode-client",
+      "status": "pending"
+    },
+    {
+      "step": 6,
+      "name": "sync-orchestrator",
+      "status": "pending"
+    },
+    {
+      "step": 7,
+      "name": "content-toast",
+      "status": "pending"
+    },
+    {
+      "step": 8,
+      "name": "options-ui",
+      "status": "pending"
+    },
+    {
+      "step": 9,
+      "name": "popup-ui",
+      "status": "pending"
+    },
+    {
+      "step": 10,
+      "name": "integration-validation",
+      "status": "pending"
+    }
+  ],
+  "created_at": "2026-05-27T13:40:35+0900"
+}
