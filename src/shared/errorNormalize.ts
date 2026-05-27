@@ -28,7 +28,7 @@ const ERROR_DESCRIPTORS = {
     retryable: true
   },
   programmers_extract_failed: {
-    userMessage: "Could not extract the Programmers submission.",
+    userMessage: "Could not read the Programmers editor code.",
     retryable: false
   },
   github_auth_failed: {

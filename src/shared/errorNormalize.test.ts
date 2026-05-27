@@ -25,7 +25,8 @@ describe("error normalization", () => {
     });
     expect(normalizeError({ code: "programmers_extract_failed" })).toMatchObject({
       code: "programmers_extract_failed",
-      userMessage: "Could not extract the Programmers submission."
+      userMessage: "Could not read the Programmers editor code.",
+      retryable: false
     });
     expect(normalizeError(new MalformedIndexError("bad index")).code).toBe(
       "malformed_index"

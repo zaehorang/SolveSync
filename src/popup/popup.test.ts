@@ -34,6 +34,8 @@ describe("popup state helpers", () => {
     expect(model.items.map((item) => item.id)).toEqual(["newer", "older"]);
     expect(model.items[0]).toMatchObject({
       title: "1. Two Sum",
+      platformLabel: "LeetCode",
+      meta: "LeetCode / Swift / 1m ago / octo/algorithms@main",
       statusLabel: "Synced",
       timeLabel: "1m ago",
       commitUrl: "https://github.com/octo/algorithms/commit/commit-sha",
@@ -57,6 +59,25 @@ describe("popup state helpers", () => {
 
     expect(withoutPayload.items[0]?.canRetry).toBe(false);
     expect(withPayload.items[0]?.canRetry).toBe(true);
+  });
+
+  it("shows the platform label for Programmers history items", () => {
+    const programmers = makeProgrammersRecord({
+      id: "programmers-record",
+      updatedAt: "2026-01-01T00:03:00.000Z"
+    });
+
+    const model = buildHistoryDisplayModel(
+      [programmers],
+      [],
+      Date.parse("2026-01-01T00:04:00.000Z")
+    );
+
+    expect(model.items[0]).toMatchObject({
+      platformLabel: "Programmers",
+      title: "120804. 두 수의 곱 구하기",
+      meta: "Programmers / Swift / 1m ago / octo/algorithms@main"
+    });
   });
 
   it("creates the Auto Sync settings update message", () => {
@@ -87,6 +108,31 @@ describe("popup state helpers", () => {
         "Detail: Protected branch update rejected.",
         "Retry payload is unavailable. Check Options or submit again."
       ]
+    });
+  });
+
+  it("marks Programmers extraction failures as not retryable", () => {
+    const failed = makeProgrammersRecord({
+      status: "failed",
+      retryPayloadId: null,
+      error: makeError(
+        "programmers_extract_failed",
+        "Could not read the Programmers editor code."
+      )
+    });
+
+    const model = buildHistoryDisplayModel([failed], []);
+
+    expect(model.items[0]).toMatchObject({
+      statusLabel: "Failed",
+      canRetry: false,
+      failure: {
+        summary: "Could not read the Programmers editor code.",
+        detailLines: [
+          "Code: programmers_extract_failed",
+          "Retry is unavailable because no commit payload was created."
+        ]
+      }
     });
   });
 
@@ -204,6 +250,28 @@ function makeRetryPayloadSummary(id: string): RetryPayloadSummary {
     expiresAt: "2026-01-08T00:00:00.000Z",
     lastError: null
   };
+}
+
+function makeProgrammersRecord(overrides: Partial<SyncRecord> = {}): SyncRecord {
+  return makeRecord({
+    platform: "programmers",
+    titleSlug: "120804_두_수의_곱_구하기",
+    problemTitle: "두 수의 곱 구하기",
+    problemFrontendId: "120804",
+    language: "Swift",
+    supportedLanguage: "swift",
+    identity: {
+      platform: "programmers",
+      submissionId: "programmers:120804:swift:abc1234",
+      titleSlug: "120804_두_수의_곱_구하기",
+      language: "swift"
+    },
+    solutionPath: "programmers/swift/120804_두_수의_곱_구하기.swift",
+    commitUrl: "https://github.com/octo/algorithms/commit/programmers-sha",
+    fileUrl:
+      "https://github.com/octo/algorithms/blob/main/programmers/swift/120804_두_수의_곱_구하기.swift",
+    ...overrides
+  });
 }
 
 function makeError(

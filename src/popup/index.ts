@@ -42,6 +42,7 @@ export interface FailureDetailView {
 export interface PopupHistoryItem {
   id: string;
   status: SyncStatus;
+  platformLabel: string;
   title: string;
   languageLabel: string;
   meta: string;
@@ -213,7 +214,9 @@ export function getFailureDetail(record: SyncRecord): FailureDetailView | null {
     detailLines.push(`Detail: ${record.error.debugMessage}`);
   }
 
-  if (record.retryPayloadId === null && record.status === "failed") {
+  if (record.error.code === "programmers_extract_failed") {
+    detailLines.push("Retry is unavailable because no commit payload was created.");
+  } else if (record.retryPayloadId === null && record.status === "failed") {
     detailLines.push("Retry payload is unavailable. Check Options or submit again.");
   }
 
@@ -606,11 +609,13 @@ function toHistoryItem(
   const canRetry =
     record.status === "failed" &&
     retryPayloadId !== null &&
-    retryPayloadIds.has(retryPayloadId);
+    retryPayloadIds.has(retryPayloadId) &&
+    record.error?.retryable !== false;
 
   return {
     id: record.id,
     status: record.status,
+    platformLabel: getPlatformLabel(record.platform),
     title: getRecordTitle(record),
     languageLabel: getLanguageLabel(record),
     meta: getRecordMeta(record, nowMs),
@@ -630,15 +635,35 @@ function toHistoryItem(
 }
 
 function getRecordTitle(record: SyncRecord): string {
-  if (record.problemTitle !== null && record.problemFrontendId !== null) {
-    return `${record.problemFrontendId}. ${record.problemTitle}`;
+  const title = record.problemTitle?.trim() ?? "";
+  const frontendId = record.problemFrontendId?.trim() ?? "";
+  const titleSlug = record.titleSlug.trim();
+
+  if (title.length > 0 && frontendId.length > 0) {
+    return `${frontendId}. ${title}`;
   }
 
-  return record.problemTitle ?? record.titleSlug;
+  if (title.length > 0) {
+    return title;
+  }
+
+  if (titleSlug.length > 0) {
+    return titleSlug;
+  }
+
+  if (frontendId.length > 0) {
+    return `${getPlatformLabel(record.platform)} ${frontendId}`;
+  }
+
+  return `${getPlatformLabel(record.platform)} submission`;
 }
 
 function getRecordMeta(record: SyncRecord, nowMs: number): string {
-  const parts = [getLanguageLabel(record), formatRelativeTime(record.updatedAt, nowMs)];
+  const parts = [
+    getPlatformLabel(record.platform),
+    getLanguageLabel(record),
+    formatRelativeTime(record.updatedAt, nowMs)
+  ];
 
   if (record.repository !== null && record.branchName !== null) {
     parts.push(`${record.repository.fullName}@${record.branchName}`);
@@ -657,6 +682,10 @@ function getLanguageLabel(record: SyncRecord): string {
   }
 
   return record.language.length > 0 ? record.language : "Unknown language";
+}
+
+function getPlatformLabel(platform: SyncRecord["platform"]): string {
+  return platform === "programmers" ? "Programmers" : "LeetCode";
 }
 
 function getStatusLabel(status: SyncStatus): string {

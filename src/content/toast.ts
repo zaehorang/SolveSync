@@ -99,7 +99,7 @@ export function createToastModel(input: ToastModelInput): ToastModel {
         title: "Sync failed",
         detail: failureDetail(input.error ?? input.record?.error ?? null),
         tone: "error",
-        actions: [action("open_options", "Open Options", null, true)],
+        actions: failureActions(input.error ?? input.record?.error ?? null),
         autoDismissMs: null
       };
   }
@@ -238,6 +238,14 @@ function failureDetail(error: NormalizedError | null): string {
   return error?.userMessage ?? "Open Options to check your GitHub connection.";
 }
 
+function failureActions(error: NormalizedError | null): ToastActionModel[] {
+  if (error?.code === "programmers_extract_failed") {
+    return [];
+  }
+
+  return [action("open_options", "Open Options", null, true)];
+}
+
 function unsupportedDetail(record: SyncRecord | null): string {
   if (record?.language !== undefined && record.language.trim().length > 0) {
     return `${record.language} submissions are not synced.`;
@@ -251,8 +259,8 @@ function describeRecord(record: SyncRecord | null): string | null {
     return null;
   }
 
-  const title = record.problemTitle ?? record.titleSlug;
-  const language = record.supportedLanguage ?? record.language;
+  const title = getRecordTitle(record);
+  const language = getLanguageLabel(record);
 
   if (title.length === 0 && language.length === 0) {
     return null;
@@ -263,6 +271,42 @@ function describeRecord(record: SyncRecord | null): string | null {
   }
 
   return `${title} in ${language}`;
+}
+
+function getRecordTitle(record: SyncRecord): string {
+  const title = record.problemTitle?.trim() ?? "";
+  const titleSlug = record.titleSlug.trim();
+  const frontendId = record.problemFrontendId?.trim() ?? "";
+
+  if (title.length > 0) {
+    return title;
+  }
+
+  if (titleSlug.length > 0) {
+    return titleSlug;
+  }
+
+  if (frontendId.length > 0) {
+    return `${getPlatformLabel(record.platform)} ${frontendId}`;
+  }
+
+  return getPlatformLabel(record.platform);
+}
+
+function getLanguageLabel(record: SyncRecord): string {
+  if (record.supportedLanguage === "python3") {
+    return "Python3";
+  }
+
+  if (record.supportedLanguage === "swift") {
+    return "Swift";
+  }
+
+  return record.language.trim();
+}
+
+function getPlatformLabel(platform: SyncRecord["platform"]): string {
+  return platform === "programmers" ? "Programmers" : "LeetCode";
 }
 
 function action(

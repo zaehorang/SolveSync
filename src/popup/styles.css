@@ -98,6 +98,7 @@ h3 {
 .field-message,
 .history-meta,
 .history-detail,
+.security-note,
 .empty-state {
   color: #4b5563;
 }
@@ -191,6 +192,12 @@ h3 {
   margin: 7px 0 0;
   font-size: 0.75rem;
   line-height: 1.35;
+}
+
+.security-note {
+  margin: 8px 0 0;
+  font-size: 0.75rem;
+  line-height: 1.4;
 }
 
 .button {
