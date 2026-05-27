@@ -8,7 +8,9 @@ export interface GitTreeFile {
 export interface BuildGitTreeFilesInput {
   solutionPath: string;
   solutionContent: string;
+  readmePath: string;
   readmeContent: string;
+  indexPath: string;
   index: LeetCodeSyncIndex;
 }
 
@@ -19,11 +21,11 @@ export function buildGitTreeFiles(input: BuildGitTreeFilesInput): GitTreeFile[] 
       content: input.solutionContent
     },
     {
-      path: "README.md",
+      path: input.readmePath,
       content: input.readmeContent
     },
     {
-      path: ".leetcode-sync/index.json",
+      path: input.indexPath,
       content: `${JSON.stringify(input.index, null, 2)}\n`
     }
   ];

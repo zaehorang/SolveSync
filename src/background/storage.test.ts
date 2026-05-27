@@ -53,7 +53,7 @@ describe("background extension storage", () => {
       identity,
       {
         commitSha: "commit-sha-1",
-        solutionPath: "swift/leetcode/0001_two_sum.swift"
+        solutionPath: "leetcode/swift/0001_two_sum.swift"
       },
       "2026-01-01T00:00:00.000Z"
     );
@@ -61,7 +61,7 @@ describe("background extension storage", () => {
       identity,
       {
         commitSha: "commit-sha-1",
-        solutionPath: "swift/leetcode/0001_two_sum.swift"
+        solutionPath: "leetcode/swift/0001_two_sum.swift"
       },
       "2026-01-01T00:00:01.000Z"
     );
@@ -264,10 +264,10 @@ function makeSyncRecord(index: number): SyncRecord {
     identity: makeIdentity(`submission-${index}`),
     repository,
     branchName: "main",
-    solutionPath: "swift/leetcode/0001_two_sum.swift",
+    solutionPath: "leetcode/swift/0001_two_sum.swift",
     commitSha: `commit-sha-${index}`,
     commitUrl: `https://github.com/octo/algorithms/commit/commit-sha-${index}`,
-    fileUrl: "https://github.com/octo/algorithms/blob/main/swift/leetcode/0001_two_sum.swift",
+    fileUrl: "https://github.com/octo/algorithms/blob/main/leetcode/swift/0001_two_sum.swift",
     error: null,
     retryPayloadId: null,
     createdAt,
@@ -289,9 +289,9 @@ function makeRetryPayload(id: string, createdAt: string): RetryPayload {
       code: "class Solution {}",
       acceptedAt: createdAt
     },
-    solutionPath: "swift/leetcode/0001_two_sum.swift",
-    readmePath: "README.md",
-    indexPath: ".leetcode-sync/index.json",
+    solutionPath: "leetcode/swift/0001_two_sum.swift",
+    readmePath: "leetcode/README.md",
+    indexPath: "leetcode/.leetcode-sync/index.json",
     commitMessage: "solve: leetcode 0001 two sum in swift",
     attempts: 0,
     createdAt,

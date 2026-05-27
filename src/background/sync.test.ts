@@ -74,7 +74,7 @@ describe("background sync orchestrator", () => {
       identity,
       {
         commitSha: "existing-commit",
-        solutionPath: "swift/leetcode/0001_two_sum.swift"
+        solutionPath: "leetcode/swift/0001_two_sum.swift"
       },
       "2026-01-01T00:00:00.000Z"
     );
@@ -114,7 +114,7 @@ describe("background sync orchestrator", () => {
   it("commits solution, marks processed, and appends success history", async () => {
     const harness = makeHarness();
     await harness.saveSettings();
-    harness.github.files.set("README.md", "# Existing\n");
+    harness.github.files.set("leetcode/README.md", "# Existing\n");
     harness.leetcode.fetchProblemMetadata.mockResolvedValue(problem);
     harness.leetcode.fetchLatestAcceptedSubmission.mockResolvedValue(
       syncableAcceptedSubmission()
@@ -126,12 +126,12 @@ describe("background sync orchestrator", () => {
     expect(await harness.storage.isProcessed(identity)).toBe(true);
     await expect(historyStatuses(harness.storage)).resolves.toEqual(["synced"]);
     expect(harness.github.commits[0]?.files.map((file) => file.path)).toEqual([
-      "swift/leetcode/0001_two_sum.swift",
-      "README.md",
-      ".leetcode-sync/index.json"
+      "leetcode/swift/0001_two_sum.swift",
+      "leetcode/README.md",
+      "leetcode/.leetcode-sync/index.json"
     ]);
     expect(
-      harness.github.commits[0]?.files.find((file) => file.path === "README.md")?.content
+      harness.github.commits[0]?.files.find((file) => file.path === "leetcode/README.md")?.content
     ).toContain("# Existing");
   });
 
@@ -154,7 +154,7 @@ describe("background sync orchestrator", () => {
     expect(payloads).toHaveLength(1);
     expect(payloads[0]).toMatchObject({
       identity,
-      solutionPath: "swift/leetcode/0001_two_sum.swift",
+      solutionPath: "leetcode/swift/0001_two_sum.swift",
       attempts: 0
     });
     const records = await harness.storage.listHistory();
@@ -167,7 +167,7 @@ describe("background sync orchestrator", () => {
   it("does not store retry payloads when commit files cannot be prepared", async () => {
     const harness = makeHarness();
     await harness.saveSettings();
-    harness.github.files.set(".leetcode-sync/index.json", "{not-json");
+    harness.github.files.set("leetcode/.leetcode-sync/index.json", "{not-json");
     harness.leetcode.fetchProblemMetadata.mockResolvedValue(problem);
     harness.leetcode.fetchLatestAcceptedSubmission.mockResolvedValue(
       syncableAcceptedSubmission()
@@ -425,9 +425,9 @@ function makeRetryPayload(id: string): RetryPayload {
     branch,
     problem,
     submission: syncableAcceptedSubmission().submission,
-    solutionPath: "swift/leetcode/0001_two_sum.swift",
-    readmePath: "README.md",
-    indexPath: ".leetcode-sync/index.json",
+    solutionPath: "leetcode/swift/0001_two_sum.swift",
+    readmePath: "leetcode/README.md",
+    indexPath: "leetcode/.leetcode-sync/index.json",
     commitMessage: "solve: leetcode 0001 two sum in swift",
     attempts: 0,
     createdAt: "2026-01-01T00:00:00.000Z",

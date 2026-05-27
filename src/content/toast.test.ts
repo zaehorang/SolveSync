@@ -94,7 +94,7 @@ function makeRecord(overrides: Partial<SyncRecord>): SyncRecord {
     },
     repository: null,
     branchName: "main",
-    solutionPath: "swift/leetcode/0001_two_sum.swift",
+    solutionPath: "leetcode/swift/0001_two_sum.swift",
     commitSha: null,
     commitUrl: null,
     fileUrl: null,

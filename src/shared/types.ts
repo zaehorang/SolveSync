@@ -105,8 +105,8 @@ export interface RetryPayload {
   problem: ProblemMetadata;
   submission: AcceptedSubmission;
   solutionPath: string;
-  readmePath: "README.md";
-  indexPath: ".leetcode-sync/index.json";
+  readmePath: string;
+  indexPath: string;
   commitMessage: string;
   attempts: number;
   createdAt: IsoDateString;
@@ -250,8 +250,8 @@ export function isRetryPayload(value: unknown): value is RetryPayload {
     isProblemMetadata(value.problem) &&
     isAcceptedSubmission(value.submission) &&
     typeof value.solutionPath === "string" &&
-    value.readmePath === "README.md" &&
-    value.indexPath === ".leetcode-sync/index.json" &&
+    typeof value.readmePath === "string" &&
+    typeof value.indexPath === "string" &&
     typeof value.commitMessage === "string" &&
     typeof value.attempts === "number" &&
     Number.isInteger(value.attempts) &&

@@ -38,7 +38,7 @@ describe("popup state helpers", () => {
       timeLabel: "1m ago",
       commitUrl: "https://github.com/octo/algorithms/commit/commit-sha",
       fileUrl:
-        "https://github.com/octo/algorithms/blob/main/swift/leetcode/0001_two_sum.swift"
+        "https://github.com/octo/algorithms/blob/main/leetcode/swift/0001_two_sum.swift"
     });
   });
 
@@ -175,11 +175,11 @@ function makeRecord(overrides: Partial<SyncRecord> = {}): SyncRecord {
     },
     repository,
     branchName: "main",
-    solutionPath: "swift/leetcode/0001_two_sum.swift",
+    solutionPath: "leetcode/swift/0001_two_sum.swift",
     commitSha: "commit-sha",
     commitUrl: "https://github.com/octo/algorithms/commit/commit-sha",
     fileUrl:
-      "https://github.com/octo/algorithms/blob/main/swift/leetcode/0001_two_sum.swift",
+      "https://github.com/octo/algorithms/blob/main/leetcode/swift/0001_two_sum.swift",
     error: null,
     retryPayloadId: null,
     createdAt: timestamp,

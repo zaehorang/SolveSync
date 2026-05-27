@@ -13,13 +13,13 @@ describe("solution path generation", () => {
   it("builds Swift paths outside of the Xcode source folder", () => {
     const path = buildSolutionPath(problem, "swift");
 
-    expect(path).toBe("swift/leetcode/0001_two_sum.swift");
+    expect(path).toBe("leetcode/swift/0001_two_sum.swift");
     expect(path).not.toContain("swift/SwiftAlgorithm");
   });
 
-  it("builds Python3 paths under the python leetcode folder", () => {
+  it("builds Python3 paths under the leetcode python folder", () => {
     expect(buildSolutionPath(problem, "python3")).toBe(
-      "python/leetcode/0001_two_sum.py"
+      "leetcode/python/0001_two_sum.py"
     );
   });
 });

@@ -37,8 +37,8 @@ import {
 } from "./client/github";
 import type { LatestAcceptedSubmissionResult } from "./client/leetcode";
 
-const README_PATH = "README.md";
-const INDEX_PATH = ".leetcode-sync/index.json";
+const README_PATH = "leetcode/README.md";
+const INDEX_PATH = "leetcode/.leetcode-sync/index.json";
 
 export type SyncBroadcast = (
   message: BackgroundToContentPopupMessage,
@@ -753,7 +753,9 @@ function buildCommitFiles(input: CommitFilesBuildInput): GitTreeFile[] {
   return buildGitTreeFiles({
     solutionPath: input.solutionPath,
     solutionContent: input.submission.code,
+    readmePath: README_PATH,
     readmeContent,
+    indexPath: INDEX_PATH,
     index: nextIndex
   });
 }

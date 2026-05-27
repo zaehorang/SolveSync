@@ -32,19 +32,19 @@ describe("LeetCode sync index", () => {
     const first = mergeIndexEntry(
       createEmptyIndex(),
       twoSumSwift,
-      "swift/leetcode/0001_two_sum.swift",
+      "leetcode/swift/0001_two_sum.swift",
       syncedAt
     );
     const second = mergeIndexEntry(
       first,
       { ...twoSumSwift, submissionId: "101" },
-      "swift/leetcode/0001_two_sum.swift",
+      "leetcode/swift/0001_two_sum.swift",
       "2026-05-27T04:05:00.000Z"
     );
 
     expect(second.problems).toHaveLength(1);
     expect(second.problems[0]?.languages.swift).toEqual({
-      solutionPath: "swift/leetcode/0001_two_sum.swift",
+      solutionPath: "leetcode/swift/0001_two_sum.swift",
       lastSubmissionId: "101",
       lastSyncedAt: "2026-05-27T04:05:00.000Z"
     });
@@ -54,20 +54,20 @@ describe("LeetCode sync index", () => {
     const withSwift = mergeIndexEntry(
       createEmptyIndex(),
       twoSumSwift,
-      "swift/leetcode/0001_two_sum.swift",
+      "leetcode/swift/0001_two_sum.swift",
       syncedAt
     );
     const withPython = mergeIndexEntry(
       withSwift,
       { ...twoSumSwift, submissionId: "102", language: "python3" },
-      "python/leetcode/0001_two_sum.py",
+      "leetcode/python/0001_two_sum.py",
       "2026-05-27T04:10:00.000Z"
     );
 
     expect(withPython.problems).toHaveLength(1);
     expect(withPython.problems[0]?.languages.swift?.lastSubmissionId).toBe("100");
     expect(withPython.problems[0]?.languages.python3?.solutionPath).toBe(
-      "python/leetcode/0001_two_sum.py"
+      "leetcode/python/0001_two_sum.py"
     );
   });
 
@@ -75,7 +75,7 @@ describe("LeetCode sync index", () => {
     const index = mergeIndexEntry(
       createEmptyIndex(),
       twoSumSwift,
-      "swift/leetcode/0001_two_sum.swift",
+      "leetcode/swift/0001_two_sum.swift",
       syncedAt
     );
 

@@ -69,20 +69,20 @@ PS-LP-Sync는 안정적인 개인 워크플로우를 먼저 최적화한다. 확
 ---
 
 ### ADR-008: Index file을 README source of truth로 사용
-**결정**: `.leetcode-sync/index.json`에 sync metadata를 저장하고 README는 이 index에서 생성한다.
+**결정**: LeetCode sync metadata는 `leetcode/.leetcode-sync/index.json`에 저장하고 `leetcode/README.md`는 이 index에서 생성한다.
 
 **이유**: README table을 상태로 파싱하는 방식은 깨지기 쉽다. 구조화된 index를 두면 README 생성이 결정적이고 복구 가능하다.
 
-**트레이드오프**: 대상 저장소에 추가 metadata file이 생긴다.
+**트레이드오프**: 대상 저장소의 플랫폼 폴더 안에 추가 metadata file이 생긴다.
 
 ---
 
 ### ADR-009: Swift solution은 Xcode build folder 밖에 저장
-**결정**: 대상 저장소에서 Swift LeetCode 풀이는 `swift/leetcode`에 저장한다.
+**결정**: 대상 저장소에서 Swift LeetCode 풀이는 `leetcode/swift`에 저장한다.
 
 **이유**: 검증 대상 저장소의 `swift/SwiftAlgorithm`은 Xcode build target에 동기화된다. LeetCode 파일은 흔히 `Solution` class와 플랫폼별 helper type을 정의하므로 한 모듈로 컴파일되면 충돌할 수 있다.
 
-**트레이드오프**: Swift LeetCode 풀이는 Xcode project source folder 내부가 아니라 인접한 언어별 풀이 폴더에 저장된다.
+**트레이드오프**: Swift LeetCode 풀이는 Xcode project source folder 내부가 아니라 플랫폼 기준 풀이 폴더에 저장된다.
 
 ---
 
@@ -114,11 +114,20 @@ PS-LP-Sync는 안정적인 개인 워크플로우를 먼저 최적화한다. 확
 ---
 
 ### ADR-013: README는 v1에서 항상 갱신한다
-**결정**: v1은 solution file, `.leetcode-sync/index.json`, `README.md`를 항상 같은 GitHub commit에 포함한다. README 갱신을 끄는 UI나 설정은 제공하지 않는다.
+**결정**: v1은 solution file, `leetcode/.leetcode-sync/index.json`, `leetcode/README.md`를 항상 같은 GitHub commit에 포함한다. README 갱신을 끄는 UI나 설정은 제공하지 않는다.
 
 **이유**: README가 index의 projection이라는 규칙을 단순하게 유지해야 sync 결과를 예측하기 쉽다. Toggle을 두면 README와 index가 의도적으로 불일치하는 상태가 생긴다.
 
 **트레이드오프**: 사용자는 v1에서 README 자동 갱신을 끌 수 없다. README marker 밖 내용 보존으로 사용자의 수동 작성 영역을 보호한다.
+
+---
+
+### ADR-023: 대상 저장소는 플랫폼 기준 폴더를 우선한다
+**결정**: 대상 저장소의 풀이 구조는 `leetcode`, `programmers` 같은 플랫폼 폴더를 먼저 두고, 각 플랫폼 내부를 `swift`, `python` 같은 언어 폴더로 나눈다. v1 자동 sync는 `leetcode`만 갱신하고 Programmers 자동 sync는 v2 후보로 둔다.
+
+**이유**: 사용자의 문제 풀이 저장소는 플랫폼별 진행 현황과 README를 따로 보는 편이 자연스럽다. Swift 풀이도 Xcode build source folder와 분리해야 하므로 플랫폼 기준 루트 폴더가 더 안전하다.
+
+**트레이드오프**: 기존 언어 기준 path로 생성된 파일은 자동 migration하지 않는다. 이후 sync부터 새 플랫폼 기준 path를 사용한다.
 
 ---
 

@@ -22,7 +22,7 @@ const index = mergeIndexEntry(
       submissionId: "200",
       language: "python3"
     },
-    "python/leetcode/0002_add_two_numbers.py",
+    "leetcode/python/0002_add_two_numbers.py",
     "2026-05-27T04:00:00.000Z"
   ),
   {
@@ -35,7 +35,7 @@ const index = mergeIndexEntry(
     submissionId: "100",
     language: "swift"
   },
-  "swift/leetcode/0001_two_sum.swift",
+  "leetcode/swift/0001_two_sum.swift",
   "2026-05-27T04:05:00.000Z"
 );
 
@@ -47,8 +47,8 @@ describe("README managed block", () => {
     expect(table.indexOf("| 1 | Two Sum")).toBeLessThan(
       table.indexOf("| 2 | Add Two Numbers")
     );
-    expect(table).toContain("[Swift](swift/leetcode/0001_two_sum.swift)");
-    expect(table).toContain("[Python](python/leetcode/0002_add_two_numbers.py)");
+    expect(table).toContain("[Swift](swift/0001_two_sum.swift)");
+    expect(table).toContain("[Python](python/0002_add_two_numbers.py)");
   });
 
   it("replaces only the existing managed marker block", () => {

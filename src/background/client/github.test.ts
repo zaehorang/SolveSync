@@ -159,19 +159,19 @@ describe("GitHub background client", () => {
       base_tree: "base-tree-sha",
       tree: [
         {
-          path: "swift/leetcode/0001_two_sum.swift",
+          path: "leetcode/swift/0001_two_sum.swift",
           mode: "100644",
           type: "blob",
           sha: "solution-blob-sha"
         },
         {
-          path: "README.md",
+          path: "leetcode/README.md",
           mode: "100644",
           type: "blob",
           sha: "readme-blob-sha"
         },
         {
-          path: ".leetcode-sync/index.json",
+          path: "leetcode/.leetcode-sync/index.json",
           mode: "100644",
           type: "blob",
           sha: "index-blob-sha"
@@ -188,7 +188,7 @@ describe("GitHub background client", () => {
   it("retries a ref update conflict at most once with refreshed branch state", async () => {
     const onConflict = vi.fn(() => [
       {
-        path: "README.md",
+        path: "leetcode/README.md",
         content: "# updated\n"
       }
     ]);
@@ -218,7 +218,7 @@ describe("GitHub background client", () => {
         message: "solve: leetcode 0001 two sum in swift",
         files: [
           {
-            path: "README.md",
+            path: "leetcode/README.md",
             content: "# old\n"
           }
         ],
@@ -271,7 +271,7 @@ async function expectProtectedBranchFailure(): Promise<void> {
       message: "solve: leetcode 0001 two sum in swift",
       files: [
         {
-          path: "README.md",
+          path: "leetcode/README.md",
           content: "# README\n"
         }
       ]
@@ -327,15 +327,15 @@ function makeClient(fetchImpl: GitHubFetch): GitHubClient {
 function makeTreeFiles(): GitTreeFile[] {
   return [
     {
-      path: "swift/leetcode/0001_two_sum.swift",
+      path: "leetcode/swift/0001_two_sum.swift",
       content: "class Solution {}"
     },
     {
-      path: "README.md",
+      path: "leetcode/README.md",
       content: "# README\n"
     },
     {
-      path: ".leetcode-sync/index.json",
+      path: "leetcode/.leetcode-sync/index.json",
       content: "{}\n"
     }
   ];

@@ -2,11 +2,11 @@ import type { ProblemMetadata, SupportedLanguage } from "./types";
 
 const LANGUAGE_PATH_CONFIG = {
   swift: {
-    directory: "swift/leetcode",
+    directory: "leetcode/swift",
     extension: "swift"
   },
   python3: {
-    directory: "python/leetcode",
+    directory: "leetcode/python",
     extension: "py"
   }
 } as const satisfies Record<SupportedLanguage, { directory: string; extension: string }>;

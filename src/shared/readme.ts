@@ -75,7 +75,7 @@ function renderSolutionLink(label: string, path: string | null): string {
     return "-";
   }
 
-  return `[${label}](${encodeMarkdownLinkDestination(path)})`;
+  return `[${label}](${encodeMarkdownLinkDestination(toReadmeRelativePath(path))})`;
 }
 
 function escapeMarkdownTableCell(value: string): string {
@@ -84,4 +84,8 @@ function escapeMarkdownTableCell(value: string): string {
 
 function encodeMarkdownLinkDestination(path: string): string {
   return path.replace(/\)/g, "%29").replace(/\s/g, "%20");
+}
+
+function toReadmeRelativePath(path: string): string {
+  return path.startsWith("leetcode/") ? path.slice("leetcode/".length) : path;
 }

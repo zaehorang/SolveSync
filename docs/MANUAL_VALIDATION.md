@@ -49,13 +49,13 @@ npm run build
 3. 결과 panel에 `Accepted n / n testcases passed` 형태의 결과 문구가 렌더링되는지 확인한다.
 4. toast가 Syncing에서 Synced로 바뀌는지 확인한다.
 5. toast 또는 Popup history에서 commit link와 file link를 확인한다.
-6. GitHub 대상 repository의 선택한 branch에서 solution file, `README.md`, `.leetcode-sync/index.json`이 같은 commit에 포함되었는지 확인한다.
+6. GitHub 대상 repository의 선택한 branch에서 solution file, `leetcode/README.md`, `leetcode/.leetcode-sync/index.json`이 같은 commit에 포함되었는지 확인한다.
 7. 같은 submission이 다시 감지되어도 중복 commit이 생기지 않는지 확인한다.
 
 ## Same Problem Update Flow
 1. 같은 문제와 같은 언어로 다른 Accepted 제출을 만든다.
 2. 기존 solution path가 최신 풀이로 갱신되는지 확인한다.
-3. `.leetcode-sync/index.json`의 해당 language entry와 README table이 갱신되는지 확인한다.
+3. `leetcode/.leetcode-sync/index.json`의 해당 language entry와 `leetcode/README.md` table이 갱신되는지 확인한다.
 4. 제출별 별도 solution file이 생기지 않는지 확인한다.
 
 ## Auto Sync Off Flow

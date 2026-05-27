@@ -82,7 +82,7 @@ README.md
 - versioned storage schema를 정의한다.
 - LeetCode 언어를 대상 path와 extension으로 매핑한다.
 - 결정적인 filename과 path를 생성한다.
-- `.leetcode-sync/index.json` 데이터를 merge한다.
+- 플랫폼 내부 sync index 데이터를 merge한다.
 - README managed table content를 생성한다.
 - GitHub Git Data API tree payload를 구성한다.
 - 외부 API error를 사용자 메시지와 debug 메시지로 normalize한다.
@@ -135,10 +135,10 @@ LeetCode page
 - 존재하지 않는 branch는 자동 생성하지 않는다. 사용자가 Create branch action을 실행한 경우에만 repository default branch HEAD에서 branch ref를 생성한다.
 - Empty repository처럼 default branch HEAD가 없으면 branch 생성은 실패 상태로 처리한다.
 - Accepted 이벤트 하나가 commit 하나가 되도록 GitHub Contents API 대신 Git Data API를 사용한다.
-- commit에는 다음 파일이 포함된다.
+- LeetCode v1 sync commit에는 다음 파일이 포함된다.
   - solution file
-  - `README.md`
-  - `.leetcode-sync/index.json`
+  - `leetcode/README.md`
+  - `leetcode/.leetcode-sync/index.json`
 - commit 흐름은 다음 순서를 따른다.
   - branch ref 조회
   - base commit과 tree 조회
@@ -158,28 +158,30 @@ LeetCode page
 
 Swift 풀이:
 ```text
-swift/leetcode/0001_two_sum.swift
+leetcode/swift/0001_two_sum.swift
 ```
 
 Python3 풀이:
 ```text
-python/leetcode/0001_two_sum.py
+leetcode/python/0001_two_sum.py
 ```
 
-생성된 Swift 파일은 `swift/SwiftAlgorithm` 아래에 저장하지 않는다. 이 규칙은 기본 검증 저장소의 Xcode build source 충돌을 피하기 위해 시작됐지만, v1에서는 모든 대상 repository에 같은 path convention을 적용한다.
+대상 저장소는 플랫폼 폴더를 먼저 두고 그 내부를 언어별로 나눈다. Programmers는 v2 자동화 후보로 예약하지만 v1 자동 sync는 LeetCode 폴더만 생성하고 갱신한다.
+
+생성된 Swift LeetCode 파일은 `swift/SwiftAlgorithm` 아래에 저장하지 않는다. 이 규칙은 기본 검증 저장소의 Xcode build source 충돌을 피하기 위해 시작됐지만, v1에서는 모든 대상 repository에 같은 path convention을 적용한다.
 
 ## Missing Path Policy
 - 폴더 생성 API를 호출하지 않는다. 이 사용 사례에는 GitHub 폴더 생성 API가 필요 없다.
-- `swift/leetcode`가 없으면 첫 Swift solution file을 해당 path로 commit해 GitHub가 폴더를 보이게 한다.
-- `python/leetcode`가 없으면 첫 Python3 solution file을 해당 path로 commit해 GitHub가 폴더를 보이게 한다.
-- `.leetcode-sync/index.json`이 없으면 첫 synced solution과 같은 commit에서 생성한다.
-- `README.md`가 없으면 첫 synced solution과 같은 commit에서 생성한다.
-- README가 있지만 managed marker가 없으면 파일 하단에 managed marker block을 추가한다.
+- `leetcode/swift`가 없으면 첫 Swift solution file을 해당 path로 commit해 GitHub가 폴더를 보이게 한다.
+- `leetcode/python`이 없으면 첫 Python3 solution file을 해당 path로 commit해 GitHub가 폴더를 보이게 한다.
+- `leetcode/.leetcode-sync/index.json`이 없으면 첫 synced solution과 같은 commit에서 생성한다.
+- `leetcode/README.md`가 없으면 첫 synced solution과 같은 commit에서 생성한다.
+- `leetcode/README.md`가 있지만 managed marker가 없으면 파일 하단에 managed marker block을 추가한다.
 
 ## README와 Index
-`.leetcode-sync/index.json`이 source of truth다.
+`leetcode/.leetcode-sync/index.json`이 LeetCode sync metadata의 source of truth다.
 
-v1은 README를 항상 갱신한다. README 갱신을 끄는 설정이나 mode는 제공하지 않는다.
+v1은 `leetcode/README.md`를 항상 갱신한다. README 갱신을 끄는 설정이나 mode는 제공하지 않는다.
 
 Index entry는 다음 정보를 저장한다.
 - problem id
@@ -197,7 +199,7 @@ README 생성 규칙:
 - `<!-- LEETCODE_TABLE_START -->`와 `<!-- LEETCODE_TABLE_END -->` 사이 내용만 교체한다.
 - number, title, difficulty, Swift, Python 컬럼을 생성한다.
 - row는 numeric problem id 오름차순으로 정렬한다.
-- Swift와 Python cell은 해당 solution path가 있을 때 link를 건다.
+- Swift와 Python cell은 해당 solution path가 있을 때 `leetcode/README.md` 기준 상대 link를 건다.
 
 ## Storage Model
 `chrome.storage.local`을 사용한다.
