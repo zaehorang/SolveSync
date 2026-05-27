@@ -17,17 +17,12 @@ export default defineConfig({
       input: {
         options: resolve(srcRoot, "options/index.html"),
         popup: resolve(srcRoot, "popup/index.html"),
-        background: resolve(srcRoot, "background/index.ts"),
-        content: resolve(srcRoot, "content/index.ts")
+        background: resolve(srcRoot, "background/index.ts")
       },
       output: {
         entryFileNames: (chunkInfo) => {
           if (chunkInfo.name === "background") {
             return "background/index.js";
-          }
-
-          if (chunkInfo.name === "content") {
-            return "content/index.js";
           }
 
           return "assets/[name]-[hash].js";

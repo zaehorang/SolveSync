@@ -23,8 +23,10 @@ manifest.json
 package.json
 package-lock.json
 vite.config.ts
+vite.content.config.ts
 tsconfig.json
 vitest.config.ts
+scripts/
 src/
 docs/
 AGENTS.md
@@ -34,8 +36,13 @@ README.md
 ## 런타임 컴포넌트
 ### Content Script
 - `https://leetcode.com/problems/*`에서 실행된다.
+- Manifest `content_scripts`는 classic script로 실행되므로 content entry는 별도 IIFE bundle인 `dist/content/index.js`로 빌드한다.
+- Content bundle에는 static ESM `import`가 남으면 안 되며 `npm run build`의 build verification이 이를 검사한다.
 - 현재 URL에서 `titleSlug`를 추출한다.
 - `MutationObserver`로 Accepted 결과 변화를 감지한다.
+- Accepted 감지는 mutation으로 전달된 변경 subtree 안에서 제한된 leaf text 후보만 검사한다.
+- LeetCode DOM class selector나 결과 panel 전체 `textContent`에 의존하지 않는다.
+- `Accepted 116 / 116 testcases passed` 같은 짧은 결과 문구를 우선 감지하고, generic page copy는 제외한다.
 - 같은 DOM 변화가 반복될 수 있으므로 짧은 debounce를 적용한다.
 - background service worker로 `accepted_detected` 메시지를 보낸다.
 - LeetCode 페이지 안에 toast feedback을 렌더링한다.
@@ -111,6 +118,8 @@ LeetCode page
 
 ## LeetCode 연동
 - DOM은 Accepted 이벤트 감지에만 사용한다.
+- DOM 감지는 `MutationObserver`가 전달한 `target`과 `addedNodes` 범위를 벗어나지 않는다.
+- 결과 panel은 코드, runtime, 추천 문제 텍스트가 섞일 수 있으므로 큰 container의 전체 텍스트 대신 bounded leaf traversal을 사용한다.
 - Submission code와 problem metadata는 현재 브라우저 로그인 세션을 사용해 LeetCode GraphQL API를 우선 호출해 가져온다.
 - LeetCode client 모듈은 GraphQL query와 API response parsing을 중앙화해야 한다.
 - Background는 content script가 보낸 `titleSlug`를 기준으로 최신 Accepted submission detail을 조회한다.

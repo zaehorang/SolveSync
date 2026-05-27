@@ -182,3 +182,21 @@ PS-LP-Sync는 안정적인 개인 워크플로우를 먼저 최적화한다. 확
 **이유**: branch 이름 오타로 불필요한 branch가 생기는 것을 막고, GitHub write 동작을 사용자의 명확한 의사와 연결하기 위해서다.
 
 **트레이드오프**: 첫 설정 때 branch가 없으면 사용자가 한 번 더 action을 실행해야 한다. Empty repository나 default branch 조회 실패 같은 branch 생성 불가 상태를 UI에서 설명해야 한다.
+
+---
+
+### ADR-021: Accepted 감지는 mutation 범위의 bounded text traversal을 사용한다
+**결정**: Content script는 LeetCode DOM class selector나 페이지 전체 텍스트 scan 대신, `MutationObserver`가 전달한 변경 node 범위 안에서 제한된 leaf text 후보를 검사해 Accepted 이벤트를 감지한다.
+
+**이유**: LeetCode 결과 panel은 Accepted 상태, runtime, memory, code, 추천 문제 텍스트를 큰 container 안에 함께 렌더링할 수 있다. 큰 container의 전체 `textContent`를 판정하면 길이 제한이나 generic 문구 때문에 Accepted를 놓치거나 오탐할 수 있다. Class name과 layout도 안정적인 계약으로 보기 어렵다.
+
+**트레이드오프**: DOM 텍스트 패턴 변화에는 여전히 영향을 받는다. 대신 `Accepted n / n testcases passed` 같은 짧은 결과 문구를 우선 감지하고, detector 단위 테스트와 실제 브라우저 수동 검증으로 보완한다.
+
+---
+
+### ADR-022: Content script는 별도 IIFE bundle로 빌드한다
+**결정**: Vite main build는 background/options/popup을 만들고, content script는 `vite.content.config.ts`로 별도 IIFE bundle을 생성한다. `npm run build`는 `dist/content/index.js`에 static ESM `import`가 남지 않았는지 검증한다.
+
+**이유**: MV3 background service worker는 module로 실행할 수 있지만, manifest `content_scripts`로 주입되는 script는 classic script로 로드된다. Multi-entry Vite build가 shared chunk를 만들면 content entry에 `import`가 남아 Chrome에서 `Cannot use import statement outside a module` 오류로 content script가 실행되지 않는다.
+
+**트레이드오프**: build step이 둘로 나뉘고 content bundle이 shared code를 중복 포함할 수 있다. 대신 LeetCode page에서 content script가 확실히 실행되고, bundle 회귀를 build verification으로 빠르게 잡을 수 있다.

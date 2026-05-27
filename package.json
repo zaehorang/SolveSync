@@ -6,7 +6,10 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "build": "vite build"
+    "build": "npm run build:extension && npm run build:content && npm run verify:build",
+    "build:extension": "vite build",
+    "build:content": "vite build --config vite.content.config.ts",
+    "verify:build": "node scripts/verify_extension_build.mjs"
   },
   "devDependencies": {
     "@types/chrome": "^0.1.42",

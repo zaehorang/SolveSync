@@ -22,6 +22,7 @@ npm run build
 3. Developer mode를 켠다.
 4. `Load unpacked`로 `dist` 디렉터리를 로드한다.
 5. 확장 에러가 표시되지 않는지 확인한다.
+6. 특히 content script error에 `Cannot use import statement outside a module`이 없는지 확인한다.
 
 ## Setup Required Flow
 1. 설정이 비어 있는 상태에서 `https://leetcode.com/problems/two-sum/` 같은 문제 페이지를 연다.
@@ -45,10 +46,11 @@ npm run build
 ## Successful Sync Flow
 1. Auto Sync를 켠다.
 2. LeetCode에서 Swift 또는 Python3로 Accepted 제출을 만든다.
-3. toast가 Syncing에서 Synced로 바뀌는지 확인한다.
-4. toast 또는 Popup history에서 commit link와 file link를 확인한다.
-5. GitHub 대상 repository의 선택한 branch에서 solution file, `README.md`, `.leetcode-sync/index.json`이 같은 commit에 포함되었는지 확인한다.
-6. 같은 submission이 다시 감지되어도 중복 commit이 생기지 않는지 확인한다.
+3. 결과 panel에 `Accepted n / n testcases passed` 형태의 결과 문구가 렌더링되는지 확인한다.
+4. toast가 Syncing에서 Synced로 바뀌는지 확인한다.
+5. toast 또는 Popup history에서 commit link와 file link를 확인한다.
+6. GitHub 대상 repository의 선택한 branch에서 solution file, `README.md`, `.leetcode-sync/index.json`이 같은 commit에 포함되었는지 확인한다.
+7. 같은 submission이 다시 감지되어도 중복 commit이 생기지 않는지 확인한다.
 
 ## Same Problem Update Flow
 1. 같은 문제와 같은 언어로 다른 Accepted 제출을 만든다.
@@ -67,6 +69,11 @@ npm run build
 1. Swift와 Python3가 아닌 언어로 Accepted 제출을 만든다.
 2. GitHub commit이 생성되지 않는지 확인한다.
 3. toast 또는 Popup history가 Unsupported language 상태를 보여주는지 확인한다.
+
+## Accepted Detector Regression
+1. LeetCode problem page에서 `Accepted Solutions`, `Accepted Submissions`, `Acceptance Rate` 같은 generic 문구가 보여도 sync가 시작되지 않는지 확인한다.
+2. Wrong Answer, Runtime Error, Pending, Judging 결과에서는 toast 또는 Popup history에 sync record가 추가되지 않는지 확인한다.
+3. 새 Accepted 제출 후 결과 panel이 큰 container로 바뀌어도 `Accepted n / n testcases passed` 문구를 기준으로 sync가 시작되는지 확인한다.
 
 ## Retry Flow
 1. 유효하지 않은 branch나 일시적인 GitHub 실패 조건을 만들어 commit 실패를 발생시킨다.
