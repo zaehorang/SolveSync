@@ -55,7 +55,7 @@ class StepExecutorHelperTests(unittest.TestCase):
 
     def test_build_preamble_keeps_commit_responsibility_in_runner(self):
         executor = object.__new__(execute.StepExecutor)
-        executor._project = "PS-LP-Sync"
+        executor._project = "SolveSync"
         executor._phase_dir_name = "0-mvp"
 
         preamble = executor._build_preamble("guardrails", "", None)
@@ -110,7 +110,7 @@ class StepExecutorHelperTests(unittest.TestCase):
             phase_dir.mkdir(parents=True)
             (phase_dir / "index.json").write_text(
                 json.dumps({
-                    "project": "PS-LP-Sync",
+                    "project": "SolveSync",
                     "phase": "demo",
                     "steps": [{"step": 0, "name": "setup", "status": "pending"}],
                 }),
@@ -154,7 +154,7 @@ class StepExecutorHelperTests(unittest.TestCase):
             )
             (phase_dir / "index.json").write_text(
                 json.dumps({
-                    "project": "PS-LP-Sync",
+                    "project": "SolveSync",
                     "phase": "demo",
                     "steps": [{"step": 0, "name": "setup", "status": "completed"}],
                 }),
@@ -176,7 +176,7 @@ class StepExecutorHelperTests(unittest.TestCase):
             )
             (phase_dir / "index.json").write_text(
                 json.dumps({
-                    "project": "PS-LP-Sync",
+                    "project": "SolveSync",
                     "phase": "demo",
                     "steps": [{"step": 0, "name": "setup", "status": "completed"}],
                 }),
@@ -207,7 +207,7 @@ class StepExecutorHelperTests(unittest.TestCase):
             index_file = phase_dir / "index.json"
             index_file.write_text(
                 json.dumps({
-                    "project": "PS-LP-Sync",
+                    "project": "SolveSync",
                     "phase": "demo",
                     "steps": [{"step": 0, "name": "setup", "status": "pending"}],
                 }),
@@ -243,7 +243,7 @@ class StepExecutorHelperTests(unittest.TestCase):
             )
             (phase_dir / "index.json").write_text(
                 json.dumps({
-                    "project": "PS-LP-Sync",
+                    "project": "SolveSync",
                     "phase": "demo",
                     "steps": [{"step": 0, "name": "setup", "status": "pending"}],
                 }),

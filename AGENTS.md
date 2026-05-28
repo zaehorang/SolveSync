@@ -1,6 +1,6 @@
-# PS-LP-Sync 작업 지침
+# SolveSync 작업 지침
 
-PS-LP-Sync는 LeetCode와 Programmers에서 Accepted 된 풀이를 GitHub 문제 풀이 저장소로 자동 커밋하는 Chrome 확장 프로젝트다.
+SolveSync는 LeetCode와 Programmers에서 Accepted 된 풀이를 GitHub 문제 풀이 저장소로 자동 커밋하는 Chrome 확장 프로젝트다.
 
 ## 제품 범위
 - v1은 개인 사용용 local unpacked Chrome extension이다.

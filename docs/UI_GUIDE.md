@@ -7,7 +7,7 @@
 4. 사용자를 놀라게 하는 navigation을 피한다. 사용자가 link를 클릭하지 않는 한 GitHub 탭을 자동으로 열지 않는다.
 
 ## UI Surface
-PS-LP-Sync의 사용자 화면은 세 가지다.
+SolveSync의 사용자 화면은 세 가지다.
 - Options page
 - Popup page
 - Problem page toast

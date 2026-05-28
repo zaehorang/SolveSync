@@ -1,7 +1,7 @@
 # 아키텍처
 
 ## 시스템 개요
-PS-LP-Sync는 standalone Chrome extension이다. LeetCode와 Programmers 문제 페이지를 관찰해 Accepted 제출을 감지하고, 설정된 GitHub 저장소에 풀이 파일을 커밋한다.
+SolveSync는 standalone Chrome extension이다. LeetCode와 Programmers 문제 페이지를 관찰해 Accepted 제출을 감지하고, 설정된 GitHub 저장소에 풀이 파일을 커밋한다.
 
 LeetCode는 DOM 감지 후 GraphQL 우선 API client로 Accepted submission 상세를 조회한다. Programmers는 `정답입니다!` 결과 모달을 감지한 뒤 현재 문제 페이지의 editor snapshot에서 code와 metadata를 수집한다.
 

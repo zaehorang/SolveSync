@@ -140,7 +140,7 @@ export class ContentToast {
     }
 
     const host = this.documentRef.createElement("div");
-    host.id = "ps-lp-sync-toast-root";
+    host.id = "solvesync-toast-root";
     const shadowRoot = host.attachShadow({ mode: "open" });
     this.documentRef.documentElement.append(host);
     this.host = host;

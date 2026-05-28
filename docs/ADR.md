@@ -1,12 +1,12 @@
 # Architecture Decision Records
 
 ## 철학
-PS-LP-Sync는 안정적인 개인 워크플로우를 먼저 최적화한다. 확장은 로컬에서 간단히 설치할 수 있어야 하고, 보안 tradeoff를 명확히 알려야 하며, LeetCode, Programmers, GitHub 변경이 생겨도 영향 범위가 좁아야 한다.
+SolveSync는 안정적인 개인 워크플로우를 먼저 최적화한다. 확장은 로컬에서 간단히 설치할 수 있어야 하고, 보안 tradeoff를 명확히 알려야 하며, LeetCode, Programmers, GitHub 변경이 생겨도 영향 범위가 좁아야 한다.
 
 ---
 
 ### ADR-001: Standalone extension 저장소
-**결정**: PS-LP-Sync를 standalone Chrome extension 프로젝트로 유지하고 source code는 루트의 `src/` 아래에 둔다.
+**결정**: SolveSync를 standalone Chrome extension 프로젝트로 유지하고 source code는 루트의 `src/` 아래에 둔다.
 
 **이유**: 이 확장은 특정 알고리즘 저장소 내부 도구가 아니라 독립 제품이다. 대상 저장소는 설정값으로 다뤄야 한다.
 

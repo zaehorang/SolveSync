@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "PS-LP-Sync",
+  "name": "SolveSync",
   "version": "0.1.0",
   "description": "Sync accepted LeetCode Swift and Python3 submissions to a selected GitHub repository.",
   "permissions": ["storage"],
@@ -24,7 +24,7 @@
   ],
   "options_page": "options/index.html",
   "action": {
-    "default_title": "PS-LP-Sync",
+    "default_title": "SolveSync",
     "default_popup": "popup/index.html"
   }
 }

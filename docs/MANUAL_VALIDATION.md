@@ -10,7 +10,7 @@
 - PAT는 검증 대상 저장소를 선택하고 Metadata read, Contents read/write 권한을 가진다.
 - 검증 대상 저장소는 PAT를 발급한 GitHub 계정이 owner인 repository다.
 - 검증 대상은 repository picker에서 선택한다. 권장 수동 검증 repository는 `zaehorang/Swift_Algorithm`이다.
-- 실제 풀이 기록 branch를 오염시키지 않기 위해 `ps-lp-sync-test` 같은 별도 branch를 사용한다. 이 branch는 Options의 Create branch action으로 생성할 수 있다.
+- 실제 풀이 기록 branch를 오염시키지 않기 위해 `solvesync-test` 같은 별도 branch를 사용한다. 이 branch는 Options의 Create branch action으로 생성할 수 있다.
 
 ## Build와 Load
 1. 저장소 루트에서 build를 실행한다.

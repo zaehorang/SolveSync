@@ -1,4 +1,4 @@
-export const APP_NAME = "PS-LP-Sync";
+export const APP_NAME = "SolveSync";
 
 export * from "./errors";
 export * from "./errorNormalize";
