@@ -3,8 +3,8 @@ import {
   DEFAULT_SETTINGS_STATE,
   STORAGE_KEYS,
   STORAGE_SCHEMA_VERSION,
-  isSettingsState,
   normalizeError,
+  parseSettingsState,
   type BranchRef,
   type ConnectionStatus,
   type ConnectionStatusCode,
@@ -1059,7 +1059,7 @@ async function readSettings(): Promise<SettingsState> {
   const values = await chrome.storage.local.get([STORAGE_KEYS.settings]);
   const value = values[STORAGE_KEYS.settings];
 
-  return isSettingsState(value) ? value : DEFAULT_SETTINGS_STATE;
+  return parseSettingsState(value) ?? DEFAULT_SETTINGS_STATE;
 }
 
 async function saveSettings(

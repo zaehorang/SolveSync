@@ -9,6 +9,10 @@
       "dir": "1-programmers-support",
       "status": "completed",
       "completed_at": "2026-05-27T20:19:50+0900"
+    },
+    {
+      "dir": "2-liquid-glass-ui",
+      "status": "pending"
     }
   ]
 }

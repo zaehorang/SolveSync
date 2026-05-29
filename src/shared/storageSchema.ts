@@ -1,5 +1,10 @@
 import type { NormalizedError } from "./errors";
 import {
+  DEFAULT_UI_LANGUAGE,
+  isUiLanguagePreference,
+  type UiLanguagePreference
+} from "./i18n";
+import {
   isBranchRef,
   isPlatform,
   isPlainRecord,
@@ -16,7 +21,8 @@ import {
   type SyncRecord
 } from "./types";
 
-export const STORAGE_SCHEMA_VERSION = 2;
+export const STORAGE_SCHEMA_VERSION = 3;
+const PREVIOUS_STORAGE_SCHEMA_VERSION = 2;
 const LEGACY_STORAGE_SCHEMA_VERSION = 1;
 
 export const STORAGE_KEYS = {
@@ -55,6 +61,7 @@ export interface SettingsState {
   selectedRepository: RepositoryRef | null;
   selectedBranch: BranchRef | null;
   autoSyncEnabled: boolean;
+  uiLanguage: UiLanguagePreference;
   connectionStatus: ConnectionStatus;
   updatedAt: IsoDateString | null;
 }
@@ -66,7 +73,11 @@ export type PublicSettingsState = Omit<SettingsState, "githubPat"> & {
 export type PublicSettingsUpdate = Partial<
   Pick<
     SettingsState,
-    "selectedRepository" | "selectedBranch" | "autoSyncEnabled" | "connectionStatus"
+    | "selectedRepository"
+    | "selectedBranch"
+    | "autoSyncEnabled"
+    | "uiLanguage"
+    | "connectionStatus"
   >
 >;
 
@@ -109,6 +120,7 @@ export const DEFAULT_SETTINGS_STATE: SettingsState = {
   selectedRepository: null,
   selectedBranch: null,
   autoSyncEnabled: false,
+  uiLanguage: DEFAULT_UI_LANGUAGE,
   connectionStatus: {
     code: "not_tested",
     checkedAt: null,
@@ -166,6 +178,7 @@ export function isSettingsState(value: unknown): value is SettingsState {
     (isRepositoryRef(value.selectedRepository) || value.selectedRepository === null) &&
     (isBranchRef(value.selectedBranch) || value.selectedBranch === null) &&
     typeof value.autoSyncEnabled === "boolean" &&
+    isUiLanguagePreference(value.uiLanguage) &&
     isConnectionStatus(value.connectionStatus) &&
     (typeof value.updatedAt === "string" || value.updatedAt === null)
   );
@@ -178,7 +191,8 @@ export function parseSettingsState(value: unknown): SettingsState | null {
 
   const candidate = {
     ...value,
-    version: STORAGE_SCHEMA_VERSION
+    version: STORAGE_SCHEMA_VERSION,
+    uiLanguage: normalizeUiLanguagePreference(value.uiLanguage)
   };
 
   return isSettingsState(candidate) ? candidate : null;
@@ -360,7 +374,15 @@ export function isConnectionStatusCode(value: unknown): value is ConnectionStatu
 }
 
 function isSupportedStorageVersion(value: unknown): boolean {
-  return value === STORAGE_SCHEMA_VERSION || value === LEGACY_STORAGE_SCHEMA_VERSION;
+  return (
+    value === STORAGE_SCHEMA_VERSION ||
+    value === PREVIOUS_STORAGE_SCHEMA_VERSION ||
+    value === LEGACY_STORAGE_SCHEMA_VERSION
+  );
+}
+
+function normalizeUiLanguagePreference(value: unknown): UiLanguagePreference {
+  return isUiLanguagePreference(value) ? value : DEFAULT_UI_LANGUAGE;
 }
 
 function normalizeProcessedSubmissionEntry(

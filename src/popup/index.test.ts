@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import type { PublicSettingsState } from "../shared";
+import {
+  DEFAULT_UI_LANGUAGE,
+  STORAGE_SCHEMA_VERSION,
+  type PublicSettingsState
+} from "../shared";
 import { getSetupStatusView } from "./index";
 
 describe("popup index owner repository copy", () => {
@@ -36,7 +40,7 @@ describe("popup index owner repository copy", () => {
 
 function makePublicSettings(): PublicSettingsState {
   return {
-    version: 2,
+    version: STORAGE_SCHEMA_VERSION,
     hasGithubPat: true,
     selectedRepository: {
       owner: "octo",
@@ -52,6 +56,7 @@ function makePublicSettings(): PublicSettingsState {
       protected: false
     },
     autoSyncEnabled: true,
+    uiLanguage: DEFAULT_UI_LANGUAGE,
     connectionStatus: {
       code: "connected",
       checkedAt: "2026-01-01T00:00:00.000Z",
