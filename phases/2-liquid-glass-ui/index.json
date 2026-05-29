@@ -37,7 +37,10 @@
     {
       "step": 4,
       "name": "popup-glass-status",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-05-29T18:11:44+0900",
+      "summary": "Localized Popup and applied Liquid Glass status, control, and history layout.",
+      "completed_at": "2026-05-29T18:17:43+0900"
     },
     {
       "step": 5,
