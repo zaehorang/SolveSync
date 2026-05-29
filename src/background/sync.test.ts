@@ -22,6 +22,9 @@ import {
   type SyncLeetCodeClient
 } from "./sync";
 
+const expectedAcceptedDate = "2026-01-02";
+const defaultAcceptedAt = makeLocalAcceptedAt(expectedAcceptedDate);
+
 describe("background sync orchestrator", () => {
   it("records setup required without fetching LeetCode or committing", async () => {
     const harness = makeHarness();
@@ -134,12 +137,12 @@ describe("background sync orchestrator", () => {
       harness.github.commits[0]?.files.find((file) => file.path === "leetcode/README.md")?.content
     ).toContain("# Existing");
     expect(committedContent(harness, "leetcode/README.md")).toContain(
-      "| 1 | Two Sum | Easy | 2026-01-02 |"
+      `| 1 | Two Sum | Easy | ${expectedAcceptedDate} |`
     );
     expect(committedJson(harness, "leetcode/.leetcode-sync/index.json")).toMatchObject({
       activity: {
         days: {
-          "2026-01-02": {
+          [expectedAcceptedDate]: {
             acceptedCount: 1,
             newProblemCount: 1
           }
@@ -147,12 +150,12 @@ describe("background sync orchestrator", () => {
       },
       problems: [
         {
-          firstAcceptedDate: "2026-01-02",
-          lastAcceptedDate: "2026-01-02",
+          firstAcceptedDate: expectedAcceptedDate,
+          lastAcceptedDate: expectedAcceptedDate,
           languages: {
             swift: {
-              firstAcceptedDate: "2026-01-02",
-              lastAcceptedDate: "2026-01-02"
+              firstAcceptedDate: expectedAcceptedDate,
+              lastAcceptedDate: expectedAcceptedDate
             }
           }
         }
@@ -183,12 +186,12 @@ describe("background sync orchestrator", () => {
         ?.content
     ).toContain("<!-- PROGRAMMERS_TABLE_START -->");
     expect(committedContent(harness, "programmers/README.md")).toContain(
-      "| 120804 | 두 수의 곱 구하기 | - | 2026-01-02 |"
+      `| 120804 | 두 수의 곱 구하기 | - | ${expectedAcceptedDate} |`
     );
     expect(committedJson(harness, "programmers/.programmers-sync/index.json")).toMatchObject({
       activity: {
         days: {
-          "2026-01-02": {
+          [expectedAcceptedDate]: {
             acceptedCount: 1,
             newProblemCount: 1
           }
@@ -196,12 +199,12 @@ describe("background sync orchestrator", () => {
       },
       problems: [
         {
-          firstAcceptedDate: "2026-01-02",
-          lastAcceptedDate: "2026-01-02",
+          firstAcceptedDate: expectedAcceptedDate,
+          lastAcceptedDate: expectedAcceptedDate,
           languages: {
             swift: {
-              firstAcceptedDate: "2026-01-02",
-              lastAcceptedDate: "2026-01-02"
+              firstAcceptedDate: expectedAcceptedDate,
+              lastAcceptedDate: expectedAcceptedDate
             }
           }
         }
@@ -612,7 +615,7 @@ function makeProgrammersAcceptedDetected(
     pageUrl:
       overrides.pageUrl ??
       "https://school.programmers.co.kr/learn/courses/30/lessons/120804",
-    detectedAt: overrides.detectedAt ?? "2026-01-01T15:30:00.000Z"
+    detectedAt: overrides.detectedAt ?? defaultAcceptedAt
   };
 }
 
@@ -627,7 +630,7 @@ function syncableAcceptedSubmission(): LatestAcceptedSubmissionResult {
       titleSlug: identity.titleSlug,
       language: "Swift",
       code: "class Solution {}",
-      acceptedAt: "2026-01-01T15:30:00.000Z"
+      acceptedAt: defaultAcceptedAt
     }
   };
 }
@@ -643,7 +646,7 @@ function unsupportedAcceptedSubmission(): LatestAcceptedSubmissionResult {
       titleSlug: "two-sum",
       language: "Java",
       code: "class Solution {}",
-      acceptedAt: "2026-01-01T15:30:00.000Z"
+      acceptedAt: defaultAcceptedAt
     }
   };
 }
@@ -728,6 +731,13 @@ function committedContent(harness: Harness, path: string): string {
 
 function committedJson(harness: Harness, path: string): unknown {
   return JSON.parse(committedContent(harness, path)) as unknown;
+}
+
+function makeLocalAcceptedAt(dateString: string): string {
+  const [year, month, day] = dateString.split("-").map(Number);
+  const hour = new Date().getTimezoneOffset() > 0 ? 23 : 0;
+
+  return new Date(year, month - 1, day, hour, 30).toISOString();
 }
 
 function cloneRecord(value: Record<string, unknown>): Record<string, unknown> {

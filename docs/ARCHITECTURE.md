@@ -231,14 +231,17 @@ Index entry는 다음 정보를 저장한다.
 - language별 solution path
 - last synced time
 - language별 last submission id
+- problem/language별 first accepted date와 last accepted date
+- date별 accepted count와 new problem count activity
 
 README 생성 규칙:
 - managed marker 밖 내용은 보존한다.
 - platform marker 사이 내용만 교체한다.
   - LeetCode: `<!-- LEETCODE_TABLE_START -->`, `<!-- LEETCODE_TABLE_END -->`
   - Programmers: `<!-- PROGRAMMERS_TABLE_START -->`, `<!-- PROGRAMMERS_TABLE_END -->`
-- number, title, difficulty, Swift, Python 컬럼을 생성한다.
+- number, title, difficulty, solved date, Swift, Python 컬럼을 생성한다.
 - row는 numeric problem id 오름차순으로 정렬한다.
+- Solved cell은 platform index의 problem-level first accepted date를 표시한다.
 - Swift와 Python cell은 해당 solution path가 있을 때 platform README 기준 상대 link를 건다.
 
 ## Storage Model
