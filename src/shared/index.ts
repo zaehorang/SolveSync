@@ -12,3 +12,4 @@ export * from "./paths";
 export * from "./readme";
 export * from "./storageSchema";
 export * from "./types";
+export * from "./uiModels";

@@ -1,108 +1,37 @@
-import type { NormalizedError } from "../shared/errors";
+import {
+  createToastViewModel,
+  type ToastActionView,
+  type ToastModelInput as SharedToastModelInput,
+  type ToastViewModel,
+  type Tone,
+  type UiLocale
+} from "../shared";
 import type { ToastAction } from "../shared/messages";
-import type { SyncRecord, SyncStatus } from "../shared/types";
+import type { SyncStatus } from "../shared/types";
 
-export type ToastTone = "neutral" | "success" | "warning" | "error";
+export type ToastTone = Tone;
 
-export interface ToastActionModel {
-  action: ToastAction;
-  label: string;
-  recordId: string | null;
-  primary: boolean;
-}
+export type ToastActionModel = ToastActionView;
 
-export interface ToastModel {
+export interface ToastModel extends ToastViewModel {
   state: SyncStatus;
-  title: string;
-  detail: string | null;
-  tone: ToastTone;
-  actions: ToastActionModel[];
-  autoDismissMs: number | null;
 }
 
-export interface ToastModelInput {
-  status: SyncStatus;
-  record: SyncRecord | null;
-  error: NormalizedError | null;
-}
+export type ToastModelInput = SharedToastModelInput;
 
 export type ToastActionHandler = (
   action: ToastAction,
   recordId: string | null
 ) => void;
 
-export function createToastModel(input: ToastModelInput): ToastModel {
-  switch (input.status) {
-    case "setup_required":
-      return {
-        state: input.status,
-        title: "GitHub connection required",
-        detail: "Connect a repository in Options.",
-        tone: "warning",
-        actions: [action("open_options", "Open Options", null, true)],
-        autoDismissMs: null
-      };
-
-    case "auto_sync_disabled":
-      return {
-        state: input.status,
-        title: "Auto Sync is off",
-        detail: "No commit was created.",
-        tone: "warning",
-        actions: [action("open_options", "Open Options", null, true)],
-        autoDismissMs: 7000
-      };
-
-    case "syncing":
-      return {
-        state: input.status,
-        title: "Syncing to GitHub...",
-        detail: describeRecord(input.record),
-        tone: "neutral",
-        actions: [],
-        autoDismissMs: null
-      };
-
-    case "retrying":
-      return {
-        state: input.status,
-        title: "Retrying sync...",
-        detail: describeRecord(input.record),
-        tone: "neutral",
-        actions: [],
-        autoDismissMs: null
-      };
-
-    case "synced":
-      return {
-        state: input.status,
-        title: "Synced to GitHub",
-        detail: describeRecord(input.record),
-        tone: "success",
-        actions: successActions(input.record),
-        autoDismissMs: 5000
-      };
-
-    case "unsupported_language":
-      return {
-        state: input.status,
-        title: "Unsupported language",
-        detail: unsupportedDetail(input.record),
-        tone: "warning",
-        actions: [],
-        autoDismissMs: 8000
-      };
-
-    case "failed":
-      return {
-        state: input.status,
-        title: "Sync failed",
-        detail: failureDetail(input.error ?? input.record?.error ?? null),
-        tone: "error",
-        actions: failureActions(input.error ?? input.record?.error ?? null),
-        autoDismissMs: null
-      };
-  }
+export function createToastModel(
+  input: ToastModelInput,
+  locale: UiLocale = "en"
+): ToastModel {
+  return {
+    state: input.status,
+    ...createToastViewModel(locale, input)
+  };
 }
 
 export class ContentToast {
@@ -221,106 +150,6 @@ export class ContentToast {
       this.autoDismissTimer = null;
     }
   }
-}
-
-function successActions(record: SyncRecord | null): ToastActionModel[] {
-  if (record === null) {
-    return [];
-  }
-
-  return [
-    record.commitUrl === null ? null : action("open_commit", "Commit", record.id, true),
-    record.fileUrl === null ? null : action("open_file", "File", record.id, false)
-  ].filter((item): item is ToastActionModel => item !== null);
-}
-
-function failureDetail(error: NormalizedError | null): string {
-  return error?.userMessage ?? "Open Options to check your GitHub connection.";
-}
-
-function failureActions(error: NormalizedError | null): ToastActionModel[] {
-  if (error?.code === "programmers_extract_failed") {
-    return [];
-  }
-
-  return [action("open_options", "Open Options", null, true)];
-}
-
-function unsupportedDetail(record: SyncRecord | null): string {
-  if (record?.language !== undefined && record.language.trim().length > 0) {
-    return `${record.language} submissions are not synced.`;
-  }
-
-  return "Only Swift and Python3 submissions are synced.";
-}
-
-function describeRecord(record: SyncRecord | null): string | null {
-  if (record === null) {
-    return null;
-  }
-
-  const title = getRecordTitle(record);
-  const language = getLanguageLabel(record);
-
-  if (title.length === 0 && language.length === 0) {
-    return null;
-  }
-
-  if (language.length === 0) {
-    return title;
-  }
-
-  return `${title} in ${language}`;
-}
-
-function getRecordTitle(record: SyncRecord): string {
-  const title = record.problemTitle?.trim() ?? "";
-  const titleSlug = record.titleSlug.trim();
-  const frontendId = record.problemFrontendId?.trim() ?? "";
-
-  if (title.length > 0) {
-    return title;
-  }
-
-  if (titleSlug.length > 0) {
-    return titleSlug;
-  }
-
-  if (frontendId.length > 0) {
-    return `${getPlatformLabel(record.platform)} ${frontendId}`;
-  }
-
-  return getPlatformLabel(record.platform);
-}
-
-function getLanguageLabel(record: SyncRecord): string {
-  if (record.supportedLanguage === "python3") {
-    return "Python3";
-  }
-
-  if (record.supportedLanguage === "swift") {
-    return "Swift";
-  }
-
-  return record.language.trim();
-}
-
-function getPlatformLabel(platform: SyncRecord["platform"]): string {
-  return platform === "programmers" ? "Programmers" : "LeetCode";
-}
-
-function action(
-  actionType: ToastAction,
-  label: string,
-  recordId: string | null,
-  primary: boolean
-): ToastActionModel {
-  return {
-    action: actionType,
-    label,
-    recordId,
-    primary
-  };
 }
 
 const CONTENT_TOAST_CSS = `

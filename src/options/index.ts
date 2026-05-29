@@ -3,20 +3,24 @@ import {
   DEFAULT_SETTINGS_STATE,
   STORAGE_KEYS,
   STORAGE_SCHEMA_VERSION,
+  getConnectionStatusView as getSharedConnectionStatusView,
   normalizeError,
   parseSettingsState,
+  resolveUiLocale,
   type BranchRef,
   type ConnectionStatus,
   type ConnectionStatusCode,
+  type ConnectionStatusView,
   type IsoDateString,
   type NormalizedError,
   type NormalizedErrorCode,
   type RepositoryRef,
   type RuntimeMessage,
-  type SettingsState
+  type SettingsState,
+  type Tone,
+  type UiLanguagePreference,
+  type UiLocale
 } from "../shared";
-
-type Tone = "neutral" | "success" | "warning" | "error";
 
 export interface RepositoryFilterState {
   query: string;
@@ -38,12 +42,6 @@ export interface SettingsValidationResult {
     repository?: string;
     branch?: string;
   };
-}
-
-export interface ConnectionStatusView {
-  label: string;
-  detail: string | null;
-  tone: Tone;
 }
 
 interface InlineMessage {
@@ -87,6 +85,7 @@ interface OptionsRuntimeState {
   branches: BranchRef[];
   selectedBranch: BranchRef | null;
   autoSyncEnabled: boolean;
+  uiLanguage: UiLanguagePreference;
   connectionStatus: ConnectionStatus;
   loadingSettings: boolean;
   loadingRepositories: boolean;
@@ -242,86 +241,7 @@ export function getConnectionStatusView(
   status: ConnectionStatus | ConnectionStatusCode,
   error: NormalizedError | null = null
 ): ConnectionStatusView {
-  const statusCode = typeof status === "string" ? status : status.code;
-  const statusError = typeof status === "string" ? error : status.error;
-  const detail = statusError?.userMessage ?? null;
-
-  switch (statusCode) {
-    case "not_tested":
-      return {
-        label: "Not tested",
-        detail,
-        tone: "neutral"
-      };
-    case "testing":
-      return {
-        label: "Testing connection...",
-        detail,
-        tone: "neutral"
-      };
-    case "connected":
-      return {
-        label: "Connected",
-        detail,
-        tone: "success"
-      };
-    case "branch_created":
-      return {
-        label: "Branch created",
-        detail,
-        tone: "success"
-      };
-    case "no_accessible_repositories":
-      return {
-        label: "No owned repositories",
-        detail:
-          detail ??
-          "Check that the token includes a repository owned by your account.",
-        tone: "warning"
-      };
-    case "repository_not_found":
-      return {
-        label: "Repository not found",
-        detail,
-        tone: "error"
-      };
-    case "branch_not_found":
-      return {
-        label: "Branch not found",
-        detail,
-        tone: "error"
-      };
-    case "branch_create_failed":
-      return {
-        label: "Branch create failed",
-        detail,
-        tone: "error"
-      };
-    case "auth_failed":
-      return {
-        label: "Auth failed",
-        detail,
-        tone: "error"
-      };
-    case "token_expired":
-      return {
-        label: "Token expired",
-        detail,
-        tone: "error"
-      };
-    case "rate_limited":
-      return {
-        label: "Rate limited",
-        detail,
-        tone: "warning"
-      };
-    case "network_failed":
-      return {
-        label: "Network failed",
-        detail,
-        tone: "warning"
-      };
-  }
+  return getSharedConnectionStatusView("en", status, error);
 }
 
 function createInitialState(): OptionsRuntimeState {
@@ -334,6 +254,7 @@ function createInitialState(): OptionsRuntimeState {
     branches: [],
     selectedBranch: null,
     autoSyncEnabled: false,
+    uiLanguage: DEFAULT_SETTINGS_STATE.uiLanguage,
     connectionStatus: DEFAULT_CONNECTION_STATUS,
     loadingSettings: true,
     loadingRepositories: false,
@@ -840,6 +761,7 @@ function applySettingsToState(
     settings.selectedRepository === null ? [] : [settings.selectedRepository];
   state.branches = settings.selectedBranch === null ? [] : [settings.selectedBranch];
   state.autoSyncEnabled = settings.autoSyncEnabled;
+  state.uiLanguage = settings.uiLanguage;
   state.connectionStatus = settings.connectionStatus;
 }
 
@@ -871,6 +793,8 @@ function applyValidationMessages(
 }
 
 function render(elements: OptionsElements, state: OptionsRuntimeState): void {
+  const locale = getOptionsLocale(state.uiLanguage);
+
   elements.status.textContent = state.loadingSettings
     ? "Loading settings..."
     : "Settings are stored in this browser profile.";
@@ -901,7 +825,7 @@ function render(elements: OptionsElements, state: OptionsRuntimeState): void {
   elements.testConnectionButton.textContent = state.testingConnection
     ? "Testing..."
     : "Test connection";
-  renderConnectionStatus(elements.connectionStatusBox, state.connectionStatus);
+  renderConnectionStatus(elements.connectionStatusBox, state.connectionStatus, locale);
 
   elements.saveButton.disabled = state.savingSettings;
   elements.saveButton.textContent = state.savingSettings ? "Saving..." : "Save settings";
@@ -1006,11 +930,20 @@ function renderCreateBranchControls(
 
 function renderConnectionStatus(
   element: HTMLDivElement,
-  status: ConnectionStatus
+  status: ConnectionStatus,
+  locale: UiLocale
 ): void {
-  const view = getConnectionStatusView(status);
+  const view = getSharedConnectionStatusView(locale, status);
   element.className = `status-box ${view.tone}`;
   element.textContent = view.detail === null ? view.label : `${view.label}. ${view.detail}`;
+}
+
+function getOptionsLocale(preference: UiLanguagePreference): UiLocale {
+  return resolveUiLocale(preference, getBrowserLanguage());
+}
+
+function getBrowserLanguage(): string | null {
+  return typeof navigator === "undefined" ? null : navigator.language;
 }
 
 function renderInlineMessage(element: HTMLParagraphElement, message: InlineMessage): void {

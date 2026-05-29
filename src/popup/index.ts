@@ -1,15 +1,27 @@
 import {
   APP_NAME,
+  DEFAULT_UI_LANGUAGE,
+  getFailureDetailView as getSharedFailureDetailView,
+  getPlatformLabel,
+  getSetupStatusView as getSharedSetupStatusView,
+  getSyncRecordLanguageLabel,
+  getSyncStatusLabel,
+  getSyncStatusTone,
+  getUnsupportedLanguageReason,
   normalizeError,
+  resolveUiLocale,
+  t,
+  type FailureDetailView,
   type NormalizedError,
   type PublicSettingsState,
   type RetryPayloadSummary,
   type RuntimeMessage,
+  type SetupStatusView,
   type SyncRecord,
-  type SyncStatus
+  type SyncStatus,
+  type Tone,
+  type UiLocale
 } from "../shared";
-
-type Tone = "neutral" | "success" | "warning" | "error";
 
 interface RuntimeSuccessResponse<T> {
   ok: true;
@@ -28,16 +40,7 @@ interface InlineMessage {
   tone: Tone;
 }
 
-export interface PopupSetupStatusView {
-  label: string;
-  detail: string;
-  tone: Tone;
-}
-
-export interface FailureDetailView {
-  summary: string;
-  detailLines: string[];
-}
+export type PopupSetupStatusView = SetupStatusView;
 
 export interface PopupHistoryItem {
   id: string;
@@ -105,125 +108,29 @@ export function createAutoSyncToggleMessage(enabled: boolean): RuntimeMessage {
 export function getSetupStatusView(
   settings: PublicSettingsState | null
 ): PopupSetupStatusView {
-  if (settings === null) {
-    return {
-      label: "Loading settings",
-      detail: "Reading popup state from the background service worker.",
-      tone: "neutral"
-    };
-  }
-
-  if (!settings.hasGithubPat) {
-    return {
-      label: "GitHub connection required",
-      detail: "Open Options and save a fine-grained PAT.",
-      tone: "warning"
-    };
-  }
-
-  if (settings.selectedRepository === null) {
-    return {
-      label: "Repository required",
-      detail: "Open Options and choose an owned repository.",
-      tone: "warning"
-    };
-  }
-
-  if (settings.selectedBranch === null) {
-    return {
-      label: "Branch required",
-      detail: "Open Options and choose an existing branch.",
-      tone: "warning"
-    };
-  }
-
-  const target = `${settings.selectedRepository.fullName} / ${settings.selectedBranch.name}`;
-
-  if (!settings.autoSyncEnabled) {
-    return {
-      label: "Auto Sync off",
-      detail: `Configured for ${target}. Accepted submissions will not create commits.`,
-      tone: "warning"
-    };
-  }
-
-  switch (settings.connectionStatus.code) {
-    case "connected":
-    case "branch_created":
-      return {
-        label: "Ready to sync",
-        detail: target,
-        tone: "success"
-      };
-    case "not_tested":
-      return {
-        label: "Connection not tested",
-        detail: `${target}. Run a connection test in Options.`,
-        tone: "neutral"
-      };
-    case "testing":
-      return {
-        label: "Testing connection",
-        detail: target,
-        tone: "neutral"
-      };
-    case "no_accessible_repositories":
-      return statusFromConnection("No owned repositories", settings, "warning");
-    case "repository_not_found":
-      return statusFromConnection("Repository not found", settings, "error");
-    case "branch_not_found":
-      return statusFromConnection("Branch not found", settings, "error");
-    case "branch_create_failed":
-      return statusFromConnection("Branch create failed", settings, "error");
-    case "auth_failed":
-      return statusFromConnection("Auth failed", settings, "error");
-    case "token_expired":
-      return statusFromConnection("Token expired", settings, "error");
-    case "rate_limited":
-      return statusFromConnection("Rate limited", settings, "warning");
-    case "network_failed":
-      return statusFromConnection("Network failed", settings, "warning");
-  }
+  return getSharedSetupStatusView("en", settings);
 }
 
 export function buildHistoryDisplayModel(
   records: SyncRecord[],
   retryPayloads: RetryPayloadSummary[],
-  nowMs = Date.now()
+  nowMs = Date.now(),
+  locale: UiLocale = "en"
 ): PopupHistoryModel {
   const retryPayloadIds = new Set(retryPayloads.map((payload) => payload.id));
   const items = [...records]
     .sort(compareRecordsByUpdatedAtDescending)
     .slice(0, HISTORY_LIMIT)
-    .map((record) => toHistoryItem(record, retryPayloadIds, nowMs));
+    .map((record) => toHistoryItem(record, retryPayloadIds, nowMs, locale));
 
   return {
     items,
-    emptyText: "Accepted submissions will appear here after sync runs."
+    emptyText: t(locale, "history.empty")
   };
 }
 
 export function getFailureDetail(record: SyncRecord): FailureDetailView | null {
-  if (record.error === null) {
-    return null;
-  }
-
-  const detailLines = [`Code: ${record.error.code}`];
-
-  if (record.error.debugMessage !== null && record.error.debugMessage.length > 0) {
-    detailLines.push(`Detail: ${record.error.debugMessage}`);
-  }
-
-  if (record.error.code === "programmers_extract_failed") {
-    detailLines.push("Retry is unavailable because no commit payload was created.");
-  } else if (record.retryPayloadId === null && record.status === "failed") {
-    detailLines.push("Retry payload is unavailable. Check Options or submit again.");
-  }
-
-  return {
-    summary: record.error.userMessage,
-    detailLines
-  };
+  return getSharedFailureDetailView("en", record);
 }
 
 function createInitialState(): PopupRuntimeState {
@@ -270,9 +177,10 @@ function bindRuntimeUpdates(elements: PopupElements, state: PopupRuntimeState): 
     }
 
     if (message.type === "sync:status" && message.payload.record !== null) {
+      const locale = getPopupLocale(state.settings);
       state.message = {
-        text: getStatusLabel(message.payload.status),
-        tone: getStatusTone(message.payload.status)
+        text: getSyncStatusLabel(locale, message.payload.status),
+        tone: getSyncStatusTone(message.payload.status)
       };
       render(elements, state);
     }
@@ -417,6 +325,8 @@ async function retrySync(
 }
 
 function render(elements: PopupElements, state: PopupRuntimeState): void {
+  const locale = getPopupLocale(state.settings);
+
   elements.status.textContent = state.loading
     ? "Loading..."
     : state.message.text.length > 0
@@ -424,7 +334,7 @@ function render(elements: PopupElements, state: PopupRuntimeState): void {
       : "Ready";
   elements.status.className = `status-text ${state.message.tone}`;
 
-  const setup = getSetupStatusView(state.settings);
+  const setup = getSharedSetupStatusView(locale, state.settings);
   elements.setupSummary.className = `status-box ${setup.tone}`;
   elements.setupSummary.textContent = `${setup.label}. ${setup.detail}`;
 
@@ -438,7 +348,9 @@ function render(elements: PopupElements, state: PopupRuntimeState): void {
 
   const model = buildHistoryDisplayModel(
     state.historyRecords,
-    state.retryPayloads
+    state.retryPayloads,
+    Date.now(),
+    locale
   );
   elements.historyCount.textContent =
     model.items.length === 1 ? "1 record" : `${model.items.length} records`;
@@ -603,7 +515,8 @@ function createExternalLink(url: string, label: string): HTMLAnchorElement {
 function toHistoryItem(
   record: SyncRecord,
   retryPayloadIds: Set<string>,
-  nowMs: number
+  nowMs: number,
+  locale: UiLocale
 ): PopupHistoryItem {
   const retryPayloadId = record.retryPayloadId;
   const canRetry =
@@ -617,17 +530,17 @@ function toHistoryItem(
     status: record.status,
     platformLabel: getPlatformLabel(record.platform),
     title: getRecordTitle(record),
-    languageLabel: getLanguageLabel(record),
-    meta: getRecordMeta(record, nowMs),
+    languageLabel: getSyncRecordLanguageLabel(locale, record),
+    meta: getRecordMeta(record, nowMs, locale),
     timeLabel: formatRelativeTime(record.updatedAt, nowMs),
-    statusLabel: getStatusLabel(record.status),
-    tone: getStatusTone(record.status),
+    statusLabel: getSyncStatusLabel(locale, record.status),
+    tone: getSyncStatusTone(record.status),
     commitUrl: record.commitUrl,
     fileUrl: record.fileUrl,
-    failure: record.status === "failed" ? getFailureDetail(record) : null,
+    failure: record.status === "failed" ? getSharedFailureDetailView(locale, record) : null,
     unsupportedReason:
       record.status === "unsupported_language"
-        ? "No commit was created. Swift and Python3 are supported."
+        ? getUnsupportedLanguageReason(locale)
         : null,
     retryPayloadId,
     canRetry
@@ -658,10 +571,10 @@ function getRecordTitle(record: SyncRecord): string {
   return `${getPlatformLabel(record.platform)} submission`;
 }
 
-function getRecordMeta(record: SyncRecord, nowMs: number): string {
+function getRecordMeta(record: SyncRecord, nowMs: number, locale: UiLocale): string {
   const parts = [
     getPlatformLabel(record.platform),
-    getLanguageLabel(record),
+    getSyncRecordLanguageLabel(locale, record),
     formatRelativeTime(record.updatedAt, nowMs)
   ];
 
@@ -670,57 +583,6 @@ function getRecordMeta(record: SyncRecord, nowMs: number): string {
   }
 
   return parts.join(" / ");
-}
-
-function getLanguageLabel(record: SyncRecord): string {
-  if (record.supportedLanguage === "python3") {
-    return "Python3";
-  }
-
-  if (record.supportedLanguage === "swift") {
-    return "Swift";
-  }
-
-  return record.language.length > 0 ? record.language : "Unknown language";
-}
-
-function getPlatformLabel(platform: SyncRecord["platform"]): string {
-  return platform === "programmers" ? "Programmers" : "LeetCode";
-}
-
-function getStatusLabel(status: SyncStatus): string {
-  switch (status) {
-    case "setup_required":
-      return "Setup required";
-    case "auto_sync_disabled":
-      return "Auto Sync off";
-    case "syncing":
-      return "Syncing";
-    case "synced":
-      return "Synced";
-    case "unsupported_language":
-      return "Unsupported language";
-    case "failed":
-      return "Failed";
-    case "retrying":
-      return "Retrying";
-  }
-}
-
-function getStatusTone(status: SyncStatus): Tone {
-  switch (status) {
-    case "synced":
-      return "success";
-    case "setup_required":
-    case "auto_sync_disabled":
-    case "unsupported_language":
-      return "warning";
-    case "failed":
-      return "error";
-    case "syncing":
-    case "retrying":
-      return "neutral";
-  }
 }
 
 function formatRelativeTime(value: string, nowMs: number): string {
@@ -771,23 +633,17 @@ function parseRecordTimestamp(record: SyncRecord): number {
   return Number.isFinite(createdAt) ? createdAt : 0;
 }
 
-function statusFromConnection(
-  label: string,
-  settings: PublicSettingsState,
-  tone: Tone
-): PopupSetupStatusView {
-  return {
-    label,
-    detail:
-      settings.connectionStatus.error?.userMessage ??
-      "Open Options to check the saved GitHub connection.",
-    tone
-  };
-}
-
 function renderInlineMessage(element: HTMLParagraphElement, message: InlineMessage): void {
   element.className = `field-message ${message.tone === "neutral" ? "" : message.tone}`.trim();
   element.textContent = message.text;
+}
+
+function getPopupLocale(settings: PublicSettingsState | null): UiLocale {
+  return resolveUiLocale(settings?.uiLanguage ?? DEFAULT_UI_LANGUAGE, getBrowserLanguage());
+}
+
+function getBrowserLanguage(): string | null {
+  return typeof navigator === "undefined" ? null : navigator.language;
 }
 
 function collectElements(): PopupElements {
