@@ -12,7 +12,8 @@
     },
     {
       "dir": "accepted-date-index",
-      "status": "pending"
+      "status": "completed",
+      "completed_at": "2026-05-29T17:46:30+0900"
     }
   ]
 }
