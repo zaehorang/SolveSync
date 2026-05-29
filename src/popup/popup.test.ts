@@ -113,6 +113,52 @@ describe("popup state helpers", () => {
     });
   });
 
+  it("localizes Korean setup, history, and failure labels", () => {
+    const setup = getSetupStatusView(
+      {
+        ...makePublicSettings(),
+        selectedRepository: null
+      },
+      "ko"
+    );
+    const failed = makeProgrammersRecord({
+      status: "failed",
+      retryPayloadId: null,
+      updatedAt: "2026-01-01T00:03:00.000Z",
+      error: {
+        ...makeError(
+          "programmers_extract_failed",
+          "Programmers editor code를 읽지 못했습니다."
+        ),
+        debugMessage: "textarea#code value is empty."
+      }
+    });
+    const model = buildHistoryDisplayModel(
+      [failed],
+      [],
+      Date.parse("2026-01-01T00:04:00.000Z"),
+      "ko"
+    );
+
+    expect(setup).toMatchObject({
+      label: "저장소 필요",
+      detail: "Options에서 본인 저장소를 선택하세요.",
+      tone: "warning"
+    });
+    expect(model.items[0]).toMatchObject({
+      statusLabel: "실패",
+      meta: "Programmers / Swift / 1분 전 / octo/algorithms@main",
+      failure: {
+        summary: "Programmers editor code를 읽지 못했습니다.",
+        detailLines: [
+          "Code: programmers_extract_failed",
+          "Detail: textarea#code value is empty.",
+          "Commit payload가 생성되지 않아 재시도할 수 없습니다."
+        ]
+      }
+    });
+  });
+
   it("marks Programmers extraction failures as not retryable", () => {
     const failed = makeProgrammersRecord({
       status: "failed",

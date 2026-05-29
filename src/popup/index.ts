@@ -1,6 +1,7 @@
 import {
   APP_NAME,
   DEFAULT_UI_LANGUAGE,
+  getConnectionStatusView as getSharedConnectionStatusView,
   getFailureDetailView as getSharedFailureDetailView,
   getPlatformLabel,
   getSetupStatusView as getSharedSetupStatusView,
@@ -12,6 +13,7 @@ import {
   resolveUiLocale,
   t,
   type FailureDetailView,
+  type I18nKey,
   type NormalizedError,
   type PublicSettingsState,
   type RetryPayloadSummary,
@@ -38,6 +40,8 @@ type RuntimeResponse<T> = RuntimeSuccessResponse<T> | RuntimeFailureResponse;
 interface InlineMessage {
   text: string;
   tone: Tone;
+  i18nKey?: I18nKey;
+  i18nParams?: Record<string, string | number>;
 }
 
 export type PopupSetupStatusView = SetupStatusView;
@@ -78,11 +82,18 @@ interface PopupRuntimeState {
 
 interface PopupElements {
   status: HTMLParagraphElement;
-  setupSummary: HTMLDivElement;
+  setupCard: HTMLElement;
+  setupMarker: HTMLDivElement;
+  setupTitle: HTMLHeadingElement;
+  setupDetail: HTMLParagraphElement;
   autoSyncToggle: HTMLInputElement;
   autoSyncCopy: HTMLElement;
   autoSyncStatus: HTMLParagraphElement;
   openOptionsButton: HTMLButtonElement;
+  connectionSummary: HTMLElement;
+  connectionDetail: HTMLElement;
+  repositorySummary: HTMLElement;
+  branchSummary: HTMLElement;
   historyCount: HTMLParagraphElement;
   historyEmpty: HTMLParagraphElement;
   historyList: HTMLUListElement;
@@ -93,6 +104,19 @@ const EMPTY_MESSAGE: InlineMessage = {
   text: "",
   tone: "neutral"
 };
+
+function localizedMessage(
+  i18nKey: I18nKey,
+  tone: Tone,
+  i18nParams: Record<string, string | number> = {}
+): InlineMessage {
+  return {
+    text: "",
+    tone,
+    i18nKey,
+    i18nParams
+  };
+}
 
 export function createAutoSyncToggleMessage(enabled: boolean): RuntimeMessage {
   return {
@@ -106,9 +130,10 @@ export function createAutoSyncToggleMessage(enabled: boolean): RuntimeMessage {
 }
 
 export function getSetupStatusView(
-  settings: PublicSettingsState | null
+  settings: PublicSettingsState | null,
+  locale: UiLocale = "en"
 ): PopupSetupStatusView {
-  return getSharedSetupStatusView("en", settings);
+  return getSharedSetupStatusView(locale, settings);
 }
 
 export function buildHistoryDisplayModel(
@@ -129,8 +154,11 @@ export function buildHistoryDisplayModel(
   };
 }
 
-export function getFailureDetail(record: SyncRecord): FailureDetailView | null {
-  return getSharedFailureDetailView("en", record);
+export function getFailureDetail(
+  record: SyncRecord,
+  locale: UiLocale = "en"
+): FailureDetailView | null {
+  return getSharedFailureDetailView(locale, record);
 }
 
 function createInitialState(): PopupRuntimeState {
@@ -257,10 +285,10 @@ async function updateAutoSync(
   enabled: boolean
 ): Promise<void> {
   state.savingAutoSync = true;
-  state.message = {
-    text: enabled ? "Turning Auto Sync on..." : "Turning Auto Sync off...",
-    tone: "neutral"
-  };
+  state.message = localizedMessage(
+    enabled ? "popup.message.autoSyncTurningOn" : "popup.message.autoSyncTurningOff",
+    "neutral"
+  );
   render(elements, state);
 
   try {
@@ -273,10 +301,10 @@ async function updateAutoSync(
     }
 
     state.settings = response.data;
-    state.message = {
-      text: enabled ? "Auto Sync enabled." : "Auto Sync disabled.",
-      tone: enabled ? "success" : "warning"
-    };
+    state.message = localizedMessage(
+      enabled ? "popup.message.autoSyncEnabled" : "popup.message.autoSyncDisabled",
+      enabled ? "success" : "warning"
+    );
   } catch (error) {
     state.message = {
       text: normalizeError(error).userMessage,
@@ -294,10 +322,7 @@ async function retrySync(
   retryPayloadId: string
 ): Promise<void> {
   state.retryingPayloadIds.add(retryPayloadId);
-  state.message = {
-    text: "Retrying sync...",
-    tone: "neutral"
-  };
+  state.message = localizedMessage("toast.retryingTitle", "neutral");
   render(elements, state);
 
   try {
@@ -326,25 +351,28 @@ async function retrySync(
 
 function render(elements: PopupElements, state: PopupRuntimeState): void {
   const locale = getPopupLocale(state.settings);
+  document.documentElement.lang = locale;
+  document.title = t(locale, "popup.page.title");
+  renderStaticText(locale);
 
   elements.status.textContent = state.loading
-    ? "Loading..."
-    : state.message.text.length > 0
-      ? state.message.text
-      : "Ready";
+    ? t(locale, "popup.status.loading")
+    : hasInlineMessage(state.message)
+      ? resolveInlineMessage(state.message, locale)
+      : t(locale, "popup.status.ready");
   elements.status.className = `status-text ${state.message.tone}`;
 
   const setup = getSharedSetupStatusView(locale, state.settings);
-  elements.setupSummary.className = `status-box ${setup.tone}`;
-  elements.setupSummary.textContent = `${setup.label}. ${setup.detail}`;
+  renderStatusCard(elements, setup);
 
   elements.autoSyncToggle.checked = state.settings?.autoSyncEnabled ?? false;
   elements.autoSyncToggle.disabled = state.loading || state.savingAutoSync;
   elements.autoSyncCopy.textContent =
     state.settings?.autoSyncEnabled === true
-      ? "Accepted submissions sync automatically."
-      : "Accepted submissions will not create commits.";
-  renderInlineMessage(elements.autoSyncStatus, state.message);
+      ? t(locale, "popup.autoSync.on")
+      : t(locale, "popup.autoSync.off");
+  renderInlineMessage(elements.autoSyncStatus, state.message, locale);
+  renderSettingsSummary(elements, state.settings, locale);
 
   const model = buildHistoryDisplayModel(
     state.historyRecords,
@@ -352,27 +380,34 @@ function render(elements: PopupElements, state: PopupRuntimeState): void {
     Date.now(),
     locale
   );
-  elements.historyCount.textContent =
-    model.items.length === 1 ? "1 record" : `${model.items.length} records`;
+  elements.historyCount.textContent = t(
+    locale,
+    model.items.length === 1 ? "history.countOne" : "history.count",
+    {
+      count: model.items.length
+    }
+  );
   elements.historyEmpty.hidden = model.items.length > 0;
   elements.historyEmpty.textContent = model.emptyText;
-  renderHistoryList(elements, state, model);
+  renderHistoryList(elements, state, model, locale);
 }
 
 function renderHistoryList(
   elements: PopupElements,
   state: PopupRuntimeState,
-  model: PopupHistoryModel
+  model: PopupHistoryModel,
+  locale: UiLocale
 ): void {
   elements.historyList.replaceChildren(
-    ...model.items.map((item) => createHistoryElement(elements, state, item))
+    ...model.items.map((item) => createHistoryElement(elements, state, item, locale))
   );
 }
 
 function createHistoryElement(
   elements: PopupElements,
   state: PopupRuntimeState,
-  item: PopupHistoryItem
+  item: PopupHistoryItem,
+  locale: UiLocale
 ): HTMLLIElement {
   const entry = document.createElement("li");
   entry.className = `history-item ${item.tone}`;
@@ -407,12 +442,12 @@ function createHistoryElement(
     entry.append(detail);
   }
 
-  const links = createLinksRow(item);
+  const links = createLinksRow(item, locale);
   if (links !== null) {
     entry.append(links);
   }
 
-  const controls = createControlsRow(elements, state, item);
+  const controls = createControlsRow(elements, state, item, locale);
   if (controls !== null) {
     entry.append(controls);
   }
@@ -424,15 +459,15 @@ function createHistoryElement(
   return entry;
 }
 
-function createLinksRow(item: PopupHistoryItem): HTMLDivElement | null {
+function createLinksRow(item: PopupHistoryItem, locale: UiLocale): HTMLDivElement | null {
   const links: HTMLAnchorElement[] = [];
 
   if (item.commitUrl !== null) {
-    links.push(createExternalLink(item.commitUrl, "Commit"));
+    links.push(createExternalLink(item.commitUrl, t(locale, "action.commit")));
   }
 
   if (item.fileUrl !== null) {
-    links.push(createExternalLink(item.fileUrl, "File"));
+    links.push(createExternalLink(item.fileUrl, t(locale, "action.file")));
   }
 
   if (links.length === 0) {
@@ -449,7 +484,8 @@ function createLinksRow(item: PopupHistoryItem): HTMLDivElement | null {
 function createControlsRow(
   elements: PopupElements,
   state: PopupRuntimeState,
-  item: PopupHistoryItem
+  item: PopupHistoryItem,
+  locale: UiLocale
 ): HTMLDivElement | null {
   if (item.failure === null) {
     return null;
@@ -462,7 +498,9 @@ function createControlsRow(
   detailsButton.className = "button secondary compact";
   detailsButton.type = "button";
   detailsButton.textContent =
-    state.expandedRecordId === item.id ? "Hide details" : "Details";
+    state.expandedRecordId === item.id
+      ? t(locale, "action.hideDetails")
+      : t(locale, "action.details");
   detailsButton.addEventListener("click", () => {
     state.expandedRecordId = state.expandedRecordId === item.id ? null : item.id;
     render(elements, state);
@@ -475,7 +513,9 @@ function createControlsRow(
     retryButton.className = "button primary compact";
     retryButton.type = "button";
     retryButton.disabled = retrying;
-    retryButton.textContent = retrying ? "Retrying..." : "Retry";
+    retryButton.textContent = retrying
+      ? t(locale, "status.retrying")
+      : t(locale, "action.retry");
     retryButton.addEventListener("click", () => {
       if (item.retryPayloadId !== null) {
         void retrySync(elements, state, item.retryPayloadId);
@@ -529,10 +569,10 @@ function toHistoryItem(
     id: record.id,
     status: record.status,
     platformLabel: getPlatformLabel(record.platform),
-    title: getRecordTitle(record),
+    title: getRecordTitle(record, locale),
     languageLabel: getSyncRecordLanguageLabel(locale, record),
     meta: getRecordMeta(record, nowMs, locale),
-    timeLabel: formatRelativeTime(record.updatedAt, nowMs),
+    timeLabel: formatRelativeTime(record.updatedAt, nowMs, locale),
     statusLabel: getSyncStatusLabel(locale, record.status),
     tone: getSyncStatusTone(record.status),
     commitUrl: record.commitUrl,
@@ -547,7 +587,7 @@ function toHistoryItem(
   };
 }
 
-function getRecordTitle(record: SyncRecord): string {
+function getRecordTitle(record: SyncRecord, locale: UiLocale): string {
   const title = record.problemTitle?.trim() ?? "";
   const frontendId = record.problemFrontendId?.trim() ?? "";
   const titleSlug = record.titleSlug.trim();
@@ -568,14 +608,16 @@ function getRecordTitle(record: SyncRecord): string {
     return `${getPlatformLabel(record.platform)} ${frontendId}`;
   }
 
-  return `${getPlatformLabel(record.platform)} submission`;
+  return t(locale, "label.platformSubmission", {
+    platform: getPlatformLabel(record.platform)
+  });
 }
 
 function getRecordMeta(record: SyncRecord, nowMs: number, locale: UiLocale): string {
   const parts = [
     getPlatformLabel(record.platform),
     getSyncRecordLanguageLabel(locale, record),
-    formatRelativeTime(record.updatedAt, nowMs)
+    formatRelativeTime(record.updatedAt, nowMs, locale)
   ];
 
   if (record.repository !== null && record.branchName !== null) {
@@ -585,33 +627,33 @@ function getRecordMeta(record: SyncRecord, nowMs: number, locale: UiLocale): str
   return parts.join(" / ");
 }
 
-function formatRelativeTime(value: string, nowMs: number): string {
+function formatRelativeTime(value: string, nowMs: number, locale: UiLocale): string {
   const timestamp = Date.parse(value);
 
   if (!Number.isFinite(timestamp)) {
-    return "Unknown time";
+    return t(locale, "time.unknown");
   }
 
   const diffMs = Math.max(0, nowMs - timestamp);
   const diffMinutes = Math.floor(diffMs / 60_000);
 
   if (diffMinutes < 1) {
-    return "Just now";
+    return t(locale, "time.justNow");
   }
 
   if (diffMinutes < 60) {
-    return `${diffMinutes}m ago`;
+    return t(locale, "time.minutesAgo", { count: diffMinutes });
   }
 
   const diffHours = Math.floor(diffMinutes / 60);
 
   if (diffHours < 24) {
-    return `${diffHours}h ago`;
+    return t(locale, "time.hoursAgo", { count: diffHours });
   }
 
   const diffDays = Math.floor(diffHours / 24);
 
-  return `${diffDays}d ago`;
+  return t(locale, "time.daysAgo", { count: diffDays });
 }
 
 function compareRecordsByUpdatedAtDescending(
@@ -633,9 +675,78 @@ function parseRecordTimestamp(record: SyncRecord): number {
   return Number.isFinite(createdAt) ? createdAt : 0;
 }
 
-function renderInlineMessage(element: HTMLParagraphElement, message: InlineMessage): void {
+function renderStaticText(locale: UiLocale): void {
+  for (const element of document.querySelectorAll<HTMLElement>("[data-i18n]")) {
+    const key = element.dataset.i18n;
+
+    if (key !== undefined) {
+      element.textContent = t(locale, key as I18nKey);
+    }
+  }
+}
+
+function renderStatusCard(elements: PopupElements, setup: SetupStatusView): void {
+  elements.setupCard.className = `status-card ${setup.tone}`;
+  elements.setupMarker.className = `status-marker ${setup.tone}`;
+  elements.setupMarker.textContent = getToneMarker(setup.tone);
+  elements.setupTitle.textContent = setup.label;
+  elements.setupDetail.textContent = setup.detail;
+}
+
+function renderSettingsSummary(
+  elements: PopupElements,
+  settings: PublicSettingsState | null,
+  locale: UiLocale
+): void {
+  if (settings === null) {
+    elements.connectionSummary.textContent = t(locale, "status.loadingSettings");
+    elements.connectionDetail.textContent = t(locale, "detail.loadingSettings");
+    elements.connectionDetail.hidden = false;
+    elements.repositorySummary.textContent = t(locale, "popup.summary.notSelected");
+    elements.branchSummary.textContent = t(locale, "popup.summary.notSelected");
+    return;
+  }
+
+  const connection = getSharedConnectionStatusView(locale, settings.connectionStatus);
+  elements.connectionSummary.textContent = connection.label;
+  elements.connectionDetail.textContent = connection.detail ?? "";
+  elements.connectionDetail.hidden = connection.detail === null;
+  elements.repositorySummary.textContent =
+    settings.selectedRepository?.fullName ?? t(locale, "popup.summary.notSelected");
+  elements.branchSummary.textContent =
+    settings.selectedBranch?.name ?? t(locale, "popup.summary.notSelected");
+}
+
+function getToneMarker(tone: Tone): string {
+  switch (tone) {
+    case "success":
+      return "OK";
+    case "warning":
+      return "!";
+    case "error":
+      return "X";
+    case "neutral":
+      return "i";
+  }
+}
+
+function renderInlineMessage(
+  element: HTMLParagraphElement,
+  message: InlineMessage,
+  locale: UiLocale
+): void {
   element.className = `field-message ${message.tone === "neutral" ? "" : message.tone}`.trim();
-  element.textContent = message.text;
+  element.textContent = resolveInlineMessage(message, locale);
+}
+
+function resolveInlineMessage(message: InlineMessage, locale: UiLocale): string {
+  return message.i18nKey === undefined
+    ? message.text
+    : t(locale, message.i18nKey, message.i18nParams ?? {});
+}
+
+function hasInlineMessage(message: InlineMessage): boolean {
+  return message.i18nKey !== undefined || message.text.length > 0;
 }
 
 function getPopupLocale(settings: PublicSettingsState | null): UiLocale {
@@ -649,11 +760,18 @@ function getBrowserLanguage(): string | null {
 function collectElements(): PopupElements {
   return {
     status: requireElement("popup-status", HTMLParagraphElement),
-    setupSummary: requireElement("setup-summary", HTMLDivElement),
+    setupCard: requireElement("setup-card", HTMLElement),
+    setupMarker: requireElement("setup-marker", HTMLDivElement),
+    setupTitle: requireElement("setup-title", HTMLHeadingElement),
+    setupDetail: requireElement("setup-detail", HTMLParagraphElement),
     autoSyncToggle: requireElement("auto-sync-toggle", HTMLInputElement),
     autoSyncCopy: requireElement("auto-sync-copy", HTMLElement),
     autoSyncStatus: requireElement("auto-sync-status", HTMLParagraphElement),
     openOptionsButton: requireElement("open-options", HTMLButtonElement),
+    connectionSummary: requireElement("connection-summary", HTMLElement),
+    connectionDetail: requireElement("connection-detail", HTMLElement),
+    repositorySummary: requireElement("repository-summary", HTMLElement),
+    branchSummary: requireElement("branch-summary", HTMLElement),
     historyCount: requireElement("history-count", HTMLParagraphElement),
     historyEmpty: requireElement("history-empty", HTMLParagraphElement),
     historyList: requireElement("history-list", HTMLUListElement)
