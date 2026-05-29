@@ -47,6 +47,7 @@ export type ToastAction =
   | "open_popup"
   | "open_commit"
   | "open_file"
+  | "retry"
   | "dismiss";
 
 export interface ToastActionMessage {

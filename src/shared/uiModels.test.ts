@@ -133,6 +133,11 @@ describe("shared UI models", () => {
           action: "open_file",
           label: "File",
           recordId: "record-1"
+        },
+        {
+          action: "dismiss",
+          label: "닫기",
+          recordId: null
         }
       ]
     });
@@ -174,7 +179,15 @@ describe("shared UI models", () => {
       canRetry: false
     });
 
-    expect(retryable.actions.map((action) => action.label)).toContain("재시도");
+    expect(retryable.actions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          action: "retry",
+          label: "재시도",
+          recordId: "record-1"
+        })
+      ])
+    );
     expect(notRetryable.actions.map((action) => action.label)).not.toContain("재시도");
   });
 });

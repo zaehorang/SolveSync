@@ -337,18 +337,21 @@ function successActions(
   locale: UiLocale,
   record: SyncRecord | null
 ): ToastActionView[] {
-  if (record === null) {
-    return [];
+  const actions: ToastActionView[] = [];
+
+  if (record?.commitUrl !== null && record?.commitUrl !== undefined) {
+    actions.push(toastAction("open_commit", t(locale, "action.commit"), record.id, true));
   }
 
-  return [
-    record.commitUrl === null
-      ? null
-      : toastAction("open_commit", t(locale, "action.commit"), record.id, true),
-    record.fileUrl === null
-      ? null
-      : toastAction("open_file", t(locale, "action.file"), record.id, false)
-  ].filter((item): item is ToastActionView => item !== null);
+  if (record?.fileUrl !== null && record?.fileUrl !== undefined) {
+    actions.push(toastAction("open_file", t(locale, "action.file"), record.id, false));
+  }
+
+  actions.push(
+    toastAction("dismiss", t(locale, "action.dismiss"), null, actions.length === 0)
+  );
+
+  return actions;
 }
 
 function failureActions(
@@ -361,9 +364,12 @@ function failureActions(
     return [];
   }
 
-  if (input.canRetry === true) {
+  const canRetry =
+    input.canRetry !== false && typeof input.record?.retryPayloadId === "string";
+
+  if (canRetry) {
     return [
-      toastAction("open_popup", t(locale, "action.retry"), input.record?.id ?? null, true),
+      toastAction("retry", t(locale, "action.retry"), input.record?.id ?? null, true),
       toastAction("open_options", t(locale, "action.openOptions"), null, false)
     ];
   }

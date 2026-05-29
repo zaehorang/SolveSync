@@ -5,6 +5,7 @@ import {
   createProgrammersAcceptedDetectedMessage,
   extractProgrammersAcceptedSnapshot,
   extractProgrammersEditorCode,
+  resolveContentToastLocale,
   resolveContentPage
 } from "./index";
 
@@ -141,6 +142,13 @@ describe("content runtime wiring helpers", () => {
         detectedAt: "2026-01-01T00:00:00.000Z"
       }
     });
+  });
+
+  it("resolves toast locale from settings preference and browser language", () => {
+    expect(resolveContentToastLocale({ uiLanguage: "ko" }, "en-US")).toBe("ko");
+    expect(resolveContentToastLocale({ uiLanguage: "en" }, "ko-KR")).toBe("en");
+    expect(resolveContentToastLocale({ uiLanguage: "system" }, "ko-KR")).toBe("ko");
+    expect(resolveContentToastLocale(null, "fr-FR")).toBe("en");
   });
 });
 

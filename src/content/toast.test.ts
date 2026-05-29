@@ -5,23 +5,87 @@ import type { SyncRecord } from "../shared/types";
 import { createToastModel } from "./toast";
 
 describe("content toast model", () => {
-  it("maps setup required status to an Options action", () => {
+  it("maps setup required status to a localized Options action", () => {
     const model = createToastModel({
       status: "setup_required",
       record: null,
       error: error("setup_required", "GitHub connection required.")
-    });
+    }, "ko");
 
     expect(model).toMatchObject({
       state: "setup_required",
-      title: "GitHub connection required",
+      title: "GitHub 연결 필요",
+      detail: "Options에서 저장소를 연결하세요.",
       tone: "warning",
+      locale: "ko",
+      dismissLabel: "닫기",
+      autoDismissMs: null,
       actions: [
         {
           action: "open_options",
-          label: "Open Options"
+          label: "Options 열기",
+          primary: true
         }
       ]
+    });
+  });
+
+  it("maps Auto Sync off status to a short localized recovery toast", () => {
+    const model = createToastModel({
+      status: "auto_sync_disabled",
+      record: makeRecord({
+        status: "auto_sync_disabled"
+      }),
+      error: error("auto_sync_disabled", "Auto Sync is off.")
+    }, "ko");
+
+    expect(model).toMatchObject({
+      state: "auto_sync_disabled",
+      title: "Auto Sync 꺼짐",
+      detail: "Commit이 생성되지 않았습니다.",
+      tone: "warning",
+      autoDismissMs: 7000,
+      actions: [
+        {
+          action: "open_options",
+          label: "Options 열기",
+          primary: true
+        }
+      ]
+    });
+  });
+
+  it("maps syncing and retrying states to progress toasts without actions", () => {
+    const syncing = createToastModel({
+      status: "syncing",
+      record: makeRecord({
+        status: "syncing"
+      }),
+      error: null
+    });
+    const retrying = createToastModel({
+      status: "retrying",
+      record: makeProgrammersRecord({
+        status: "retrying"
+      }),
+      error: null
+    }, "ko");
+
+    expect(syncing).toMatchObject({
+      state: "syncing",
+      title: "Syncing to GitHub...",
+      detail: "Two Sum in Swift",
+      tone: "neutral",
+      actions: [],
+      autoDismissMs: null
+    });
+    expect(retrying).toMatchObject({
+      state: "retrying",
+      title: "Sync 재시도 중...",
+      detail: "두 수의 곱 구하기, Swift",
+      tone: "neutral",
+      actions: [],
+      autoDismissMs: null
     });
   });
 
@@ -51,6 +115,11 @@ describe("content toast model", () => {
           action: "open_file",
           label: "File",
           recordId: "record-1"
+        },
+        {
+          action: "dismiss",
+          label: "Dismiss",
+          recordId: null
         }
       ]
     });
@@ -82,8 +151,34 @@ describe("content toast model", () => {
           action: "open_file",
           label: "File",
           recordId: "record-1"
+        },
+        {
+          action: "dismiss",
+          label: "Dismiss",
+          recordId: null
         }
       ]
+    });
+  });
+
+  it("maps unsupported language status to a localized auto-dismiss toast", () => {
+    const model = createToastModel({
+      status: "unsupported_language",
+      record: makeRecord({
+        status: "unsupported_language",
+        language: "JavaScript",
+        supportedLanguage: null
+      }),
+      error: error("unsupported_language", "Unsupported language.")
+    }, "ko");
+
+    expect(model).toMatchObject({
+      state: "unsupported_language",
+      title: "미지원 언어",
+      detail: "JavaScript 제출은 sync하지 않습니다.",
+      tone: "warning",
+      actions: [],
+      autoDismissMs: 8000
     });
   });
 
@@ -164,6 +259,49 @@ describe("content toast model", () => {
       {
         action: "open_options",
         label: "Open Options"
+      }
+    ]);
+  });
+
+  it("shows Retry only when a failed record has a retry payload", () => {
+    const retryable = createToastModel({
+      status: "failed",
+      record: makeRecord({
+        status: "failed",
+        retryPayloadId: "retry-1",
+        error: error("github_commit_failed", "GitHub commit failed.")
+      }),
+      error: error("github_commit_failed", "GitHub commit failed.")
+    }, "ko");
+    const noPayload = createToastModel({
+      status: "failed",
+      record: makeRecord({
+        status: "failed",
+        retryPayloadId: null,
+        error: error("github_commit_failed", "GitHub commit failed.")
+      }),
+      error: error("github_commit_failed", "GitHub commit failed.")
+    }, "ko");
+
+    expect(retryable.actions).toMatchObject([
+      {
+        action: "retry",
+        label: "재시도",
+        recordId: "record-1",
+        primary: true
+      },
+      {
+        action: "open_options",
+        label: "Options 열기",
+        recordId: null,
+        primary: false
+      }
+    ]);
+    expect(noPayload.actions).toMatchObject([
+      {
+        action: "open_options",
+        label: "Options 열기",
+        primary: true
       }
     ]);
   });

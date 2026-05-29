@@ -4,7 +4,7 @@ import { createExtensionStorage, type StorageAreaAdapter } from "./storage";
 import { registerBackgroundRuntime } from "./runtime";
 import type { RuntimeMessage } from "../shared/messages";
 import type { SyncOrchestrator } from "./sync";
-import type { RetryPayload } from "../shared/types";
+import type { RetryPayload, SyncRecord } from "../shared/types";
 
 describe("background runtime", () => {
   afterEach(() => {
@@ -112,6 +112,66 @@ describe("background runtime", () => {
       }
     );
     expect(orchestrator.handleRetry).toHaveBeenCalledWith("retry-1");
+  });
+
+  it("routes content toast retry actions through the existing toast action flow", async () => {
+    const chromeMock = installChromeRuntimeMock();
+    const storage = createExtensionStorage(createMemoryStorageArea());
+    const orchestrator = makeOrchestrator();
+    await storage.appendHistory(makeSyncRecord({ retryPayloadId: "retry-1" }));
+
+    registerBackgroundRuntime({
+      storage,
+      orchestrator,
+      githubClientFactory: () => {
+        throw new Error("GitHub client should not be created.");
+      }
+    });
+
+    await dispatchMessage(
+      chromeMock.listener,
+      {
+        type: "content:toast_action",
+        payload: {
+          action: "retry",
+          recordId: "record-1"
+        }
+      },
+      {
+        tab: {
+          id: 789
+        } as chrome.tabs.Tab
+      }
+    );
+
+    expect(orchestrator.handleRetry).toHaveBeenCalledWith("retry-1", {
+      tabId: 789
+    });
+  });
+
+  it("does not retry a toast failure without a retry payload", async () => {
+    const chromeMock = installChromeRuntimeMock();
+    const storage = createExtensionStorage(createMemoryStorageArea());
+    const orchestrator = makeOrchestrator();
+    await storage.appendHistory(makeSyncRecord({ retryPayloadId: null }));
+
+    registerBackgroundRuntime({
+      storage,
+      orchestrator,
+      githubClientFactory: () => {
+        throw new Error("GitHub client should not be created.");
+      }
+    });
+
+    await dispatchMessage(chromeMock.listener, {
+      type: "content:toast_action",
+      payload: {
+        action: "retry",
+        recordId: "record-1"
+      }
+    });
+
+    expect(orchestrator.handleRetry).not.toHaveBeenCalled();
   });
 
   it("returns retry payload summaries without exposing stored solution code", async () => {
@@ -251,6 +311,43 @@ function makeRetryPayload(id: string): RetryPayload {
     createdAt: "2099-01-01T00:00:00.000Z",
     expiresAt: "2099-01-08T00:00:00.000Z",
     lastError: null
+  };
+}
+
+function makeSyncRecord(overrides: Partial<SyncRecord> = {}): SyncRecord {
+  return {
+    id: "record-1",
+    platform: "leetcode",
+    status: "failed",
+    titleSlug: "two-sum",
+    problemTitle: "Two Sum",
+    problemFrontendId: "1",
+    language: "Swift",
+    supportedLanguage: "swift",
+    identity: {
+      platform: "leetcode",
+      submissionId: "123456789",
+      titleSlug: "two-sum",
+      language: "swift"
+    },
+    repository: {
+      owner: "octo",
+      name: "algorithms",
+      fullName: "octo/algorithms",
+      defaultBranch: "main",
+      private: true,
+      htmlUrl: "https://github.com/octo/algorithms"
+    },
+    branchName: "main",
+    solutionPath: "leetcode/swift/0001_two_sum.swift",
+    commitSha: null,
+    commitUrl: null,
+    fileUrl: null,
+    error: null,
+    retryPayloadId: "retry-1",
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z",
+    ...overrides
   };
 }
 

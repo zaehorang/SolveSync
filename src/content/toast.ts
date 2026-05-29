@@ -1,5 +1,6 @@
 import {
   createToastViewModel,
+  t,
   type ToastActionView,
   type ToastModelInput as SharedToastModelInput,
   type ToastViewModel,
@@ -15,6 +16,8 @@ export type ToastActionModel = ToastActionView;
 
 export interface ToastModel extends ToastViewModel {
   state: SyncStatus;
+  dismissLabel: string;
+  locale: UiLocale;
 }
 
 export type ToastModelInput = SharedToastModelInput;
@@ -30,6 +33,8 @@ export function createToastModel(
 ): ToastModel {
   return {
     state: input.status,
+    dismissLabel: t(locale, "action.dismiss"),
+    locale,
     ...createToastViewModel(locale, input)
   };
 }
@@ -47,6 +52,7 @@ export class ContentToast {
   show(model: ToastModel): void {
     const shadowRoot = this.ensureMounted();
     this.clearAutoDismissTimer();
+    this.host?.setAttribute("lang", model.locale);
     shadowRoot.replaceChildren(this.createStyle(), this.createToastElement(model));
 
     if (model.autoDismissMs !== null) {
@@ -82,13 +88,23 @@ export class ContentToast {
     const root = this.documentRef.createElement("section");
     root.className = "toast";
     root.dataset.tone = model.tone;
+    root.dataset.state = model.state;
+    root.setAttribute("lang", model.locale);
     root.setAttribute("role", model.tone === "error" ? "alert" : "status");
     root.setAttribute("aria-live", model.tone === "error" ? "assertive" : "polite");
 
     const header = this.documentRef.createElement("div");
     header.className = "header";
 
+    const statusMark = this.documentRef.createElement("span");
+    statusMark.className =
+      model.state === "syncing" || model.state === "retrying"
+        ? "status-mark is-busy"
+        : "status-mark";
+    statusMark.setAttribute("aria-hidden", "true");
+
     const text = this.documentRef.createElement("div");
+    text.className = "copy";
     const title = this.documentRef.createElement("p");
     title.className = "title";
     title.textContent = model.title;
@@ -105,10 +121,10 @@ export class ContentToast {
     closeButton.className = "close";
     closeButton.type = "button";
     closeButton.textContent = "x";
-    closeButton.setAttribute("aria-label", "Dismiss");
+    closeButton.setAttribute("aria-label", model.dismissLabel);
     closeButton.addEventListener("click", () => this.dismiss());
 
-    header.append(text, closeButton);
+    header.append(statusMark, text, closeButton);
     root.append(header);
 
     if (model.actions.length > 0) {
@@ -154,7 +170,9 @@ export class ContentToast {
 
 const CONTENT_TOAST_CSS = `
 :host {
+  --ss-glass: rgb(255 255 255 / 0.72);
   --ss-glass-elevated: rgb(255 255 255 / 0.84);
+  --ss-glass-border: rgb(255 255 255 / 0.72);
   --ss-hairline: rgb(148 163 184 / 0.28);
   --ss-text-primary: #0f172a;
   --ss-text-secondary: #475569;
@@ -168,8 +186,8 @@ const CONTENT_TOAST_CSS = `
   --ss-shadow-glass: 0 18px 48px rgb(15 23 42 / 0.16);
   --ss-font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   position: fixed;
-  right: 18px;
-  bottom: 72px;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: max(84px, calc(env(safe-area-inset-bottom) + 16px));
   z-index: 2147483647;
   color: var(--ss-text-primary);
   font-family: var(--ss-font-sans);
@@ -182,36 +200,84 @@ const CONTENT_TOAST_CSS = `
 }
 
 .toast {
-  width: min(320px, calc(100vw - 32px));
-  border: 1px solid var(--ss-hairline);
-  border-left-width: 4px;
+  position: relative;
+  width: min(360px, calc(100vw - 32px));
+  border: 1px solid var(--ss-glass-border);
   border-radius: var(--ss-radius-panel);
-  background: var(--ss-glass-elevated);
+  background:
+    linear-gradient(135deg, rgb(255 255 255 / 0.9), var(--ss-glass-elevated)),
+    var(--ss-glass);
   box-shadow: var(--ss-shadow-glass);
-  padding: 12px;
+  padding: 13px;
+  overflow: hidden;
+  backdrop-filter: blur(18px) saturate(1.2);
+  -webkit-backdrop-filter: blur(18px) saturate(1.2);
+}
+
+.toast::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 1px solid var(--ss-hairline);
+  border-radius: inherit;
+  pointer-events: none;
 }
 
 .toast[data-tone="success"] {
-  border-left-color: var(--ss-success);
+  --ss-tone: var(--ss-success);
 }
 
 .toast[data-tone="error"] {
-  border-left-color: var(--ss-error);
+  --ss-tone: var(--ss-error);
 }
 
 .toast[data-tone="warning"] {
-  border-left-color: var(--ss-warning);
+  --ss-tone: var(--ss-warning);
 }
 
 .toast[data-tone="neutral"] {
-  border-left-color: var(--ss-accent);
+  --ss-tone: var(--ss-accent);
 }
 
 .header {
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
-  gap: 10px;
+  gap: 9px;
+}
+
+.status-mark {
+  flex: 0 0 auto;
+  width: 10px;
+  height: 10px;
+  margin-top: 4px;
+  border-radius: 999px;
+  background: var(--ss-tone, var(--ss-accent));
+  box-shadow: 0 0 0 4px rgb(37 99 235 / 0.1);
+}
+
+.toast[data-tone="success"] .status-mark {
+  box-shadow: 0 0 0 4px rgb(22 163 74 / 0.12);
+}
+
+.toast[data-tone="error"] .status-mark {
+  box-shadow: 0 0 0 4px rgb(220 38 38 / 0.1);
+}
+
+.toast[data-tone="warning"] .status-mark {
+  box-shadow: 0 0 0 4px rgb(217 119 6 / 0.12);
+}
+
+.status-mark.is-busy {
+  border: 2px solid rgb(37 99 235 / 0.22);
+  border-top-color: var(--ss-accent);
+  background: transparent;
+  box-shadow: none;
+  animation: solvesync-spin 820ms linear infinite;
+}
+
+.copy {
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
 .title {
@@ -220,12 +286,17 @@ const CONTENT_TOAST_CSS = `
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 0;
+  overflow-wrap: anywhere;
 }
 
 .detail {
   margin: 4px 0 0;
   color: var(--ss-text-secondary);
   overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .close {
@@ -238,6 +309,7 @@ const CONTENT_TOAST_CSS = `
   color: var(--ss-text-muted);
   cursor: pointer;
   font: inherit;
+  font-weight: 700;
   line-height: 1;
 }
 
@@ -252,7 +324,7 @@ const CONTENT_TOAST_CSS = `
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-top: 10px;
+  margin-top: 12px;
 }
 
 .action {
@@ -265,6 +337,7 @@ const CONTENT_TOAST_CSS = `
   font: inherit;
   font-weight: 600;
   padding: 4px 9px;
+  white-space: nowrap;
 }
 
 .action:hover,
@@ -277,5 +350,17 @@ const CONTENT_TOAST_CSS = `
   border-color: var(--ss-accent);
   background: var(--ss-accent);
   color: var(--ss-text-on-accent);
+}
+
+@keyframes solvesync-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .status-mark.is-busy {
+    animation: none;
+  }
 }
 `;
