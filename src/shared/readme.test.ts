@@ -25,7 +25,8 @@ const index = mergeIndexEntry(
       language: "python3"
     },
     "leetcode/python/0002_add_two_numbers.py",
-    "2026-05-27T04:00:00.000Z"
+    "2026-05-27T04:00:00.000Z",
+    "2026-05-27"
   ),
   {
     problemId: "1",
@@ -38,17 +39,19 @@ const index = mergeIndexEntry(
     language: "swift"
   },
   "leetcode/swift/0001_two_sum.swift",
-  "2026-05-27T04:05:00.000Z"
+  "2026-05-27T04:05:00.000Z",
+  "2026-05-27"
 );
 
 describe("README managed block", () => {
   it("renders rows sorted by numeric problem id", () => {
     const table = renderManagedReadmeTable(index);
 
-    expect(table).toContain("| # | Title | Difficulty | Swift | Python |");
+    expect(table).toContain("| # | Title | Difficulty | Solved | Swift | Python |");
     expect(table.indexOf("| 1 | Two Sum")).toBeLessThan(
       table.indexOf("| 2 | Add Two Numbers")
     );
+    expect(table).toContain("| 1 | Two Sum | Easy | 2026-05-27 |");
     expect(table).toContain("[Swift](swift/0001_two_sum.swift)");
     expect(table).toContain("[Python](python/0002_add_two_numbers.py)");
   });
@@ -115,12 +118,13 @@ describe("README managed block", () => {
         language: "swift"
       },
       "programmers/swift/120804_두_수의_곱_구하기.swift",
-      "2026-05-27T04:05:00.000Z"
+      "2026-05-27T04:05:00.000Z",
+      "2026-05-27"
     );
     const table = renderManagedReadmeTable(programmersIndex, "programmers");
     const readme = buildInitialReadme(table, "programmers");
 
-    expect(table).toContain("| 120804 | 두 수의 곱 구하기 | - |");
+    expect(table).toContain("| 120804 | 두 수의 곱 구하기 | - | 2026-05-27 |");
     expect(table).toContain("[Swift](swift/120804_두_수의_곱_구하기.swift)");
     expect(readme).toContain("# Programmers Solutions");
     expect(readme).toContain(PROGRAMMERS_README_TABLE_START_MARKER);

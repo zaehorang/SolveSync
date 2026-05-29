@@ -12,6 +12,8 @@ export interface LeetCodeSyncIndexLanguageEntry {
   solutionPath: string;
   lastSubmissionId: string;
   lastSyncedAt: IsoDateString;
+  firstAcceptedDate: IsoDateString;
+  lastAcceptedDate: IsoDateString;
 }
 
 export type LeetCodeSyncIndexLanguageMap = Partial<
@@ -26,12 +28,24 @@ export interface LeetCodeSyncIndexProblem {
   difficulty: LeetCodeDifficulty;
   url: string;
   lastSyncedAt: IsoDateString;
+  firstAcceptedDate: IsoDateString;
+  lastAcceptedDate: IsoDateString;
   languages: LeetCodeSyncIndexLanguageMap;
+}
+
+export interface LeetCodeSyncIndexActivityDay {
+  acceptedCount: number;
+  newProblemCount: number;
+}
+
+export interface LeetCodeSyncIndexActivity {
+  days: Record<string, LeetCodeSyncIndexActivityDay>;
 }
 
 export interface LeetCodeSyncIndex {
   version: typeof LEETCODE_SYNC_INDEX_VERSION;
   problems: LeetCodeSyncIndexProblem[];
+  activity: LeetCodeSyncIndexActivity;
 }
 
 export interface IndexSubmissionInput extends ProblemMetadata {
@@ -51,7 +65,10 @@ export class MalformedIndexError extends Error {
 export function createEmptyIndex(): LeetCodeSyncIndex {
   return {
     version: LEETCODE_SYNC_INDEX_VERSION,
-    problems: []
+    problems: [],
+    activity: {
+      days: {}
+    }
   };
 }
 
@@ -75,17 +92,26 @@ export function mergeIndexEntry(
   index: LeetCodeSyncIndex,
   submission: IndexSubmissionInput,
   path: string,
-  syncedAt: IsoDateString
+  syncedAt: IsoDateString,
+  acceptedDate: IsoDateString
 ): LeetCodeSyncIndex {
-  const languageEntry: LeetCodeSyncIndexLanguageEntry = {
-    solutionPath: path,
-    lastSubmissionId: submission.submissionId,
-    lastSyncedAt: syncedAt
-  };
-
   const existingProblem = index.problems.find((entry) =>
     isSameProblem(entry, submission)
   );
+  const existingLanguageEntry = existingProblem?.languages[submission.language];
+  const isDuplicateSubmission =
+    existingLanguageEntry?.lastSubmissionId === submission.submissionId;
+  const languageEntry: LeetCodeSyncIndexLanguageEntry = {
+    solutionPath: path,
+    lastSubmissionId: submission.submissionId,
+    lastSyncedAt: isDuplicateSubmission
+      ? existingLanguageEntry?.lastSyncedAt ?? syncedAt
+      : syncedAt,
+    firstAcceptedDate: existingLanguageEntry?.firstAcceptedDate ?? acceptedDate,
+    lastAcceptedDate: isDuplicateSubmission
+      ? existingLanguageEntry?.lastAcceptedDate ?? acceptedDate
+      : acceptedDate
+  };
 
   const nextProblem: LeetCodeSyncIndexProblem = {
     problemId: submission.problemId,
@@ -94,7 +120,13 @@ export function mergeIndexEntry(
     titleSlug: submission.titleSlug,
     difficulty: submission.difficulty,
     url: submission.url,
-    lastSyncedAt: syncedAt,
+    lastSyncedAt: isDuplicateSubmission
+      ? existingProblem?.lastSyncedAt ?? syncedAt
+      : syncedAt,
+    firstAcceptedDate: existingProblem?.firstAcceptedDate ?? acceptedDate,
+    lastAcceptedDate: isDuplicateSubmission
+      ? existingProblem?.lastAcceptedDate ?? acceptedDate
+      : acceptedDate,
     languages: {
       ...(existingProblem?.languages ?? {}),
       [submission.language]: languageEntry
@@ -105,7 +137,13 @@ export function mergeIndexEntry(
 
   return {
     version: LEETCODE_SYNC_INDEX_VERSION,
-    problems: [...otherProblems, nextProblem].sort(compareIndexProblems)
+    problems: [...otherProblems, nextProblem].sort(compareIndexProblems),
+    activity: mergeActivity(
+      index.activity,
+      acceptedDate,
+      !isDuplicateSubmission,
+      existingProblem === undefined
+    )
   };
 }
 
@@ -117,7 +155,8 @@ export function isLeetCodeSyncIndex(value: unknown): value is LeetCodeSyncIndex 
   return (
     value.version === LEETCODE_SYNC_INDEX_VERSION &&
     Array.isArray(value.problems) &&
-    value.problems.every(isLeetCodeSyncIndexProblem)
+    value.problems.every(isLeetCodeSyncIndexProblem) &&
+    isLeetCodeSyncIndexActivity(value.activity)
   );
 }
 
@@ -173,7 +212,32 @@ function isLeetCodeSyncIndexProblem(value: unknown): value is LeetCodeSyncIndexP
     typeof value.difficulty === "string" &&
     typeof value.url === "string" &&
     typeof value.lastSyncedAt === "string" &&
+    typeof value.firstAcceptedDate === "string" &&
+    typeof value.lastAcceptedDate === "string" &&
     isLeetCodeSyncIndexLanguageMap(value.languages)
+  );
+}
+
+function isLeetCodeSyncIndexActivity(
+  value: unknown
+): value is LeetCodeSyncIndexActivity {
+  if (!isPlainRecord(value) || !isPlainRecord(value.days)) {
+    return false;
+  }
+
+  return Object.entries(value.days).every(
+    ([date, day]) => typeof date === "string" && isActivityDay(day)
+  );
+}
+
+function isActivityDay(value: unknown): value is LeetCodeSyncIndexActivityDay {
+  if (!isPlainRecord(value)) {
+    return false;
+  }
+
+  return (
+    isNonNegativeInteger(value.acceptedCount) &&
+    isNonNegativeInteger(value.newProblemCount)
   );
 }
 
@@ -197,8 +261,41 @@ function isLanguageEntry(value: unknown): value is LeetCodeSyncIndexLanguageEntr
   return (
     typeof value.solutionPath === "string" &&
     typeof value.lastSubmissionId === "string" &&
-    typeof value.lastSyncedAt === "string"
+    typeof value.lastSyncedAt === "string" &&
+    typeof value.firstAcceptedDate === "string" &&
+    typeof value.lastAcceptedDate === "string"
   );
+}
+
+function mergeActivity(
+  activity: LeetCodeSyncIndexActivity,
+  acceptedDate: IsoDateString,
+  shouldIncrementAccepted: boolean,
+  shouldIncrementNewProblem: boolean
+): LeetCodeSyncIndexActivity {
+  const days = { ...activity.days };
+
+  if (!shouldIncrementAccepted && !shouldIncrementNewProblem) {
+    return { days };
+  }
+
+  const existingDay = days[acceptedDate] ?? {
+    acceptedCount: 0,
+    newProblemCount: 0
+  };
+
+  days[acceptedDate] = {
+    acceptedCount:
+      existingDay.acceptedCount + (shouldIncrementAccepted ? 1 : 0),
+    newProblemCount:
+      existingDay.newProblemCount + (shouldIncrementNewProblem ? 1 : 0)
+  };
+
+  return { days };
+}
+
+function isNonNegativeInteger(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0;
 }
 
 function toDebugMessage(error: unknown): string {

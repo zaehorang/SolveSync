@@ -23,8 +23,8 @@ export function renderManagedReadmeTable(
     .map((problem) => renderProblemRow(problem, policy));
 
   return [
-    "| # | Title | Difficulty | Swift | Python |",
-    "| ---: | --- | --- | --- | --- |",
+    "| # | Title | Difficulty | Solved | Swift | Python |",
+    "| ---: | --- | --- | --- | --- | --- |",
     ...rows
   ].join("\n");
 }
@@ -78,6 +78,7 @@ function renderProblemRow(
     renderProblemNumber(problem.frontendId),
     escapeMarkdownTableCell(problem.title),
     escapeMarkdownTableCell(problem.difficulty),
+    escapeMarkdownTableCell(problem.firstAcceptedDate),
     renderSolutionLink("Swift", swiftPath, policy),
     renderSolutionLink("Python", pythonPath, policy)
   ]

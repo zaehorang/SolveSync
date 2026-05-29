@@ -20,6 +20,8 @@ describe("GitHub tree payload files", () => {
       "leetcode/.leetcode-sync/index.json"
     ]);
     expect(files[0]?.content).toBe("class Solution {}");
-    expect(files[2]?.content).toBe('{\n  "version": 1,\n  "problems": []\n}\n');
+    expect(files[2]?.content).toBe(
+      '{\n  "version": 1,\n  "problems": [],\n  "activity": {\n    "days": {}\n  }\n}\n'
+    );
   });
 });

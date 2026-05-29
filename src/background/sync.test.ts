@@ -133,6 +133,31 @@ describe("background sync orchestrator", () => {
     expect(
       harness.github.commits[0]?.files.find((file) => file.path === "leetcode/README.md")?.content
     ).toContain("# Existing");
+    expect(committedContent(harness, "leetcode/README.md")).toContain(
+      "| 1 | Two Sum | Easy | 2026-01-02 |"
+    );
+    expect(committedJson(harness, "leetcode/.leetcode-sync/index.json")).toMatchObject({
+      activity: {
+        days: {
+          "2026-01-02": {
+            acceptedCount: 1,
+            newProblemCount: 1
+          }
+        }
+      },
+      problems: [
+        {
+          firstAcceptedDate: "2026-01-02",
+          lastAcceptedDate: "2026-01-02",
+          languages: {
+            swift: {
+              firstAcceptedDate: "2026-01-02",
+              lastAcceptedDate: "2026-01-02"
+            }
+          }
+        }
+      ]
+    });
   });
 
   it("commits Programmers snapshots with platform README and index files", async () => {
@@ -157,6 +182,31 @@ describe("background sync orchestrator", () => {
       harness.github.commits[0]?.files.find((file) => file.path === "programmers/README.md")
         ?.content
     ).toContain("<!-- PROGRAMMERS_TABLE_START -->");
+    expect(committedContent(harness, "programmers/README.md")).toContain(
+      "| 120804 | 두 수의 곱 구하기 | - | 2026-01-02 |"
+    );
+    expect(committedJson(harness, "programmers/.programmers-sync/index.json")).toMatchObject({
+      activity: {
+        days: {
+          "2026-01-02": {
+            acceptedCount: 1,
+            newProblemCount: 1
+          }
+        }
+      },
+      problems: [
+        {
+          firstAcceptedDate: "2026-01-02",
+          lastAcceptedDate: "2026-01-02",
+          languages: {
+            swift: {
+              firstAcceptedDate: "2026-01-02",
+              lastAcceptedDate: "2026-01-02"
+            }
+          }
+        }
+      ]
+    });
     await expect(historyStatuses(harness.storage)).resolves.toEqual(["synced"]);
   });
 
@@ -562,7 +612,7 @@ function makeProgrammersAcceptedDetected(
     pageUrl:
       overrides.pageUrl ??
       "https://school.programmers.co.kr/learn/courses/30/lessons/120804",
-    detectedAt: overrides.detectedAt ?? "2026-01-01T00:00:00.000Z"
+    detectedAt: overrides.detectedAt ?? "2026-01-01T15:30:00.000Z"
   };
 }
 
@@ -577,7 +627,7 @@ function syncableAcceptedSubmission(): LatestAcceptedSubmissionResult {
       titleSlug: identity.titleSlug,
       language: "Swift",
       code: "class Solution {}",
-      acceptedAt: "2026-01-01T00:00:00.000Z"
+      acceptedAt: "2026-01-01T15:30:00.000Z"
     }
   };
 }
@@ -593,7 +643,7 @@ function unsupportedAcceptedSubmission(): LatestAcceptedSubmissionResult {
       titleSlug: "two-sum",
       language: "Java",
       code: "class Solution {}",
-      acceptedAt: "2026-01-01T00:00:00.000Z"
+      acceptedAt: "2026-01-01T15:30:00.000Z"
     }
   };
 }
@@ -666,6 +716,18 @@ async function historyStatuses(
   storage: ReturnType<typeof createExtensionStorage>
 ): Promise<string[]> {
   return (await storage.listHistory()).map((record) => record.status);
+}
+
+function committedContent(harness: Harness, path: string): string {
+  const file = harness.github.commits[0]?.files.find((entry) => entry.path === path);
+
+  expect(file).toBeDefined();
+
+  return file?.content ?? "";
+}
+
+function committedJson(harness: Harness, path: string): unknown {
+  return JSON.parse(committedContent(harness, path)) as unknown;
 }
 
 function cloneRecord(value: Record<string, unknown>): Record<string, unknown> {
