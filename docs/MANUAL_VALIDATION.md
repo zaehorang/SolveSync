@@ -45,6 +45,12 @@ npm run build
 11. 잘못된 branch 상태로 Branch not found 또는 Branch create failed에 해당하는 상태가 표시되는지 확인한다.
 12. 설정 저장 후 Options를 다시 열어 선택한 repository와 branch가 유지되는지 확인한다.
 
+## UI Language and Layout Checks
+1. Options page에서 Language를 System, English, 한국어로 전환하고 Options, Popup, toast 문구가 선택한 언어로 표시되는지 확인한다.
+2. 긴 repository 이름, 긴 branch 이름, 긴 문제 제목이 Popup 380px 폭에서 horizontal scroll이나 겹침 없이 줄바꿈되는지 확인한다.
+3. LeetCode와 Programmers 문제 페이지에서 toast가 오른쪽 아래에 표시되고 좁은 viewport에서도 화면 safe margin 안에 들어오는지 확인한다.
+4. toast의 Setup required, Syncing, Synced, Failed 상태에서 버튼 text와 link가 잘리지 않는지 확인한다.
+
 ## LeetCode Successful Sync Flow
 1. Auto Sync를 켠다.
 2. LeetCode에서 Swift 또는 Python3로 Accepted 제출을 만든다.

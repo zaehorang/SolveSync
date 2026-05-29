@@ -189,6 +189,8 @@ const CONTENT_TOAST_CSS = `
   right: max(16px, env(safe-area-inset-right));
   bottom: max(84px, calc(env(safe-area-inset-bottom) + 16px));
   z-index: 2147483647;
+  width: min(360px, calc(100vw - 32px));
+  max-width: calc(100vw - max(32px, calc(env(safe-area-inset-left) + env(safe-area-inset-right) + 32px)));
   color: var(--ss-text-primary);
   font-family: var(--ss-font-sans);
   font-size: 13px;
@@ -201,7 +203,7 @@ const CONTENT_TOAST_CSS = `
 
 .toast {
   position: relative;
-  width: min(360px, calc(100vw - 32px));
+  width: 100%;
   border: 1px solid var(--ss-glass-border);
   border-radius: var(--ss-radius-panel);
   background:
@@ -336,8 +338,9 @@ const CONTENT_TOAST_CSS = `
   cursor: pointer;
   font: inherit;
   font-weight: 600;
+  overflow-wrap: anywhere;
   padding: 4px 9px;
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .action:hover,

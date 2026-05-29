@@ -12,7 +12,7 @@
 }
 
 body {
-  width: 380px;
+  width: min(380px, 100vw);
   margin: 0;
   overflow-x: hidden;
   background: var(--ss-bg);
@@ -47,6 +47,7 @@ input {
 .popup-header,
 .section-heading,
 .history-header {
+  min-width: 0;
   justify-content: space-between;
   gap: 10px;
 }
@@ -197,10 +198,12 @@ h3 {
 }
 
 .status-text {
+  min-width: 0;
   margin-bottom: 0;
   font-size: 0.75rem;
   line-height: 1.35;
   text-align: right;
+  overflow-wrap: anywhere;
 }
 
 .status-text.success,
@@ -348,16 +351,19 @@ h3 {
   margin: 8px 0 0;
   font-size: 0.75rem;
   line-height: 1.4;
+  overflow-wrap: anywhere;
 }
 
 .button {
+  max-width: 100%;
   min-height: 32px;
   border: 1px solid transparent;
   border-radius: 6px;
   padding: 6px 10px;
   font-size: 0.8125rem;
   font-weight: 700;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  white-space: normal;
   cursor: pointer;
 }
 
@@ -417,6 +423,7 @@ a:focus-visible {
 }
 
 .history-title-block {
+  flex: 1 1 auto;
   min-width: 0;
 }
 
