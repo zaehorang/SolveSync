@@ -22,4 +22,19 @@ describe("options index owner repository copy", () => {
       tone: "warning"
     });
   });
+
+  it("can render owner repository copy in Korean", () => {
+    const validation = validateSettingsDraft(
+      {
+        githubPat: "pat",
+        selectedRepository: null,
+        selectedBranch: null
+      },
+      "ko"
+    );
+
+    expect(validation.errors.repository).toBe(
+      "본인 저장소 목록에서 저장소를 선택하세요."
+    );
+  });
 });
