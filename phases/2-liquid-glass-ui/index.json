@@ -53,7 +53,10 @@
     {
       "step": 6,
       "name": "integration-qa",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-05-29T18:24:04+0900",
+      "summary": "Completed integration QA for localized Liquid Glass Options, Popup, and content toast UI.",
+      "completed_at": "2026-05-29T18:27:40+0900"
     }
   ],
   "created_at": "2026-05-29T17:46:28+0900"
