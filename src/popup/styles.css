@@ -1,9 +1,9 @@
+@import "../shared/theme.css";
+
 :root {
-  color: #111827;
-  background: #f8fafc;
-  font-family:
-    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-    sans-serif;
+  color: var(--ss-text-primary);
+  background: var(--ss-bg);
+  font-family: var(--ss-font-sans);
   font-size: 16px;
 }
 
@@ -15,6 +15,7 @@ body {
   width: 380px;
   margin: 0;
   overflow-x: hidden;
+  background: var(--ss-bg);
 }
 
 button,
@@ -54,7 +55,7 @@ p {
 
 .eyebrow {
   margin-bottom: 2px;
-  color: #4b5563;
+  color: var(--ss-text-secondary);
   font-size: 0.6875rem;
   font-weight: 700;
   letter-spacing: 0;
@@ -80,9 +81,9 @@ h3 {
 }
 
 .panel {
-  border: 1px solid #d7dde5;
-  border-radius: 8px;
-  background: #ffffff;
+  border: 1px solid var(--ss-hairline);
+  border-radius: var(--ss-radius-panel);
+  background: var(--ss-glass-elevated);
   padding: 12px;
 }
 
@@ -100,7 +101,7 @@ h3 {
 .history-detail,
 .security-note,
 .empty-state {
-  color: #4b5563;
+  color: var(--ss-text-secondary);
 }
 
 .status-text {
@@ -112,21 +113,21 @@ h3 {
 
 .status-text.success,
 .field-message.success {
-  color: #15803d;
+  color: var(--ss-success);
 }
 
 .status-text.warning,
 .field-message.warning {
-  color: #b45309;
+  color: var(--ss-warning);
 }
 
 .status-text.error,
 .field-message.error {
-  color: #b91c1c;
+  color: var(--ss-error);
 }
 
 .status-box {
-  border: 1px solid #d7dde5;
+  border: 1px solid var(--ss-hairline);
   border-radius: 6px;
   padding: 9px 10px;
   font-size: 0.8125rem;
@@ -134,26 +135,26 @@ h3 {
 }
 
 .status-box.neutral {
-  background: #f8fafc;
-  color: #4b5563;
+  background: var(--ss-surface-muted);
+  color: var(--ss-text-secondary);
 }
 
 .status-box.success {
-  border-color: #86efac;
-  background: #f0fdf4;
-  color: #15803d;
+  border-color: var(--ss-success-border);
+  background: var(--ss-success-soft);
+  color: var(--ss-success);
 }
 
 .status-box.warning {
-  border-color: #fcd34d;
-  background: #fffbeb;
-  color: #b45309;
+  border-color: var(--ss-warning-border);
+  background: var(--ss-warning-soft);
+  color: var(--ss-warning);
 }
 
 .status-box.error {
-  border-color: #fecaca;
-  background: #fef2f2;
-  color: #b91c1c;
+  border-color: var(--ss-error-border);
+  background: var(--ss-error-soft);
+  color: var(--ss-error);
 }
 
 .toggle-row {
@@ -182,7 +183,7 @@ h3 {
 
 .toggle-row small {
   margin-top: 1px;
-  color: #4b5563;
+  color: var(--ss-text-secondary);
   font-size: 0.75rem;
   line-height: 1.35;
 }
@@ -212,15 +213,15 @@ h3 {
 }
 
 .button.primary {
-  border-color: #1d4ed8;
-  background: #2563eb;
-  color: #ffffff;
+  border-color: var(--ss-accent);
+  background: var(--ss-accent);
+  color: var(--ss-text-on-accent);
 }
 
 .button.secondary {
-  border-color: #c8d0da;
-  background: #ffffff;
-  color: #111827;
+  border-color: var(--ss-hairline);
+  background: var(--ss-glass-elevated);
+  color: var(--ss-text-primary);
 }
 
 .button.compact {
@@ -237,7 +238,7 @@ h3 {
 button:focus-visible,
 input:focus-visible,
 a:focus-visible {
-  outline: 2px solid #2563eb;
+  outline: 2px solid var(--ss-accent);
   outline-offset: 2px;
 }
 
@@ -257,7 +258,7 @@ a:focus-visible {
 
 .history-item {
   min-width: 0;
-  border-top: 1px solid #e5e9ef;
+  border-top: 1px solid var(--ss-hairline);
   padding: 10px 0;
 }
 
@@ -298,23 +299,23 @@ a:focus-visible {
 }
 
 .status-badge.neutral {
-  background: #eef2f7;
-  color: #4b5563;
+  background: var(--ss-input-disabled);
+  color: var(--ss-text-secondary);
 }
 
 .status-badge.success {
-  background: #dcfce7;
-  color: #15803d;
+  background: var(--ss-bg-wash-green);
+  color: var(--ss-success);
 }
 
 .status-badge.warning {
-  background: #fef3c7;
-  color: #b45309;
+  background: var(--ss-warning-soft);
+  color: var(--ss-warning);
 }
 
 .status-badge.error {
-  background: #fee2e2;
-  color: #b91c1c;
+  background: var(--ss-error-soft);
+  color: var(--ss-error);
 }
 
 .link-row,
@@ -325,7 +326,7 @@ a:focus-visible {
 }
 
 .link-row a {
-  color: #2563eb;
+  color: var(--ss-accent);
   font-size: 0.8125rem;
   font-weight: 700;
   text-decoration: none;
@@ -337,14 +338,14 @@ a:focus-visible {
 
 .failure-detail {
   margin-top: 8px;
-  border-top: 1px solid #e5e9ef;
+  border-top: 1px solid var(--ss-hairline);
   padding-top: 8px;
 }
 
 .failure-detail ul {
   margin: 0;
   padding-left: 18px;
-  color: #4b5563;
+  color: var(--ss-text-secondary);
   font-size: 0.75rem;
   line-height: 1.45;
 }

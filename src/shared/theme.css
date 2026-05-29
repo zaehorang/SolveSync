@@ -1,0 +1,32 @@
+:root {
+  --ss-bg: #eef4fb;
+  --ss-bg-wash-blue: #dbeafe;
+  --ss-bg-wash-green: #dcfce7;
+  --ss-bg-wash-lavender: #ede9fe;
+  --ss-glass: rgb(255 255 255 / 0.72);
+  --ss-glass-elevated: rgb(255 255 255 / 0.84);
+  --ss-glass-border: rgb(255 255 255 / 0.72);
+  --ss-hairline: rgb(148 163 184 / 0.28);
+  --ss-text-primary: #0f172a;
+  --ss-text-secondary: #475569;
+  --ss-text-muted: #64748b;
+  --ss-text-on-accent: #ffffff;
+  --ss-accent: #2563eb;
+  --ss-success: #16a34a;
+  --ss-error: #dc2626;
+  --ss-warning: #d97706;
+  --ss-radius-panel: 8px;
+  --ss-radius-shell: 16px;
+  --ss-shadow-glass: 0 18px 48px rgb(15 23 42 / 0.16);
+  --ss-font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
+  --ss-surface-muted: rgb(248 250 252 / 0.84);
+  --ss-input-disabled: #eef2f7;
+  --ss-text-disabled: #6b7280;
+  --ss-success-soft: #f0fdf4;
+  --ss-warning-soft: #fffbeb;
+  --ss-error-soft: #fef2f2;
+  --ss-success-border: rgb(22 163 74 / 0.32);
+  --ss-warning-border: rgb(217 119 6 / 0.32);
+  --ss-error-border: rgb(220 38 38 / 0.28);
+}
