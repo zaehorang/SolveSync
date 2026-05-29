@@ -21,7 +21,10 @@
     {
       "step": 2,
       "name": "glass-theme-tokens",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-05-29T17:59:38+0900",
+      "summary": "Added shared Liquid Glass design tokens and wired base CSS token usage.",
+      "completed_at": "2026-05-29T18:02:54+0900"
     },
     {
       "step": 3,
