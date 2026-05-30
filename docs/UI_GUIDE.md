@@ -40,6 +40,9 @@ Implementation rules:
 - 넓은 viewport에서는 sidebar 또는 section navigation을 사용할 수 있다.
 - 좁은 viewport에서는 section이 위에서 아래로 자연스럽게 쌓여야 한다.
 - marketing hero나 큰 홍보 영역을 만들지 않는다.
+- v1은 Manifest `options_page` 기반 full-page Options를 사용한다.
+- PAT, repository/branch 선택, branch 생성, connection test 같은 긴 설정 작업은 Popup이 아니라 Options에서 수행한다.
+- embedded options(`options_ui`)나 side panel 전환은 별도 제품 결정 없이는 하지 않는다.
 
 필수 section:
 - General: Auto Sync, Repository, Branch, Language.
@@ -100,6 +103,13 @@ Connection test 상태:
 
 ## Popup Page
 목적: 빠른 제어와 운영 상태 확인.
+
+Chrome action popup sizing:
+- Chrome action popup은 일반 tab viewport가 아니라 popup content 기준으로 자동 크기 조정된다.
+- 공식 popup 크기 범위는 `25x25`부터 `800x600`px까지다.
+- SolveSync toolbar popup 기준 폭은 `380px`이다.
+- popup root sizing에는 `100vw`, `min(..., 100vw)` 같은 viewport 의존 폭을 사용하지 않는다.
+- popup root에는 명확한 fixed/min content width를 두고, 내부 콘텐츠가 그 폭 안에서 줄바꿈되게 한다.
 
 필수 section:
 - 상단 setup/status card.
@@ -254,6 +264,7 @@ Links:
 - Success와 error text는 읽을 수 있는 contrast를 가져야 한다.
 - Glass/translucent UI는 배경이 복잡해도 foreground layer의 contrast를 유지해야 한다.
 - Popup content는 일반적인 extension popup width에서 horizontal scroll 없이 보여야 한다.
+- Popup sizing 검증은 실제 Chrome toolbar popup에서 수행한다. `file://`, localhost, 일반 browser viewport만으로 완료하지 않는다.
 - 한국어와 영어 모두 가장 긴 버튼/상태 문구가 잘리지 않아야 한다.
 - Motion은 절제한다. Syncing spinner/progress animation은 과하지 않아야 하며 reduced motion 환경에서 의미가 사라지면 안 된다.
 
