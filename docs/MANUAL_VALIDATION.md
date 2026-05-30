@@ -1,8 +1,8 @@
 # 수동 검증 체크리스트
 
-> **Description**: 자동 테스트와 빌드 이후 실제 Chrome 환경에서 SolveSync v1 핵심 흐름과 회귀 위험을 검증하는 체크리스트다.
+> **Description**: 실제 환경에서 핵심 흐름과 회귀 위험을 확인하는 수동 검증 절차 문서다.
 
-이 문서는 v1 local unpacked Chrome extension을 실제 브라우저에서 검증하기 위한 기준이다. 자동 테스트와 build가 통과한 뒤 실행한다.
+자동 테스트와 build가 통과한 뒤 실행한다.
 
 ## 사전 조건
 - Chrome에서 Developer mode를 켤 수 있다.

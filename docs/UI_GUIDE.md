@@ -1,6 +1,6 @@
 # UI 가이드
 
-> **Description**: Options, Popup, 문제 페이지 Toast의 화면 구성, 상태 표현, 문구, 시각 스타일, 접근성 기준을 정의하는 UI 문서다.
+> **Description**: 화면 구성, 상태 표현, 문구, 스타일, 접근성 기준을 정리한 문서다.
 
 ## 제품 UI 원칙
 1. SolveSync는 마케팅 제품이 아니라 매일 쓰는 조용한 개발 도구처럼 느껴져야 한다.
@@ -76,7 +76,7 @@ Branch picker:
 - Create branch는 사용자가 명시적으로 실행한 경우에만 동작한다.
 - branch 생성 실패 시 원인과 다음 행동을 보여준다.
 
-Security disclosure는 다음을 명시해야 한다.
+Security disclosure에는 다음 사용자 고지를 표시한다.
 - PAT는 Chrome extension local storage에 저장된다.
 - 실패 retry payload는 Accepted solution code를 local storage에 임시 저장할 수 있다.
 - retry payload는 최대 20개, 최대 7일 보관하고 retry 성공 후 삭제한다.

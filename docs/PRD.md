@@ -1,6 +1,6 @@
 # PRD: SolveSync
 
-> **Description**: SolveSync v1의 제품 문제, 사용자, 범위, 핵심 흐름, 성공 기준을 정의하는 요구사항 문서다.
+> **Description**: 제품 요구사항, 사용자 흐름, 범위, 성공 기준을 정리한 문서다.
 
 ## 개요
 SolveSync는 LeetCode와 Programmers에서 Accepted 된 풀이를 GitHub 문제 풀이 저장소로 자동 동기화하는 개인용 Chrome 확장이다. 사용자가 문제를 푼 뒤 코드 복사, 파일 위치 선택, 커밋, README 갱신, push를 반복하지 않도록 만드는 것이 목적이다.
@@ -39,7 +39,7 @@ SolveSync는 LeetCode와 Programmers에서 Accepted 된 풀이를 GitHub 문제 
 - 원하는 branch가 없으면 사용자는 명시적인 Create branch action으로 repository default branch HEAD에서 새 branch를 만들 수 있다.
 - Options는 필수 입력값 누락과 명백히 잘못된 repository/branch 상태를 저장 전에 표시한다.
 - 사용자는 connection test를 실행한다.
-- 확장은 저장소 접근, branch ref 접근 가능 여부, commit에 필요한 Git data read 가능 여부를 확인한다. Connection test는 test commit을 만들지 않는다.
+- 확장은 선택한 저장소와 branch로 sync할 수 있는지 확인한다. Connection test는 test commit을 만들지 않는다.
 - 사용자는 connection test 성공 여부와 무관하게 설정을 저장할 수 있다.
 - 테스트가 실패하면 Options는 auth failed, token expired, no owned repositories, repository not found, branch not found, branch create failed, rate limited, network failed 중 가장 가까운 복구 가능한 상태를 보여준다.
 
@@ -48,8 +48,7 @@ SolveSync는 LeetCode와 Programmers에서 Accepted 된 풀이를 GitHub 문제 
 - 사용자는 평소처럼 제출한다.
 - 결과가 Accepted가 아니면 확장은 아무 commit도 만들지 않는다.
 - 결과가 Accepted면 확장은 `Syncing to GitHub...` toast를 보여준다.
-- LeetCode에서는 현재 문제의 최신 Accepted submission 상세를 API로 가져오고, Programmers에서는 Accepted 직후 현재 editor snapshot을 사용한다.
-- 확장은 `platform`, `submissionId`, `titleSlug`, language 조합으로 sync identity를 확정한다.
+- 확장은 제출 코드, 문제 메타데이터, sync identity를 플랫폼별 방식으로 확정한다.
 - 같은 identity가 이미 처리되었거나 처리 중이면 중복 commit을 만들지 않는다.
 - 같은 문제/언어의 새 Accepted 제출이면 기존 solution path를 최신 풀이로 덮어쓴다.
 
@@ -58,15 +57,15 @@ SolveSync는 LeetCode와 Programmers에서 Accepted 된 풀이를 GitHub 문제 
 - toast는 commit link와 file link를 제공한다.
 - Popup history에는 문제 제목, 언어, 시간, 상태, GitHub 링크가 표시된다.
 - 대상 저장소에는 solution file, README 갱신, index 갱신이 한 commit으로 반영된다.
-- commit 성공 후에만 해당 sync identity를 processed 상태로 기록한다.
+- commit 성공 후에만 성공 기록을 저장한다.
 
 ### 실패 흐름
 - toast는 짧은 실패 원인을 보여준다.
 - Popup은 상세 error 정보를 보여준다.
-- GitHub commit 단계에서 실패한 경우에만 retry payload를 저장하고 Popup에 Retry 버튼을 보여준다.
-- Retry는 저장된 실패 payload를 사용해 GitHub commit 단계만 다시 시도한다.
-- Retry 성공 후에는 processed 상태를 기록하고 retry payload를 삭제한다.
-- Retry 실패 후에는 payload를 유지하고 실패 상세를 갱신한다.
+- Retry 가능한 실패만 저장하고 Popup에 Retry 버튼을 보여준다.
+- Retry는 저장된 실패 정보를 사용해 실패한 sync를 다시 시도한다.
+- Retry 성공 후에는 성공 기록을 저장하고 retry 정보를 삭제한다.
+- Retry 실패 후에는 실패 정보를 유지하고 상세 원인을 갱신한다.
 
 ### 미지원 언어 흐름
 - 사용자가 Swift 또는 Python3가 아닌 언어로 Accepted를 받으면 확장은 GitHub commit을 만들지 않는다.
@@ -77,20 +76,20 @@ SolveSync는 LeetCode와 Programmers에서 Accepted 된 풀이를 GitHub 문제 
 - 사용자는 Popup에서 Auto Sync를 끌 수 있다.
 - Auto Sync가 꺼져 있으면 Accepted 제출도 commit하지 않는다.
 - 확장은 사용자가 이유를 알 수 있도록 `Auto Sync is off` 상태를 보여줄 수 있다.
-- v1은 일반 수동 sync action을 제공하지 않는다. Popup의 Retry는 실패한 GitHub commit payload에만 제공된다.
+- v1은 일반 수동 sync action을 제공하지 않는다. Popup의 Retry는 retry 가능한 실패 항목에만 제공된다.
 
 ## MVP 기능
 - Local unpacked Chrome extension.
 - GitHub PAT, repository picker, branch picker, branch 생성, Auto Sync, connection test를 설정하는 Options 페이지.
 - Auto Sync 토글, 최근 20개 기록, 실패 상세, retry를 제공하는 Popup.
 - LeetCode와 Programmers Accepted 감지와 toast feedback을 담당하는 content script.
-- LeetCode GraphQL 우선 API client를 통한 문제 메타데이터와 Accepted submission code 조회.
-- Programmers `정답입니다!` 감지와 현재 editor snapshot 기반 solution code 수집.
-- GitHub Git Data API를 통한 solution code, 플랫폼별 README, 플랫폼별 index 단일 commit.
+- LeetCode Accepted 제출의 문제 메타데이터와 solution code 조회.
+- Programmers Accepted 제출의 solution code 수집.
+- solution code, 플랫폼별 README, 플랫폼별 index를 하나의 GitHub commit으로 반영.
 - README는 v1에서 항상 갱신한다.
 - Swift path 생성: `leetcode/swift`, `programmers/swift`.
 - Python3 path 생성: `leetcode/python`, `programmers/python`.
-- 대상 폴더, README, index가 없을 때도 첫 sync에서 생성하는 missing path handling.
+- 대상 폴더, README, index가 없을 때도 첫 sync에서 생성한다.
 
 ## v1 제외 사항
 - Chrome Web Store 배포.
@@ -113,7 +112,7 @@ SolveSync는 LeetCode와 Programmers에서 Accepted 된 풀이를 GitHub 문제 
 - `programmers/README.md`와 `programmers/.programmers-sync/index.json`이 solution file과 같은 commit에 포함된다.
 - 같은 sync identity가 반복 감지되어도 중복 commit이 생기지 않는다.
 - 같은 문제/언어의 새 Accepted 제출은 기존 solution file을 최신 풀이로 갱신한다.
-- GitHub commit 실패는 processed로 기록되지 않고 retry 가능한 실패로 남는다.
+- GitHub commit 실패는 성공 처리되지 않고 retry 가능한 실패로 남는다.
 - 대상 폴더가 없어도 sync가 실패하지 않는다.
 - 대상 repository는 코드 기본값이 아니라 Options에서 선택한 repository여야 한다.
 - 존재하지 않는 branch는 자동 생성되지 않고, 사용자가 명시적으로 Create branch를 실행한 경우에만 생성된다.
