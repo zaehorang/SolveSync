@@ -66,6 +66,19 @@ describe("runtime message contracts", () => {
     expect(isRuntimeMessage(programmersMessage)).toBe(true);
   });
 
+  it("accepts typed content toast retry actions without exposing retry payload code", () => {
+    const message: RuntimeMessage = {
+      type: "content:toast_action",
+      payload: {
+        action: "retry",
+        recordId: "record-1"
+      }
+    };
+
+    expect(isRuntimeMessage(message)).toBe(true);
+    expect(JSON.stringify(message)).not.toContain("class Solution");
+  });
+
   it("rejects runtime messages with secret-bearing payload keys", () => {
     const unsafeMessage = {
       type: "settings:write",

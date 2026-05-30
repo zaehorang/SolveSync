@@ -10,6 +10,7 @@ import {
   parseInFlightSyncsState,
   parseProcessedSubmissionsState,
   parseRetryPayloadsState,
+  parseSettingsState,
   parseSyncHistoryState,
   isSettingsState,
   isVersionedStorageState,
@@ -37,12 +38,61 @@ describe("storage schema contracts", () => {
     });
 
     expect(publicSettings.hasGithubPat).toBe(true);
+    expect(publicSettings.uiLanguage).toBe("system");
     expect("githubPat" in publicSettings).toBe(false);
   });
 
   it("guards the settings state shape", () => {
     expect(isSettingsState(DEFAULT_SETTINGS_STATE)).toBe(true);
     expect(isSettingsState({ ...DEFAULT_SETTINGS_STATE, version: 999 })).toBe(false);
+  });
+
+  it("migrates legacy settings to include the default UI language", () => {
+    const baseSettings = {
+      githubPat: null,
+      selectedRepository: null,
+      selectedBranch: null,
+      autoSyncEnabled: true,
+      connectionStatus: {
+        code: "not_tested",
+        checkedAt: null,
+        error: null
+      },
+      updatedAt: "2026-01-01T00:00:00.000Z"
+    };
+
+    expect(
+      parseSettingsState({
+        version: 1,
+        ...baseSettings
+      })
+    ).toMatchObject({
+      version: STORAGE_SCHEMA_VERSION,
+      autoSyncEnabled: true,
+      uiLanguage: "system"
+    });
+    expect(
+      parseSettingsState({
+        version: 2,
+        ...baseSettings
+      })
+    ).toMatchObject({
+      version: STORAGE_SCHEMA_VERSION,
+      autoSyncEnabled: true,
+      uiLanguage: "system"
+    });
+  });
+
+  it("normalizes invalid UI language preferences without discarding settings", () => {
+    const parsed = parseSettingsState({
+      ...DEFAULT_SETTINGS_STATE,
+      uiLanguage: "fr"
+    });
+
+    expect(parsed).toMatchObject({
+      version: STORAGE_SCHEMA_VERSION,
+      uiLanguage: "system"
+    });
   });
 
   it("migrates legacy processed identities to LeetCode platform identities", () => {

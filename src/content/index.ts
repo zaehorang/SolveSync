@@ -1,9 +1,14 @@
 import {
   APP_NAME,
+  DEFAULT_UI_LANGUAGE,
   isRuntimeMessage,
+  isUiLanguagePreference,
+  resolveUiLocale,
   type AcceptedDetectedMessage,
+  type PublicSettingsState,
   type RuntimeMessage
 } from "../shared";
+import type { SyncStatusMessage } from "../shared/messages";
 import {
   type AcceptedDetectionPlatform,
   createDebouncedCallback,
@@ -37,6 +42,18 @@ export interface ProgrammersAcceptedSnapshot extends ProgrammersRoute {
   pageUrl: string;
   detectedAt: string;
 }
+
+interface RuntimeSuccessResponse<T> {
+  ok: true;
+  data: T;
+}
+
+interface RuntimeFailureResponse {
+  ok: false;
+  error?: unknown;
+}
+
+type RuntimeResponse<T> = RuntimeSuccessResponse<T> | RuntimeFailureResponse;
 
 export function createAcceptedDetectedMessage(
   titleSlug: string,
@@ -90,6 +107,13 @@ export function resolveContentPage(url: URL): ContentPageContext {
   return { platform: "unsupported" };
 }
 
+export function resolveContentToastLocale(
+  settings: Pick<PublicSettingsState, "uiLanguage"> | null,
+  browserLanguage: string | null | undefined
+): "en" | "ko" {
+  return resolveUiLocale(settings?.uiLanguage ?? DEFAULT_UI_LANGUAGE, browserLanguage);
+}
+
 export function extractProgrammersAcceptedSnapshot(
   documentRef: Pick<Document, "querySelector" | "title">,
   route: ProgrammersRoute,
@@ -121,6 +145,7 @@ export function extractProgrammersEditorCode(
 export function startContentScript(): void {
   const page = resolveContentPage(new URL(window.location.href));
   const toast = new ContentToast(document, sendToastAction);
+  let toastRenderSequence = 0;
 
   sendRuntimeMessage({
     type: "scaffold:ready",
@@ -137,13 +162,28 @@ export function startContentScript(): void {
     }
 
     if (rawMessage.type === "sync:status") {
-      toast.show(createToastModel(rawMessage.payload));
+      const sequence = ++toastRenderSequence;
+      void showSyncStatusToast(toast, rawMessage, () => sequence === toastRenderSequence);
     }
 
     return false;
   });
 
   console.debug(`${APP_NAME} content script loaded`, { page });
+}
+
+async function showSyncStatusToast(
+  toast: ContentToast,
+  message: SyncStatusMessage,
+  shouldRender: () => boolean
+): Promise<void> {
+  const locale = await readContentToastLocale();
+
+  if (!shouldRender()) {
+    return;
+  }
+
+  toast.show(createToastModel(message.payload, locale));
 }
 
 if (canStartContentScript()) {
@@ -308,6 +348,45 @@ function sendRuntimeMessage(message: RuntimeMessage): void {
   } catch (error) {
     console.debug(`${APP_NAME} content script could not reach background`, error);
   }
+}
+
+async function readContentToastLocale(): Promise<"en" | "ko"> {
+  try {
+    const response = await sendRuntimeMessageWithResponse<PublicSettingsState>({
+      type: "settings:read"
+    });
+
+    if (response.ok && isUiLanguagePreference(response.data.uiLanguage)) {
+      return resolveContentToastLocale(response.data, getBrowserLanguage());
+    }
+  } catch (error) {
+    console.debug(`${APP_NAME} content toast could not read settings`, error);
+  }
+
+  return resolveContentToastLocale(null, getBrowserLanguage());
+}
+
+function sendRuntimeMessageWithResponse<T>(message: RuntimeMessage): Promise<RuntimeResponse<T>> {
+  return new Promise((resolve, reject) => {
+    try {
+      chrome.runtime.sendMessage(message, (response: RuntimeResponse<T>) => {
+        const lastError = chrome.runtime.lastError;
+
+        if (lastError !== undefined) {
+          reject(lastError);
+          return;
+        }
+
+        resolve(response);
+      });
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
+function getBrowserLanguage(): string | null {
+  return typeof navigator === "undefined" ? null : navigator.language;
 }
 
 function canStartContentScript(): boolean {

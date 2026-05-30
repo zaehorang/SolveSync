@@ -3,188 +3,191 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SolveSync Options</title>
+    <title>SolveSync</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
     <main class="page-shell">
-      <header class="page-header">
-        <p class="eyebrow">Chrome extension settings</p>
-        <h1 id="options-title">SolveSync</h1>
-        <p class="lede">
-          Sync accepted LeetCode and Programmers Swift and Python3 submissions
-          to the GitHub repository and branch you choose.
-        </p>
-      </header>
+      <div class="glass-shell">
+        <header class="page-header">
+          <p class="eyebrow" data-i18n="options.page.eyebrow"></p>
+          <h1 id="options-title" data-i18n="options.page.title"></h1>
+          <p class="lede" data-i18n="options.page.lede"></p>
+        </header>
 
-      <form id="options-form" class="settings-form" novalidate>
-        <section class="panel" aria-labelledby="github-title">
-          <div class="section-heading">
-            <h2 id="github-title">GitHub connection</h2>
-            <p id="options-status" class="status-text" aria-live="polite">
-              Loading settings...
-            </p>
-          </div>
-
-          <div class="field">
-            <label for="github-pat">GitHub PAT</label>
-            <div class="input-action-row">
-              <input
-                id="github-pat"
-                type="password"
-                autocomplete="off"
-                spellcheck="false"
-                placeholder="Fine-grained personal access token"
-              />
-              <button id="toggle-pat" class="button secondary" type="button">
-                Show
-              </button>
+        <form id="options-form" class="settings-form" novalidate>
+          <section class="panel" aria-labelledby="general-title">
+            <div class="section-heading">
+              <div>
+                <h2 id="general-title" data-i18n="options.section.general.title"></h2>
+                <p class="section-copy" data-i18n="options.section.general.copy"></p>
+              </div>
+              <p id="options-status" class="status-text" aria-live="polite"></p>
             </div>
-            <p id="pat-error" class="field-message" aria-live="polite"></p>
-          </div>
 
-          <div class="checklist-block" aria-labelledby="pat-checklist-title">
-            <h3 id="pat-checklist-title">Fine-grained PAT checklist</h3>
-            <ul class="checklist">
-              <li>Create a fine-grained personal access token.</li>
-              <li>Select only the target repository.</li>
-              <li>Grant Contents read/write permission.</li>
-              <li>Use GitHub's read-only Metadata permission.</li>
-              <li>Set an expiration date you can manage.</li>
+            <div class="settings-row compact-row">
+              <label class="switch-row" for="auto-sync-enabled">
+                <input id="auto-sync-enabled" type="checkbox" />
+                <span class="switch-control" aria-hidden="true"></span>
+                <span>
+                  <strong data-i18n="options.autoSync.title"></strong>
+                  <small data-i18n="options.autoSync.detail"></small>
+                </span>
+              </label>
+            </div>
+
+            <div class="settings-row">
+              <div class="field">
+                <label id="language-label" data-i18n="options.field.language"></label>
+                <div
+                  class="segmented-control"
+                  role="group"
+                  aria-labelledby="language-label"
+                >
+                  <button
+                    class="segment-option"
+                    type="button"
+                    data-language-option="system"
+                    data-i18n="language.system"
+                  ></button>
+                  <button
+                    class="segment-option"
+                    type="button"
+                    data-language-option="en"
+                    data-i18n="language.en"
+                  ></button>
+                  <button
+                    class="segment-option"
+                    type="button"
+                    data-language-option="ko"
+                    data-i18n="language.ko"
+                  ></button>
+                </div>
+              </div>
+            </div>
+
+            <div class="settings-row">
+              <div class="section-heading inline-heading">
+                <div>
+                  <h3 id="repository-title" data-i18n="options.field.repositorySelect"></h3>
+                  <p class="section-copy" data-i18n="options.repository.copy"></p>
+                </div>
+                <button id="load-repositories" class="button secondary" type="button"></button>
+              </div>
+
+              <div class="field">
+                <label for="repository-search" data-i18n="options.field.repositorySearch"></label>
+                <input
+                  id="repository-search"
+                  type="search"
+                  autocomplete="off"
+                  data-i18n-placeholder="options.field.repositorySearchPlaceholder"
+                />
+              </div>
+
+              <div class="field">
+                <label for="repository-select" data-i18n="options.field.repositorySelect"></label>
+                <select id="repository-select" size="6"></select>
+                <p id="repository-status" class="field-message" aria-live="polite"></p>
+              </div>
+            </div>
+
+            <div class="settings-row">
+              <div class="field">
+                <label for="branch-select" data-i18n="options.field.branchSelect"></label>
+                <p class="section-copy" data-i18n="options.branch.copy"></p>
+                <select id="branch-select" disabled></select>
+                <p id="branch-status" class="field-message" aria-live="polite"></p>
+              </div>
+            </div>
+          </section>
+
+          <section class="panel" aria-labelledby="github-title">
+            <div class="section-heading">
+              <div>
+                <h2 id="github-title" data-i18n="options.section.github.title"></h2>
+                <p class="section-copy" data-i18n="options.section.github.copy"></p>
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="github-pat" data-i18n="options.field.githubPat"></label>
+              <div class="input-action-row">
+                <input
+                  id="github-pat"
+                  type="password"
+                  autocomplete="off"
+                  spellcheck="false"
+                  data-i18n-placeholder="options.field.githubPatPlaceholder"
+                />
+                <button id="toggle-pat" class="button secondary" type="button"></button>
+              </div>
+              <p id="pat-error" class="field-message" aria-live="polite"></p>
+            </div>
+
+            <div class="checklist-block" aria-labelledby="pat-checklist-title">
+              <h3 id="pat-checklist-title" data-i18n="options.patChecklist.title"></h3>
+              <ul class="checklist">
+                <li data-i18n="options.patChecklist.create"></li>
+                <li data-i18n="options.patChecklist.target"></li>
+                <li data-i18n="options.patChecklist.contents"></li>
+                <li data-i18n="options.patChecklist.metadata"></li>
+                <li data-i18n="options.patChecklist.expiration"></li>
+              </ul>
+            </div>
+
+            <div class="field">
+              <label for="create-branch-name" data-i18n="options.field.createBranch"></label>
+              <div class="input-action-row">
+                <input
+                  id="create-branch-name"
+                  type="text"
+                  autocomplete="off"
+                  data-i18n-placeholder="options.field.createBranchPlaceholder"
+                  disabled
+                />
+                <button id="create-branch" class="button secondary" type="button" disabled></button>
+              </div>
+              <p id="create-branch-status" class="field-message" aria-live="polite"></p>
+            </div>
+
+            <div class="connection-test" aria-labelledby="connection-test-title">
+              <div class="section-heading inline-heading">
+                <div>
+                  <h3 id="connection-test-title" data-i18n="options.connectionTest.title"></h3>
+                  <p class="section-copy" data-i18n="options.connectionTest.copy"></p>
+                </div>
+                <button id="test-connection" class="button primary" type="button"></button>
+              </div>
+              <div id="connection-status" class="status-box neutral" aria-live="polite"></div>
+            </div>
+          </section>
+
+          <section class="panel" aria-labelledby="security-title">
+            <h2 id="security-title" data-i18n="options.section.security.title"></h2>
+            <ul class="disclosure-list">
+              <li data-i18n="options.security.patStorage"></li>
+              <li data-i18n="options.security.retryStorage"></li>
+              <li data-i18n="options.security.retryLimit"></li>
+              <li data-i18n="options.security.noBackend"></li>
+              <li data-i18n="options.security.solutionTransfer"></li>
+              <li data-i18n="options.security.noProblemStatement"></li>
             </ul>
-          </div>
-        </section>
+          </section>
 
-        <section class="panel" aria-labelledby="repository-title">
-          <div class="section-heading">
-            <div>
-              <h2 id="repository-title">Repository</h2>
-              <p class="section-copy">
-                Load repositories owned by your GitHub account, then choose one.
-              </p>
-            </div>
-            <button id="load-repositories" class="button secondary" type="button">
-              Load repositories
-            </button>
-          </div>
+          <section class="panel" aria-labelledby="about-title">
+            <h2 id="about-title" data-i18n="options.section.about.title"></h2>
+            <p class="section-copy" data-i18n="options.about.product"></p>
+            <p class="section-copy" data-i18n="options.about.scope"></p>
+          </section>
 
-          <div class="field">
-            <label for="repository-search">Search repositories</label>
-            <input
-              id="repository-search"
-              type="search"
-              autocomplete="off"
-              placeholder="owner/repository"
-            />
-          </div>
-
-          <div class="field">
-            <label for="repository-select">Owned repositories</label>
-            <select id="repository-select" size="6"></select>
-            <p id="repository-status" class="field-message" aria-live="polite"></p>
-          </div>
-        </section>
-
-        <section class="panel" aria-labelledby="branch-title">
-          <div class="section-heading">
-            <div>
-              <h2 id="branch-title">Branch</h2>
-              <p class="section-copy">
-                Pick an existing branch. New branches are created only by the
-                explicit action below.
-              </p>
-            </div>
-          </div>
-
-          <div class="field">
-            <label for="branch-select">Branch picker</label>
-            <select id="branch-select" disabled></select>
-            <p id="branch-status" class="field-message" aria-live="polite"></p>
-          </div>
-
-          <div class="field">
-            <label for="create-branch-name">Create branch from default branch HEAD</label>
-            <div class="input-action-row">
-              <input
-                id="create-branch-name"
-                type="text"
-                autocomplete="off"
-                placeholder="new-branch-name"
-                disabled
-              />
-              <button id="create-branch" class="button secondary" type="button" disabled>
-                Create branch
-              </button>
-            </div>
-            <p id="create-branch-status" class="field-message" aria-live="polite"></p>
-          </div>
-        </section>
-
-        <section class="panel" aria-labelledby="sync-title">
-          <div class="section-heading">
-            <div>
-              <h2 id="sync-title">Sync behavior</h2>
-              <p class="section-copy">
-                Auto Sync runs only after GitHub settings are complete.
-              </p>
-            </div>
-          </div>
-
-          <label class="checkbox-row" for="auto-sync-enabled">
-            <input id="auto-sync-enabled" type="checkbox" />
-            <span>
-              <strong>Auto Sync enabled</strong>
-              <small>Automatically sync Swift and Python3 Accepted submissions.</small>
-            </span>
-          </label>
-        </section>
-
-        <section class="panel" aria-labelledby="connection-test-title">
-          <div class="section-heading">
-            <div>
-              <h2 id="connection-test-title">Connection test</h2>
-              <p class="section-copy">
-                Checks repository, branch, and Git data read access. It does not
-                create commits.
-              </p>
-            </div>
-            <button id="test-connection" class="button primary" type="button">
-              Test connection
-            </button>
-          </div>
-          <div id="connection-status" class="status-box neutral" aria-live="polite">
-            Not tested
-          </div>
-        </section>
-
-        <section class="panel" aria-labelledby="security-title">
-          <h2 id="security-title">Security disclosure</h2>
-          <ul class="disclosure-list">
-            <li>PAT는 Chrome extension local storage에 저장된다.</li>
-            <li>
-              실패 retry payload는 Accepted solution code를 local storage에 임시
-              저장할 수 있다.
-            </li>
-            <li>
-              retry payload는 최대 20개, 최대 7일 보관하고 retry 성공 후
-              삭제한다.
-            </li>
-            <li>v1 확장은 별도 backend server를 운영하지 않는다.</li>
-            <li>
-              Solution code는 설정된 GitHub sync commit을 위해서만 GitHub로
-              전송된다.
-            </li>
-            <li>LeetCode/Programmers 문제 설명 전문은 저장하지 않는다.</li>
-          </ul>
-        </section>
-
-        <section class="panel action-panel" aria-label="Save controls">
-          <button id="save-settings" class="button primary" type="submit">
-            Save settings
-          </button>
-          <p id="save-status" class="status-text" aria-live="polite"></p>
-        </section>
-      </form>
+          <section class="panel action-panel" aria-labelledby="save-title">
+            <h2 id="save-title" class="visually-hidden" data-i18n="options.section.save.title"></h2>
+            <button id="save-settings" class="button primary" type="submit"></button>
+            <p id="save-status" class="status-text" aria-live="polite"></p>
+          </section>
+        </form>
+      </div>
     </main>
     <script type="module" src="./index.ts"></script>
   </body>

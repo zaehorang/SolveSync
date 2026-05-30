@@ -1,108 +1,42 @@
-import type { NormalizedError } from "../shared/errors";
+import {
+  createToastViewModel,
+  t,
+  type ToastActionView,
+  type ToastModelInput as SharedToastModelInput,
+  type ToastViewModel,
+  type Tone,
+  type UiLocale
+} from "../shared";
 import type { ToastAction } from "../shared/messages";
-import type { SyncRecord, SyncStatus } from "../shared/types";
+import type { SyncStatus } from "../shared/types";
 
-export type ToastTone = "neutral" | "success" | "warning" | "error";
+export type ToastTone = Tone;
 
-export interface ToastActionModel {
-  action: ToastAction;
-  label: string;
-  recordId: string | null;
-  primary: boolean;
-}
+export type ToastActionModel = ToastActionView;
 
-export interface ToastModel {
+export interface ToastModel extends ToastViewModel {
   state: SyncStatus;
-  title: string;
-  detail: string | null;
-  tone: ToastTone;
-  actions: ToastActionModel[];
-  autoDismissMs: number | null;
+  dismissLabel: string;
+  locale: UiLocale;
 }
 
-export interface ToastModelInput {
-  status: SyncStatus;
-  record: SyncRecord | null;
-  error: NormalizedError | null;
-}
+export type ToastModelInput = SharedToastModelInput;
 
 export type ToastActionHandler = (
   action: ToastAction,
   recordId: string | null
 ) => void;
 
-export function createToastModel(input: ToastModelInput): ToastModel {
-  switch (input.status) {
-    case "setup_required":
-      return {
-        state: input.status,
-        title: "GitHub connection required",
-        detail: "Connect a repository in Options.",
-        tone: "warning",
-        actions: [action("open_options", "Open Options", null, true)],
-        autoDismissMs: null
-      };
-
-    case "auto_sync_disabled":
-      return {
-        state: input.status,
-        title: "Auto Sync is off",
-        detail: "No commit was created.",
-        tone: "warning",
-        actions: [action("open_options", "Open Options", null, true)],
-        autoDismissMs: 7000
-      };
-
-    case "syncing":
-      return {
-        state: input.status,
-        title: "Syncing to GitHub...",
-        detail: describeRecord(input.record),
-        tone: "neutral",
-        actions: [],
-        autoDismissMs: null
-      };
-
-    case "retrying":
-      return {
-        state: input.status,
-        title: "Retrying sync...",
-        detail: describeRecord(input.record),
-        tone: "neutral",
-        actions: [],
-        autoDismissMs: null
-      };
-
-    case "synced":
-      return {
-        state: input.status,
-        title: "Synced to GitHub",
-        detail: describeRecord(input.record),
-        tone: "success",
-        actions: successActions(input.record),
-        autoDismissMs: 5000
-      };
-
-    case "unsupported_language":
-      return {
-        state: input.status,
-        title: "Unsupported language",
-        detail: unsupportedDetail(input.record),
-        tone: "warning",
-        actions: [],
-        autoDismissMs: 8000
-      };
-
-    case "failed":
-      return {
-        state: input.status,
-        title: "Sync failed",
-        detail: failureDetail(input.error ?? input.record?.error ?? null),
-        tone: "error",
-        actions: failureActions(input.error ?? input.record?.error ?? null),
-        autoDismissMs: null
-      };
-  }
+export function createToastModel(
+  input: ToastModelInput,
+  locale: UiLocale = "en"
+): ToastModel {
+  return {
+    state: input.status,
+    dismissLabel: t(locale, "action.dismiss"),
+    locale,
+    ...createToastViewModel(locale, input)
+  };
 }
 
 export class ContentToast {
@@ -118,6 +52,7 @@ export class ContentToast {
   show(model: ToastModel): void {
     const shadowRoot = this.ensureMounted();
     this.clearAutoDismissTimer();
+    this.host?.setAttribute("lang", model.locale);
     shadowRoot.replaceChildren(this.createStyle(), this.createToastElement(model));
 
     if (model.autoDismissMs !== null) {
@@ -153,13 +88,23 @@ export class ContentToast {
     const root = this.documentRef.createElement("section");
     root.className = "toast";
     root.dataset.tone = model.tone;
+    root.dataset.state = model.state;
+    root.setAttribute("lang", model.locale);
     root.setAttribute("role", model.tone === "error" ? "alert" : "status");
     root.setAttribute("aria-live", model.tone === "error" ? "assertive" : "polite");
 
     const header = this.documentRef.createElement("div");
     header.className = "header";
 
+    const statusMark = this.documentRef.createElement("span");
+    statusMark.className =
+      model.state === "syncing" || model.state === "retrying"
+        ? "status-mark is-busy"
+        : "status-mark";
+    statusMark.setAttribute("aria-hidden", "true");
+
     const text = this.documentRef.createElement("div");
+    text.className = "copy";
     const title = this.documentRef.createElement("p");
     title.className = "title";
     title.textContent = model.title;
@@ -176,10 +121,10 @@ export class ContentToast {
     closeButton.className = "close";
     closeButton.type = "button";
     closeButton.textContent = "x";
-    closeButton.setAttribute("aria-label", "Dismiss");
+    closeButton.setAttribute("aria-label", model.dismissLabel);
     closeButton.addEventListener("click", () => this.dismiss());
 
-    header.append(text, closeButton);
+    header.append(statusMark, text, closeButton);
     root.append(header);
 
     if (model.actions.length > 0) {
@@ -223,114 +168,31 @@ export class ContentToast {
   }
 }
 
-function successActions(record: SyncRecord | null): ToastActionModel[] {
-  if (record === null) {
-    return [];
-  }
-
-  return [
-    record.commitUrl === null ? null : action("open_commit", "Commit", record.id, true),
-    record.fileUrl === null ? null : action("open_file", "File", record.id, false)
-  ].filter((item): item is ToastActionModel => item !== null);
-}
-
-function failureDetail(error: NormalizedError | null): string {
-  return error?.userMessage ?? "Open Options to check your GitHub connection.";
-}
-
-function failureActions(error: NormalizedError | null): ToastActionModel[] {
-  if (error?.code === "programmers_extract_failed") {
-    return [];
-  }
-
-  return [action("open_options", "Open Options", null, true)];
-}
-
-function unsupportedDetail(record: SyncRecord | null): string {
-  if (record?.language !== undefined && record.language.trim().length > 0) {
-    return `${record.language} submissions are not synced.`;
-  }
-
-  return "Only Swift and Python3 submissions are synced.";
-}
-
-function describeRecord(record: SyncRecord | null): string | null {
-  if (record === null) {
-    return null;
-  }
-
-  const title = getRecordTitle(record);
-  const language = getLanguageLabel(record);
-
-  if (title.length === 0 && language.length === 0) {
-    return null;
-  }
-
-  if (language.length === 0) {
-    return title;
-  }
-
-  return `${title} in ${language}`;
-}
-
-function getRecordTitle(record: SyncRecord): string {
-  const title = record.problemTitle?.trim() ?? "";
-  const titleSlug = record.titleSlug.trim();
-  const frontendId = record.problemFrontendId?.trim() ?? "";
-
-  if (title.length > 0) {
-    return title;
-  }
-
-  if (titleSlug.length > 0) {
-    return titleSlug;
-  }
-
-  if (frontendId.length > 0) {
-    return `${getPlatformLabel(record.platform)} ${frontendId}`;
-  }
-
-  return getPlatformLabel(record.platform);
-}
-
-function getLanguageLabel(record: SyncRecord): string {
-  if (record.supportedLanguage === "python3") {
-    return "Python3";
-  }
-
-  if (record.supportedLanguage === "swift") {
-    return "Swift";
-  }
-
-  return record.language.trim();
-}
-
-function getPlatformLabel(platform: SyncRecord["platform"]): string {
-  return platform === "programmers" ? "Programmers" : "LeetCode";
-}
-
-function action(
-  actionType: ToastAction,
-  label: string,
-  recordId: string | null,
-  primary: boolean
-): ToastActionModel {
-  return {
-    action: actionType,
-    label,
-    recordId,
-    primary
-  };
-}
-
 const CONTENT_TOAST_CSS = `
 :host {
+  --ss-glass: rgb(255 255 255 / 0.72);
+  --ss-glass-elevated: rgb(255 255 255 / 0.84);
+  --ss-glass-border: rgb(255 255 255 / 0.72);
+  --ss-hairline: rgb(148 163 184 / 0.28);
+  --ss-text-primary: #0f172a;
+  --ss-text-secondary: #475569;
+  --ss-text-muted: #64748b;
+  --ss-text-on-accent: #ffffff;
+  --ss-accent: #2563eb;
+  --ss-success: #16a34a;
+  --ss-error: #dc2626;
+  --ss-warning: #d97706;
+  --ss-radius-panel: 8px;
+  --ss-shadow-glass: 0 18px 48px rgb(15 23 42 / 0.16);
+  --ss-font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   position: fixed;
-  right: 18px;
-  bottom: 72px;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: max(84px, calc(env(safe-area-inset-bottom) + 16px));
   z-index: 2147483647;
-  color: #111827;
-  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  width: min(360px, calc(100vw - 32px));
+  max-width: calc(100vw - max(32px, calc(env(safe-area-inset-left) + env(safe-area-inset-right) + 32px)));
+  color: var(--ss-text-primary);
+  font-family: var(--ss-font-sans);
   font-size: 13px;
   line-height: 1.4;
 }
@@ -340,50 +202,103 @@ const CONTENT_TOAST_CSS = `
 }
 
 .toast {
-  width: min(320px, calc(100vw - 32px));
-  border: 1px solid #d7dde5;
-  border-left-width: 4px;
-  border-radius: 8px;
-  background: #ffffff;
-  box-shadow: 0 12px 28px rgb(15 23 42 / 18%);
-  padding: 12px;
+  position: relative;
+  width: 100%;
+  border: 1px solid var(--ss-glass-border);
+  border-radius: var(--ss-radius-panel);
+  background:
+    linear-gradient(135deg, rgb(255 255 255 / 0.9), var(--ss-glass-elevated)),
+    var(--ss-glass);
+  box-shadow: var(--ss-shadow-glass);
+  padding: 13px;
+  overflow: hidden;
+  backdrop-filter: blur(18px) saturate(1.2);
+  -webkit-backdrop-filter: blur(18px) saturate(1.2);
+}
+
+.toast::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 1px solid var(--ss-hairline);
+  border-radius: inherit;
+  pointer-events: none;
 }
 
 .toast[data-tone="success"] {
-  border-left-color: #15803d;
+  --ss-tone: var(--ss-success);
 }
 
 .toast[data-tone="error"] {
-  border-left-color: #b91c1c;
+  --ss-tone: var(--ss-error);
 }
 
 .toast[data-tone="warning"] {
-  border-left-color: #b45309;
+  --ss-tone: var(--ss-warning);
 }
 
 .toast[data-tone="neutral"] {
-  border-left-color: #2563eb;
+  --ss-tone: var(--ss-accent);
 }
 
 .header {
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
-  gap: 10px;
+  gap: 9px;
+}
+
+.status-mark {
+  flex: 0 0 auto;
+  width: 10px;
+  height: 10px;
+  margin-top: 4px;
+  border-radius: 999px;
+  background: var(--ss-tone, var(--ss-accent));
+  box-shadow: 0 0 0 4px rgb(37 99 235 / 0.1);
+}
+
+.toast[data-tone="success"] .status-mark {
+  box-shadow: 0 0 0 4px rgb(22 163 74 / 0.12);
+}
+
+.toast[data-tone="error"] .status-mark {
+  box-shadow: 0 0 0 4px rgb(220 38 38 / 0.1);
+}
+
+.toast[data-tone="warning"] .status-mark {
+  box-shadow: 0 0 0 4px rgb(217 119 6 / 0.12);
+}
+
+.status-mark.is-busy {
+  border: 2px solid rgb(37 99 235 / 0.22);
+  border-top-color: var(--ss-accent);
+  background: transparent;
+  box-shadow: none;
+  animation: solvesync-spin 820ms linear infinite;
+}
+
+.copy {
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
 .title {
   margin: 0;
-  color: #111827;
+  color: var(--ss-text-primary);
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 0;
+  overflow-wrap: anywhere;
 }
 
 .detail {
   margin: 4px 0 0;
-  color: #4b5563;
+  color: var(--ss-text-secondary);
   overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .close {
@@ -393,16 +308,17 @@ const CONTENT_TOAST_CSS = `
   border: 1px solid transparent;
   border-radius: 6px;
   background: transparent;
-  color: #6b7280;
+  color: var(--ss-text-muted);
   cursor: pointer;
   font: inherit;
+  font-weight: 700;
   line-height: 1;
 }
 
 .close:hover,
 .close:focus-visible {
-  border-color: #d7dde5;
-  color: #111827;
+  border-color: var(--ss-hairline);
+  color: var(--ss-text-primary);
   outline: none;
 }
 
@@ -410,30 +326,44 @@ const CONTENT_TOAST_CSS = `
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-top: 10px;
+  margin-top: 12px;
 }
 
 .action {
   min-height: 28px;
-  border: 1px solid #d7dde5;
+  border: 1px solid var(--ss-hairline);
   border-radius: 6px;
-  background: #ffffff;
-  color: #2563eb;
+  background: var(--ss-glass-elevated);
+  color: var(--ss-accent);
   cursor: pointer;
   font: inherit;
   font-weight: 600;
+  overflow-wrap: anywhere;
   padding: 4px 9px;
+  white-space: normal;
 }
 
 .action:hover,
 .action:focus-visible {
-  border-color: #2563eb;
+  border-color: var(--ss-accent);
   outline: none;
 }
 
 .action-primary {
-  border-color: #2563eb;
-  background: #2563eb;
-  color: #ffffff;
+  border-color: var(--ss-accent);
+  background: var(--ss-accent);
+  color: var(--ss-text-on-accent);
+}
+
+@keyframes solvesync-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .status-mark.is-busy {
+    animation: none;
+  }
 }
 `;

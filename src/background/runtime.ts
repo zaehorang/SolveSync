@@ -6,7 +6,12 @@ import type { RepositoryRef, RetryPayload, RetryPayloadSummary } from "../shared
 import { createDefaultExtensionStorage, type ExtensionStorage } from "./storage";
 import { createGitHubClient, type GitHubClient } from "./client/github";
 import { createLeetCodeClient } from "./client/leetcode";
-import { createSyncOrchestrator, type SyncBroadcast, type SyncOrchestrator } from "./sync";
+import {
+  createSyncOrchestrator,
+  type SyncBroadcast,
+  type SyncBroadcastTarget,
+  type SyncOrchestrator
+} from "./sync";
 
 export interface RuntimeSuccessResponse<T> {
   ok: true;
@@ -82,7 +87,11 @@ async function handleRuntimeMessage(
       );
 
     case "content:toast_action":
-      return success(await handleToastAction(message.payload, context.storage));
+      return success(
+        await handleToastAction(message.payload, context.storage, context.orchestrator, {
+          tabId: sender.tab?.id
+        })
+      );
 
     case "settings:read": {
       const settings = await context.storage.getSettings();
@@ -215,10 +224,26 @@ async function withGitHubClient<T>(
 
 async function handleToastAction(
   payload: Extract<RuntimeMessage, { type: "content:toast_action" }>["payload"],
-  storage: ExtensionStorage
+  storage: ExtensionStorage,
+  orchestrator: SyncOrchestrator,
+  target: SyncBroadcastTarget
 ): Promise<null> {
   if (payload.action === "open_options") {
     await chrome.runtime.openOptionsPage();
+    return null;
+  }
+
+  if (payload.action === "retry") {
+    if (payload.recordId === null) {
+      return null;
+    }
+
+    const record = (await storage.listHistory()).find((item) => item.id === payload.recordId);
+
+    if (record?.retryPayloadId !== null && record?.retryPayloadId !== undefined) {
+      await orchestrator.handleRetry(record.retryPayloadId, target);
+    }
+
     return null;
   }
 

@@ -3,20 +3,27 @@ import {
   DEFAULT_SETTINGS_STATE,
   STORAGE_KEYS,
   STORAGE_SCHEMA_VERSION,
-  isSettingsState,
+  getConnectionStatusView as getSharedConnectionStatusView,
+  isUiLanguagePreference,
   normalizeError,
+  parseSettingsState,
+  resolveUiLocale,
+  t,
   type BranchRef,
   type ConnectionStatus,
   type ConnectionStatusCode,
+  type ConnectionStatusView,
+  type I18nKey,
   type IsoDateString,
   type NormalizedError,
   type NormalizedErrorCode,
   type RepositoryRef,
   type RuntimeMessage,
-  type SettingsState
+  type SettingsState,
+  type Tone,
+  type UiLanguagePreference,
+  type UiLocale
 } from "../shared";
-
-type Tone = "neutral" | "success" | "warning" | "error";
 
 export interface RepositoryFilterState {
   query: string;
@@ -40,15 +47,11 @@ export interface SettingsValidationResult {
   };
 }
 
-export interface ConnectionStatusView {
-  label: string;
-  detail: string | null;
-  tone: Tone;
-}
-
 interface InlineMessage {
   text: string;
   tone: Tone;
+  i18nKey?: I18nKey;
+  i18nParams?: Record<string, string | number>;
 }
 
 interface RepositoryListResult {
@@ -87,6 +90,8 @@ interface OptionsRuntimeState {
   branches: BranchRef[];
   selectedBranch: BranchRef | null;
   autoSyncEnabled: boolean;
+  uiLanguage: UiLanguagePreference;
+  locale: UiLocale;
   connectionStatus: ConnectionStatus;
   loadingSettings: boolean;
   loadingRepositories: boolean;
@@ -117,6 +122,7 @@ interface OptionsElements {
   createBranchButton: HTMLButtonElement;
   createBranchStatus: HTMLParagraphElement;
   autoSyncCheckbox: HTMLInputElement;
+  languageButtons: HTMLButtonElement[];
   testConnectionButton: HTMLButtonElement;
   connectionStatusBox: HTMLDivElement;
   saveButton: HTMLButtonElement;
@@ -133,6 +139,19 @@ const DEFAULT_CONNECTION_STATUS: ConnectionStatus = {
   checkedAt: null,
   error: null
 };
+
+function localizedMessage(
+  i18nKey: I18nKey,
+  tone: Tone,
+  i18nParams: Record<string, string | number> = {}
+): InlineMessage {
+  return {
+    text: "",
+    tone,
+    i18nKey,
+    i18nParams
+  };
+}
 
 export function getRepositoryFilterState(
   repositories: RepositoryRef[],
@@ -181,20 +200,21 @@ export function getDefaultBranchSelection(
 }
 
 export function validateSettingsDraft(
-  draft: SettingsValidationDraft
+  draft: SettingsValidationDraft,
+  locale: UiLocale = "en"
 ): SettingsValidationResult {
   const errors: SettingsValidationResult["errors"] = {};
 
   if (draft.githubPat.trim().length === 0) {
-    errors.githubPat = "GitHub PAT is required.";
+    errors.githubPat = t(locale, "validation.githubPatRequired");
   }
 
   if (draft.selectedRepository === null) {
-    errors.repository = "Choose a repository from the owned repository list.";
+    errors.repository = t(locale, "validation.repositoryRequired");
   }
 
   if (draft.selectedBranch === null) {
-    errors.branch = "Choose an existing branch or create one first.";
+    errors.branch = t(locale, "validation.branchRequired");
   }
 
   return {
@@ -240,88 +260,10 @@ export function mapConnectionErrorCode(
 
 export function getConnectionStatusView(
   status: ConnectionStatus | ConnectionStatusCode,
-  error: NormalizedError | null = null
+  error: NormalizedError | null = null,
+  locale: UiLocale = "en"
 ): ConnectionStatusView {
-  const statusCode = typeof status === "string" ? status : status.code;
-  const statusError = typeof status === "string" ? error : status.error;
-  const detail = statusError?.userMessage ?? null;
-
-  switch (statusCode) {
-    case "not_tested":
-      return {
-        label: "Not tested",
-        detail,
-        tone: "neutral"
-      };
-    case "testing":
-      return {
-        label: "Testing connection...",
-        detail,
-        tone: "neutral"
-      };
-    case "connected":
-      return {
-        label: "Connected",
-        detail,
-        tone: "success"
-      };
-    case "branch_created":
-      return {
-        label: "Branch created",
-        detail,
-        tone: "success"
-      };
-    case "no_accessible_repositories":
-      return {
-        label: "No owned repositories",
-        detail:
-          detail ??
-          "Check that the token includes a repository owned by your account.",
-        tone: "warning"
-      };
-    case "repository_not_found":
-      return {
-        label: "Repository not found",
-        detail,
-        tone: "error"
-      };
-    case "branch_not_found":
-      return {
-        label: "Branch not found",
-        detail,
-        tone: "error"
-      };
-    case "branch_create_failed":
-      return {
-        label: "Branch create failed",
-        detail,
-        tone: "error"
-      };
-    case "auth_failed":
-      return {
-        label: "Auth failed",
-        detail,
-        tone: "error"
-      };
-    case "token_expired":
-      return {
-        label: "Token expired",
-        detail,
-        tone: "error"
-      };
-    case "rate_limited":
-      return {
-        label: "Rate limited",
-        detail,
-        tone: "warning"
-      };
-    case "network_failed":
-      return {
-        label: "Network failed",
-        detail,
-        tone: "warning"
-      };
-  }
+  return getSharedConnectionStatusView(locale, status, error);
 }
 
 function createInitialState(): OptionsRuntimeState {
@@ -334,6 +276,8 @@ function createInitialState(): OptionsRuntimeState {
     branches: [],
     selectedBranch: null,
     autoSyncEnabled: false,
+    uiLanguage: DEFAULT_SETTINGS_STATE.uiLanguage,
+    locale: getOptionsLocale(DEFAULT_SETTINGS_STATE.uiLanguage),
     connectionStatus: DEFAULT_CONNECTION_STATUS,
     loadingSettings: true,
     loadingRepositories: false,
@@ -437,6 +381,19 @@ function bindEvents(elements: OptionsElements, state: OptionsRuntimeState): void
     render(elements, state);
   });
 
+  for (const languageButton of elements.languageButtons) {
+    languageButton.addEventListener("click", () => {
+      const preference = languageButton.dataset.languageOption;
+
+      if (!isUiLanguagePreference(preference)) {
+        return;
+      }
+
+      setUiLanguage(state, preference);
+      render(elements, state);
+    });
+  }
+
   elements.testConnectionButton.addEventListener("click", () => {
     void testConnection(elements, state);
   });
@@ -458,10 +415,10 @@ async function loadRepositories(
   state.saveMessage = EMPTY_MESSAGE;
 
   if (state.githubPatInput.trim().length === 0) {
-    state.patMessage = {
-      text: "GitHub PAT is required before loading repositories.",
-      tone: "error"
-    };
+    state.patMessage = localizedMessage(
+      "options.message.patRequiredBeforeLoad",
+      "error"
+    );
     render(elements, state);
     return;
   }
@@ -471,7 +428,8 @@ async function loadRepositories(
 
   try {
     await saveSettings({
-      githubPat: normalizePat(state.githubPatInput)
+      githubPat: normalizePat(state.githubPatInput),
+      uiLanguage: state.uiLanguage
     });
 
     const response = await sendRuntimeMessage<RepositoryListResult>({
@@ -503,24 +461,31 @@ async function loadRepositories(
 
     if (response.data.totalCount === 0) {
       state.connectionStatus = createConnectionStatus("no_accessible_repositories");
-      state.repositoryMessage = {
-        text:
-          "No owned repositories. Check that the token includes a repository owned by your account.",
-        tone: "warning"
-      };
+      state.repositoryMessage = localizedMessage(
+        "options.message.noOwnedRepositories",
+        "warning"
+      );
       await saveSettings({
+        uiLanguage: state.uiLanguage,
         connectionStatus: state.connectionStatus
       });
     } else if (response.data.hasMore) {
-      state.repositoryMessage = {
-        text: `Loaded ${response.data.repositories.length} of ${response.data.totalCount} repositories. Use search to narrow the list.`,
-        tone: "neutral"
-      };
+      state.repositoryMessage = localizedMessage(
+        "options.message.repositoriesLoadedPartial",
+        "neutral",
+        {
+          shown: response.data.repositories.length,
+          total: response.data.totalCount
+        }
+      );
     } else {
-      state.repositoryMessage = {
-        text: `Loaded ${response.data.repositories.length} repositories.`,
-        tone: "success"
-      };
+      state.repositoryMessage = localizedMessage(
+        "options.message.repositoriesLoaded",
+        "success",
+        {
+          count: response.data.repositories.length
+        }
+      );
     }
   } catch (error) {
     const normalized = normalizeError(error);
@@ -533,6 +498,7 @@ async function loadRepositories(
       tone: "error"
     };
     await saveSettings({
+      uiLanguage: state.uiLanguage,
       connectionStatus: state.connectionStatus
     });
   } finally {
@@ -547,10 +513,7 @@ async function loadBranches(
   repository: RepositoryRef
 ): Promise<void> {
   state.loadingBranches = true;
-  state.branchMessage = {
-    text: "Loading branches...",
-    tone: "neutral"
-  };
+  state.branchMessage = localizedMessage("options.message.loadingBranches", "neutral");
   render(elements, state);
 
   try {
@@ -577,20 +540,23 @@ async function loadBranches(
         : state.branches.find((branch) => branch.name === branchName) ?? null;
 
     if (state.branches.length === 0) {
-      state.branchMessage = {
-        text: "No branches found. Empty repositories cannot create a branch from default branch HEAD.",
-        tone: "warning"
-      };
+      state.branchMessage = localizedMessage("options.message.noBranches", "warning");
     } else if (state.selectedBranch?.name === repository.defaultBranch) {
-      state.branchMessage = {
-        text: `Default branch selected: ${repository.defaultBranch}.`,
-        tone: "success"
-      };
+      state.branchMessage = localizedMessage(
+        "options.message.defaultBranchSelected",
+        "success",
+        {
+          branch: repository.defaultBranch
+        }
+      );
     } else {
-      state.branchMessage = {
-        text: `Loaded ${state.branches.length} branches.`,
-        tone: "success"
-      };
+      state.branchMessage = localizedMessage(
+        "options.message.branchesLoaded",
+        "success",
+        {
+          count: state.branches.length
+        }
+      );
     }
   } catch (error) {
     const normalized = normalizeError(error);
@@ -603,6 +569,7 @@ async function loadBranches(
       tone: "error"
     };
     await saveSettings({
+      uiLanguage: state.uiLanguage,
       connectionStatus: state.connectionStatus
     });
   } finally {
@@ -618,42 +585,40 @@ async function createBranch(
   const branchName = elements.createBranchInput.value.trim();
 
   if (state.selectedRepository === null) {
-    state.createBranchMessage = {
-      text: "Choose a repository before creating a branch.",
-      tone: "error"
-    };
+    state.createBranchMessage = localizedMessage(
+      "options.message.chooseRepositoryBeforeBranch",
+      "error"
+    );
     render(elements, state);
     return;
   }
 
   if (branchName.length === 0) {
-    state.createBranchMessage = {
-      text: "Enter a branch name.",
-      tone: "error"
-    };
+    state.createBranchMessage = localizedMessage(
+      "options.message.enterBranchName",
+      "error"
+    );
     render(elements, state);
     return;
   }
 
   if (state.branches.some((branch) => branch.name === branchName)) {
-    state.createBranchMessage = {
-      text: "Branch already exists. Select it from the branch picker.",
-      tone: "warning"
-    };
+    state.createBranchMessage = localizedMessage(
+      "options.message.branchAlreadyExists",
+      "warning"
+    );
     render(elements, state);
     return;
   }
 
   state.creatingBranch = true;
-  state.createBranchMessage = {
-    text: "Creating branch...",
-    tone: "neutral"
-  };
+  state.createBranchMessage = localizedMessage("action.creating", "neutral");
   render(elements, state);
 
   try {
     await saveSettings({
-      githubPat: normalizePat(state.githubPatInput)
+      githubPat: normalizePat(state.githubPatInput),
+      uiLanguage: state.uiLanguage
     });
 
     const response = await sendRuntimeMessage<BranchRef>({
@@ -671,10 +636,13 @@ async function createBranch(
     state.branches = mergeBranches(state.branches, [response.data]);
     state.selectedBranch = response.data;
     state.connectionStatus = createConnectionStatus("branch_created");
-    state.createBranchMessage = {
-      text: `Created branch ${response.data.name}.`,
-      tone: "success"
-    };
+    state.createBranchMessage = localizedMessage(
+      "options.message.branchCreated",
+      "success",
+      {
+        branch: response.data.name
+      }
+    );
     elements.createBranchInput.value = "";
 
     await saveSettings({
@@ -682,6 +650,7 @@ async function createBranch(
       selectedRepository: state.selectedRepository,
       selectedBranch: state.selectedBranch,
       autoSyncEnabled: state.autoSyncEnabled,
+      uiLanguage: state.uiLanguage,
       connectionStatus: state.connectionStatus
     });
   } catch (error) {
@@ -695,6 +664,7 @@ async function createBranch(
       tone: "error"
     };
     await saveSettings({
+      uiLanguage: state.uiLanguage,
       connectionStatus: state.connectionStatus
     });
   } finally {
@@ -714,7 +684,7 @@ async function testConnection(
     githubPat: state.githubPatInput,
     selectedRepository: state.selectedRepository,
     selectedBranch: state.selectedBranch
-  });
+  }, state.locale);
   applyValidationMessages(state, validation);
 
   if (!validation.isValid) {
@@ -733,6 +703,7 @@ async function testConnection(
       selectedRepository: state.selectedRepository,
       selectedBranch: state.selectedBranch,
       autoSyncEnabled: state.autoSyncEnabled,
+      uiLanguage: state.uiLanguage,
       connectionStatus: state.connectionStatus
     });
 
@@ -759,6 +730,7 @@ async function testConnection(
       selectedRepository: state.selectedRepository,
       selectedBranch: state.selectedBranch,
       autoSyncEnabled: state.autoSyncEnabled,
+      uiLanguage: state.uiLanguage,
       connectionStatus: state.connectionStatus
     });
   } catch (error) {
@@ -768,6 +740,7 @@ async function testConnection(
       normalized
     );
     await saveSettings({
+      uiLanguage: state.uiLanguage,
       connectionStatus: state.connectionStatus
     });
   } finally {
@@ -787,23 +760,20 @@ async function saveSettingsFromForm(
     githubPat: state.githubPatInput,
     selectedRepository: state.selectedRepository,
     selectedBranch: state.selectedBranch
-  });
+  }, state.locale);
   applyValidationMessages(state, validation);
 
   if (!validation.isValid) {
-    state.saveMessage = {
-      text: "Complete the required settings before saving.",
-      tone: "error"
-    };
+    state.saveMessage = localizedMessage(
+      "options.message.completeRequiredSettings",
+      "error"
+    );
     render(elements, state);
     return;
   }
 
   state.savingSettings = true;
-  state.saveMessage = {
-    text: "Saving settings...",
-    tone: "neutral"
-  };
+  state.saveMessage = localizedMessage("options.message.savingSettings", "neutral");
   render(elements, state);
 
   try {
@@ -812,12 +782,10 @@ async function saveSettingsFromForm(
       selectedRepository: state.selectedRepository,
       selectedBranch: state.selectedBranch,
       autoSyncEnabled: state.autoSyncEnabled,
+      uiLanguage: state.uiLanguage,
       connectionStatus: state.connectionStatus
     });
-    state.saveMessage = {
-      text: "Settings saved.",
-      tone: "success"
-    };
+    state.saveMessage = localizedMessage("options.message.settingsSaved", "success");
   } catch (error) {
     state.saveMessage = {
       text: normalizeError(error).userMessage,
@@ -840,6 +808,7 @@ function applySettingsToState(
     settings.selectedRepository === null ? [] : [settings.selectedRepository];
   state.branches = settings.selectedBranch === null ? [] : [settings.selectedBranch];
   state.autoSyncEnabled = settings.autoSyncEnabled;
+  setUiLanguage(state, settings.uiLanguage);
   state.connectionStatus = settings.connectionStatus;
 }
 
@@ -850,62 +819,93 @@ function applyValidationMessages(
   state.patMessage =
     validation.errors.githubPat === undefined
       ? EMPTY_MESSAGE
-      : {
-          text: validation.errors.githubPat,
-          tone: "error"
-        };
+      : localizedMessage("validation.githubPatRequired", "error");
   state.repositoryMessage =
     validation.errors.repository === undefined
       ? state.repositoryMessage
-      : {
-          text: validation.errors.repository,
-          tone: "error"
-        };
+      : localizedMessage("validation.repositoryRequired", "error");
   state.branchMessage =
     validation.errors.branch === undefined
       ? state.branchMessage
-      : {
-          text: validation.errors.branch,
-          tone: "error"
-        };
+      : localizedMessage("validation.branchRequired", "error");
 }
 
 function render(elements: OptionsElements, state: OptionsRuntimeState): void {
+  state.locale = getOptionsLocale(state.uiLanguage);
+  document.documentElement.lang = state.locale;
+  renderStaticText(state.locale);
+
   elements.status.textContent = state.loadingSettings
-    ? "Loading settings..."
-    : "Settings are stored in this browser profile.";
+    ? t(state.locale, "options.status.loadingSettings")
+    : t(state.locale, "options.status.storedProfile");
 
   elements.patInput.type = state.patVisible ? "text" : "password";
   elements.patInput.value = state.githubPatInput;
-  elements.togglePatButton.textContent = state.patVisible ? "Hide" : "Show";
-  renderInlineMessage(elements.patError, state.patMessage);
+  elements.togglePatButton.textContent = state.patVisible
+    ? t(state.locale, "action.hide")
+    : t(state.locale, "action.show");
+  renderInlineMessage(elements.patError, state.patMessage, state.locale);
 
   elements.repositorySearchInput.value = state.repositoryQuery;
   elements.loadRepositoriesButton.disabled = state.loadingRepositories;
   elements.loadRepositoriesButton.textContent = state.loadingRepositories
-    ? "Loading..."
-    : "Load repositories";
+    ? t(state.locale, "action.loading")
+    : t(state.locale, "action.loadRepositories");
   renderRepositorySelect(elements, state);
-  renderInlineMessage(elements.repositoryStatus, state.repositoryMessage);
+  renderInlineMessage(elements.repositoryStatus, state.repositoryMessage, state.locale);
 
   renderBranchSelect(elements, state);
-  renderInlineMessage(elements.branchStatus, state.branchMessage);
+  renderInlineMessage(elements.branchStatus, state.branchMessage, state.locale);
 
   renderCreateBranchControls(elements, state);
-  renderInlineMessage(elements.createBranchStatus, state.createBranchMessage);
+  renderInlineMessage(elements.createBranchStatus, state.createBranchMessage, state.locale);
 
   elements.autoSyncCheckbox.checked = state.autoSyncEnabled;
+  renderLanguageControls(elements, state);
 
   elements.testConnectionButton.disabled =
     state.testingConnection || state.selectedRepository === null || state.selectedBranch === null;
   elements.testConnectionButton.textContent = state.testingConnection
-    ? "Testing..."
-    : "Test connection";
-  renderConnectionStatus(elements.connectionStatusBox, state.connectionStatus);
+    ? t(state.locale, "status.testing")
+    : t(state.locale, "action.testConnection");
+  renderConnectionStatus(elements.connectionStatusBox, state.connectionStatus, state.locale);
 
   elements.saveButton.disabled = state.savingSettings;
-  elements.saveButton.textContent = state.savingSettings ? "Saving..." : "Save settings";
-  renderInlineMessage(elements.saveStatus, state.saveMessage);
+  elements.saveButton.textContent = state.savingSettings
+    ? t(state.locale, "action.saving")
+    : t(state.locale, "action.save");
+  renderInlineMessage(elements.saveStatus, state.saveMessage, state.locale);
+}
+
+function renderStaticText(locale: UiLocale): void {
+  for (const element of document.querySelectorAll<HTMLElement>("[data-i18n]")) {
+    const key = element.dataset.i18n;
+
+    if (key !== undefined) {
+      element.textContent = t(locale, key as I18nKey);
+    }
+  }
+
+  for (const element of document.querySelectorAll<HTMLInputElement>(
+    "[data-i18n-placeholder]"
+  )) {
+    const key = element.dataset.i18nPlaceholder;
+
+    if (key !== undefined) {
+      element.placeholder = t(locale, key as I18nKey);
+    }
+  }
+}
+
+function renderLanguageControls(
+  elements: OptionsElements,
+  state: OptionsRuntimeState
+): void {
+  for (const button of elements.languageButtons) {
+    const isSelected = button.dataset.languageOption === state.uiLanguage;
+    button.classList.toggle("selected", isSelected);
+    button.setAttribute("aria-pressed", String(isSelected));
+  }
 }
 
 function renderRepositorySelect(
@@ -921,7 +921,9 @@ function renderRepositorySelect(
     ...filterState.visibleRepositories.map((repository) => {
       const option = document.createElement("option");
       option.value = repository.fullName;
-      option.textContent = `${repository.fullName}${repository.private ? " (private)" : ""}`;
+      option.textContent = repository.private
+        ? `${repository.fullName} (${t(state.locale, "options.suffix.private")})`
+        : repository.fullName;
       return option;
     })
   );
@@ -941,10 +943,10 @@ function renderRepositorySelect(
     !filterState.hasMatches &&
     state.repositoryMessage.tone !== "error"
   ) {
-    state.repositoryMessage = {
-      text: "No repositories match the search.",
-      tone: "warning"
-    };
+    state.repositoryMessage = localizedMessage(
+      "options.message.noRepositorySearchMatches",
+      "warning"
+    );
   }
 }
 
@@ -959,7 +961,9 @@ function renderBranchSelect(
     ...state.branches.map((branch) => {
       const option = document.createElement("option");
       option.value = branch.name;
-      option.textContent = branch.protected ? `${branch.name} (protected)` : branch.name;
+      option.textContent = branch.protected
+        ? `${branch.name} (${t(state.locale, "options.suffix.protected")})`
+        : branch.name;
       return option;
     })
   );
@@ -989,33 +993,57 @@ function renderCreateBranchControls(
     state.selectedRepository === null || state.loadingBranches || state.creatingBranch;
   elements.createBranchButton.disabled = !canCreate;
   elements.createBranchButton.textContent = state.creatingBranch
-    ? "Creating..."
-    : "Create branch";
+    ? t(state.locale, "action.creating")
+    : t(state.locale, "action.createBranch");
 
   if (
     branchName.length > 0 &&
     branchAlreadyExists &&
     state.createBranchMessage.text.length === 0
   ) {
-    state.createBranchMessage = {
-      text: "Branch already exists. Select it from the branch picker.",
-      tone: "warning"
-    };
+    state.createBranchMessage = localizedMessage(
+      "options.message.branchAlreadyExists",
+      "warning"
+    );
   }
 }
 
 function renderConnectionStatus(
   element: HTMLDivElement,
-  status: ConnectionStatus
+  status: ConnectionStatus,
+  locale: UiLocale
 ): void {
-  const view = getConnectionStatusView(status);
+  const view = getSharedConnectionStatusView(locale, status);
   element.className = `status-box ${view.tone}`;
   element.textContent = view.detail === null ? view.label : `${view.label}. ${view.detail}`;
 }
 
-function renderInlineMessage(element: HTMLParagraphElement, message: InlineMessage): void {
+function getOptionsLocale(preference: UiLanguagePreference): UiLocale {
+  return resolveUiLocale(preference, getBrowserLanguage());
+}
+
+function setUiLanguage(
+  state: OptionsRuntimeState,
+  preference: UiLanguagePreference
+): void {
+  state.uiLanguage = preference;
+  state.locale = getOptionsLocale(preference);
+}
+
+function getBrowserLanguage(): string | null {
+  return typeof navigator === "undefined" ? null : navigator.language;
+}
+
+function renderInlineMessage(
+  element: HTMLParagraphElement,
+  message: InlineMessage,
+  locale: UiLocale
+): void {
   element.className = `field-message ${message.tone === "neutral" ? "" : message.tone}`.trim();
-  element.textContent = message.text;
+  element.textContent =
+    message.i18nKey === undefined
+      ? message.text
+      : t(locale, message.i18nKey, message.i18nParams ?? {});
 }
 
 function collectElements(): OptionsElements {
@@ -1035,11 +1063,24 @@ function collectElements(): OptionsElements {
     createBranchButton: requireElement("create-branch", HTMLButtonElement),
     createBranchStatus: requireElement("create-branch-status", HTMLParagraphElement),
     autoSyncCheckbox: requireElement("auto-sync-enabled", HTMLInputElement),
+    languageButtons: collectLanguageButtons(),
     testConnectionButton: requireElement("test-connection", HTMLButtonElement),
     connectionStatusBox: requireElement("connection-status", HTMLDivElement),
     saveButton: requireElement("save-settings", HTMLButtonElement),
     saveStatus: requireElement("save-status", HTMLParagraphElement)
   };
+}
+
+function collectLanguageButtons(): HTMLButtonElement[] {
+  const buttons = [
+    ...document.querySelectorAll<HTMLButtonElement>("[data-language-option]")
+  ];
+
+  if (buttons.length === 0) {
+    throw new Error("Missing options element: language selector");
+  }
+
+  return buttons;
 }
 
 function requireElement<T extends HTMLElement>(
@@ -1059,7 +1100,7 @@ async function readSettings(): Promise<SettingsState> {
   const values = await chrome.storage.local.get([STORAGE_KEYS.settings]);
   const value = values[STORAGE_KEYS.settings];
 
-  return isSettingsState(value) ? value : DEFAULT_SETTINGS_STATE;
+  return parseSettingsState(value) ?? DEFAULT_SETTINGS_STATE;
 }
 
 async function saveSettings(

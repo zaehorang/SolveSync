@@ -3,56 +3,88 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SolveSync Popup</title>
+    <title>SolveSync</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
     <main class="popup-shell" aria-labelledby="popup-title">
       <header class="popup-header">
         <div>
-          <p class="eyebrow">Problem sync</p>
+          <p class="eyebrow" data-i18n="popup.page.eyebrow"></p>
           <h1 id="popup-title">SolveSync</h1>
         </div>
-        <button id="open-options" class="button secondary" type="button">
-          Options
+        <button
+          id="open-options"
+          class="button secondary"
+          type="button"
+          data-i18n="action.openOptions"
+        >
         </button>
       </header>
 
-      <section class="panel" aria-labelledby="setup-title">
+      <section
+        id="setup-card"
+        class="status-card neutral"
+        aria-labelledby="setup-title"
+        aria-live="polite"
+      >
+        <div id="setup-marker" class="status-marker" aria-hidden="true">i</div>
+        <div class="status-card-copy">
+          <div class="section-heading compact">
+            <p class="eyebrow" data-i18n="popup.section.status"></p>
+            <p id="popup-status" class="status-text" aria-live="polite"></p>
+          </div>
+          <h2 id="setup-title" data-i18n="status.loadingSettings"></h2>
+          <p id="setup-detail" data-i18n="detail.loadingSettings"></p>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="controls-title">
         <div class="section-heading">
-          <h2 id="setup-title">Setup status</h2>
-          <p id="popup-status" class="status-text" aria-live="polite">
-            Loading...
-          </p>
+          <h2 id="controls-title" data-i18n="popup.section.controls"></h2>
         </div>
-
-        <div id="setup-summary" class="status-box neutral" aria-live="polite">
-          Loading settings...
-        </div>
-
         <label class="toggle-row" for="auto-sync-toggle">
           <input id="auto-sync-toggle" type="checkbox" />
           <span>
-            <strong>Auto Sync</strong>
-            <small id="auto-sync-copy">Accepted submissions sync automatically.</small>
+            <strong data-i18n="popup.autoSync.title"></strong>
+            <small id="auto-sync-copy" data-i18n="popup.autoSync.on"></small>
           </span>
         </label>
         <p id="auto-sync-status" class="field-message" aria-live="polite"></p>
-        <p class="security-note">
-          PAT and retry payload code can be stored locally. LeetCode/Programmers
-          problem descriptions are not stored.
+
+        <dl class="summary-list">
+          <div class="summary-row">
+            <dt data-i18n="popup.summary.connection"></dt>
+            <dd>
+              <strong id="connection-summary" data-i18n="status.notTested"></strong>
+              <small id="connection-detail"></small>
+            </dd>
+          </div>
+          <div class="summary-row">
+            <dt data-i18n="popup.summary.repository"></dt>
+            <dd>
+              <strong id="repository-summary" data-i18n="popup.summary.notSelected"></strong>
+            </dd>
+          </div>
+          <div class="summary-row">
+            <dt data-i18n="popup.summary.branch"></dt>
+            <dd>
+              <strong id="branch-summary" data-i18n="popup.summary.notSelected"></strong>
+            </dd>
+          </div>
+        </dl>
+
+        <p class="security-note" data-i18n="popup.security.note">
         </p>
       </section>
 
       <section class="panel history-panel" aria-labelledby="history-title">
         <div class="section-heading">
-          <h2 id="history-title">Recent syncs</h2>
-          <p id="history-count" class="status-text">0 records</p>
+          <h2 id="history-title" data-i18n="popup.section.history"></h2>
+          <p id="history-count" class="status-text"></p>
         </div>
 
-        <p id="history-empty" class="empty-state">
-          Accepted submissions will appear here after sync runs.
-        </p>
+        <p id="history-empty" class="empty-state" data-i18n="history.empty"></p>
         <ul id="history-list" class="history-list" aria-live="polite"></ul>
       </section>
     </main>

@@ -58,6 +58,23 @@ describe("options state helpers", () => {
     });
   });
 
+  it("localizes validation messages for the selected locale", () => {
+    const validation = validateSettingsDraft(
+      {
+        githubPat: " ",
+        selectedRepository: null,
+        selectedBranch: null
+      },
+      "ko"
+    );
+
+    expect(validation.errors).toMatchObject({
+      githubPat: "GitHub PAT가 필요합니다.",
+      repository: "본인 저장소 목록에서 저장소를 선택하세요.",
+      branch: "기존 branch를 선택하거나 먼저 생성하세요."
+    });
+  });
+
   it("maps connection status and normalized errors to user-facing labels", () => {
     const error = makeError("github_auth_failed", "GitHub authentication failed.");
 
@@ -70,6 +87,13 @@ describe("options state helpers", () => {
       label: "Auth failed",
       detail: "GitHub authentication failed.",
       tone: "error"
+    });
+  });
+
+  it("localizes connection status labels without changing status behavior", () => {
+    expect(getConnectionStatusView("connected", null, "ko")).toMatchObject({
+      label: "연결됨",
+      tone: "success"
     });
   });
 });
