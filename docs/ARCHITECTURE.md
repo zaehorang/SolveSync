@@ -1,5 +1,7 @@
 # 아키텍처
 
+> **Description**: SolveSync의 런타임 구조, 모듈 경계, 데이터 흐름, 저장소 모델, 외부 연동 규칙을 정의하는 기술 설계 문서다.
+
 ## 시스템 개요
 SolveSync는 standalone Chrome extension이다. LeetCode와 Programmers 문제 페이지를 관찰해 Accepted 제출을 감지하고, 설정된 GitHub 저장소에 풀이 파일을 커밋한다.
 

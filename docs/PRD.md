@@ -1,5 +1,7 @@
 # PRD: SolveSync
 
+> **Description**: SolveSync v1의 제품 문제, 사용자, 범위, 핵심 흐름, 성공 기준을 정의하는 요구사항 문서다.
+
 ## 개요
 SolveSync는 LeetCode와 Programmers에서 Accepted 된 풀이를 GitHub 문제 풀이 저장소로 자동 동기화하는 개인용 Chrome 확장이다. 사용자가 문제를 푼 뒤 코드 복사, 파일 위치 선택, 커밋, README 갱신, push를 반복하지 않도록 만드는 것이 목적이다.
 

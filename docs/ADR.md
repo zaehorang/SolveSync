@@ -1,5 +1,7 @@
 # Architecture Decision Records
 
+> **Description**: SolveSync에서 되돌리기 어렵거나 설계 방향을 고정하는 주요 결정과 그 이유, 트레이드오프를 기록하는 문서다.
+
 ## 철학
 SolveSync는 안정적인 개인 워크플로우를 먼저 최적화한다. 확장은 로컬에서 간단히 설치할 수 있어야 하고, 보안 tradeoff를 명확히 알려야 하며, LeetCode, Programmers, GitHub 변경이 생겨도 영향 범위가 좁아야 한다.
 
