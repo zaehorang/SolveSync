@@ -19,6 +19,7 @@ from scripts.harness.phase_index import (
     validate_phase_indexes,
     write_json,
 )
+from scripts.harness.runner import HarnessConfig, HarnessRunner
 
 __all__ = [
     "BlockedStep",
@@ -26,7 +27,9 @@ __all__ = [
     "DEFAULT_TIMEOUT_SEC",
     "FailedStep",
     "GitOperationError",
+    "HarnessConfig",
     "HarnessError",
+    "HarnessRunner",
     "PhaseValidationError",
     "StepConfig",
     "build_step_context",
