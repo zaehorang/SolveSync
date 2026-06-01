@@ -13,7 +13,10 @@
     {
       "step": 1,
       "name": "phase-index-core",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-06-02T00:38:39+0900",
+      "summary": "phase index core package added with validation, defaults, guardrail loading, and summary context tests",
+      "completed_at": "2026-06-02T00:45:26+0900"
     },
     {
       "step": 2,
