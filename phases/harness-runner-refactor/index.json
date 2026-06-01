@@ -45,7 +45,10 @@
     {
       "step": 5,
       "name": "harness-skill-docs",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-06-02T01:12:33+0900",
+      "summary": "harness skill documentation updated for modular runner, dirty preflight, step retry/timeout options, prompt context, and quality gate timing",
+      "completed_at": "2026-06-02T01:14:51+0900"
     },
     {
       "step": 6,
