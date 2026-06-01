@@ -1,0 +1,45 @@
+{
+  "project": "SolveSync",
+  "phase": "harness-runner-refactor",
+  "steps": [
+    {
+      "step": 0,
+      "name": "characterization-tests",
+      "status": "completed",
+      "started_at": "2026-06-02T00:35:53+0900",
+      "summary": "characterization tests added for existing harness runner prompt, log, retry, finalization, and quality gate timing behavior",
+      "completed_at": "2026-06-02T00:38:36+0900"
+    },
+    {
+      "step": 1,
+      "name": "phase-index-core",
+      "status": "pending"
+    },
+    {
+      "step": 2,
+      "name": "codex-client-module",
+      "status": "pending"
+    },
+    {
+      "step": 3,
+      "name": "git-ops-quality-gate",
+      "status": "pending"
+    },
+    {
+      "step": 4,
+      "name": "runner-integration",
+      "status": "pending"
+    },
+    {
+      "step": 5,
+      "name": "harness-skill-docs",
+      "status": "pending"
+    },
+    {
+      "step": 6,
+      "name": "integration-validation",
+      "status": "pending"
+    }
+  ],
+  "created_at": "2026-06-02T00:35:53+0900"
+}
