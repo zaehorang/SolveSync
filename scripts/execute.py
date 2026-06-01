@@ -24,6 +24,9 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Any, Optional
 
+from scripts.harness.errors import GitOperationError
+from scripts.harness.git_ops import GitOps
+
 ROOT = Path(__file__).resolve().parent.parent
 
 
@@ -78,12 +81,18 @@ class StepExecutor:
         self._project = idx.get("project", "project")
         self._phase_name = idx.get("phase", phase_dir_name)
         self._total = len(idx["steps"])
+        self._git_ops = GitOps(
+            root_path=ROOT,
+            phase_name=self._phase_name,
+            phase_dir_name=self._phase_dir_name,
+        )
 
     # 하네스 실행의 최상위 흐름을 순서대로 조율한다.
     def run(self):
         # 실행 전 검증과 branch 준비를 끝낸 뒤, guardrail context를 만들어 모든 step에 주입한다.
         self._print_header()
         self._check_blockers()
+        self._git_ops.ensure_clean_worktree()
         if self._is_already_completed():
             print("\n  Phase already completed; no pending runner work.")
             if self._auto_push:
@@ -119,92 +128,20 @@ class StepExecutor:
 
     # 저장소 루트에서 git 명령을 실행하고 결과를 호출자에게 돌려준다.
     def _run_git(self, *args) -> subprocess.CompletedProcess:
-        cmd = ["git"] + list(args)
-        return subprocess.run(cmd, cwd=self._root, capture_output=True, text=True)
+        return self._git_ops._run_git(*args)
 
     # phase 이름에 맞는 feature branch를 준비하고 checkout한다.
     def _checkout_branch(self):
-        branch = f"feat-{self._phase_name}"
-
-        # 먼저 git repository인지 확인하고 현재 branch가 이미 목표 branch인지 판단한다.
-        r = self._run_git("rev-parse", "--git-dir")
-        if r.returncode != 0:
-            print("  ERROR: git을 사용할 수 없거나 git repo가 아닙니다.")
-            print(f"  {r.stderr.strip()}")
-            sys.exit(1)
-
-        r = self._run_git("symbolic-ref", "--quiet", "--short", "HEAD")
-        current_branch = r.stdout.strip() if r.returncode == 0 else ""
-
-        if current_branch == branch:
-            return
-
-        # 기존 branch가 있으면 checkout하고, 없으면 새 branch를 만든다.
-        r = self._run_git("rev-parse", "--verify", branch)
-        r = self._run_git("checkout", branch) if r.returncode == 0 else self._run_git("checkout", "-b", branch)
-
-        if r.returncode != 0:
-            print(f"  ERROR: 브랜치 '{branch}' checkout 실패.")
-            print(f"  {r.stderr.strip()}")
-            print("  Hint: 변경사항을 stash하거나 commit한 후 다시 시도하세요.")
-            sys.exit(1)
-
-        print(f"  Branch: {branch}")
+        self._git_ops.checkout_branch()
 
     # 커밋 직전에 프로젝트 품질 검증 스크립트를 실행한다.
     def _run_quality_gate(self) -> bool:
-        gate = Path(self._root) / "scripts" / "quality_gate.py"
-        if not gate.exists():
-            return True
-
-        r = subprocess.run([sys.executable, str(gate)], cwd=self._root, capture_output=True, text=True)
-        if r.returncode == 0:
-            return True
-
-        print("\n  ERROR: quality gate failed before commit.")
-        if r.stdout:
-            print(r.stdout.strip())
-        if r.stderr:
-            print(r.stderr.strip())
-        return False
+        self._git_ops.run_quality_gate()
+        return True
 
     # step 실행으로 생긴 코드 변경과 하네스 산출물을 나눠 커밋한다.
     def _commit_step(self, step_num: int, step_name: str):
-        live_log_rel = f"phases/{self._phase_dir_name}/step{step_num}-live.log"
-        index_rel = f"phases/{self._phase_dir_name}/index.json"
-        has_head = self._run_git("rev-parse", "--verify", "HEAD").returncode == 0
-
-        # 전체 변경을 stage한 뒤, live log/index는 먼저 제외해서 코드 변경 커밋과 분리한다.
-        self._run_git("add", "-A")
-        if has_head:
-            self._run_git("reset", "HEAD", "--", live_log_rel)
-            self._run_git("reset", "HEAD", "--", index_rel)
-        else:
-            self._run_git("rm", "--cached", "--ignore-unmatch", "--", live_log_rel)
-            self._run_git("rm", "--cached", "--ignore-unmatch", "--", index_rel)
-
-        # 코드 변경이 있으면 quality gate를 통과한 뒤 feature commit을 만든다.
-        if self._run_git("diff", "--cached", "--quiet").returncode != 0:
-            if not self._run_quality_gate():
-                sys.exit(1)
-            msg = self.FEAT_MSG.format(phase=self._phase_name, num=step_num, name=step_name)
-            r = self._run_git("commit", "-m", msg)
-            if r.returncode == 0:
-                print(f"  Commit: {msg}")
-            else:
-                print(f"  WARN: 코드 커밋 실패: {r.stderr.strip()}")
-
-        # 마지막으로 index 같은 실행 기록을 housekeeping commit으로 남긴다. live log는 로컬 관찰용이다.
-        self._run_git("add", "-A")
-        if has_head:
-            self._run_git("reset", "HEAD", "--", live_log_rel)
-        else:
-            self._run_git("rm", "--cached", "--ignore-unmatch", "--", live_log_rel)
-        if self._run_git("diff", "--cached", "--quiet").returncode != 0:
-            msg = self.CHORE_MSG.format(phase=self._phase_name, num=step_num)
-            r = self._run_git("commit", "-m", msg)
-            if r.returncode != 0:
-                print(f"  WARN: housekeeping 커밋 실패: {r.stderr.strip()}")
+        self._git_ops.commit_step(step_num, step_name)
 
     # --- top-level index ---
 
@@ -709,21 +646,11 @@ class StepExecutor:
         self._update_top_index("completed")
 
         # 완료 timestamp처럼 남아 있는 metadata 변경이 있으면 별도 커밋으로 정리한다.
-        self._run_git("add", "-A")
-        if self._run_git("diff", "--cached", "--quiet").returncode != 0:
-            msg = f"chore({self._phase_name}): mark phase completed"
-            r = self._run_git("commit", "-m", msg)
-            if r.returncode == 0:
-                print(f"  ✓ {msg}")
+        self._git_ops.commit_phase_completed()
 
         # 사용자가 --push를 지정한 경우에만 원격 branch에 push한다.
         if self._auto_push:
-            branch = f"feat-{self._phase_name}"
-            r = self._run_git("push", "-u", "origin", branch)
-            if r.returncode != 0:
-                print(f"\n  ERROR: git push 실패: {r.stderr.strip()}")
-                sys.exit(1)
-            print(f"  ✓ Pushed to origin/{branch}")
+            self._git_ops.push_phase_branch()
 
         print(f"\n{'='*60}")
         print(f"  Phase '{self._phase_name}' completed!")
@@ -737,7 +664,11 @@ def main():
     parser.add_argument("--push", action="store_true", help="Push branch after completion")
     args = parser.parse_args()
 
-    StepExecutor(args.phase_dir, auto_push=args.push).run()
+    try:
+        StepExecutor(args.phase_dir, auto_push=args.push).run()
+    except GitOperationError as exc:
+        print(f"\n  ERROR: {exc}")
+        sys.exit(1)
 
 
 if __name__ == "__main__":

@@ -10,6 +10,7 @@ typecheck/lint/test/build 계열 명령만 실행한다. 검증 명령이 없으
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -19,9 +20,14 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 
 
+QUALITY_GATE_ENV = "SOLVESYNC_QUALITY_GATE_RUNNING"
+
+
 def _run(cmd: list[str]) -> int:
     print(f"$ {' '.join(cmd)}", flush=True)
-    result = subprocess.run(cmd, cwd=ROOT)
+    env = os.environ.copy()
+    env[QUALITY_GATE_ENV] = "1"
+    result = subprocess.run(cmd, cwd=ROOT, env=env)
     return result.returncode
 
 
@@ -69,7 +75,8 @@ def _python_commands() -> list[list[str]]:
         (ROOT / name).exists()
         for name in ("pyproject.toml", "pytest.ini", "setup.cfg", "tox.ini")
     )
-    has_tests = (ROOT / "tests").is_dir() or any((ROOT / "scripts").glob("test_*.py"))
+    has_script_tests = any((ROOT / "scripts").glob("test_*.py"))
+    has_tests = (ROOT / "tests").is_dir() or has_script_tests
     if not has_python_project and not has_tests:
         return []
 
@@ -77,14 +84,8 @@ def _python_commands() -> list[list[str]]:
     if shutil.which("ruff"):
         commands.append(["ruff", "check", "."])
 
-    can_import_pytest = subprocess.run(
-        [sys.executable, "-c", "import pytest"],
-        cwd=ROOT,
-        capture_output=True,
-        text=True,
-    ).returncode == 0
-    if can_import_pytest and has_tests:
-        commands.append([sys.executable, "-m", "pytest"])
+    if has_script_tests and os.environ.get(QUALITY_GATE_ENV) != "1":
+        commands.append(["python3", "-m", "unittest", "discover", "-s", "scripts", "-p", "test_*.py"])
     return commands
 
 

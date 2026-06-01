@@ -4,7 +4,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 
 def _load_execute_module():
@@ -187,73 +187,76 @@ class StepExecutorHelperTests(unittest.TestCase):
             self.assertTrue((phase_dir / "step0-live.log").exists())
             self.assertFalse((phase_dir / "step0-output.json").exists())
 
-    def test_commit_step_excludes_live_log_without_output_json_path(self):
+    def test_commit_step_delegates_to_git_ops(self):
         executor = object.__new__(execute.StepExecutor)
-        executor._phase_dir_name = "demo"
-        executor._phase_name = "demo"
-        calls = []
+        executor._git_ops = Mock()
 
-        def run_git(*args):
-            calls.append(args)
-            return execute.subprocess.CompletedProcess(["git", *args], 0, "", "")
+        executor._commit_step(2, "setup")
 
-        with patch.object(executor, "_run_git", side_effect=run_git):
-            executor._commit_step(2, "setup")
+        executor._git_ops.commit_step.assert_called_once_with(2, "setup")
 
-        self.assertGreaterEqual(calls.count(("reset", "HEAD", "--", "phases/demo/step2-live.log")), 2)
-        self.assertNotIn("phases/demo/step2-output.json", " ".join(" ".join(call) for call in calls))
+    def test_run_performs_dirty_preflight_before_completed_short_circuit(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            phase_dir = root / "phases" / "demo"
+            phase_dir.mkdir(parents=True)
+            (root / "phases" / "index.json").write_text(
+                json.dumps({"phases": [{"dir": "demo", "status": "completed"}]}),
+                encoding="utf-8",
+            )
+            (phase_dir / "index.json").write_text(
+                json.dumps({
+                    "project": "SolveSync",
+                    "phase": "demo",
+                    "steps": [
+                        {
+                            "step": 0,
+                            "name": "setup",
+                            "status": "completed",
+                            "summary": "done",
+                        }
+                    ],
+                }),
+                encoding="utf-8",
+            )
+            executor = self._make_executor(root)
 
-    def test_commit_step_runs_quality_gate_only_when_feature_commit_is_needed(self):
-        executor = object.__new__(execute.StepExecutor)
-        executor._phase_dir_name = "demo"
-        executor._phase_name = "demo"
-        calls = []
-        diff_calls = 0
+            with (
+                patch.object(executor._git_ops, "ensure_clean_worktree") as ensure_clean,
+                patch.object(executor, "_checkout_branch") as checkout,
+            ):
+                executor.run()
 
-        def run_git(*args):
-            nonlocal diff_calls
-            calls.append(args)
-            returncode = 0
-            if args == ("diff", "--cached", "--quiet"):
-                diff_calls += 1
-                returncode = 1 if diff_calls == 1 else 0
-            return execute.subprocess.CompletedProcess(["git", *args], returncode, "", "")
+            ensure_clean.assert_called_once_with()
+            checkout.assert_not_called()
 
-        with (
-            patch.object(executor, "_run_git", side_effect=run_git),
-            patch.object(executor, "_run_quality_gate", return_value=True) as quality_gate,
-        ):
-            executor._commit_step(1, "code-change")
+    def test_finalize_delegates_metadata_commit_and_push_to_git_ops(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            phase_dir = root / "phases" / "demo"
+            phase_dir.mkdir(parents=True)
+            index_file = phase_dir / "index.json"
+            top_index_file = root / "phases" / "index.json"
+            index_file.write_text(
+                json.dumps({"project": "SolveSync", "phase": "demo", "steps": []}),
+                encoding="utf-8",
+            )
+            top_index_file.write_text(
+                json.dumps({"phases": [{"dir": "demo", "status": "pending"}]}),
+                encoding="utf-8",
+            )
+            executor = object.__new__(execute.StepExecutor)
+            executor._index_file = index_file
+            executor._top_index_file = top_index_file
+            executor._phase_dir_name = "demo"
+            executor._phase_name = "demo"
+            executor._auto_push = True
+            executor._git_ops = Mock()
 
-        quality_gate.assert_called_once_with()
-        self.assertIn(("commit", "-m", "feat(demo): step 1 — code-change"), calls)
-        self.assertNotIn(("commit", "-m", "chore(demo): step 1 metadata"), calls)
+            executor._finalize()
 
-    def test_commit_step_skips_quality_gate_for_metadata_only_commit(self):
-        executor = object.__new__(execute.StepExecutor)
-        executor._phase_dir_name = "demo"
-        executor._phase_name = "demo"
-        calls = []
-        diff_calls = 0
-
-        def run_git(*args):
-            nonlocal diff_calls
-            calls.append(args)
-            returncode = 0
-            if args == ("diff", "--cached", "--quiet"):
-                diff_calls += 1
-                returncode = 0 if diff_calls == 1 else 1
-            return execute.subprocess.CompletedProcess(["git", *args], returncode, "", "")
-
-        with (
-            patch.object(executor, "_run_git", side_effect=run_git),
-            patch.object(executor, "_run_quality_gate") as quality_gate,
-        ):
-            executor._commit_step(1, "metadata-only")
-
-        quality_gate.assert_not_called()
-        self.assertNotIn(("commit", "-m", "feat(demo): step 1 — metadata-only"), calls)
-        self.assertIn(("commit", "-m", "chore(demo): step 1 metadata"), calls)
+            executor._git_ops.commit_phase_completed.assert_called_once_with()
+            executor._git_ops.push_phase_branch.assert_called_once_with()
 
     def test_is_already_completed_uses_top_level_phase_status(self):
         with tempfile.TemporaryDirectory() as tmp:
