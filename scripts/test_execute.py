@@ -43,6 +43,66 @@ class StepExecutorHelperTests(unittest.TestCase):
         self.assertNotIn("api", context)
         self.assertNotIn("not yet done", context)
 
+    def test_load_guardrails_includes_agents_and_docs_context(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            docs_dir = root / "docs"
+            docs_dir.mkdir()
+            (root / "AGENTS.md").write_text("agent guardrails", encoding="utf-8")
+            (docs_dir / "ADR.md").write_text("adr decisions", encoding="utf-8")
+            (docs_dir / "ARCHITECTURE.md").write_text("architecture rules", encoding="utf-8")
+
+            old_root = execute.ROOT
+            execute.ROOT = root
+            self.addCleanup(setattr, execute, "ROOT", old_root)
+            executor = object.__new__(execute.StepExecutor)
+
+            guardrails = executor._load_guardrails()
+
+        self.assertIn("## 프로젝트 규칙 (AGENTS.md)", guardrails)
+        self.assertIn("agent guardrails", guardrails)
+        self.assertIn("## ADR", guardrails)
+        self.assertIn("adr decisions", guardrails)
+        self.assertIn("## ARCHITECTURE", guardrails)
+        self.assertIn("architecture rules", guardrails)
+
+    def test_build_preamble_includes_completed_step_context_for_next_prompt(self):
+        executor = object.__new__(execute.StepExecutor)
+        executor._project = "SolveSync"
+        executor._phase_dir_name = "demo"
+        index = {
+            "steps": [
+                {"step": 0, "name": "setup", "status": "completed", "summary": "created base files"},
+                {"step": 1, "name": "api", "status": "pending"},
+            ]
+        }
+
+        preamble = executor._build_preamble(
+            "guardrails",
+            execute.StepExecutor._build_step_context(index),
+            None,
+        )
+
+        self.assertIn("## 이전 Step 산출물", preamble)
+        self.assertIn("- Step 0 (setup): created base files", preamble)
+
+    def test_format_retry_error_includes_previous_error_and_execution_details(self):
+        retry_error = execute.StepExecutor._format_retry_error(
+            "previous failure",
+            {
+                "exitCode": 1,
+                "liveLogPath": "phases/demo/step0-live.log",
+                "commands": ["npm test", "npm run build"],
+                "stderrTail": ["first stderr", "last stderr"],
+            },
+        )
+
+        self.assertIn("previous failure", retry_error)
+        self.assertIn("Codex exit code: 1", retry_error)
+        self.assertIn("Live log: phases/demo/step0-live.log", retry_error)
+        self.assertIn("Observed commands: npm test; npm run build", retry_error)
+        self.assertIn("stderr tail: first stderr | last stderr", retry_error)
+
     def test_json_helpers_round_trip_non_ascii_values(self):
         payload = {"status": "completed", "summary": "한글 요약"}
 
@@ -142,6 +202,58 @@ class StepExecutorHelperTests(unittest.TestCase):
 
         self.assertGreaterEqual(calls.count(("reset", "HEAD", "--", "phases/demo/step2-live.log")), 2)
         self.assertNotIn("phases/demo/step2-output.json", " ".join(" ".join(call) for call in calls))
+
+    def test_commit_step_runs_quality_gate_only_when_feature_commit_is_needed(self):
+        executor = object.__new__(execute.StepExecutor)
+        executor._phase_dir_name = "demo"
+        executor._phase_name = "demo"
+        calls = []
+        diff_calls = 0
+
+        def run_git(*args):
+            nonlocal diff_calls
+            calls.append(args)
+            returncode = 0
+            if args == ("diff", "--cached", "--quiet"):
+                diff_calls += 1
+                returncode = 1 if diff_calls == 1 else 0
+            return execute.subprocess.CompletedProcess(["git", *args], returncode, "", "")
+
+        with (
+            patch.object(executor, "_run_git", side_effect=run_git),
+            patch.object(executor, "_run_quality_gate", return_value=True) as quality_gate,
+        ):
+            executor._commit_step(1, "code-change")
+
+        quality_gate.assert_called_once_with()
+        self.assertIn(("commit", "-m", "feat(demo): step 1 — code-change"), calls)
+        self.assertNotIn(("commit", "-m", "chore(demo): step 1 metadata"), calls)
+
+    def test_commit_step_skips_quality_gate_for_metadata_only_commit(self):
+        executor = object.__new__(execute.StepExecutor)
+        executor._phase_dir_name = "demo"
+        executor._phase_name = "demo"
+        calls = []
+        diff_calls = 0
+
+        def run_git(*args):
+            nonlocal diff_calls
+            calls.append(args)
+            returncode = 0
+            if args == ("diff", "--cached", "--quiet"):
+                diff_calls += 1
+                returncode = 0 if diff_calls == 1 else 1
+            return execute.subprocess.CompletedProcess(["git", *args], returncode, "", "")
+
+        with (
+            patch.object(executor, "_run_git", side_effect=run_git),
+            patch.object(executor, "_run_quality_gate") as quality_gate,
+        ):
+            executor._commit_step(1, "metadata-only")
+
+        quality_gate.assert_not_called()
+        self.assertNotIn(("commit", "-m", "feat(demo): step 1 — metadata-only"), calls)
+        self.assertIn(("commit", "-m", "chore(demo): step 1 metadata"), calls)
 
     def test_is_already_completed_uses_top_level_phase_status(self):
         with tempfile.TemporaryDirectory() as tmp:

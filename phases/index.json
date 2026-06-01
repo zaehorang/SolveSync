@@ -19,6 +19,10 @@
       "dir": "2-liquid-glass-ui",
       "status": "completed",
       "completed_at": "2026-05-29T18:27:43+0900"
+    },
+    {
+      "dir": "harness-runner-refactor",
+      "status": "pending"
     }
   ]
 }
