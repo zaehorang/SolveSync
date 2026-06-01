@@ -11,11 +11,14 @@ from scripts.harness.phase_index import (
     DEFAULT_MAX_ATTEMPTS,
     DEFAULT_TIMEOUT_SEC,
     StepConfig,
+    StepStatus,
     build_step_context,
+    clear_step_fields,
     load_guardrails,
     load_step_configs,
     read_json,
     stamp,
+    update_step,
     validate_phase_indexes,
     write_json,
 )
@@ -37,6 +40,62 @@ class PhaseIndexHelperTests(unittest.TestCase):
 
     def test_stamp_uses_existing_kst_format(self):
         self.assertRegex(stamp(), re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+0900$"))
+
+    def test_step_status_values_match_validation_contract(self):
+        self.assertEqual(
+            StepStatus.values(),
+            {"pending", "completed", "error", "blocked"},
+        )
+
+    def test_update_step_updates_only_target_step(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._write_phase(
+                root,
+                "demo",
+                [
+                    {"step": 0, "name": "setup", "status": "pending"},
+                    {"step": 1, "name": "api", "status": "pending"},
+                ],
+            )
+            index_path = root / "phases" / "demo" / "index.json"
+
+            updated = update_step(index_path, 1, status="completed", summary="done")
+
+            self.assertEqual(updated["steps"][0]["status"], "pending")
+            self.assertEqual(updated["steps"][1]["status"], "completed")
+            self.assertEqual(read_json(index_path)["steps"][1]["summary"], "done")
+
+    def test_update_step_requires_existing_step(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._write_phase(root, "demo", [{"step": 0, "name": "setup", "status": "pending"}])
+
+            with self.assertRaisesRegex(PhaseValidationError, "step 1"):
+                update_step(root / "phases" / "demo" / "index.json", 1, status="completed")
+
+    def test_clear_step_fields_removes_only_requested_fields(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._write_phase(
+                root,
+                "demo",
+                [
+                    {
+                        "step": 0,
+                        "name": "setup",
+                        "status": "error",
+                        "error_message": "boom",
+                        "failed_at": "now",
+                    }
+                ],
+            )
+            index_path = root / "phases" / "demo" / "index.json"
+
+            updated = clear_step_fields(index_path, 0, "error_message", "missing")
+
+            self.assertNotIn("error_message", updated["steps"][0])
+            self.assertEqual(updated["steps"][0]["failed_at"], "now")
 
     def test_load_guardrails_includes_agents_and_sorted_docs_with_separators(self):
         with tempfile.TemporaryDirectory() as tmp:

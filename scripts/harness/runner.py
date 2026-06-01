@@ -13,11 +13,14 @@ from scripts.harness.phase_index import (
     DEFAULT_MAX_ATTEMPTS,
     DEFAULT_TIMEOUT_SEC,
     StepConfig,
+    StepStatus,
     build_step_context,
+    clear_step_fields,
     load_guardrails,
     load_step_configs,
     read_json,
     stamp,
+    update_step,
     write_json,
 )
 
@@ -109,13 +112,17 @@ class HarnessRunner:
             print("  Auto-push: enabled")
         print(f"{'=' * 60}")
 
-    def _update_top_index(self, status: str) -> None:
+    def _update_top_index(self, status: StepStatus) -> None:
         top = read_json(self._top_index_file)
         ts = stamp()
         for phase in top.get("phases", []):
             if phase.get("dir") == self._phase_dir_name:
-                phase["status"] = status
-                ts_key = {"completed": "completed_at", "error": "failed_at", "blocked": "blocked_at"}.get(status)
+                phase["status"] = status.value
+                ts_key = {
+                    StepStatus.COMPLETED: "completed_at",
+                    StepStatus.ERROR: "failed_at",
+                    StepStatus.BLOCKED: "blocked_at",
+                }.get(status)
                 if ts_key:
                     phase[ts_key] = ts
                 break
@@ -125,34 +132,37 @@ class HarnessRunner:
         index = read_json(self._index_file)
         if not index.get("steps"):
             return False
-        if any(step.get("status") != "completed" for step in index["steps"]):
+        if any(step.get("status") != StepStatus.COMPLETED.value for step in index["steps"]):
             return False
 
         top = read_json(self._top_index_file)
         return any(
-            phase.get("dir") == self._phase_dir_name and phase.get("status") == "completed"
+            phase.get("dir") == self._phase_dir_name and phase.get("status") == StepStatus.COMPLETED.value
             for phase in top.get("phases", [])
         )
 
     def _check_blockers(self) -> None:
         index = read_json(self._index_file)
-        for step in reversed(index["steps"]):
-            if step["status"] == "error":
-                message = (
-                    f"Step {step['step']} ({step['name']}) failed. "
-                    f"Error: {step.get('error_message', 'unknown')}. "
-                    "Fix and reset status to 'pending' to retry."
-                )
-                raise FailedStep(message)
-            if step["status"] == "blocked":
-                message = (
-                    f"Step {step['step']} ({step['name']}) blocked. "
-                    f"Reason: {step.get('blocked_reason', 'unknown')}. "
-                    "Resolve and reset status to 'pending' to retry."
-                )
-                raise BlockedStep(message)
-            if step["status"] != "pending":
-                break
+        latest = next(
+            (step for step in reversed(index["steps"]) if step.get("status") != StepStatus.PENDING.value),
+            None,
+        )
+        if latest is None:
+            return
+        if latest["status"] == StepStatus.ERROR.value:
+            message = (
+                f"Step {latest['step']} ({latest['name']}) failed. "
+                f"Error: {latest.get('error_message', 'unknown')}. "
+                "Fix and reset status to 'pending' to retry."
+            )
+            raise FailedStep(message)
+        if latest["status"] == StepStatus.BLOCKED.value:
+            message = (
+                f"Step {latest['step']} ({latest['name']}) blocked. "
+                f"Reason: {latest.get('blocked_reason', 'unknown')}. "
+                "Resolve and reset status to 'pending' to retry."
+            )
+            raise BlockedStep(message)
 
     def _ensure_created_at(self) -> None:
         index = read_json(self._index_file)
@@ -209,21 +219,19 @@ class HarnessRunner:
         return StepConfig(
             step=step["step"],
             name=step["name"],
-            status=step.get("status", "pending"),
+            status=step.get("status", StepStatus.PENDING.value),
             max_attempts=step.get("max_attempts", DEFAULT_MAX_ATTEMPTS),
             timeout_sec=step.get("timeout_sec", DEFAULT_TIMEOUT_SEC),
         )
 
-    def _finalize_completed_step(self, step: StepConfig) -> None:
-        index = read_json(self._index_file)
-        for item in index["steps"]:
-            if item["step"] == step.step:
-                item["completed_at"] = stamp()
-                break
-        write_json(self._index_file, index)
+    def _finalize_completed_step(self, step: StepConfig, result: Optional[CodexRunResult] = None) -> None:
+        update_step(self._index_file, step.step, completed_at=stamp())
         self._require_git_ops().commit_step(step.step, step.name)
         self._require_codex().delete_live_log(step.step)
-        print(f"  ✓ Step {step.step}: {step.name} finalized from completed status")
+        if result is None:
+            print(f"  ✓ Step {step.step}: {step.name} finalized from completed status")
+        else:
+            print(f"  ✓ Step {step.step}: {step.name} [{result.elapsed_sec}s]")
 
     def _execute_all_steps(self, guardrails: str) -> None:
         while True:
@@ -232,7 +240,7 @@ class HarnessRunner:
                 (
                     step
                     for step in index["steps"]
-                    if step["status"] == "completed" and "completed_at" not in step
+                    if step["status"] == StepStatus.COMPLETED.value and "completed_at" not in step
                 ),
                 None,
             )
@@ -240,21 +248,20 @@ class HarnessRunner:
                 self._finalize_completed_step(self._step_config_from_index_step(pending_finalization))
                 continue
 
-            pending = next((step for step in index["steps"] if step["status"] == "pending"), None)
+            pending = next((step for step in index["steps"] if step["status"] == StepStatus.PENDING.value), None)
             if pending is None:
                 print("\n  All steps completed!")
                 return
 
-            for step in index["steps"]:
-                if step["step"] == pending["step"] and "started_at" not in step:
-                    step["started_at"] = stamp()
-                    write_json(self._index_file, index)
-                    break
+            if "started_at" not in pending:
+                update_step(self._index_file, pending["step"], started_at=stamp())
 
             self._execute_single_step(self._step_config_from_index_step(pending), guardrails)
 
     def _execute_single_step(self, step: StepConfig, guardrails: str) -> None:
-        done = sum(1 for item in read_json(self._index_file)["steps"] if item["status"] == "completed")
+        done = sum(
+            1 for item in read_json(self._index_file)["steps"] if item["status"] == StepStatus.COMPLETED.value
+        )
         prev_error: Optional[str] = None
 
         for attempt in range(1, step.max_attempts + 1):
@@ -268,28 +275,17 @@ class HarnessRunner:
 
             index = read_json(self._index_file)
             current = next((item for item in index["steps"] if item["step"] == step.step), None)
-            status = current.get("status", "pending") if current else "pending"
+            status = current.get("status", StepStatus.PENDING.value) if current else StepStatus.PENDING.value
             ts = stamp()
 
-            if status == "completed":
-                for item in index["steps"]:
-                    if item["step"] == step.step:
-                        item["completed_at"] = ts
-                        break
-                write_json(self._index_file, index)
-                self._require_git_ops().commit_step(step.step, step.name)
-                self._require_codex().delete_live_log(step.step)
-                print(f"  ✓ Step {step.step}: {step.name} [{result.elapsed_sec}s]")
+            if status == StepStatus.COMPLETED.value:
+                self._finalize_completed_step(step, result)
                 return
 
-            if status == "blocked":
-                for item in index["steps"]:
-                    if item["step"] == step.step:
-                        item["blocked_at"] = ts
-                        break
-                write_json(self._index_file, index)
+            if status == StepStatus.BLOCKED.value:
+                update_step(self._index_file, step.step, blocked_at=ts)
                 reason = current.get("blocked_reason", "") if current else ""
-                self._update_top_index("blocked")
+                self._update_top_index(StepStatus.BLOCKED)
                 print(f"  ⏸ Step {step.step}: {step.name} blocked [{result.elapsed_sec}s]")
                 print(f"    Reason: {reason}")
                 raise BlockedStep(f"Step {step.step} ({step.name}) blocked: {reason or 'unknown'}")
@@ -297,25 +293,20 @@ class HarnessRunner:
             err_msg = self._format_step_error(current, result)
 
             if attempt < step.max_attempts:
-                for item in index["steps"]:
-                    if item["step"] == step.step:
-                        item["status"] = "pending"
-                        item.pop("error_message", None)
-                        break
-                write_json(self._index_file, index)
+                update_step(self._index_file, step.step, status=StepStatus.PENDING.value)
+                clear_step_fields(self._index_file, step.step, "error_message")
                 prev_error = err_msg
                 print(f"  ↻ Step {step.step}: retry {attempt}/{step.max_attempts} — {err_msg}")
                 continue
 
-            for item in index["steps"]:
-                if item["step"] == step.step:
-                    item["status"] = "error"
-                    item["error_message"] = f"[{step.max_attempts}회 시도 후 실패] {err_msg}"
-                    item["failed_at"] = ts
-                    break
-            write_json(self._index_file, index)
-            self._update_top_index("error")
-            self._require_git_ops().commit_step(step.step, step.name)
+            update_step(
+                self._index_file,
+                step.step,
+                status=StepStatus.ERROR.value,
+                error_message=f"[{step.max_attempts}회 시도 후 실패] {err_msg}",
+                failed_at=ts,
+            )
+            self._update_top_index(StepStatus.ERROR)
             print(f"  ✗ Step {step.step}: {step.name} failed after {step.max_attempts} attempts [{result.elapsed_sec}s]")
             print(f"    Error: {err_msg}")
             raise FailedStep(f"Step {step.step} ({step.name}) failed after {step.max_attempts} attempts: {err_msg}")
@@ -331,7 +322,7 @@ class HarnessRunner:
         index = read_json(self._index_file)
         index["completed_at"] = stamp()
         write_json(self._index_file, index)
-        self._update_top_index("completed")
+        self._update_top_index(StepStatus.COMPLETED)
 
         self._require_git_ops().commit_phase_completed()
         if self._config.auto_push:

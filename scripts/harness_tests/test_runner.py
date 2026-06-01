@@ -18,6 +18,14 @@ class HarnessRunnerTests(unittest.TestCase):
         self.assertIs(harness.HarnessConfig, HarnessConfig)
         self.assertIs(harness.HarnessRunner, HarnessRunner)
 
+    def test_phase_index_helpers_are_exported_from_package(self):
+        import scripts.harness as harness
+        from scripts.harness import phase_index
+
+        self.assertIs(harness.StepStatus, phase_index.StepStatus)
+        self.assertIs(harness.update_step, phase_index.update_step)
+        self.assertIs(harness.clear_step_fields, phase_index.clear_step_fields)
+
     def test_build_prompt_includes_guardrails_context_retry_details_and_step_body(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -208,7 +216,7 @@ class HarnessRunnerTests(unittest.TestCase):
             self.assertIn("Codex exit code: 1", updated["steps"][0]["error_message"])
             self.assertIn("stderr tail: boom", updated["steps"][0]["error_message"])
             self.assertEqual(top["phases"][0]["status"], "error")
-            runner._git_ops.commit_step.assert_called_once_with(0, "setup")
+            runner._git_ops.commit_step.assert_not_called()
 
     def test_blocked_step_preserves_live_log_and_marks_top_index_blocked(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -261,6 +269,10 @@ class HarnessRunnerTests(unittest.TestCase):
                 prompts.append(prompt)
                 attempts.append(attempt)
                 if attempt == 1:
+                    index = read_json(index_file)
+                    index["steps"][0]["status"] = "error"
+                    index["steps"][0]["error_message"] = "agent reported failure"
+                    write_json(index_file, index)
                     return CodexRunResult(
                         exit_code=1,
                         live_log_path="phases/demo/step0-live.log",
@@ -269,6 +281,8 @@ class HarnessRunnerTests(unittest.TestCase):
                         stderr_tail=["boom"],
                     )
                 index = read_json(index_file)
+                self.assertEqual(index["steps"][0]["status"], "pending")
+                self.assertNotIn("error_message", index["steps"][0])
                 index["steps"][0]["status"] = "completed"
                 index["steps"][0]["summary"] = "done"
                 write_json(index_file, index)
@@ -283,7 +297,7 @@ class HarnessRunnerTests(unittest.TestCase):
             runner._execute_single_step(StepConfig(0, "setup", "pending", 2, 60), "guardrails")
 
             self.assertEqual(attempts, [1, 2])
-            self.assertIn("Codex exit code: 1", prompts[1])
+            self.assertIn("agent reported failure", prompts[1])
             self.assertIn("Live log: phases/demo/step0-live.log", prompts[1])
             self.assertIn("stderr tail: boom", prompts[1])
             runner._git_ops.commit_step.assert_called_once_with(0, "setup")

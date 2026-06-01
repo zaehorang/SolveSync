@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+from enum import Enum
 from pathlib import Path
 
 from scripts.harness.errors import PhaseValidationError
@@ -12,8 +13,21 @@ from scripts.harness.errors import PhaseValidationError
 DEFAULT_MAX_ATTEMPTS = 3
 DEFAULT_TIMEOUT_SEC = 1800
 
-_ALLOWED_STATUSES = {"pending", "completed", "error", "blocked"}
 _KST = timezone(timedelta(hours=9))
+
+
+class StepStatus(str, Enum):
+    PENDING = "pending"
+    COMPLETED = "completed"
+    ERROR = "error"
+    BLOCKED = "blocked"
+
+    @classmethod
+    def values(cls) -> set[str]:
+        return {status.value for status in cls}
+
+
+_ALLOWED_STATUSES = StepStatus.values()
 
 
 @dataclass(frozen=True)
@@ -34,6 +48,23 @@ def read_json(path: Path) -> dict:
 
 def write_json(path: Path, data: dict) -> None:
     path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+
+
+def update_step(index_path: Path, step_num: int, **patch: object) -> dict:
+    index = read_json(index_path)
+    step = _find_step(index, step_num, index_path)
+    step.update(patch)
+    write_json(index_path, index)
+    return index
+
+
+def clear_step_fields(index_path: Path, step_num: int, *fields: str) -> dict:
+    index = read_json(index_path)
+    step = _find_step(index, step_num, index_path)
+    for field in fields:
+        step.pop(field, None)
+    write_json(index_path, index)
+    return index
 
 
 def stamp() -> str:
@@ -58,7 +89,7 @@ def build_step_context(index: dict) -> str:
     lines = [
         f"- Step {step['step']} ({step['name']}): {step['summary']}"
         for step in index["steps"]
-        if step["status"] == "completed" and step.get("summary")
+        if step["status"] == StepStatus.COMPLETED.value and step.get("summary")
     ]
     if not lines:
         return ""
@@ -141,7 +172,7 @@ def _validate_phase_index(index: dict, phase_dir_name: str, phase_dir: Path) -> 
                 f"step {expected} status must be one of {', '.join(sorted(_ALLOWED_STATUSES))}"
             )
 
-        if status == "completed":
+        if status == StepStatus.COMPLETED.value:
             summary = step.get("summary")
             if not isinstance(summary, str) or not summary.strip():
                 raise PhaseValidationError(f"completed step {expected} must have a summary")
@@ -157,3 +188,10 @@ def _validate_optional_positive_int(step: dict, key: str, step_num: int) -> None
     value = step[key]
     if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
         raise PhaseValidationError(f"step {step_num} {key} must be a positive integer")
+
+
+def _find_step(index: dict, step_num: int, index_path: Path) -> dict:
+    for step in index.get("steps", []):
+        if isinstance(step, dict) and step.get("step") == step_num:
+            return step
+    raise PhaseValidationError(f"step {step_num} not found in {index_path}")
