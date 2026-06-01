@@ -92,7 +92,9 @@ class HarnessRunnerTests(unittest.TestCase):
             ):
                 HarnessRunner(HarnessConfig(root, "demo", False)).run()
 
-            git_ops.return_value.ensure_clean_worktree.assert_called_once_with()
+            git_ops.return_value.ensure_clean_worktree.assert_called_once_with(
+                allowed_dirty_paths=["phases/index.json", "phases/demo/index.json"],
+            )
             git_ops.return_value.checkout_branch.assert_not_called()
 
     def test_run_stops_existing_blocked_step_after_dirty_preflight_before_checkout(self):
@@ -119,7 +121,9 @@ class HarnessRunnerTests(unittest.TestCase):
                 with self.assertRaisesRegex(BlockedStep, "needs token"):
                     HarnessRunner(HarnessConfig(root, "demo", False)).run()
 
-            git_ops.return_value.ensure_clean_worktree.assert_called_once_with()
+            git_ops.return_value.ensure_clean_worktree.assert_called_once_with(
+                allowed_dirty_paths=["phases/index.json", "phases/demo/index.json"],
+            )
             git_ops.return_value.checkout_branch.assert_not_called()
 
     def test_execute_all_steps_finalizes_completed_step_without_rerunning_agent(self):

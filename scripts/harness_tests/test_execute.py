@@ -14,7 +14,7 @@ from scripts.harness.runner import HarnessConfig
 
 class ExecuteCliTests(unittest.TestCase):
     def test_script_help_runs_when_invoked_by_path_from_repo_root(self):
-        root = Path(__file__).resolve().parent.parent
+        root = Path(__file__).resolve().parents[2]
 
         result = subprocess.run(
             ["python3", "scripts/execute.py", "--help"],

@@ -62,7 +62,7 @@ class HarnessRunner:
             timestamp=stamp,
         )
 
-        self._git_ops.ensure_clean_worktree()
+        self._git_ops.ensure_clean_worktree(allowed_dirty_paths=self._dirty_recovery_paths())
         if self._is_already_completed():
             print("\n  Phase already completed; no pending runner work.")
             if self._config.auto_push:
@@ -80,6 +80,12 @@ class HarnessRunner:
         configs = load_step_configs(self._root, self._phase_dir_name)
         self._step_configs = {config.step: config for config in configs}
         self._refresh_metadata_if_available()
+
+    def _dirty_recovery_paths(self) -> list[str]:
+        return [
+            "phases/index.json",
+            f"phases/{self._phase_dir_name}/index.json",
+        ]
 
     def _refresh_metadata_if_available(self) -> None:
         if not self._index_file.exists():

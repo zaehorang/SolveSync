@@ -155,15 +155,21 @@ python3 scripts/execute.py {task-name} --push
 `execute.py`가 처리하는 일:
 
 - 시작 시 `phases/index.json`과 `phases/{task-name}/index.json` 정합성을 검증한다.
-- dirty worktree면 branch checkout이나 step 실행을 시작하지 않는다.
+- dirty worktree면 branch checkout이나 step 실행을 시작하지 않는다. 단, 현재 phase 복구를 위해 `phases/index.json`과 `phases/{task-name}/index.json`의 metadata를 수정한 dirty 상태만 예외로 허용한다.
 - `feat-{task-name}` branch 생성 및 checkout.
 - `AGENTS.md`와 `docs/*.md`의 guardrail을 step prompt에 주입한다.
 - 완료된 step summary를 이후 step prompt에 전달한다.
 - 실패한 step을 `max_attempts`까지 재시도한다. 재시도 prompt에는 previous error, live log path, observed commands, stderr tail을 포함한다.
 - step별 code change와 harness metadata를 별도 commit으로 분리한다.
 - commit 실패는 hard fail로 처리하고 다음 작업을 진행하지 않는다.
-- `scripts/quality_gate.py`는 feature/code commit 직전에만 실행한다. metadata-only commit 전에는 실행하지 않는다.
+- 제품 quality gate는 feature/code commit 직전에만 실행한다. metadata-only commit 전에는 실행하지 않는다.
 - `started_at`, `completed_at`, `failed_at`, `blocked_at` 기록.
+
+검증 분리:
+
+- 제품 quality gate는 SolveSync 제품을 검증하며 `npm run typecheck`, `npm test`, `npm run build`를 실행한다.
+- Harness self-test는 runner tooling을 검증하며 `scripts/harness_self_test.py`와 `scripts/harness_tests/`의 `unittest`를 실행한다.
+- Runner는 staged feature/code change가 harness-related path를 touch한 경우에만 harness self-test를 실행한다.
 
 실행 계약:
 
@@ -179,3 +185,4 @@ python3 scripts/execute.py {task-name} --push
 - `error` step의 경우 `phases/{task-name}/index.json`을 수정해 해당 step을 `"pending"`으로 되돌리고 `error_message`를 삭제한 뒤 다시 실행한다.
 - `blocked` step의 경우 `blocked_reason`을 해결하고 해당 step을 `"pending"`으로 되돌린 뒤 `blocked_reason`을 삭제하고 다시 실행한다.
 - runner가 kill되거나 비정상 중단된 경우 메인 agent는 phase index, live log, git status를 확인한다. 복구 가능하면 status를 정리한 뒤 `python3 scripts/execute.py {task-name}`로 같은 runner 경로를 다시 탄다.
+- 다시 실행하기 전에 다른 dirty file은 정리해야 한다. 현재 phase 복구를 위해 `phases/index.json`과 `phases/{task-name}/index.json`의 index metadata를 `"pending"`으로 되돌린 변경만 dirty 상태로 남아 있어도 된다.

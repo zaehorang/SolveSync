@@ -21,7 +21,7 @@ from scripts.harness.phase_index import (
 )
 
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parents[2]
 
 
 class PhaseIndexHelperTests(unittest.TestCase):
