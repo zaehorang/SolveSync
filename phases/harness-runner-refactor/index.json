@@ -29,7 +29,10 @@
     {
       "step": 3,
       "name": "git-ops-quality-gate",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-06-02T00:53:24+0900",
+      "summary": "git ops module added with dirty preflight, hard-fail commits, feature/metadata split, and unittest-backed quality gate",
+      "completed_at": "2026-06-02T01:01:20+0900"
     },
     {
       "step": 4,
