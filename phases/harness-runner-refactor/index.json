@@ -53,7 +53,10 @@
     {
       "step": 6,
       "name": "integration-validation",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-06-02T01:14:54+0900",
+      "summary": "harness runner refactor validated across unittest, typecheck, vitest, build, skill docs, and preserved runner contracts",
+      "completed_at": "2026-06-02T01:17:50+0900"
     }
   ],
   "created_at": "2026-06-02T00:35:53+0900"
