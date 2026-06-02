@@ -17,6 +17,11 @@ SolveSync의 사용자 화면은 세 가지다.
 
 Problem page sync popup/toast는 단순 알림이 아니라 sync 진행, 성공, 실패 복구를 보여주는 핵심 surface다.
 
+## Domain Naming In UI
+UI copy의 표준 도메인 용어는 `CONTEXT.md`를 따른다. Options, Popup, Toast에서는 Sync Repository, Sync Branch, Sync History, Retry Bundle, Solution README, Solution Catalog, Coding Platform을 기준으로 표현한다.
+
+사용자에게 내부 storage key나 runtime message type을 노출하지 않는다. 단, Security disclosure에서는 Retry Bundle이 Accepted solution code를 임시 저장할 수 있다는 사실을 명확히 알린다.
+
 ## Language / Localization
 v1 UI는 영어와 한국어를 지원한다.
 
@@ -126,7 +131,7 @@ Status card:
 - status card는 color만으로 상태를 전달하지 않는다. icon, label, detail text를 함께 사용한다.
 
 History item 내용:
-- Platform label. `LeetCode` 또는 `Programmers`를 짧게 표시한다.
+- Coding Platform label. `LeetCode` 또는 `Programmers`를 짧게 표시한다.
 - Problem title.
 - Language.
 - Status badge.

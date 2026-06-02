@@ -5,6 +5,11 @@
 ## 개요
 SolveSync는 LeetCode와 Programmers에서 Accepted 된 풀이를 GitHub 문제 풀이 저장소로 자동 동기화하는 개인용 Chrome 확장이다. 사용자가 문제를 푼 뒤 코드 복사, 파일 위치 선택, 커밋, README 갱신, push를 반복하지 않도록 만드는 것이 목적이다.
 
+## 도메인 Naming 계약
+표준 제품/domain 용어는 `CONTEXT.md`를 따른다. 사용자-facing 문서와 UI는 Coding Platform, Accepted Submission, Accepted Editor Snapshot, Sync Deduplication Key, Sync Repository, Sync Branch, Solution File, Solution Catalog, Solution README, Sync History, Retry Bundle을 기준으로 쓴다.
+
+이번 domain naming migration은 제품 동작을 바꾸지 않는다. TypeScript, runtime message, storage schema를 같은 용어 체계로 정렬하고, Solution Catalog는 v2 schema에서 `lastAcceptedSourceId`를 저장한다. Solution Catalog 실제 파일 경로는 `leetcode/.leetcode-sync/index.json`과 `programmers/.programmers-sync/index.json`을 유지한다.
+
 ## 해결하려는 문제
 사용자는 Swift와 Python3를 번갈아 사용해 LeetCode와 Programmers 문제를 푼다. 수동으로 GitHub에 풀이를 반영하면 번거롭고 누락되기 쉽다. 기존 LeetCode-to-GitHub 확장은 풀이 sync 자체는 가능하지만, Programmers 흐름, 원하는 저장소 구조, Swift Xcode 빌드 제약을 함께 맞추기 어렵다.
 
@@ -129,4 +134,5 @@ SolveSync는 LeetCode와 Programmers에서 Accepted 된 풀이를 GitHub 문제 
 
 ## 릴리즈 전략
 - v1: LeetCode/Programmers Accepted-to-GitHub 전체 흐름을 검증하기 위한 개인용 local unpacked extension.
+- Domain naming migration: 현재 Sync Repository는 `zaehorang/Swift_Algorithm`이며, Solution Catalog v2 변경은 `main`에 직접 반영한다.
 - v2: v1 안정화 후 Chrome Web Store 패키징, 아이콘, 스크린샷, privacy policy, 권한 설명, 심사 대응을 진행한다.
