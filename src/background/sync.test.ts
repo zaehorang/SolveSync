@@ -140,6 +140,7 @@ describe("background sync orchestrator", () => {
       `| 1 | Two Sum | Easy | ${expectedAcceptedDate} |`
     );
     expect(committedJson(harness, "leetcode/.leetcode-sync/index.json")).toMatchObject({
+      version: 2,
       activity: {
         days: {
           [expectedAcceptedDate]: {
@@ -154,6 +155,7 @@ describe("background sync orchestrator", () => {
           lastAcceptedDate: expectedAcceptedDate,
           languages: {
             swift: {
+              lastAcceptedSourceId: identity.submissionId,
               firstAcceptedDate: expectedAcceptedDate,
               lastAcceptedDate: expectedAcceptedDate
             }
@@ -189,6 +191,7 @@ describe("background sync orchestrator", () => {
       `| 120804 | 두 수의 곱 구하기 | - | ${expectedAcceptedDate} |`
     );
     expect(committedJson(harness, "programmers/.programmers-sync/index.json")).toMatchObject({
+      version: 2,
       activity: {
         days: {
           [expectedAcceptedDate]: {
@@ -203,6 +206,7 @@ describe("background sync orchestrator", () => {
           lastAcceptedDate: expectedAcceptedDate,
           languages: {
             swift: {
+              lastAcceptedSourceId: programmersIdentity.submissionId,
               firstAcceptedDate: expectedAcceptedDate,
               lastAcceptedDate: expectedAcceptedDate
             }
@@ -674,8 +678,8 @@ function makeProgrammersRetryPayload(id: string): RetryPayload {
       acceptedAt: "2026-01-01T00:00:00.000Z"
     },
     solutionPath: "programmers/swift/120804_두_수의_곱_구하기.swift",
-    readmePath: "programmers/README.md",
-    indexPath: "programmers/.programmers-sync/index.json",
+    solutionReadmePath: "programmers/README.md",
+    solutionCatalogPath: "programmers/.programmers-sync/index.json",
     commitMessage: "solve: programmers 120804 두 수의 곱 구하기 in swift",
     attempts: 0,
     createdAt: "2026-01-01T00:00:00.000Z",
@@ -694,8 +698,8 @@ function makeRetryPayload(id: string): RetryPayload {
     problem,
     submission: syncableAcceptedSubmission().submission,
     solutionPath: "leetcode/swift/0001_two_sum.swift",
-    readmePath: "leetcode/README.md",
-    indexPath: "leetcode/.leetcode-sync/index.json",
+    solutionReadmePath: "leetcode/README.md",
+    solutionCatalogPath: "leetcode/.leetcode-sync/index.json",
     commitMessage: "solve: leetcode 0001 two sum in swift",
     attempts: 0,
     createdAt: "2026-01-01T00:00:00.000Z",

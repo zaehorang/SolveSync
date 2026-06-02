@@ -232,7 +232,9 @@ describe("storage schema contracts", () => {
       identity: {
         platform: "leetcode",
         submissionId: "123"
-      }
+      },
+      solutionReadmePath: "leetcode/README.md",
+      solutionCatalogPath: "leetcode/.leetcode-sync/index.json"
     });
 
     expect(

@@ -76,7 +76,7 @@ const ERROR_DESCRIPTORS = {
     retryable: true
   },
   malformed_index: {
-    userMessage: "LeetCode sync index is malformed.",
+    userMessage: "Solution Catalog is malformed.",
     retryable: false
   },
   network_failed: {

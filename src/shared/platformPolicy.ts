@@ -14,8 +14,8 @@ export interface PlatformPolicy {
   platform: Platform;
   rootFolder: string;
   languages: Record<SupportedLanguage, LanguagePathPolicy>;
-  readmePath: string;
-  indexPath: string;
+  solutionReadmePath: string;
+  solutionCatalogPath: string;
   readmeMarkers: ReadmeMarkers;
   initialReadmeTitle: string;
   commitPlatformLabel: string;
@@ -35,8 +35,8 @@ export const PLATFORM_POLICIES = {
         extension: "py"
       }
     },
-    readmePath: "leetcode/README.md",
-    indexPath: "leetcode/.leetcode-sync/index.json",
+    solutionReadmePath: "leetcode/README.md",
+    solutionCatalogPath: "leetcode/.leetcode-sync/index.json",
     readmeMarkers: {
       start: "<!-- LEETCODE_TABLE_START -->",
       end: "<!-- LEETCODE_TABLE_END -->"
@@ -57,8 +57,8 @@ export const PLATFORM_POLICIES = {
         extension: "py"
       }
     },
-    readmePath: "programmers/README.md",
-    indexPath: "programmers/.programmers-sync/index.json",
+    solutionReadmePath: "programmers/README.md",
+    solutionCatalogPath: "programmers/.programmers-sync/index.json",
     readmeMarkers: {
       start: "<!-- PROGRAMMERS_TABLE_START -->",
       end: "<!-- PROGRAMMERS_TABLE_END -->"

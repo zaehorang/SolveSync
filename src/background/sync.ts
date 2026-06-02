@@ -1,8 +1,8 @@
 import {
-  createEmptyIndex,
-  mergeIndexEntry,
-  parseIndexJson
-} from "../shared/indexFile";
+  createEmptySolutionCatalog,
+  mergeSolutionCatalogEntry,
+  parseSolutionCatalogJson
+} from "../shared/solutionCatalog";
 import { mergeReadmeManagedBlock, renderManagedReadmeTable } from "../shared/readme";
 import { buildGitTreeFiles, type GitTreeFile } from "../shared/githubTree";
 import { buildSolutionPath, sanitizeProgrammersFilename } from "../shared/paths";
@@ -104,8 +104,8 @@ interface PreparedCommit {
   repository: RepositoryRef;
   branch: BranchRef;
   solutionPath: string;
-  readmePath: string;
-  indexPath: string;
+  solutionReadmePath: string;
+  solutionCatalogPath: string;
   commitMessage: string;
 }
 
@@ -114,9 +114,9 @@ interface CommitFilesBuildInput {
   submission: AcceptedSubmission;
   identity: SubmissionIdentity;
   solutionPath: string;
-  readmePath: string;
-  indexPath: string;
-  existingIndexText: string | null;
+  solutionReadmePath: string;
+  solutionCatalogPath: string;
+  existingSolutionCatalogText: string | null;
   existingReadmeText: string | null;
   syncedAt: IsoDateString;
 }
@@ -607,9 +607,9 @@ export function createSyncOrchestrator(
     prepared: PreparedCommit,
     syncedAt: IsoDateString
   ): Promise<GitTreeFile[]> {
-    const [existingIndexText, existingReadmeText] = await Promise.all([
-      readRepositoryTextFile(github, prepared, prepared.indexPath),
-      readRepositoryTextFile(github, prepared, prepared.readmePath)
+    const [existingSolutionCatalogText, existingReadmeText] = await Promise.all([
+      readRepositoryTextFile(github, prepared, prepared.solutionCatalogPath),
+      readRepositoryTextFile(github, prepared, prepared.solutionReadmePath)
     ]);
 
     return buildCommitFiles({
@@ -617,9 +617,9 @@ export function createSyncOrchestrator(
       submission: prepared.submission,
       identity: prepared.identity,
       solutionPath: prepared.solutionPath,
-      readmePath: prepared.readmePath,
-      indexPath: prepared.indexPath,
-      existingIndexText,
+      solutionReadmePath: prepared.solutionReadmePath,
+      solutionCatalogPath: prepared.solutionCatalogPath,
+      existingSolutionCatalogText,
       existingReadmeText,
       syncedAt
     });
@@ -630,9 +630,9 @@ export function createSyncOrchestrator(
     prepared: PreparedCommit,
     syncedAt: IsoDateString
   ): Promise<GitTreeFile[]> {
-    const [existingIndexText, existingReadmeText] = await Promise.all([
-      context.readTextFile(prepared.indexPath),
-      context.readTextFile(prepared.readmePath)
+    const [existingSolutionCatalogText, existingReadmeText] = await Promise.all([
+      context.readTextFile(prepared.solutionCatalogPath),
+      context.readTextFile(prepared.solutionReadmePath)
     ]);
 
     return buildCommitFiles({
@@ -640,9 +640,9 @@ export function createSyncOrchestrator(
       submission: prepared.submission,
       identity: prepared.identity,
       solutionPath: prepared.solutionPath,
-      readmePath: prepared.readmePath,
-      indexPath: prepared.indexPath,
-      existingIndexText,
+      solutionReadmePath: prepared.solutionReadmePath,
+      solutionCatalogPath: prepared.solutionCatalogPath,
+      existingSolutionCatalogText,
       existingReadmeText,
       syncedAt
     });
@@ -738,8 +738,8 @@ export function createSyncOrchestrator(
       problem: prepared.problem,
       submission: prepared.submission,
       solutionPath: prepared.solutionPath,
-      readmePath: prepared.readmePath,
-      indexPath: prepared.indexPath,
+      solutionReadmePath: prepared.solutionReadmePath,
+      solutionCatalogPath: prepared.solutionCatalogPath,
       commitMessage: prepared.commitMessage,
       attempts: 0,
       createdAt,
@@ -918,8 +918,8 @@ function prepareCommit(
     repository,
     branch,
     solutionPath,
-    readmePath: policy.readmePath,
-    indexPath: policy.indexPath,
+    solutionReadmePath: policy.solutionReadmePath,
+    solutionCatalogPath: policy.solutionCatalogPath,
     commitMessage: buildGitHubCommitMessage({
       platform: identity.platform,
       frontendId: problem.frontendId,
@@ -937,8 +937,8 @@ function payloadToPrepared(payload: RetryPayload): PreparedCommit {
     repository: payload.repository,
     branch: payload.branch,
     solutionPath: payload.solutionPath,
-    readmePath: payload.readmePath,
-    indexPath: payload.indexPath,
+    solutionReadmePath: payload.solutionReadmePath,
+    solutionCatalogPath: payload.solutionCatalogPath,
     commitMessage: payload.commitMessage
   };
 }
@@ -962,22 +962,26 @@ async function readRepositoryTextFile(
 }
 
 function buildCommitFiles(input: CommitFilesBuildInput): GitTreeFile[] {
-  const baseIndex =
-    input.existingIndexText === null || input.existingIndexText.trim().length === 0
-      ? createEmptyIndex()
-      : parseIndexJson(input.existingIndexText);
-  const nextIndex = mergeIndexEntry(
-    baseIndex,
+  const baseSolutionCatalog =
+    input.existingSolutionCatalogText === null ||
+    input.existingSolutionCatalogText.trim().length === 0
+      ? createEmptySolutionCatalog()
+      : parseSolutionCatalogJson(input.existingSolutionCatalogText);
+  const nextSolutionCatalog = mergeSolutionCatalogEntry(
+    baseSolutionCatalog,
     {
       ...input.problem,
-      submissionId: input.identity.submissionId,
+      acceptedSourceId: input.identity.submissionId,
       language: input.identity.language
     },
     input.solutionPath,
     input.syncedAt,
     toLocalDateString(input.submission.acceptedAt)
   );
-  const readmeTable = renderManagedReadmeTable(nextIndex, input.identity.platform);
+  const readmeTable = renderManagedReadmeTable(
+    nextSolutionCatalog,
+    input.identity.platform
+  );
   const readmeContent = mergeReadmeManagedBlock(
     input.existingReadmeText,
     readmeTable,
@@ -987,10 +991,10 @@ function buildCommitFiles(input: CommitFilesBuildInput): GitTreeFile[] {
   return buildGitTreeFiles({
     solutionPath: input.solutionPath,
     solutionContent: input.submission.code,
-    readmePath: input.readmePath,
+    solutionReadmePath: input.solutionReadmePath,
     readmeContent,
-    indexPath: input.indexPath,
-    index: nextIndex
+    solutionCatalogPath: input.solutionCatalogPath,
+    solutionCatalog: nextSolutionCatalog
   });
 }
 

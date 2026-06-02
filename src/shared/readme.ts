@@ -1,9 +1,9 @@
 import {
-  compareIndexProblems,
+  compareSolutionCatalogProblems,
   parseProblemNumber,
-  type LeetCodeSyncIndex,
-  type LeetCodeSyncIndexProblem
-} from "./indexFile";
+  type SolutionCatalog,
+  type SolutionCatalogProblem
+} from "./solutionCatalog";
 import { getPlatformPolicy, type PlatformPolicy } from "./platformPolicy";
 import type { Platform } from "./types";
 
@@ -14,12 +14,12 @@ export const PROGRAMMERS_README_TABLE_START_MARKER =
 export const PROGRAMMERS_README_TABLE_END_MARKER = "<!-- PROGRAMMERS_TABLE_END -->";
 
 export function renderManagedReadmeTable(
-  index: LeetCodeSyncIndex,
+  solutionCatalog: SolutionCatalog,
   platform: Platform = "leetcode"
 ): string {
   const policy = getPlatformPolicy(platform);
-  const rows = [...index.problems]
-    .sort(compareIndexProblems)
+  const rows = [...solutionCatalog.problems]
+    .sort(compareSolutionCatalogProblems)
     .map((problem) => renderProblemRow(problem, policy));
 
   return [
@@ -68,7 +68,7 @@ function buildManagedBlock(table: string, policy: PlatformPolicy): string {
 }
 
 function renderProblemRow(
-  problem: LeetCodeSyncIndexProblem,
+  problem: SolutionCatalogProblem,
   policy: PlatformPolicy
 ): string {
   const swiftPath = problem.languages.swift?.solutionPath ?? null;

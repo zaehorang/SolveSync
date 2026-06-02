@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { MalformedIndexError } from "./indexFile";
+import { MalformedSolutionCatalogError } from "./solutionCatalog";
 import { normalizeError, normalizeLeetCodeError } from "./errorNormalize";
 
 describe("error normalization", () => {
@@ -28,7 +28,7 @@ describe("error normalization", () => {
       userMessage: "Could not read the Programmers editor code.",
       retryable: false
     });
-    expect(normalizeError(new MalformedIndexError("bad index")).code).toBe(
+    expect(normalizeError(new MalformedSolutionCatalogError("bad catalog")).code).toBe(
       "malformed_index"
     );
   });

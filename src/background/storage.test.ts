@@ -324,8 +324,8 @@ function makeRetryPayload(id: string, createdAt: string): RetryPayload {
       acceptedAt: createdAt
     },
     solutionPath: "leetcode/swift/0001_two_sum.swift",
-    readmePath: "leetcode/README.md",
-    indexPath: "leetcode/.leetcode-sync/index.json",
+    solutionReadmePath: "leetcode/README.md",
+    solutionCatalogPath: "leetcode/.leetcode-sync/index.json",
     commitMessage: "solve: leetcode 0001 two sum in swift",
     attempts: 0,
     createdAt,

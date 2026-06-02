@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { createEmptyIndex, mergeIndexEntry } from "./indexFile";
+import {
+  createEmptySolutionCatalog,
+  mergeSolutionCatalogEntry
+} from "./solutionCatalog";
 import {
   PROGRAMMERS_README_TABLE_END_MARKER,
   PROGRAMMERS_README_TABLE_START_MARKER,
@@ -11,9 +14,9 @@ import {
   renderManagedReadmeTable
 } from "./readme";
 
-const index = mergeIndexEntry(
-  mergeIndexEntry(
-    createEmptyIndex(),
+const solutionCatalog = mergeSolutionCatalogEntry(
+  mergeSolutionCatalogEntry(
+    createEmptySolutionCatalog(),
     {
       problemId: "2",
       frontendId: "2",
@@ -21,7 +24,7 @@ const index = mergeIndexEntry(
       titleSlug: "add-two-numbers",
       difficulty: "Medium",
       url: "https://leetcode.com/problems/add-two-numbers/",
-      submissionId: "200",
+      acceptedSourceId: "200",
       language: "python3"
     },
     "leetcode/python/0002_add_two_numbers.py",
@@ -35,7 +38,7 @@ const index = mergeIndexEntry(
     titleSlug: "two-sum",
     difficulty: "Easy",
     url: "https://leetcode.com/problems/two-sum/",
-    submissionId: "100",
+    acceptedSourceId: "100",
     language: "swift"
   },
   "leetcode/swift/0001_two_sum.swift",
@@ -45,7 +48,7 @@ const index = mergeIndexEntry(
 
 describe("README managed block", () => {
   it("renders rows sorted by numeric problem id", () => {
-    const table = renderManagedReadmeTable(index);
+    const table = renderManagedReadmeTable(solutionCatalog);
 
     expect(table).toContain("| # | Title | Difficulty | Solved | Swift | Python |");
     expect(table.indexOf("| 1 | Two Sum")).toBeLessThan(
@@ -57,7 +60,7 @@ describe("README managed block", () => {
   });
 
   it("replaces only the existing managed marker block", () => {
-    const table = renderManagedReadmeTable(index);
+    const table = renderManagedReadmeTable(solutionCatalog);
     const merged = mergeReadmeManagedBlock(
       [
         "# Custom README",
@@ -105,8 +108,8 @@ describe("README managed block", () => {
   });
 
   it("uses Programmers markers and relative solution links when policy is provided", () => {
-    const programmersIndex = mergeIndexEntry(
-      createEmptyIndex(),
+    const programmersCatalog = mergeSolutionCatalogEntry(
+      createEmptySolutionCatalog(),
       {
         problemId: "120804",
         frontendId: "120804",
@@ -114,14 +117,14 @@ describe("README managed block", () => {
         titleSlug: "120804",
         difficulty: "-",
         url: "https://school.programmers.co.kr/learn/courses/30/lessons/120804",
-        submissionId: "programmers:120804:swift:abc",
+        acceptedSourceId: "programmers:120804:swift:abc",
         language: "swift"
       },
       "programmers/swift/120804_두_수의_곱_구하기.swift",
       "2026-05-27T04:05:00.000Z",
       "2026-05-27"
     );
-    const table = renderManagedReadmeTable(programmersIndex, "programmers");
+    const table = renderManagedReadmeTable(programmersCatalog, "programmers");
     const readme = buildInitialReadme(table, "programmers");
 
     expect(table).toContain("| 120804 | 두 수의 곱 구하기 | - | 2026-05-27 |");

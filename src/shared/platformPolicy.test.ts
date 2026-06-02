@@ -7,8 +7,8 @@ describe("platform policy", () => {
     const policy = getPlatformPolicy("leetcode");
 
     expect(policy.rootFolder).toBe("leetcode");
-    expect(policy.readmePath).toBe("leetcode/README.md");
-    expect(policy.indexPath).toBe("leetcode/.leetcode-sync/index.json");
+    expect(policy.solutionReadmePath).toBe("leetcode/README.md");
+    expect(policy.solutionCatalogPath).toBe("leetcode/.leetcode-sync/index.json");
     expect(policy.readmeMarkers).toEqual({
       start: "<!-- LEETCODE_TABLE_START -->",
       end: "<!-- LEETCODE_TABLE_END -->"
@@ -25,8 +25,10 @@ describe("platform policy", () => {
     const policy = getPlatformPolicy("programmers");
 
     expect(policy.rootFolder).toBe("programmers");
-    expect(policy.readmePath).toBe("programmers/README.md");
-    expect(policy.indexPath).toBe("programmers/.programmers-sync/index.json");
+    expect(policy.solutionReadmePath).toBe("programmers/README.md");
+    expect(policy.solutionCatalogPath).toBe(
+      "programmers/.programmers-sync/index.json"
+    );
     expect(policy.readmeMarkers).toEqual({
       start: "<!-- PROGRAMMERS_TABLE_START -->",
       end: "<!-- PROGRAMMERS_TABLE_END -->"

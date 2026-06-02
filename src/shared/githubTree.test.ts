@@ -1,17 +1,17 @@
 import { describe, expect, it } from "vitest";
 
 import { buildGitTreeFiles } from "./githubTree";
-import { createEmptyIndex } from "./indexFile";
+import { createEmptySolutionCatalog } from "./solutionCatalog";
 
 describe("GitHub tree payload files", () => {
-  it("includes solution, README, and index files for one commit", () => {
+  it("includes solution, README, and Solution Catalog files for one commit", () => {
     const files = buildGitTreeFiles({
       solutionPath: "leetcode/swift/0001_two_sum.swift",
       solutionContent: "class Solution {}",
-      readmePath: "leetcode/README.md",
+      solutionReadmePath: "leetcode/README.md",
       readmeContent: "# LeetCode Solutions\n",
-      indexPath: "leetcode/.leetcode-sync/index.json",
-      index: createEmptyIndex()
+      solutionCatalogPath: "leetcode/.leetcode-sync/index.json",
+      solutionCatalog: createEmptySolutionCatalog()
     });
 
     expect(files.map((file) => file.path)).toEqual([
@@ -21,7 +21,7 @@ describe("GitHub tree payload files", () => {
     ]);
     expect(files[0]?.content).toBe("class Solution {}");
     expect(files[2]?.content).toBe(
-      '{\n  "version": 1,\n  "problems": [],\n  "activity": {\n    "days": {}\n  }\n}\n'
+      '{\n  "version": 2,\n  "problems": [],\n  "activity": {\n    "days": {}\n  }\n}\n'
     );
   });
 });

@@ -428,7 +428,15 @@ function normalizeRetryPayload(value: unknown): RetryPayload | null {
   const candidate = {
     ...value,
     platform,
-    identity
+    identity,
+    solutionReadmePath: normalizeLegacyStringField(
+      value.solutionReadmePath,
+      value.readmePath
+    ),
+    solutionCatalogPath: normalizeLegacyStringField(
+      value.solutionCatalogPath,
+      value.indexPath
+    )
   };
 
   return isRetryPayload(candidate) ? candidate : null;
@@ -469,4 +477,11 @@ function normalizePlatform(
   defaultPlatform: Platform = "leetcode"
 ): Platform {
   return isPlatform(value) ? value : defaultPlatform;
+}
+
+function normalizeLegacyStringField(
+  currentValue: unknown,
+  legacyValue: unknown
+): unknown {
+  return typeof currentValue === "string" ? currentValue : legacyValue;
 }

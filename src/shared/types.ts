@@ -110,8 +110,8 @@ export interface RetryPayload {
   problem: ProblemMetadata;
   submission: AcceptedSubmission;
   solutionPath: string;
-  readmePath: string;
-  indexPath: string;
+  solutionReadmePath: string;
+  solutionCatalogPath: string;
   commitMessage: string;
   attempts: number;
   createdAt: IsoDateString;
@@ -263,8 +263,8 @@ export function isRetryPayload(value: unknown): value is RetryPayload {
     isProblemMetadata(value.problem) &&
     isAcceptedSubmission(value.submission) &&
     typeof value.solutionPath === "string" &&
-    typeof value.readmePath === "string" &&
-    typeof value.indexPath === "string" &&
+    typeof value.solutionReadmePath === "string" &&
+    typeof value.solutionCatalogPath === "string" &&
     typeof value.commitMessage === "string" &&
     typeof value.attempts === "number" &&
     Number.isInteger(value.attempts) &&
