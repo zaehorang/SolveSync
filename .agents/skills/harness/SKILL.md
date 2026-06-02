@@ -54,7 +54,7 @@ Step 설계 규칙:
 
 규칙:
 
-- `dir`: task directory 이름.
+- `dir`: task directory 이름. 반드시 `N-slug` 형식을 사용한다. `N`은 `phases/index.json`의 0-based 등록 순서와 일치해야 하며, `slug`는 kebab-case를 사용한다. 예: `5-domain-naming-migration`.
 - `status`: `"pending"`, `"completed"`, `"error"`, `"blocked"` 중 하나.
 - 생성 시 timestamp를 추가하지 않는다. `scripts/execute.py`가 실행 중 기록한다.
 

@@ -52,13 +52,13 @@ class PhaseIndexHelperTests(unittest.TestCase):
             root = Path(tmp)
             self._write_phase(
                 root,
-                "demo",
+                "0-demo",
                 [
                     {"step": 0, "name": "setup", "status": "pending"},
                     {"step": 1, "name": "api", "status": "pending"},
                 ],
             )
-            index_path = root / "phases" / "demo" / "index.json"
+            index_path = root / "phases" / "0-demo" / "index.json"
 
             updated = update_step(index_path, 1, status="completed", summary="done")
 
@@ -69,17 +69,17 @@ class PhaseIndexHelperTests(unittest.TestCase):
     def test_update_step_requires_existing_step(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            self._write_phase(root, "demo", [{"step": 0, "name": "setup", "status": "pending"}])
+            self._write_phase(root, "0-demo", [{"step": 0, "name": "setup", "status": "pending"}])
 
             with self.assertRaisesRegex(PhaseValidationError, "step 1"):
-                update_step(root / "phases" / "demo" / "index.json", 1, status="completed")
+                update_step(root / "phases" / "0-demo" / "index.json", 1, status="completed")
 
     def test_clear_step_fields_removes_only_requested_fields(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             self._write_phase(
                 root,
-                "demo",
+                "0-demo",
                 [
                     {
                         "step": 0,
@@ -90,7 +90,7 @@ class PhaseIndexHelperTests(unittest.TestCase):
                     }
                 ],
             )
-            index_path = root / "phases" / "demo" / "index.json"
+            index_path = root / "phases" / "0-demo" / "index.json"
 
             updated = clear_step_fields(index_path, 0, "error_message", "missing")
 
@@ -139,7 +139,7 @@ class PhaseIndexHelperTests(unittest.TestCase):
             root = Path(tmp)
             self._write_phase(
                 root,
-                "demo",
+                "0-demo",
                 [
                     {"step": 0, "name": "setup", "status": "pending"},
                     {
@@ -152,7 +152,7 @@ class PhaseIndexHelperTests(unittest.TestCase):
                 ],
             )
 
-            configs = load_step_configs(root, "demo")
+            configs = load_step_configs(root, "0-demo")
 
         self.assertEqual(
             configs,
@@ -165,57 +165,73 @@ class PhaseIndexHelperTests(unittest.TestCase):
     def test_validate_phase_indexes_requires_registered_phase(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            self._write_phase(root, "demo", [{"step": 0, "name": "setup", "status": "pending"}])
+            self._write_phase(root, "0-demo", [{"step": 0, "name": "setup", "status": "pending"}])
             write_json(root / "phases" / "index.json", {"phases": []})
 
             with self.assertRaisesRegex(PhaseValidationError, "not registered"):
+                validate_phase_indexes(root, "0-demo")
+
+    def test_validate_phase_indexes_requires_numbered_kebab_case_phase_dir(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._write_phase(root, "demo", [{"step": 0, "name": "setup", "status": "pending"}])
+
+            with self.assertRaisesRegex(PhaseValidationError, "N-slug"):
                 validate_phase_indexes(root, "demo")
+
+    def test_validate_phase_indexes_requires_numeric_prefix_to_match_top_index_order(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._write_phase(root, "1-demo", [{"step": 0, "name": "setup", "status": "pending"}])
+
+            with self.assertRaisesRegex(PhaseValidationError, "order 0"):
+                validate_phase_indexes(root, "1-demo")
 
     def test_validate_phase_indexes_requires_matching_phase_name(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             self._write_phase(
                 root,
-                "demo",
+                "0-demo",
                 [{"step": 0, "name": "setup", "status": "pending"}],
                 phase_value="other",
             )
 
             with self.assertRaisesRegex(PhaseValidationError, "phase must be"):
-                validate_phase_indexes(root, "demo")
+                validate_phase_indexes(root, "0-demo")
 
     def test_validate_phase_indexes_requires_consecutive_steps(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            self._write_phase(root, "demo", [{"step": 1, "name": "setup", "status": "pending"}])
+            self._write_phase(root, "0-demo", [{"step": 1, "name": "setup", "status": "pending"}])
 
             with self.assertRaisesRegex(PhaseValidationError, "consecutive"):
-                validate_phase_indexes(root, "demo")
+                validate_phase_indexes(root, "0-demo")
 
     def test_validate_phase_indexes_requires_step_markdown_file(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            self._write_phase(root, "demo", [{"step": 0, "name": "setup", "status": "pending"}])
-            (root / "phases" / "demo" / "step0.md").unlink()
+            self._write_phase(root, "0-demo", [{"step": 0, "name": "setup", "status": "pending"}])
+            (root / "phases" / "0-demo" / "step0.md").unlink()
 
             with self.assertRaisesRegex(PhaseValidationError, "step0.md"):
-                validate_phase_indexes(root, "demo")
+                validate_phase_indexes(root, "0-demo")
 
     def test_validate_phase_indexes_rejects_invalid_status(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            self._write_phase(root, "demo", [{"step": 0, "name": "setup", "status": "running"}])
+            self._write_phase(root, "0-demo", [{"step": 0, "name": "setup", "status": "running"}])
 
             with self.assertRaisesRegex(PhaseValidationError, "status"):
-                validate_phase_indexes(root, "demo")
+                validate_phase_indexes(root, "0-demo")
 
     def test_validate_phase_indexes_requires_completed_summary(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            self._write_phase(root, "demo", [{"step": 0, "name": "setup", "status": "completed"}])
+            self._write_phase(root, "0-demo", [{"step": 0, "name": "setup", "status": "completed"}])
 
             with self.assertRaisesRegex(PhaseValidationError, "summary"):
-                validate_phase_indexes(root, "demo")
+                validate_phase_indexes(root, "0-demo")
 
     def test_validate_phase_indexes_rejects_non_positive_attempt_and_timeout(self):
         invalid_cases = [
@@ -230,12 +246,12 @@ class PhaseIndexHelperTests(unittest.TestCase):
                 root = Path(tmp)
                 self._write_phase(
                     root,
-                    "demo",
+                    "0-demo",
                     [{"step": 0, "name": "setup", "status": "pending", key: value}],
                 )
 
                 with self.assertRaisesRegex(PhaseValidationError, key):
-                    validate_phase_indexes(root, "demo")
+                    validate_phase_indexes(root, "0-demo")
 
     def _write_phase(
         self,

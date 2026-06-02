@@ -1,0 +1,90 @@
+{
+  "project": "SolveSync",
+  "phase": "5-domain-naming-migration",
+  "steps": [
+    {
+      "step": 0,
+      "name": "docs-contracts",
+      "status": "completed",
+      "summary": "domain naming migration docs and ADR contract established",
+      "started_at": "2026-06-02T15:28:46+0900",
+      "completed_at": "2026-06-02T15:34:19+0900"
+    },
+    {
+      "step": 1,
+      "name": "solution-catalog-v2",
+      "status": "completed",
+      "started_at": "2026-06-02T15:34:22+0900",
+      "summary": "Solution Catalog v2 introduced with lastAcceptedSourceId and legacy v1 parsing",
+      "completed_at": "2026-06-02T15:41:43+0900"
+    },
+    {
+      "step": 2,
+      "name": "shared-domain-types",
+      "status": "completed",
+      "started_at": "2026-06-02T15:41:46+0900",
+      "summary": "shared domain types renamed with transitional aliases for remaining callers",
+      "completed_at": "2026-06-02T15:55:11+0900"
+    },
+    {
+      "step": 3,
+      "name": "storage-schema-v4",
+      "status": "completed",
+      "started_at": "2026-06-02T15:55:15+0900",
+      "summary": "storage schema v4 added with renamed settings, deduplication key, retry bundle, and history state migration",
+      "completed_at": "2026-06-02T16:04:29+0900"
+    },
+    {
+      "step": 4,
+      "name": "runtime-and-sync-core",
+      "status": "completed",
+      "started_at": "2026-06-02T16:04:32+0900",
+      "summary": "runtime messages and background sync core migrated to Sync History and Retry Bundle naming",
+      "completed_at": "2026-06-02T16:16:50+0900"
+    },
+    {
+      "step": 5,
+      "name": "ui-surfaces",
+      "status": "completed",
+      "started_at": "2026-06-02T16:16:53+0900",
+      "summary": "options, popup, toast, i18n, and UI models migrated to sync destination, Sync History, and Retry Bundle naming",
+      "completed_at": "2026-06-02T16:28:48+0900"
+    },
+    {
+      "step": 6,
+      "name": "accepted-editor-snapshot",
+      "status": "completed",
+      "started_at": "2026-06-02T16:28:51+0900",
+      "summary": "Programmers Accepted Editor Snapshot naming applied in content extraction and tests",
+      "completed_at": "2026-06-02T16:31:22+0900"
+    },
+    {
+      "step": 7,
+      "name": "copy-and-doc-cleanup",
+      "status": "completed",
+      "started_at": "2026-06-02T16:31:25+0900",
+      "summary": "stale naming aliases, copy, and docs cleaned up after v4 migration",
+      "completed_at": "2026-06-02T16:35:19+0900"
+    },
+    {
+      "step": 8,
+      "name": "swift-algorithm-catalog",
+      "status": "completed",
+      "timeout_sec": 3600,
+      "started_at": "2026-06-02T16:35:22+0900",
+      "summary": "Swift_Algorithm main catalog JSON migrated to Solution Catalog v2 with lastAcceptedSourceId",
+      "completed_at": "2026-06-02T16:38:36+0900"
+    },
+    {
+      "step": 9,
+      "name": "final-validation",
+      "status": "completed",
+      "timeout_sec": 3600,
+      "started_at": "2026-06-02T16:38:36+0900",
+      "summary": "full SolveSync gates passed and Swift_Algorithm catalog v2 remote state verified",
+      "completed_at": "2026-06-02T16:41:39+0900"
+    }
+  ],
+  "created_at": "2026-06-02T15:28:46+0900",
+  "completed_at": "2026-06-02T16:41:42+0900"
+}

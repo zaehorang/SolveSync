@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from enum import Enum
@@ -28,6 +29,7 @@ class StepStatus(str, Enum):
 
 
 _ALLOWED_STATUSES = StepStatus.values()
+_PHASE_DIR_PATTERN = re.compile(r"^(\d+)-[a-z0-9]+(?:-[a-z0-9]+)*$")
 
 
 @dataclass(frozen=True)
@@ -139,7 +141,31 @@ def _validate_top_index(index: dict, phase_dir_name: str) -> None:
     if not isinstance(phases, list):
         raise PhaseValidationError("phases/index.json must contain a phases list")
 
-    if not any(isinstance(phase, dict) and phase.get("dir") == phase_dir_name for phase in phases):
+    found = False
+    for expected_prefix, phase in enumerate(phases):
+        if not isinstance(phase, dict):
+            raise PhaseValidationError(f"phases[{expected_prefix}] must be an object")
+
+        phase_dir = phase.get("dir")
+        if not isinstance(phase_dir, str):
+            raise PhaseValidationError(f"phases[{expected_prefix}].dir must be a string")
+
+        match = _PHASE_DIR_PATTERN.fullmatch(phase_dir)
+        if match is None:
+            raise PhaseValidationError(
+                f"phase '{phase_dir}' dir must use N-slug format, for example {expected_prefix}-example-phase"
+            )
+
+        actual_prefix = int(match.group(1))
+        if actual_prefix != expected_prefix:
+            raise PhaseValidationError(
+                f"phase '{phase_dir}' numeric prefix must match phases/index.json order {expected_prefix}"
+            )
+
+        if phase_dir == phase_dir_name:
+            found = True
+
+    if not found:
         raise PhaseValidationError(f"phase '{phase_dir_name}' is not registered in phases/index.json")
 
 

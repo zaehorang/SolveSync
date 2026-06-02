@@ -18,8 +18,8 @@ class GitOpsTests(unittest.TestCase):
     def _ops(self, root: Path | None = None) -> GitOps:
         return GitOps(
             root_path=root or Path("/repo"),
-            phase_name="harness-runner-refactor",
-            phase_dir_name="harness-runner-refactor",
+            phase_name="4-harness-runner-refactor",
+            phase_dir_name="4-harness-runner-refactor",
         )
 
     def test_ensure_clean_worktree_raises_with_dirty_file_list(self):
@@ -37,7 +37,7 @@ class GitOpsTests(unittest.TestCase):
         ops = self._ops()
         allowed_paths = {
             "phases/index.json",
-            "phases/harness-runner-refactor/index.json",
+            "phases/4-harness-runner-refactor/index.json",
         }
 
         for status in (" M", "M ", "MM"):
@@ -49,7 +49,7 @@ class GitOpsTests(unittest.TestCase):
                         ("status", "--porcelain"),
                         stdout=(
                             f"{status} phases/index.json\n"
-                            f"{status} phases/harness-runner-refactor/index.json\n"
+                            f"{status} phases/4-harness-runner-refactor/index.json\n"
                         ),
                     ),
                 ):
@@ -59,15 +59,15 @@ class GitOpsTests(unittest.TestCase):
         ops = self._ops()
         allowed_paths = {
             "phases/index.json",
-            "phases/harness-runner-refactor/index.json",
+            "phases/4-harness-runner-refactor/index.json",
         }
 
         cases = {
             "mixed_code_change": " M phases/index.json\n M scripts/harness/runner.py\n",
             "other_phase_metadata": " M phases/other-phase/index.json\n",
             "untracked_metadata": "?? phases/index.json\n",
-            "deleted_metadata": " D phases/harness-runner-refactor/index.json\n",
-            "renamed_metadata": "R  phases/old/index.json -> phases/harness-runner-refactor/index.json\n",
+            "deleted_metadata": " D phases/4-harness-runner-refactor/index.json\n",
+            "renamed_metadata": "R  phases/old/index.json -> phases/4-harness-runner-refactor/index.json\n",
         }
 
         for name, stdout in cases.items():
@@ -89,14 +89,14 @@ class GitOpsTests(unittest.TestCase):
             if args == ("rev-parse", "--git-dir"):
                 return _git_result(args, stdout=".git\n")
             if args == ("symbolic-ref", "--quiet", "--short", "HEAD"):
-                return _git_result(args, stdout="feat-harness-runner-refactor\n")
+                return _git_result(args, stdout="feat-4-harness-runner-refactor\n")
             return _git_result(args)
 
         with patch.object(ops, "_run_git", side_effect=run_git):
             ops.checkout_branch()
 
-        self.assertNotIn(("checkout", "feat-harness-runner-refactor"), calls)
-        self.assertNotIn(("checkout", "-b", "feat-harness-runner-refactor"), calls)
+        self.assertNotIn(("checkout", "feat-4-harness-runner-refactor"), calls)
+        self.assertNotIn(("checkout", "-b", "feat-4-harness-runner-refactor"), calls)
 
     def test_checkout_branch_uses_existing_target_branch(self):
         ops = self._ops()
@@ -108,14 +108,14 @@ class GitOpsTests(unittest.TestCase):
                 return _git_result(args)
             if args == ("symbolic-ref", "--quiet", "--short", "HEAD"):
                 return _git_result(args, stdout="main\n")
-            if args == ("rev-parse", "--verify", "feat-harness-runner-refactor"):
+            if args == ("rev-parse", "--verify", "feat-4-harness-runner-refactor"):
                 return _git_result(args)
             return _git_result(args)
 
         with patch.object(ops, "_run_git", side_effect=run_git):
             ops.checkout_branch()
 
-        self.assertIn(("checkout", "feat-harness-runner-refactor"), calls)
+        self.assertIn(("checkout", "feat-4-harness-runner-refactor"), calls)
 
     def test_checkout_branch_creates_missing_target_branch(self):
         ops = self._ops()
@@ -127,14 +127,14 @@ class GitOpsTests(unittest.TestCase):
                 return _git_result(args)
             if args == ("symbolic-ref", "--quiet", "--short", "HEAD"):
                 return _git_result(args, stdout="main\n")
-            if args == ("rev-parse", "--verify", "feat-harness-runner-refactor"):
+            if args == ("rev-parse", "--verify", "feat-4-harness-runner-refactor"):
                 return _git_result(args, returncode=1, stderr="not found")
             return _git_result(args)
 
         with patch.object(ops, "_run_git", side_effect=run_git):
             ops.checkout_branch()
 
-        self.assertIn(("checkout", "-b", "feat-harness-runner-refactor"), calls)
+        self.assertIn(("checkout", "-b", "feat-4-harness-runner-refactor"), calls)
 
     def test_commit_step_runs_quality_gate_only_before_feature_commit_and_excludes_metadata(self):
         ops = self._ops()
@@ -166,13 +166,13 @@ class GitOpsTests(unittest.TestCase):
                 "HEAD",
                 "--",
                 "phases/index.json",
-                "phases/harness-runner-refactor/index.json",
+                "phases/4-harness-runner-refactor/index.json",
             ),
             calls,
         )
         self.assertEqual(
             events,
-            ["quality", "feat(harness-runner-refactor): step 3 — git-ops-quality-gate"],
+            ["quality", "feat(4-harness-runner-refactor): step 3 — git-ops-quality-gate"],
         )
 
     def test_commit_step_runs_harness_self_test_for_harness_related_feature_changes(self):
@@ -205,7 +205,7 @@ class GitOpsTests(unittest.TestCase):
             [
                 "quality",
                 "self-test",
-                "feat(harness-runner-refactor): step 3 — git-ops-quality-gate",
+                "feat(4-harness-runner-refactor): step 3 — git-ops-quality-gate",
             ],
         )
 
@@ -258,7 +258,7 @@ class GitOpsTests(unittest.TestCase):
         quality_gate.assert_not_called()
         self_test.assert_not_called()
         self.assertIn(
-            ("commit", "-m", "chore(harness-runner-refactor): step 3 metadata"),
+            ("commit", "-m", "chore(4-harness-runner-refactor): step 3 metadata"),
             calls,
         )
 
@@ -281,7 +281,7 @@ class GitOpsTests(unittest.TestCase):
             with self.assertRaisesRegex(GitOperationError, "gate failed"):
                 ops.commit_step(3, "feature")
 
-        self.assertNotIn(("commit", "-m", "feat(harness-runner-refactor): step 3 — feature"), calls)
+        self.assertNotIn(("commit", "-m", "feat(4-harness-runner-refactor): step 3 — feature"), calls)
 
     def test_commit_step_hard_fails_when_metadata_commit_fails(self):
         ops = self._ops()
@@ -294,7 +294,7 @@ class GitOpsTests(unittest.TestCase):
             if args == ("diff", "--cached", "--quiet"):
                 diff_calls += 1
                 return _git_result(args, returncode=0 if diff_calls == 1 else 1)
-            if args == ("commit", "-m", "chore(harness-runner-refactor): step 3 metadata"):
+            if args == ("commit", "-m", "chore(4-harness-runner-refactor): step 3 metadata"):
                 return _git_result(args, returncode=1, stderr="commit failed")
             return _git_result(args)
 
@@ -320,7 +320,7 @@ class GitOpsTests(unittest.TestCase):
 
         quality_gate.assert_not_called()
         self.assertIn(
-            ("commit", "-m", "chore(harness-runner-refactor): mark phase completed"),
+            ("commit", "-m", "chore(4-harness-runner-refactor): mark phase completed"),
             calls,
         )
 
@@ -331,7 +331,7 @@ class GitOpsTests(unittest.TestCase):
             ops,
             "_run_git",
             return_value=_git_result(
-                ("push", "-u", "origin", "feat-harness-runner-refactor"),
+                ("push", "-u", "origin", "feat-4-harness-runner-refactor"),
                 returncode=1,
                 stderr="rejected",
             ),

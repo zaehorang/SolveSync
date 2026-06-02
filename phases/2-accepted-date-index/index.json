@@ -1,0 +1,16 @@
+{
+  "project": "SolveSync",
+  "phase": "2-accepted-date-index",
+  "steps": [
+    {
+      "step": 0,
+      "name": "accepted-date-index",
+      "status": "completed",
+      "started_at": "2026-05-29T17:40:20+0900",
+      "summary": "acceptedDate metadata added to sync index, README table, and sync commit tests",
+      "completed_at": "2026-05-29T17:46:25+0900"
+    }
+  ],
+  "created_at": "2026-05-29T17:40:20+0900",
+  "completed_at": "2026-05-29T17:46:30+0900"
+}

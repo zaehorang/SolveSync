@@ -47,7 +47,7 @@ class HarnessRunnerTests(unittest.TestCase):
                     },
                 ],
             )
-            runner = HarnessRunner(HarnessConfig(root, "demo", False))
+            runner = HarnessRunner(HarnessConfig(root, "0-demo", False))
 
             prompt = runner._build_prompt(
                 StepConfig(1, "api", "pending", 5, 60),
@@ -68,11 +68,11 @@ class HarnessRunnerTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             self._write_phase(root, [{"step": 0, "name": "setup", "status": "pending"}])
-            (root / "phases" / "demo" / "step0.md").unlink()
+            (root / "phases" / "0-demo" / "step0.md").unlink()
 
             with patch.object(runner_module, "GitOps") as git_ops:
                 with self.assertRaisesRegex(PhaseValidationError, "step0.md"):
-                    HarnessRunner(HarnessConfig(root, "demo", False)).run()
+                    HarnessRunner(HarnessConfig(root, "0-demo", False)).run()
 
             git_ops.assert_not_called()
 
@@ -98,10 +98,10 @@ class HarnessRunnerTests(unittest.TestCase):
                 patch.object(runner_module, "GitOps") as git_ops,
                 patch.object(runner_module, "CodexClient"),
             ):
-                HarnessRunner(HarnessConfig(root, "demo", False)).run()
+                HarnessRunner(HarnessConfig(root, "0-demo", False)).run()
 
             git_ops.return_value.ensure_clean_worktree.assert_called_once_with(
-                allowed_dirty_paths=["phases/index.json", "phases/demo/index.json"],
+                allowed_dirty_paths=["phases/index.json", "phases/0-demo/index.json"],
             )
             git_ops.return_value.checkout_branch.assert_not_called()
 
@@ -127,10 +127,10 @@ class HarnessRunnerTests(unittest.TestCase):
                 patch.object(runner_module, "CodexClient"),
             ):
                 with self.assertRaisesRegex(BlockedStep, "needs token"):
-                    HarnessRunner(HarnessConfig(root, "demo", False)).run()
+                    HarnessRunner(HarnessConfig(root, "0-demo", False)).run()
 
             git_ops.return_value.ensure_clean_worktree.assert_called_once_with(
-                allowed_dirty_paths=["phases/index.json", "phases/demo/index.json"],
+                allowed_dirty_paths=["phases/index.json", "phases/0-demo/index.json"],
             )
             git_ops.return_value.checkout_branch.assert_not_called()
 
@@ -148,7 +148,7 @@ class HarnessRunnerTests(unittest.TestCase):
                     }
                 ],
             )
-            phase_dir = root / "phases" / "demo"
+            phase_dir = root / "phases" / "0-demo"
             live_log = phase_dir / "step0-live.log"
             live_log.write_text("log", encoding="utf-8")
             runner = self._direct_runner(root)
@@ -164,7 +164,7 @@ class HarnessRunnerTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             self._write_phase(root, [{"step": 0, "name": "setup", "status": "pending"}])
-            phase_dir = root / "phases" / "demo"
+            phase_dir = root / "phases" / "0-demo"
             index_file = phase_dir / "index.json"
             live_log = phase_dir / "step0-live.log"
             live_log.write_text("log", encoding="utf-8")
@@ -177,7 +177,7 @@ class HarnessRunnerTests(unittest.TestCase):
                 write_json(index_file, index)
                 return CodexRunResult(
                     exit_code=0,
-                    live_log_path="phases/demo/step0-live.log",
+                    live_log_path="phases/0-demo/step0-live.log",
                     last_message="done",
                     elapsed_sec=4,
                 )
@@ -192,14 +192,14 @@ class HarnessRunnerTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             self._write_phase(root, [{"step": 0, "name": "setup", "status": "pending"}])
-            phase_dir = root / "phases" / "demo"
+            phase_dir = root / "phases" / "0-demo"
             live_log = phase_dir / "step0-live.log"
             live_log.write_text("log", encoding="utf-8")
             runner = self._direct_runner(root)
             runner._codex.invoke = Mock(
                 return_value=CodexRunResult(
                     exit_code=1,
-                    live_log_path="phases/demo/step0-live.log",
+                    live_log_path="phases/0-demo/step0-live.log",
                     last_message="working",
                     commands=["npm test"],
                     stderr_tail=["boom"],
@@ -222,7 +222,7 @@ class HarnessRunnerTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             self._write_phase(root, [{"step": 0, "name": "setup", "status": "pending"}])
-            phase_dir = root / "phases" / "demo"
+            phase_dir = root / "phases" / "0-demo"
             index_file = phase_dir / "index.json"
             live_log = phase_dir / "step0-live.log"
             live_log.write_text("log", encoding="utf-8")
@@ -235,7 +235,7 @@ class HarnessRunnerTests(unittest.TestCase):
                 write_json(index_file, index)
                 return CodexRunResult(
                     exit_code=0,
-                    live_log_path="phases/demo/step0-live.log",
+                    live_log_path="phases/0-demo/step0-live.log",
                     last_message="blocked",
                 )
 
@@ -258,7 +258,7 @@ class HarnessRunnerTests(unittest.TestCase):
                 root,
                 [{"step": 0, "name": "setup", "status": "pending", "max_attempts": 2, "timeout_sec": 60}],
             )
-            phase_dir = root / "phases" / "demo"
+            phase_dir = root / "phases" / "0-demo"
             index_file = phase_dir / "index.json"
             runner = self._direct_runner(root)
             prompts: list[str] = []
@@ -275,7 +275,7 @@ class HarnessRunnerTests(unittest.TestCase):
                     write_json(index_file, index)
                     return CodexRunResult(
                         exit_code=1,
-                        live_log_path="phases/demo/step0-live.log",
+                        live_log_path="phases/0-demo/step0-live.log",
                         last_message="working",
                         commands=["npm test"],
                         stderr_tail=["boom"],
@@ -288,7 +288,7 @@ class HarnessRunnerTests(unittest.TestCase):
                 write_json(index_file, index)
                 return CodexRunResult(
                     exit_code=0,
-                    live_log_path="phases/demo/step0-live.log",
+                    live_log_path="phases/0-demo/step0-live.log",
                     last_message="done",
                 )
 
@@ -298,7 +298,7 @@ class HarnessRunnerTests(unittest.TestCase):
 
             self.assertEqual(attempts, [1, 2])
             self.assertIn("agent reported failure", prompts[1])
-            self.assertIn("Live log: phases/demo/step0-live.log", prompts[1])
+            self.assertIn("Live log: phases/0-demo/step0-live.log", prompts[1])
             self.assertIn("stderr tail: boom", prompts[1])
             runner._git_ops.commit_step.assert_called_once_with(0, "setup")
 
@@ -316,14 +316,14 @@ class HarnessRunnerTests(unittest.TestCase):
             runner._git_ops.push_phase_branch.assert_called_once_with()
 
     def _direct_runner(self, root: Path, *, auto_push: bool = False) -> HarnessRunner:
-        runner = HarnessRunner(HarnessConfig(root, "demo", auto_push))
+        runner = HarnessRunner(HarnessConfig(root, "0-demo", auto_push))
         runner._git_ops = Mock()
         runner._codex = CodexClient(
             root_path=root,
-            phase_dir_path=root / "phases" / "demo",
+            phase_dir_path=root / "phases" / "0-demo",
             timestamp=lambda: "2026-06-02T00:00:00+0900",
         )
-        runner._total = len(read_json(root / "phases" / "demo" / "index.json")["steps"])
+        runner._total = len(read_json(root / "phases" / "0-demo" / "index.json")["steps"])
         return runner
 
     def _write_phase(
@@ -331,7 +331,7 @@ class HarnessRunnerTests(unittest.TestCase):
         root: Path,
         steps: list[dict],
         *,
-        phase_name: str = "demo",
+        phase_name: str = "0-demo",
         top_status: str = "pending",
     ) -> None:
         phases_dir = root / "phases"

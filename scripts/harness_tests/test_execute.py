@@ -33,10 +33,10 @@ class ExecuteCliTests(unittest.TestCase):
                 patch.object(execute, "ROOT", root),
                 patch.object(execute, "HarnessRunner") as harness_runner,
             ):
-                code = execute.main(["demo", "--push"])
+                code = execute.main(["0-demo", "--push"])
 
         self.assertEqual(code, 0)
-        harness_runner.assert_called_once_with(HarnessConfig(root, "demo", True))
+        harness_runner.assert_called_once_with(HarnessConfig(root, "0-demo", True))
         harness_runner.return_value.run.assert_called_once_with()
 
     def test_main_keeps_push_default_false(self):
@@ -46,10 +46,10 @@ class ExecuteCliTests(unittest.TestCase):
                 patch.object(execute, "ROOT", root),
                 patch.object(execute, "HarnessRunner") as harness_runner,
             ):
-                code = execute.main(["demo"])
+                code = execute.main(["0-demo"])
 
         self.assertEqual(code, 0)
-        harness_runner.assert_called_once_with(HarnessConfig(root, "demo", False))
+        harness_runner.assert_called_once_with(HarnessConfig(root, "0-demo", False))
 
     def test_main_maps_blocked_step_to_exit_code_two(self):
         code, output = self._run_with_error(BlockedStep("needs input"))
@@ -79,7 +79,7 @@ class ExecuteCliTests(unittest.TestCase):
             patch("sys.stdout", new_callable=io.StringIO) as stdout,
         ):
             harness_runner.return_value.run.side_effect = exc
-            code = execute.main(["demo"])
+            code = execute.main(["0-demo"])
 
         return code, stdout.getvalue()
 

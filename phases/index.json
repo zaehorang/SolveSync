@@ -11,22 +11,22 @@
       "completed_at": "2026-05-27T20:19:50+0900"
     },
     {
-      "dir": "accepted-date-index",
+      "dir": "2-accepted-date-index",
       "status": "completed",
       "completed_at": "2026-05-29T17:46:30+0900"
     },
     {
-      "dir": "2-liquid-glass-ui",
+      "dir": "3-liquid-glass-ui",
       "status": "completed",
       "completed_at": "2026-05-29T18:27:43+0900"
     },
     {
-      "dir": "harness-runner-refactor",
+      "dir": "4-harness-runner-refactor",
       "status": "completed",
       "completed_at": "2026-06-02T01:17:50+0900"
     },
     {
-      "dir": "domain-naming-migration",
+      "dir": "5-domain-naming-migration",
       "status": "completed",
       "completed_at": "2026-06-02T16:41:42+0900"
     }
