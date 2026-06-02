@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { BranchRef, NormalizedError, RepositoryRef } from "../shared";
+import type { NormalizedError, SyncBranch, SyncRepository } from "../shared";
 import {
   getConnectionStatusView,
   getDefaultBranchSelection,
@@ -46,15 +46,15 @@ describe("options state helpers", () => {
   it("validates missing required settings before save", () => {
     const validation = validateSettingsDraft({
       githubPat: " ",
-      selectedRepository: null,
-      selectedBranch: null
+      syncRepository: null,
+      syncBranch: null
     });
 
     expect(validation.isValid).toBe(false);
     expect(validation.errors).toMatchObject({
       githubPat: "GitHub PAT is required.",
-      repository: "Choose a repository from the owned repository list.",
-      branch: "Choose an existing branch or create one first."
+      repository: "Choose a Sync Repository from the owned repository list.",
+      branch: "Choose an existing Sync Branch or create one first."
     });
   });
 
@@ -62,16 +62,16 @@ describe("options state helpers", () => {
     const validation = validateSettingsDraft(
       {
         githubPat: " ",
-        selectedRepository: null,
-        selectedBranch: null
+        syncRepository: null,
+        syncBranch: null
       },
       "ko"
     );
 
     expect(validation.errors).toMatchObject({
       githubPat: "GitHub PAT가 필요합니다.",
-      repository: "본인 저장소 목록에서 저장소를 선택하세요.",
-      branch: "기존 branch를 선택하거나 먼저 생성하세요."
+      repository: "본인 저장소 목록에서 Sync Repository를 선택하세요.",
+      branch: "기존 Sync Branch를 선택하거나 먼저 생성하세요."
     });
   });
 
@@ -98,7 +98,7 @@ describe("options state helpers", () => {
   });
 });
 
-function makeRepository(fullName: string, defaultBranch = "main"): RepositoryRef {
+function makeRepository(fullName: string, defaultBranch = "main"): SyncRepository {
   const [owner, name] = fullName.split("/");
 
   return {
@@ -111,7 +111,7 @@ function makeRepository(fullName: string, defaultBranch = "main"): RepositoryRef
   };
 }
 
-function makeBranch(name: string): BranchRef {
+function makeBranch(name: string): SyncBranch {
   return {
     name,
     sha: `${name}-sha`,

@@ -1,11 +1,14 @@
 import {
   APP_NAME,
   DEFAULT_UI_LANGUAGE,
+  RETRY_BUNDLES_READ_TYPE,
+  SYNC_HISTORY_READ_TYPE,
+  SYNC_HISTORY_UPDATED_TYPE,
   getConnectionStatusView as getSharedConnectionStatusView,
   getFailureDetailView as getSharedFailureDetailView,
   getPlatformLabel,
   getSetupStatusView as getSharedSetupStatusView,
-  getSyncRecordLanguageLabel,
+  getSyncHistoryEntryLanguageLabel,
   getSyncStatusLabel,
   getSyncStatusTone,
   getUnsupportedLanguageReason,
@@ -16,10 +19,10 @@ import {
   type I18nKey,
   type NormalizedError,
   type PublicSettingsState,
-  type RetryPayloadSummary,
+  type RetryBundleSummary,
   type RuntimeMessage,
   type SetupStatusView,
-  type SyncRecord,
+  type SyncHistoryEntry,
   type SyncStatus,
   type Tone,
   type UiLocale
@@ -60,7 +63,7 @@ export interface PopupHistoryItem {
   fileUrl: string | null;
   failure: FailureDetailView | null;
   unsupportedReason: string | null;
-  retryPayloadId: string | null;
+  retryBundleId: string | null;
   canRetry: boolean;
 }
 
@@ -71,12 +74,12 @@ export interface PopupHistoryModel {
 
 interface PopupRuntimeState {
   settings: PublicSettingsState | null;
-  historyRecords: SyncRecord[];
-  retryPayloads: RetryPayloadSummary[];
+  syncHistoryEntries: SyncHistoryEntry[];
+  retryBundles: RetryBundleSummary[];
   loading: boolean;
   savingAutoSync: boolean;
-  retryingPayloadIds: Set<string>;
-  expandedRecordId: string | null;
+  retryingBundleIds: Set<string>;
+  expandedSyncHistoryEntryId: string | null;
   message: InlineMessage;
 }
 
@@ -137,16 +140,16 @@ export function getSetupStatusView(
 }
 
 export function buildHistoryDisplayModel(
-  records: SyncRecord[],
-  retryPayloads: RetryPayloadSummary[],
+  syncHistoryEntries: SyncHistoryEntry[],
+  retryBundles: RetryBundleSummary[],
   nowMs = Date.now(),
   locale: UiLocale = "en"
 ): PopupHistoryModel {
-  const retryPayloadIds = new Set(retryPayloads.map((payload) => payload.id));
-  const items = [...records]
-    .sort(compareRecordsByUpdatedAtDescending)
+  const retryBundleIds = new Set(retryBundles.map((bundle) => bundle.id));
+  const items = [...syncHistoryEntries]
+    .sort(compareSyncHistoryEntriesByUpdatedAtDescending)
     .slice(0, HISTORY_LIMIT)
-    .map((record) => toHistoryItem(record, retryPayloadIds, nowMs, locale));
+    .map((entry) => toHistoryItem(entry, retryBundleIds, nowMs, locale));
 
   return {
     items,
@@ -155,21 +158,21 @@ export function buildHistoryDisplayModel(
 }
 
 export function getFailureDetail(
-  record: SyncRecord,
+  syncHistoryEntry: SyncHistoryEntry,
   locale: UiLocale = "en"
 ): FailureDetailView | null {
-  return getSharedFailureDetailView(locale, record);
+  return getSharedFailureDetailView(locale, syncHistoryEntry);
 }
 
 function createInitialState(): PopupRuntimeState {
   return {
     settings: null,
-    historyRecords: [],
-    retryPayloads: [],
+    syncHistoryEntries: [],
+    retryBundles: [],
     loading: true,
     savingAutoSync: false,
-    retryingPayloadIds: new Set(),
-    expandedRecordId: null,
+    retryingBundleIds: new Set(),
+    expandedSyncHistoryEntryId: null,
     message: EMPTY_MESSAGE
   };
 }
@@ -198,13 +201,13 @@ function bindEvents(elements: PopupElements, state: PopupRuntimeState): void {
 
 function bindRuntimeUpdates(elements: PopupElements, state: PopupRuntimeState): void {
   chrome.runtime.onMessage.addListener((message: RuntimeMessage) => {
-    if (message.type === "history:updated") {
-      state.historyRecords = message.payload.history.records;
-      void refreshRetryPayloads(elements, state);
+    if (message.type === SYNC_HISTORY_UPDATED_TYPE) {
+      state.syncHistoryEntries = message.payload.syncHistory.entries;
+      void refreshRetryBundles(elements, state);
       render(elements, state);
     }
 
-    if (message.type === "sync:status" && message.payload.record !== null) {
+    if (message.type === "sync:status" && message.payload.syncHistoryEntry !== null) {
       const locale = getPopupLocale(state.settings);
       state.message = {
         text: getSyncStatusLabel(locale, message.payload.status),
@@ -224,18 +227,18 @@ async function refreshPopupData(
   render(elements, state);
 
   try {
-    const [settings, history, retryPayloads] = await Promise.all([
+    const [settings, history, retryBundles] = await Promise.all([
       sendRuntimeMessage<PublicSettingsState>({
         type: "settings:read"
       }),
-      sendRuntimeMessage<SyncRecord[]>({
-        type: "history:read",
+      sendRuntimeMessage<SyncHistoryEntry[]>({
+        type: SYNC_HISTORY_READ_TYPE,
         payload: {
           limit: HISTORY_LIMIT
         }
       }),
-      sendRuntimeMessage<RetryPayloadSummary[]>({
-        type: "retry-payloads:read"
+      sendRuntimeMessage<RetryBundleSummary[]>({
+        type: RETRY_BUNDLES_READ_TYPE
       })
     ]);
 
@@ -247,13 +250,13 @@ async function refreshPopupData(
       throw history.error;
     }
 
-    if (!retryPayloads.ok) {
-      throw retryPayloads.error;
+    if (!retryBundles.ok) {
+      throw retryBundles.error;
     }
 
     state.settings = settings.data;
-    state.historyRecords = history.data;
-    state.retryPayloads = retryPayloads.data;
+    state.syncHistoryEntries = history.data;
+    state.retryBundles = retryBundles.data;
   } catch (error) {
     state.message = {
       text: normalizeError(error).userMessage,
@@ -265,16 +268,16 @@ async function refreshPopupData(
   }
 }
 
-async function refreshRetryPayloads(
+async function refreshRetryBundles(
   elements: PopupElements,
   state: PopupRuntimeState
 ): Promise<void> {
-  const response = await sendRuntimeMessage<RetryPayloadSummary[]>({
-    type: "retry-payloads:read"
+  const response = await sendRuntimeMessage<RetryBundleSummary[]>({
+    type: RETRY_BUNDLES_READ_TYPE
   });
 
   if (response.ok) {
-    state.retryPayloads = response.data;
+    state.retryBundles = response.data;
     render(elements, state);
   }
 }
@@ -319,9 +322,9 @@ async function updateAutoSync(
 async function retrySync(
   elements: PopupElements,
   state: PopupRuntimeState,
-  retryPayloadId: string
+  retryBundleId: string
 ): Promise<void> {
-  state.retryingPayloadIds.add(retryPayloadId);
+  state.retryingBundleIds.add(retryBundleId);
   state.message = localizedMessage("toast.retryingTitle", "neutral");
   render(elements, state);
 
@@ -329,7 +332,7 @@ async function retrySync(
     const response = await sendRuntimeMessage({
       type: "sync:retry",
       payload: {
-        retryPayloadId
+        retryBundleId
       }
     });
 
@@ -344,7 +347,7 @@ async function retrySync(
       tone: "error"
     };
   } finally {
-    state.retryingPayloadIds.delete(retryPayloadId);
+    state.retryingBundleIds.delete(retryBundleId);
     render(elements, state);
   }
 }
@@ -375,8 +378,8 @@ function render(elements: PopupElements, state: PopupRuntimeState): void {
   renderSettingsSummary(elements, state.settings, locale);
 
   const model = buildHistoryDisplayModel(
-    state.historyRecords,
-    state.retryPayloads,
+    state.syncHistoryEntries,
+    state.retryBundles,
     Date.now(),
     locale
   );
@@ -452,7 +455,7 @@ function createHistoryElement(
     entry.append(controls);
   }
 
-  if (state.expandedRecordId === item.id && item.failure !== null) {
+  if (state.expandedSyncHistoryEntryId === item.id && item.failure !== null) {
     entry.append(createFailureDetailPanel(item.failure));
   }
 
@@ -498,18 +501,19 @@ function createControlsRow(
   detailsButton.className = "button secondary compact";
   detailsButton.type = "button";
   detailsButton.textContent =
-    state.expandedRecordId === item.id
+    state.expandedSyncHistoryEntryId === item.id
       ? t(locale, "action.hideDetails")
       : t(locale, "action.details");
   detailsButton.addEventListener("click", () => {
-    state.expandedRecordId = state.expandedRecordId === item.id ? null : item.id;
+    state.expandedSyncHistoryEntryId =
+      state.expandedSyncHistoryEntryId === item.id ? null : item.id;
     render(elements, state);
   });
   row.append(detailsButton);
 
-  if (item.canRetry && item.retryPayloadId !== null) {
+  if (item.canRetry && item.retryBundleId !== null) {
     const retryButton = document.createElement("button");
-    const retrying = state.retryingPayloadIds.has(item.retryPayloadId);
+    const retrying = state.retryingBundleIds.has(item.retryBundleId);
     retryButton.className = "button primary compact";
     retryButton.type = "button";
     retryButton.disabled = retrying;
@@ -517,8 +521,8 @@ function createControlsRow(
       ? t(locale, "status.retrying")
       : t(locale, "action.retry");
     retryButton.addEventListener("click", () => {
-      if (item.retryPayloadId !== null) {
-        void retrySync(elements, state, item.retryPayloadId);
+      if (item.retryBundleId !== null) {
+        void retrySync(elements, state, item.retryBundleId);
       }
     });
     row.append(retryButton);
@@ -553,44 +557,50 @@ function createExternalLink(url: string, label: string): HTMLAnchorElement {
 }
 
 function toHistoryItem(
-  record: SyncRecord,
-  retryPayloadIds: Set<string>,
+  syncHistoryEntry: SyncHistoryEntry,
+  retryBundleIds: Set<string>,
   nowMs: number,
   locale: UiLocale
 ): PopupHistoryItem {
-  const retryPayloadId = record.retryPayloadId;
+  const retryBundleId = syncHistoryEntry.retryBundleId;
   const canRetry =
-    record.status === "failed" &&
-    retryPayloadId !== null &&
-    retryPayloadIds.has(retryPayloadId) &&
-    record.error?.retryable !== false;
+    syncHistoryEntry.status === "failed" &&
+    retryBundleId !== null &&
+    retryBundleIds.has(retryBundleId) &&
+    syncHistoryEntry.error?.retryable !== false;
 
   return {
-    id: record.id,
-    status: record.status,
-    platformLabel: getPlatformLabel(record.platform),
-    title: getRecordTitle(record, locale),
-    languageLabel: getSyncRecordLanguageLabel(locale, record),
-    meta: getRecordMeta(record, nowMs, locale),
-    timeLabel: formatRelativeTime(record.updatedAt, nowMs, locale),
-    statusLabel: getSyncStatusLabel(locale, record.status),
-    tone: getSyncStatusTone(record.status),
-    commitUrl: record.commitUrl,
-    fileUrl: record.fileUrl,
-    failure: record.status === "failed" ? getSharedFailureDetailView(locale, record) : null,
+    id: syncHistoryEntry.id,
+    status: syncHistoryEntry.status,
+    platformLabel: getPlatformLabel(syncHistoryEntry.codingPlatform),
+    title: getSyncHistoryEntryTitle(syncHistoryEntry, locale),
+    languageLabel: getSyncHistoryEntryLanguageLabel(locale, syncHistoryEntry),
+    meta: getSyncHistoryEntryMeta(syncHistoryEntry, nowMs, locale),
+    timeLabel: formatRelativeTime(syncHistoryEntry.updatedAt, nowMs, locale),
+    statusLabel: getSyncStatusLabel(locale, syncHistoryEntry.status),
+    tone: getSyncStatusTone(syncHistoryEntry.status),
+    commitUrl: syncHistoryEntry.commitUrl,
+    fileUrl: syncHistoryEntry.fileUrl,
+    failure:
+      syncHistoryEntry.status === "failed"
+        ? getSharedFailureDetailView(locale, syncHistoryEntry)
+        : null,
     unsupportedReason:
-      record.status === "unsupported_language"
+      syncHistoryEntry.status === "unsupported_language"
         ? getUnsupportedLanguageReason(locale)
         : null,
-    retryPayloadId,
+    retryBundleId,
     canRetry
   };
 }
 
-function getRecordTitle(record: SyncRecord, locale: UiLocale): string {
-  const title = record.problemTitle?.trim() ?? "";
-  const frontendId = record.problemFrontendId?.trim() ?? "";
-  const titleSlug = record.titleSlug.trim();
+function getSyncHistoryEntryTitle(
+  syncHistoryEntry: SyncHistoryEntry,
+  locale: UiLocale
+): string {
+  const title = syncHistoryEntry.problemTitle?.trim() ?? "";
+  const frontendId = syncHistoryEntry.problemFrontendId?.trim() ?? "";
+  const titleSlug = syncHistoryEntry.titleSlug.trim();
 
   if (title.length > 0 && frontendId.length > 0) {
     return `${frontendId}. ${title}`;
@@ -605,23 +615,32 @@ function getRecordTitle(record: SyncRecord, locale: UiLocale): string {
   }
 
   if (frontendId.length > 0) {
-    return `${getPlatformLabel(record.platform)} ${frontendId}`;
+    return `${getPlatformLabel(syncHistoryEntry.codingPlatform)} ${frontendId}`;
   }
 
   return t(locale, "label.platformSubmission", {
-    platform: getPlatformLabel(record.platform)
+    platform: getPlatformLabel(syncHistoryEntry.codingPlatform)
   });
 }
 
-function getRecordMeta(record: SyncRecord, nowMs: number, locale: UiLocale): string {
+function getSyncHistoryEntryMeta(
+  syncHistoryEntry: SyncHistoryEntry,
+  nowMs: number,
+  locale: UiLocale
+): string {
   const parts = [
-    getPlatformLabel(record.platform),
-    getSyncRecordLanguageLabel(locale, record),
-    formatRelativeTime(record.updatedAt, nowMs, locale)
+    getPlatformLabel(syncHistoryEntry.codingPlatform),
+    getSyncHistoryEntryLanguageLabel(locale, syncHistoryEntry),
+    formatRelativeTime(syncHistoryEntry.updatedAt, nowMs, locale)
   ];
 
-  if (record.repository !== null && record.branchName !== null) {
-    parts.push(`${record.repository.fullName}@${record.branchName}`);
+  if (
+    syncHistoryEntry.syncRepository !== null &&
+    syncHistoryEntry.syncBranchName !== null
+  ) {
+    parts.push(
+      `${syncHistoryEntry.syncRepository.fullName}@${syncHistoryEntry.syncBranchName}`
+    );
   }
 
   return parts.join(" / ");
@@ -656,21 +675,21 @@ function formatRelativeTime(value: string, nowMs: number, locale: UiLocale): str
   return t(locale, "time.daysAgo", { count: diffDays });
 }
 
-function compareRecordsByUpdatedAtDescending(
-  left: SyncRecord,
-  right: SyncRecord
+function compareSyncHistoryEntriesByUpdatedAtDescending(
+  left: SyncHistoryEntry,
+  right: SyncHistoryEntry
 ): number {
-  return parseRecordTimestamp(right) - parseRecordTimestamp(left);
+  return parseSyncHistoryEntryTimestamp(right) - parseSyncHistoryEntryTimestamp(left);
 }
 
-function parseRecordTimestamp(record: SyncRecord): number {
-  const updatedAt = Date.parse(record.updatedAt);
+function parseSyncHistoryEntryTimestamp(syncHistoryEntry: SyncHistoryEntry): number {
+  const updatedAt = Date.parse(syncHistoryEntry.updatedAt);
 
   if (Number.isFinite(updatedAt)) {
     return updatedAt;
   }
 
-  const createdAt = Date.parse(record.createdAt);
+  const createdAt = Date.parse(syncHistoryEntry.createdAt);
 
   return Number.isFinite(createdAt) ? createdAt : 0;
 }
@@ -712,9 +731,9 @@ function renderSettingsSummary(
   elements.connectionDetail.textContent = connection.detail ?? "";
   elements.connectionDetail.hidden = connection.detail === null;
   elements.repositorySummary.textContent =
-    settings.selectedRepository?.fullName ?? t(locale, "popup.summary.notSelected");
+    settings.syncRepository?.fullName ?? t(locale, "popup.summary.notSelected");
   elements.branchSummary.textContent =
-    settings.selectedBranch?.name ?? t(locale, "popup.summary.notSelected");
+    settings.syncBranch?.name ?? t(locale, "popup.summary.notSelected");
 }
 
 function getToneMarker(tone: Tone): string {

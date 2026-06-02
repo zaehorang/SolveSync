@@ -24,7 +24,8 @@ export type ToastModelInput = SharedToastModelInput;
 
 export type ToastActionHandler = (
   action: ToastAction,
-  recordId: string | null
+  syncHistoryEntryId: string | null,
+  retryBundleId: string | null
 ) => void;
 
 export function createToastModel(
@@ -142,7 +143,11 @@ export class ContentToast {
             return;
           }
 
-          this.handleAction(item.action, item.recordId);
+          this.handleAction(
+            item.action,
+            item.syncHistoryEntryId,
+            item.retryBundleId
+          );
         });
         actions.append(button);
       }

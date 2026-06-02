@@ -8,15 +8,15 @@ import {
 import { getSetupStatusView } from "./index";
 
 describe("popup index owner repository copy", () => {
-  it("asks users to choose an owned repository", () => {
+  it("asks users to choose a Sync Repository", () => {
     expect(
       getSetupStatusView({
         ...makePublicSettings(),
-        selectedRepository: null
+        syncRepository: null
       })
     ).toMatchObject({
-      label: "Repository required",
-      detail: "Open Options and choose an owned repository.",
+      label: "Sync Repository required",
+      detail: "Open Options and choose a Sync Repository.",
       tone: "warning"
     });
   });
@@ -42,7 +42,7 @@ function makePublicSettings(): PublicSettingsState {
   return {
     version: STORAGE_SCHEMA_VERSION,
     hasGithubPat: true,
-    selectedRepository: {
+    syncRepository: {
       owner: "octo",
       name: "algorithms",
       fullName: "octo/algorithms",
@@ -50,7 +50,7 @@ function makePublicSettings(): PublicSettingsState {
       private: true,
       htmlUrl: "https://github.com/octo/algorithms"
     },
-    selectedBranch: {
+    syncBranch: {
       name: "main",
       sha: "branch-sha",
       protected: false

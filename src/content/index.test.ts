@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   createAcceptedDetectedMessage,
   createProgrammersAcceptedDetectedMessage,
-  extractProgrammersAcceptedSnapshot,
+  extractProgrammersAcceptedEditorSnapshot,
   extractProgrammersEditorCode,
   resolveContentToastLocale,
   resolveContentPage
@@ -39,7 +39,7 @@ describe("content runtime wiring helpers", () => {
     expect(message).toEqual({
       type: "content:accepted_detected",
       payload: {
-        platform: "leetcode",
+        codingPlatform: "leetcode",
         titleSlug: "two-sum",
         pageUrl: "https://leetcode.com/problems/two-sum/",
         detectedAt: "2026-01-01T00:00:00.000Z"
@@ -48,7 +48,7 @@ describe("content runtime wiring helpers", () => {
     expect(Object.hasOwn(message.payload, "code")).toBe(false);
   });
 
-  it("extracts Programmers textarea code and metadata into a snapshot", () => {
+  it("extracts Programmers textarea code and metadata into an Accepted Editor Snapshot", () => {
     const documentRef = makeDocument({
       "textarea#code": element({ value: "print(120804)\n" }),
       h1: element({ textContent: "코딩테스트 연습" }),
@@ -62,7 +62,7 @@ describe("content runtime wiring helpers", () => {
       })
     });
 
-    const snapshot = extractProgrammersAcceptedSnapshot(
+    const acceptedEditorSnapshot = extractProgrammersAcceptedEditorSnapshot(
       documentRef,
       {
         courseId: "30",
@@ -72,7 +72,7 @@ describe("content runtime wiring helpers", () => {
       "2026-01-01T00:00:00.000Z"
     );
 
-    expect(snapshot).toEqual({
+    expect(acceptedEditorSnapshot).toEqual({
       courseId: "30",
       lessonId: "120804",
       problemTitle: "두 수의 곱 구하기",
@@ -97,7 +97,7 @@ describe("content runtime wiring helpers", () => {
       })
     });
 
-    const snapshot = extractProgrammersAcceptedSnapshot(
+    const acceptedEditorSnapshot = extractProgrammersAcceptedEditorSnapshot(
       documentRef,
       {
         courseId: "30",
@@ -107,7 +107,7 @@ describe("content runtime wiring helpers", () => {
       "2026-01-01T00:00:00.000Z"
     );
 
-    expect(snapshot.problemTitle).toBe("나이 출력");
+    expect(acceptedEditorSnapshot.problemTitle).toBe("나이 출력");
   });
 
   it("does not use rendered CodeMirror lines as solution code", () => {
@@ -118,7 +118,7 @@ describe("content runtime wiring helpers", () => {
     expect(extractProgrammersEditorCode(documentRef)).toBeNull();
   });
 
-  it("creates Programmers accepted detected messages from the editor snapshot", () => {
+  it("creates Programmers accepted detected messages from an Accepted Editor Snapshot", () => {
     const message = createProgrammersAcceptedDetectedMessage({
       courseId: "30",
       lessonId: "120804",
@@ -132,7 +132,7 @@ describe("content runtime wiring helpers", () => {
     expect(message).toEqual({
       type: "content:accepted_detected",
       payload: {
-        platform: "programmers",
+        codingPlatform: "programmers",
         courseId: "30",
         lessonId: "120804",
         problemTitle: "두 수의 곱 구하기",

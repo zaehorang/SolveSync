@@ -1,4 +1,4 @@
-import type { LeetCodeSyncIndex } from "./indexFile";
+import type { SolutionCatalog } from "./solutionCatalog";
 
 export interface GitTreeFile {
   path: string;
@@ -8,10 +8,10 @@ export interface GitTreeFile {
 export interface BuildGitTreeFilesInput {
   solutionPath: string;
   solutionContent: string;
-  readmePath: string;
+  solutionReadmePath: string;
   readmeContent: string;
-  indexPath: string;
-  index: LeetCodeSyncIndex;
+  solutionCatalogPath: string;
+  solutionCatalog: SolutionCatalog;
 }
 
 export function buildGitTreeFiles(input: BuildGitTreeFilesInput): GitTreeFile[] {
@@ -21,12 +21,12 @@ export function buildGitTreeFiles(input: BuildGitTreeFilesInput): GitTreeFile[] 
       content: input.solutionContent
     },
     {
-      path: input.readmePath,
+      path: input.solutionReadmePath,
       content: input.readmeContent
     },
     {
-      path: input.indexPath,
-      content: `${JSON.stringify(input.index, null, 2)}\n`
+      path: input.solutionCatalogPath,
+      content: `${JSON.stringify(input.solutionCatalog, null, 2)}\n`
     }
   ];
 }

@@ -1,8 +1,14 @@
 import { normalizeError } from "../shared/errorNormalize";
-import { isRuntimeMessage, type RuntimeMessage } from "../shared/messages";
+import {
+  RETRY_BUNDLES_READ_TYPE,
+  SYNC_HISTORY_READ_TYPE,
+  SYNC_HISTORY_UPDATED_TYPE,
+  normalizeRuntimeMessage,
+  type RuntimeMessage
+} from "../shared/messages";
 import { toPublicSettingsState, type ConnectionStatusCode } from "../shared/storageSchema";
 import type { NormalizedError, NormalizedErrorCode } from "../shared/errors";
-import type { RepositoryRef, RetryPayload, RetryPayloadSummary } from "../shared/types";
+import type { SyncRepository, RetryBundle, RetryBundleSummary } from "../shared/types";
 import { createDefaultExtensionStorage, type ExtensionStorage } from "./storage";
 import { createGitHubClient, type GitHubClient } from "./client/github";
 import { createLeetCodeClient } from "./client/leetcode";
@@ -49,12 +55,14 @@ export function registerBackgroundRuntime(options: BackgroundRuntimeOptions = {}
     });
 
   chrome.runtime.onMessage.addListener((rawMessage, sender, sendResponse) => {
-    if (!isRuntimeMessage(rawMessage)) {
+    const message = normalizeRuntimeMessage(rawMessage);
+
+    if (message === null) {
       sendResponse(failure(explicitError("github_commit_failed", "Invalid runtime message.")));
       return false;
     }
 
-    void handleRuntimeMessage(rawMessage, sender, {
+    void handleRuntimeMessage(message, sender, {
       storage,
       orchestrator,
       githubClientFactory
@@ -185,23 +193,23 @@ async function handleRuntimeMessage(
       );
 
     case "sync:retry":
-      return success(await context.orchestrator.handleRetry(message.payload.retryPayloadId));
+      return success(await context.orchestrator.handleRetry(message.payload.retryBundleId));
 
-    case "history:read": {
-      const records = await context.storage.listHistory();
+    case SYNC_HISTORY_READ_TYPE: {
+      const syncHistoryEntries = await context.storage.listSyncHistoryEntries();
       const limit = Math.max(0, message.payload.limit);
 
-      return success(records.slice(0, limit));
+      return success(syncHistoryEntries.slice(0, limit));
     }
 
-    case "retry-payloads:read": {
-      const state = await context.storage.pruneRetryPayloads(new Date().toISOString());
+    case RETRY_BUNDLES_READ_TYPE: {
+      const state = await context.storage.pruneRetryBundles(new Date().toISOString());
 
-      return success(state.payloads.map(toRetryPayloadSummary));
+      return success(state.bundles.map(toRetryBundleSummary));
     }
 
     case "sync:status":
-    case "history:updated":
+    case SYNC_HISTORY_UPDATED_TYPE:
       return success(null);
   }
 }
@@ -234,15 +242,15 @@ async function handleToastAction(
   }
 
   if (payload.action === "retry") {
-    if (payload.recordId === null) {
+    const retryBundleId =
+      payload.retryBundleId ??
+      (await findRetryBundleIdForToastAction(payload.syncHistoryEntryId, storage));
+
+    if (retryBundleId === null) {
       return null;
     }
 
-    const record = (await storage.listHistory()).find((item) => item.id === payload.recordId);
-
-    if (record?.retryPayloadId !== null && record?.retryPayloadId !== undefined) {
-      await orchestrator.handleRetry(record.retryPayloadId, target);
-    }
+    await orchestrator.handleRetry(retryBundleId, target);
 
     return null;
   }
@@ -251,18 +259,38 @@ async function handleToastAction(
     return null;
   }
 
-  if (payload.recordId === null) {
+  if (payload.syncHistoryEntryId === null) {
     return null;
   }
 
-  const record = (await storage.listHistory()).find((item) => item.id === payload.recordId);
-  const url = payload.action === "open_commit" ? record?.commitUrl : record?.fileUrl;
+  const syncHistoryEntry = (await storage.listSyncHistoryEntries()).find(
+    (item) => item.id === payload.syncHistoryEntryId
+  );
+  const url =
+    payload.action === "open_commit"
+      ? syncHistoryEntry?.commitUrl
+      : syncHistoryEntry?.fileUrl;
 
   if (url !== undefined && url !== null) {
     await chrome.tabs.create({ url });
   }
 
   return null;
+}
+
+async function findRetryBundleIdForToastAction(
+  syncHistoryEntryId: string | null,
+  storage: ExtensionStorage
+): Promise<string | null> {
+  if (syncHistoryEntryId === null) {
+    return null;
+  }
+
+  const syncHistoryEntry = (await storage.listSyncHistoryEntries()).find(
+    (item) => item.id === syncHistoryEntryId
+  );
+
+  return syncHistoryEntry?.retryBundleId ?? null;
 }
 
 function createChromeBroadcast(): SyncBroadcast {
@@ -294,9 +322,9 @@ function sendTabMessage(tabId: number, message: RuntimeMessage): Promise<void> {
 }
 
 function filterRepositories(
-  repositories: RepositoryRef[],
+  repositories: SyncRepository[],
   query: string | null
-): RepositoryRef[] {
+): SyncRepository[] {
   const normalized = query?.trim().toLowerCase();
 
   if (normalized === undefined || normalized.length === 0) {
@@ -308,14 +336,14 @@ function filterRepositories(
   );
 }
 
-function toRetryPayloadSummary(payload: RetryPayload): RetryPayloadSummary {
+function toRetryBundleSummary(bundle: RetryBundle): RetryBundleSummary {
   return {
-    id: payload.id,
-    platform: payload.platform,
-    identity: payload.identity,
-    attempts: payload.attempts,
-    expiresAt: payload.expiresAt,
-    lastError: payload.lastError
+    id: bundle.id,
+    codingPlatform: bundle.codingPlatform,
+    syncDeduplicationKey: bundle.syncDeduplicationKey,
+    attempts: bundle.attempts,
+    expiresAt: bundle.expiresAt,
+    lastError: bundle.lastError
   };
 }
 

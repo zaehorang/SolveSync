@@ -4,9 +4,9 @@ import type { GitTreeFile } from "../../shared/githubTree";
 import { getPlatformPolicy } from "../../shared/platformPolicy";
 import { formatPlatformProblemNumber } from "../../shared/paths";
 import type {
-  BranchRef,
-  Platform,
-  RepositoryRef,
+  SyncBranch,
+  CodingPlatform,
+  SyncRepository,
   SupportedLanguage
 } from "../../shared/types";
 
@@ -43,20 +43,20 @@ export interface TestConnectionInput extends GitHubRepositoryInput {
 }
 
 export interface ReadTextFileInput extends GitHubRepositoryInput {
-  repository?: RepositoryRef;
+  repository?: SyncRepository;
   branchName: string;
   path: string;
 }
 
 export interface TestConnectionResult {
-  repository: RepositoryRef;
-  branch: BranchRef;
+  repository: SyncRepository;
+  branch: SyncBranch;
   baseCommitSha: string;
   baseTreeSha: string;
 }
 
 export interface CommitGitDataInput extends GitHubRepositoryInput {
-  repository?: RepositoryRef;
+  repository?: SyncRepository;
   branchName: string;
   files: GitTreeFile[];
   message: string;
@@ -64,8 +64,8 @@ export interface CommitGitDataInput extends GitHubRepositoryInput {
 }
 
 export interface CommitConflictRetryContext {
-  repository: RepositoryRef;
-  branch: BranchRef;
+  repository: SyncRepository;
+  branch: SyncBranch;
   baseCommitSha: string;
   baseTreeSha: string;
   files: GitTreeFile[];
@@ -73,8 +73,8 @@ export interface CommitConflictRetryContext {
 }
 
 export interface CommitGitDataResult {
-  repository: RepositoryRef;
-  branch: BranchRef;
+  repository: SyncRepository;
+  branch: SyncBranch;
   baseCommitSha: string;
   baseTreeSha: string;
   commitSha: string;
@@ -83,7 +83,7 @@ export interface CommitGitDataResult {
 }
 
 export interface BuildGitHubCommitMessageInput {
-  platform?: Platform;
+  codingPlatform?: CodingPlatform;
   frontendId: string;
   title: string;
   language: SupportedLanguage;
@@ -157,8 +157,8 @@ interface GitHubCreateTreeResponse {
 }
 
 interface BranchBaseContext {
-  repository: RepositoryRef;
-  branch: BranchRef;
+  repository: SyncRepository;
+  branch: SyncBranch;
   baseCommitSha: string;
   baseTreeSha: string;
   tree: GitHubTreeResponse;
@@ -194,7 +194,7 @@ export class GitHubClient {
     };
   }
 
-  async listRepositories(input: ListRepositoriesInput = {}): Promise<RepositoryRef[]> {
+  async listRepositories(input: ListRepositoriesInput = {}): Promise<SyncRepository[]> {
     return this.withNormalizedErrors(async () => {
       const affiliation = input.affiliation ?? "owner";
       const repositories = await this.listPages<GitHubRepoResponse>(
@@ -204,11 +204,11 @@ export class GitHubClient {
           )}&sort=full_name&direction=asc&per_page=${PAGE_SIZE}&page=${page}`
       );
 
-      return repositories.map(toRepositoryRef);
+      return repositories.map(toSyncRepository);
     });
   }
 
-  async listBranches(input: ListBranchesInput): Promise<BranchRef[]> {
+  async listBranches(input: ListBranchesInput): Promise<SyncBranch[]> {
     return this.withNormalizedErrors(async () => {
       const branches = await this.listPages<GitHubBranchResponse>(
         (page) =>
@@ -217,17 +217,17 @@ export class GitHubClient {
           )}/branches?per_page=${PAGE_SIZE}&page=${page}`
       );
 
-      return branches.map(toBranchRef);
+      return branches.map(toSyncBranch);
     });
   }
 
   async getRepositoryDefaultBranch(
     input: GitHubRepositoryInput
-  ): Promise<{ repository: RepositoryRef; branch: BranchRef }> {
+  ): Promise<{ repository: SyncRepository; branch: SyncBranch }> {
     return this.withNormalizedErrors(async () => this.getDefaultBranchHead(input));
   }
 
-  async createBranch(input: CreateBranchInput): Promise<BranchRef> {
+  async createBranch(input: CreateBranchInput): Promise<SyncBranch> {
     return this.withNormalizedErrors(
       async () => this.createBranchInternal(input),
       normalizeBranchCreateError
@@ -285,7 +285,7 @@ export class GitHubClient {
     });
   }
 
-  private async createBranchInternal(input: CreateBranchInput): Promise<BranchRef> {
+  private async createBranchInternal(input: CreateBranchInput): Promise<SyncBranch> {
     const { branchName } = input;
     const { branch: defaultBranch } = await this.getDefaultBranchHead(input);
 
@@ -317,7 +317,7 @@ export class GitHubClient {
 
   private async getDefaultBranchHead(
     input: GitHubRepositoryInput
-  ): Promise<{ repository: RepositoryRef; branch: BranchRef }> {
+  ): Promise<{ repository: SyncRepository; branch: SyncBranch }> {
     const repository = await this.getRepository(input);
 
     if (repository.defaultBranch.trim().length === 0) {
@@ -339,13 +339,13 @@ export class GitHubClient {
     };
   }
 
-  private async getRepository(input: GitHubRepositoryInput): Promise<RepositoryRef> {
+  private async getRepository(input: GitHubRepositoryInput): Promise<SyncRepository> {
     try {
       const response = await this.request<GitHubRepoResponse>(
         `/repos/${encodePathPart(input.owner)}/${encodePathPart(input.name)}`
       );
 
-      return toRepositoryRef(response);
+      return toSyncRepository(response);
     } catch (error) {
       if (isHttpStatus(error, 404)) {
         throw explicitNormalizedError(
@@ -362,7 +362,7 @@ export class GitHubClient {
     repository: GitHubRepositoryInput,
     branchName: string,
     missingCode: NormalizedErrorCode = "github_branch_not_found"
-  ): Promise<BranchRef> {
+  ): Promise<SyncBranch> {
     try {
       const response = await this.request<GitHubRefResponse>(
         `/repos/${encodePathPart(repository.owner)}/${encodePathPart(
@@ -414,7 +414,7 @@ export class GitHubClient {
   }
 
   private async readBranchBaseContext(
-    repository: RepositoryRef,
+    repository: SyncRepository,
     branchName: string
   ): Promise<BranchBaseContext> {
     const branch = await this.getBranchRef(repository, branchName);
@@ -431,7 +431,7 @@ export class GitHubClient {
   }
 
   private async commitFilesOnBase(
-    repository: RepositoryRef,
+    repository: SyncRepository,
     input: Pick<CommitGitDataInput, "branchName" | "message">,
     base: BranchBaseContext,
     files: GitTreeFile[]
@@ -629,13 +629,13 @@ export function createGitHubClient(options: GitHubClientOptions): GitHubClient {
 export function buildGitHubCommitMessage(
   input: BuildGitHubCommitMessageInput
 ): string {
-  const platform = input.platform ?? "leetcode";
-  const policy = getPlatformPolicy(platform);
+  const codingPlatform = input.codingPlatform ?? "leetcode";
+  const policy = getPlatformPolicy(codingPlatform);
 
   return `solve: ${policy.commitPlatformLabel} ${formatPlatformProblemNumber(
-    platform,
+    codingPlatform,
     input.frontendId
-  )} ${toCommitTitle(input.title, platform)} in ${input.language}`;
+  )} ${toCommitTitle(input.title, codingPlatform)} in ${input.language}`;
 }
 
 async function githubRequest<T>(
@@ -809,7 +809,7 @@ function isRefUpdateConflict(error: unknown): boolean {
   return isHttpStatus(error, 409) || isHttpStatus(error, 422);
 }
 
-function toRepositoryRef(response: GitHubRepoResponse): RepositoryRef {
+function toSyncRepository(response: GitHubRepoResponse): SyncRepository {
   return {
     owner: response.owner.login,
     name: response.name,
@@ -820,7 +820,7 @@ function toRepositoryRef(response: GitHubRepoResponse): RepositoryRef {
   };
 }
 
-function repositoryFromInput(input: GitHubRepositoryInput): RepositoryRef {
+function repositoryFromInput(input: GitHubRepositoryInput): SyncRepository {
   return {
     owner: input.owner,
     name: input.name,
@@ -833,7 +833,7 @@ function repositoryFromInput(input: GitHubRepositoryInput): RepositoryRef {
   };
 }
 
-function toBranchRef(response: GitHubBranchResponse): BranchRef {
+function toSyncBranch(response: GitHubBranchResponse): SyncBranch {
   return {
     name: response.name,
     sha: response.commit.sha,
@@ -841,7 +841,7 @@ function toBranchRef(response: GitHubBranchResponse): BranchRef {
   };
 }
 
-function toRefBranch(response: GitHubRefResponse, branchName: string): BranchRef {
+function toRefBranch(response: GitHubRefResponse, branchName: string): SyncBranch {
   return {
     name: branchName,
     sha: response.object.sha,
@@ -849,11 +849,11 @@ function toRefBranch(response: GitHubRefResponse, branchName: string): BranchRef
   };
 }
 
-function buildCommitUrl(repository: RepositoryRef, commitSha: string): string {
+function buildCommitUrl(repository: SyncRepository, commitSha: string): string {
   return `${repository.htmlUrl}/commit/${encodePathPart(commitSha)}`;
 }
 
-function buildFileUrl(repository: RepositoryRef, branchName: string, path: string): string {
+function buildFileUrl(repository: SyncRepository, branchName: string, path: string): string {
   return `${repository.htmlUrl}/blob/${encodePath(branchName)}/${encodePath(path)}`;
 }
 
@@ -869,7 +869,7 @@ function encodePath(path: string): string {
   return path.split("/").map(encodePathPart).join("/");
 }
 
-function toCommitTitle(title: string, platform: Platform): string {
+function toCommitTitle(title: string, platform: CodingPlatform): string {
   const normalized =
     platform === "leetcode"
       ? title

@@ -1,25 +1,26 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  IN_FLIGHT_LOCK_TTL_MS,
-  RETRY_PAYLOAD_LIMIT,
-  RETRY_PAYLOAD_TTL_MS,
+  SYNC_DEDUPLICATION_KEY_LOCK_TTL_MS,
+  RETRY_BUNDLE_LIMIT,
+  RETRY_BUNDLE_TTL_MS,
   SYNC_HISTORY_LIMIT,
   createExtensionStorage,
   type StorageAreaAdapter
 } from "./storage";
 import {
+  LEGACY_STORAGE_KEYS,
   STORAGE_KEYS,
   STORAGE_SCHEMA_VERSION,
-  type InFlightSyncsState
+  type SyncDeduplicationKeyLocksState
 } from "../shared/storageSchema";
 import type {
-  BranchRef,
   ProblemMetadata,
-  RepositoryRef,
-  RetryPayload,
-  SubmissionIdentity,
-  SyncRecord
+  RetryBundle,
+  SyncBranch,
+  SyncDeduplicationKey,
+  SyncHistoryEntry,
+  SyncRepository
 } from "../shared/types";
 
 describe("background extension storage", () => {
@@ -43,22 +44,22 @@ describe("background extension storage", () => {
     expect(saved.updatedAt).toBe("2026-01-01T00:00:00.000Z");
   });
 
-  it("checks duplicate processed identities without adding duplicate entries", async () => {
+  it("checks duplicate processed Sync Deduplication Keys without adding duplicate entries", async () => {
     const storage = createExtensionStorage(createMemoryStorageArea());
-    const identity = makeIdentity("submission-1");
+    const syncDeduplicationKey = makeSyncDeduplicationKey("source-1");
 
-    expect(await storage.isProcessed(identity)).toBe(false);
+    expect(await storage.hasProcessedSyncDeduplicationKey(syncDeduplicationKey)).toBe(false);
 
-    await storage.markProcessed(
-      identity,
+    await storage.markSyncDeduplicationKeyProcessed(
+      syncDeduplicationKey,
       {
         commitSha: "commit-sha-1",
         solutionPath: "leetcode/swift/0001_two_sum.swift"
       },
       "2026-01-01T00:00:00.000Z"
     );
-    await storage.markProcessed(
-      identity,
+    await storage.markSyncDeduplicationKeyProcessed(
+      syncDeduplicationKey,
       {
         commitSha: "commit-sha-1",
         solutionPath: "leetcode/swift/0001_two_sum.swift"
@@ -66,13 +67,13 @@ describe("background extension storage", () => {
       "2026-01-01T00:00:01.000Z"
     );
 
-    expect(await storage.isProcessed(identity)).toBe(true);
-    expect(await storage.listProcessedSubmissions()).toHaveLength(1);
+    expect(await storage.hasProcessedSyncDeduplicationKey(syncDeduplicationKey)).toBe(true);
+    expect(await storage.listProcessedSyncDeduplicationKeys()).toHaveLength(1);
   });
 
   it("migrates legacy processed identities before duplicate checks", async () => {
     const area = createMemoryStorageArea({
-      [STORAGE_KEYS.processedSubmissions]: {
+      [LEGACY_STORAGE_KEYS.processedSubmissions]: {
         version: 1,
         entries: [
           {
@@ -90,10 +91,10 @@ describe("background extension storage", () => {
     });
     const storage = createExtensionStorage(area);
 
-    expect(await storage.isProcessed(makeIdentity("submission-1"))).toBe(true);
-    await expect(storage.listProcessedSubmissions()).resolves.toEqual([
+    expect(await storage.hasProcessedSyncDeduplicationKey(makeSyncDeduplicationKey("submission-1"))).toBe(true);
+    await expect(storage.listProcessedSyncDeduplicationKeys()).resolves.toEqual([
       {
-        identity: makeIdentity("submission-1"),
+        syncDeduplicationKey: makeSyncDeduplicationKey("submission-1"),
         processedAt: "2026-01-01T00:00:00.000Z",
         commitSha: "commit-sha-1",
         solutionPath: "leetcode/swift/0001_two_sum.swift"
@@ -101,102 +102,102 @@ describe("background extension storage", () => {
     ]);
   });
 
-  it("keeps only the latest 20 sync history records", async () => {
+  it("keeps only the latest 20 sync history entries", async () => {
     const storage = createExtensionStorage(createMemoryStorageArea());
 
     for (let index = 0; index < SYNC_HISTORY_LIMIT + 5; index += 1) {
-      await storage.appendHistory(makeSyncRecord(index));
+      await storage.appendSyncHistoryEntry(makeSyncHistoryEntry(index));
     }
 
-    const history = await storage.listHistory();
+    const history = await storage.listSyncHistoryEntries();
 
     expect(history).toHaveLength(SYNC_HISTORY_LIMIT);
     expect(history[0]?.id).toBe("record-24");
     expect(history.at(-1)?.id).toBe("record-5");
   });
 
-  it("keeps only the latest 20 retry payloads", async () => {
+  it("keeps only the latest 20 retry bundles", async () => {
     const storage = createExtensionStorage(createMemoryStorageArea());
 
-    for (let index = 0; index < RETRY_PAYLOAD_LIMIT + 5; index += 1) {
+    for (let index = 0; index < RETRY_BUNDLE_LIMIT + 5; index += 1) {
       const createdAt = addMs("2026-01-01T00:00:00.000Z", index * 1000);
-      await storage.saveRetryPayload(makeRetryPayload(`retry-${index}`, createdAt));
+      await storage.saveRetryBundle(makeRetryBundle(`retry-${index}`, createdAt));
     }
 
-    const payloads = await storage.listRetryPayloads();
+    const bundles = await storage.listRetryBundles();
 
-    expect(payloads).toHaveLength(RETRY_PAYLOAD_LIMIT);
-    expect(payloads[0]?.id).toBe("retry-24");
-    expect(payloads.at(-1)?.id).toBe("retry-5");
+    expect(bundles).toHaveLength(RETRY_BUNDLE_LIMIT);
+    expect(bundles[0]?.id).toBe("retry-24");
+    expect(bundles.at(-1)?.id).toBe("retry-5");
   });
 
-  it("prunes retry payloads after the 7 day TTL", async () => {
+  it("prunes retry bundles after the 7 day TTL", async () => {
     const storage = createExtensionStorage(createMemoryStorageArea());
 
-    await storage.saveRetryPayload(
-      makeRetryPayload("expired", "2026-01-01T00:00:00.000Z")
+    await storage.saveRetryBundle(
+      makeRetryBundle("expired", "2026-01-01T00:00:00.000Z")
     );
-    await storage.saveRetryPayload(
-      makeRetryPayload("active", "2026-01-07T00:00:00.000Z")
+    await storage.saveRetryBundle(
+      makeRetryBundle("active", "2026-01-07T00:00:00.000Z")
     );
 
-    const pruned = await storage.pruneRetryPayloads("2026-01-09T00:00:00.000Z");
+    const pruned = await storage.pruneRetryBundles("2026-01-09T00:00:00.000Z");
 
-    expect(pruned.payloads.map((payload) => payload.id)).toEqual(["active"]);
+    expect(pruned.bundles.map((bundle) => bundle.id)).toEqual(["active"]);
   });
 
-  it("caps retry payload expiry to 7 days from creation", async () => {
+  it("caps retry bundle expiry to 7 days from creation", async () => {
     const storage = createExtensionStorage(createMemoryStorageArea());
 
-    await storage.saveRetryPayload({
-      ...makeRetryPayload("long-expiry", "2026-01-01T00:00:00.000Z"),
+    await storage.saveRetryBundle({
+      ...makeRetryBundle("long-expiry", "2026-01-01T00:00:00.000Z"),
       expiresAt: "2026-02-01T00:00:00.000Z"
     });
 
-    const payload = await storage.getRetryPayload("long-expiry");
+    const bundle = await storage.getRetryBundle("long-expiry");
 
-    expect(payload?.expiresAt).toBe(
-      addMs("2026-01-01T00:00:00.000Z", RETRY_PAYLOAD_TTL_MS)
+    expect(bundle?.expiresAt).toBe(
+      addMs("2026-01-01T00:00:00.000Z", RETRY_BUNDLE_TTL_MS)
     );
   });
 
-  it("acquires and releases in-flight locks", async () => {
+  it("acquires and releases Sync Deduplication Key locks", async () => {
     const storage = createExtensionStorage(createMemoryStorageArea());
-    const identity = makeIdentity("submission-1");
+    const syncDeduplicationKey = makeSyncDeduplicationKey("source-1");
 
     await expect(
-      storage.acquireInFlightLock(identity, "2026-01-01T00:00:00.000Z")
+      storage.acquireSyncDeduplicationKeyLock(syncDeduplicationKey, "2026-01-01T00:00:00.000Z")
     ).resolves.toBe(true);
     await expect(
-      storage.acquireInFlightLock(identity, "2026-01-01T00:00:01.000Z")
+      storage.acquireSyncDeduplicationKeyLock(syncDeduplicationKey, "2026-01-01T00:00:01.000Z")
     ).resolves.toBe(false);
 
-    const released = await storage.releaseInFlightLock(identity);
+    const released = await storage.releaseSyncDeduplicationKeyLock(syncDeduplicationKey);
 
     expect(released.locks).toHaveLength(0);
     await expect(
-      storage.acquireInFlightLock(identity, "2026-01-01T00:00:02.000Z")
+      storage.acquireSyncDeduplicationKeyLock(syncDeduplicationKey, "2026-01-01T00:00:02.000Z")
     ).resolves.toBe(true);
   });
 
-  it("cleans up stale in-flight locks before acquiring a new lock", async () => {
+  it("cleans up stale Sync Deduplication Key locks before acquiring a new lock", async () => {
     const area = createMemoryStorageArea();
     const storage = createExtensionStorage(area);
-    const identity = makeIdentity("submission-1");
+    const syncDeduplicationKey = makeSyncDeduplicationKey("source-1");
     const lockedAt = "2026-01-01T00:00:00.000Z";
 
-    await storage.acquireInFlightLock(identity, lockedAt);
+    await storage.acquireSyncDeduplicationKeyLock(syncDeduplicationKey, lockedAt);
 
     await expect(
-      storage.acquireInFlightLock(
-        identity,
-        addMs(lockedAt, IN_FLIGHT_LOCK_TTL_MS + 1)
+      storage.acquireSyncDeduplicationKeyLock(
+        syncDeduplicationKey,
+        addMs(lockedAt, SYNC_DEDUPLICATION_KEY_LOCK_TTL_MS + 1)
       )
     ).resolves.toBe(true);
 
-    const state = area.dump()[STORAGE_KEYS.inFlightSyncs] as InFlightSyncsState;
+    const state = area.dump()[STORAGE_KEYS.syncDeduplicationKeyLocks] as SyncDeduplicationKeyLocksState;
     expect(state.locks).toHaveLength(1);
-    expect(state.locks[0]?.lockedAt).toBe(addMs(lockedAt, IN_FLIGHT_LOCK_TTL_MS + 1));
+    expect(state.locks[0]?.lockedAt).toBe(addMs(lockedAt, SYNC_DEDUPLICATION_KEY_LOCK_TTL_MS + 1));
   });
 });
 
@@ -249,7 +250,7 @@ function createMemoryStorageArea(seed: Record<string, unknown> = {}): MemoryStor
   };
 }
 
-const repository: RepositoryRef = {
+const repository: SyncRepository = {
   owner: "octo",
   name: "algorithms",
   fullName: "octo/algorithms",
@@ -258,7 +259,7 @@ const repository: RepositoryRef = {
   htmlUrl: "https://github.com/octo/algorithms"
 };
 
-const branch: BranchRef = {
+const branch: SyncBranch = {
   name: "main",
   sha: "base-sha",
   protected: false
@@ -273,63 +274,63 @@ const problem: ProblemMetadata = {
   url: "https://leetcode.com/problems/two-sum/"
 };
 
-function makeIdentity(submissionId: string): SubmissionIdentity {
+function makeSyncDeduplicationKey(acceptedSourceId: string): SyncDeduplicationKey {
   return {
-    platform: "leetcode",
-    submissionId,
+    codingPlatform: "leetcode",
+    acceptedSourceId,
     titleSlug: "two-sum",
     language: "swift"
   };
 }
 
-function makeSyncRecord(index: number): SyncRecord {
+function makeSyncHistoryEntry(index: number): SyncHistoryEntry {
   const createdAt = addMs("2026-01-01T00:00:00.000Z", index * 1000);
 
   return {
     id: `record-${index}`,
-    platform: "leetcode",
+    codingPlatform: "leetcode",
     status: "synced",
     titleSlug: "two-sum",
     problemTitle: "Two Sum",
     problemFrontendId: "1",
     language: "Swift",
     supportedLanguage: "swift",
-    identity: makeIdentity(`submission-${index}`),
-    repository,
-    branchName: "main",
+    syncDeduplicationKey: makeSyncDeduplicationKey(`source-${index}`),
+    syncRepository: repository,
+    syncBranchName: "main",
     solutionPath: "leetcode/swift/0001_two_sum.swift",
     commitSha: `commit-sha-${index}`,
     commitUrl: `https://github.com/octo/algorithms/commit/commit-sha-${index}`,
     fileUrl: "https://github.com/octo/algorithms/blob/main/leetcode/swift/0001_two_sum.swift",
     error: null,
-    retryPayloadId: null,
+    retryBundleId: null,
     createdAt,
     updatedAt: createdAt
   };
 }
 
-function makeRetryPayload(id: string, createdAt: string): RetryPayload {
+function makeRetryBundle(id: string, createdAt: string): RetryBundle {
   return {
     id,
-    platform: "leetcode",
-    identity: makeIdentity(id),
-    repository,
-    branch,
+    codingPlatform: "leetcode",
+    syncDeduplicationKey: makeSyncDeduplicationKey(id),
+    syncRepository: repository,
+    syncBranch: branch,
     problem,
     submission: {
-      submissionId: id,
+      acceptedSourceId: id,
       titleSlug: "two-sum",
       language: "Swift",
       code: "class Solution {}",
       acceptedAt: createdAt
     },
     solutionPath: "leetcode/swift/0001_two_sum.swift",
-    readmePath: "leetcode/README.md",
-    indexPath: "leetcode/.leetcode-sync/index.json",
+    solutionReadmePath: "leetcode/README.md",
+    solutionCatalogPath: "leetcode/.leetcode-sync/index.json",
     commitMessage: "solve: leetcode 0001 two sum in swift",
     attempts: 0,
     createdAt,
-    expiresAt: addMs(createdAt, RETRY_PAYLOAD_TTL_MS),
+    expiresAt: addMs(createdAt, RETRY_BUNDLE_TTL_MS),
     lastError: null
   };
 }

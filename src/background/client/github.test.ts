@@ -262,7 +262,7 @@ describe("GitHub background client", () => {
 
     expect(
       buildGitHubCommitMessage({
-        platform: "programmers",
+        codingPlatform: "programmers",
         frontendId: "120804",
         title: "두 수의 곱 구하기",
         language: "swift"

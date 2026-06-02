@@ -1,7 +1,7 @@
 import type { NormalizedError } from "./errors";
 import { t, type UiLocale } from "./i18n";
 import type { ToastAction } from "./messages";
-import type { Platform, SyncRecord, SyncStatus } from "./types";
+import type { CodingPlatform, SyncHistoryEntry, SyncStatus } from "./types";
 import type {
   ConnectionStatus,
   ConnectionStatusCode,
@@ -30,7 +30,8 @@ export interface FailureDetailView {
 export interface ToastActionView {
   action: ToastAction;
   label: string;
-  recordId: string | null;
+  syncHistoryEntryId: string | null;
+  retryBundleId: string | null;
   primary: boolean;
 }
 
@@ -44,7 +45,7 @@ export interface ToastViewModel {
 
 export interface ToastModelInput {
   status: SyncStatus;
-  record: SyncRecord | null;
+  syncHistoryEntry: SyncHistoryEntry | null;
   error: NormalizedError | null;
   canRetry?: boolean;
 }
@@ -110,7 +111,7 @@ export function getSetupStatusView(
     };
   }
 
-  if (settings.selectedRepository === null) {
+  if (settings.syncRepository === null) {
     return {
       label: t(locale, "status.repositoryRequired"),
       detail: t(locale, "detail.repositoryRequired"),
@@ -118,7 +119,7 @@ export function getSetupStatusView(
     };
   }
 
-  if (settings.selectedBranch === null) {
+  if (settings.syncBranch === null) {
     return {
       label: t(locale, "status.branchRequired"),
       detail: t(locale, "detail.branchRequired"),
@@ -126,7 +127,7 @@ export function getSetupStatusView(
     };
   }
 
-  const target = `${settings.selectedRepository.fullName} / ${settings.selectedBranch.name}`;
+  const target = `${settings.syncRepository.fullName} / ${settings.syncBranch.name}`;
 
   if (!settings.autoSyncEnabled) {
     return {
@@ -177,34 +178,40 @@ export function getSetupStatusView(
 
 export function getFailureDetailView(
   locale: UiLocale,
-  record: SyncRecord
+  syncHistoryEntry: SyncHistoryEntry
 ): FailureDetailView | null {
-  if (record.error === null) {
+  if (syncHistoryEntry.error === null) {
     return null;
   }
 
   const detailLines = [
     t(locale, "failure.code", {
-      code: record.error.code
+      code: syncHistoryEntry.error.code
     })
   ];
 
-  if (record.error.debugMessage !== null && record.error.debugMessage.length > 0) {
+  if (
+    syncHistoryEntry.error.debugMessage !== null &&
+    syncHistoryEntry.error.debugMessage.length > 0
+  ) {
     detailLines.push(
       t(locale, "failure.detail", {
-        detail: record.error.debugMessage
+        detail: syncHistoryEntry.error.debugMessage
       })
     );
   }
 
-  if (record.error.code === "programmers_extract_failed") {
-    detailLines.push(t(locale, "detail.noCommitPayloadRetryUnavailable"));
-  } else if (record.retryPayloadId === null && record.status === "failed") {
-    detailLines.push(t(locale, "detail.retryPayloadUnavailable"));
+  if (syncHistoryEntry.error.code === "programmers_extract_failed") {
+    detailLines.push(t(locale, "detail.noCommitDataRetryUnavailable"));
+  } else if (
+    syncHistoryEntry.retryBundleId === null &&
+    syncHistoryEntry.status === "failed"
+  ) {
+    detailLines.push(t(locale, "detail.retryBundleUnavailable"));
   }
 
   return {
-    summary: record.error.userMessage,
+    summary: syncHistoryEntry.error.userMessage,
     detailLines
   };
 }
@@ -254,7 +261,9 @@ export function createToastViewModel(
         title: t(locale, "status.githubConnectionRequired"),
         detail: t(locale, "detail.toastSetupRequired"),
         tone: "warning",
-        actions: [toastAction("open_options", t(locale, "action.openOptions"), null, true)],
+        actions: [
+          toastAction("open_options", t(locale, "action.openOptions"), null, null, true)
+        ],
         autoDismissMs: null
       };
     case "auto_sync_disabled":
@@ -262,13 +271,15 @@ export function createToastViewModel(
         title: t(locale, "toast.autoSyncOffTitle"),
         detail: t(locale, "detail.toastAutoSyncOff"),
         tone: "warning",
-        actions: [toastAction("open_options", t(locale, "action.openOptions"), null, true)],
+        actions: [
+          toastAction("open_options", t(locale, "action.openOptions"), null, null, true)
+        ],
         autoDismissMs: 7000
       };
     case "syncing":
       return {
         title: t(locale, "toast.syncingTitle"),
-        detail: describeRecord(locale, input.record),
+        detail: describeSyncHistoryEntry(locale, input.syncHistoryEntry),
         tone: "neutral",
         actions: [],
         autoDismissMs: null
@@ -276,7 +287,7 @@ export function createToastViewModel(
     case "retrying":
       return {
         title: t(locale, "toast.retryingTitle"),
-        detail: describeRecord(locale, input.record),
+        detail: describeSyncHistoryEntry(locale, input.syncHistoryEntry),
         tone: "neutral",
         actions: [],
         autoDismissMs: null
@@ -284,15 +295,15 @@ export function createToastViewModel(
     case "synced":
       return {
         title: t(locale, "toast.syncedTitle"),
-        detail: describeRecord(locale, input.record),
+        detail: describeSyncHistoryEntry(locale, input.syncHistoryEntry),
         tone: "success",
-        actions: successActions(locale, input.record),
+        actions: successActions(locale, input.syncHistoryEntry),
         autoDismissMs: 5000
       };
     case "unsupported_language":
       return {
         title: t(locale, "status.unsupportedLanguage"),
-        detail: unsupportedDetail(locale, input.record),
+        detail: unsupportedDetail(locale, input.syncHistoryEntry),
         tone: "warning",
         actions: [],
         autoDismissMs: 8000
@@ -300,7 +311,10 @@ export function createToastViewModel(
     case "failed":
       return {
         title: t(locale, "toast.failedTitle"),
-        detail: failureDetail(locale, input.error ?? input.record?.error ?? null),
+        detail: failureDetail(
+          locale,
+          input.error ?? input.syncHistoryEntry?.error ?? null
+        ),
         tone: "error",
         actions: failureActions(locale, input),
         autoDismissMs: null
@@ -308,24 +322,24 @@ export function createToastViewModel(
   }
 }
 
-export function getPlatformLabel(platform: Platform): string {
-  return platform === "programmers" ? "Programmers" : "LeetCode";
+export function getPlatformLabel(codingPlatform: CodingPlatform): string {
+  return codingPlatform === "programmers" ? "Programmers" : "LeetCode";
 }
 
-export function getSyncRecordLanguageLabel(
+export function getSyncHistoryEntryLanguageLabel(
   locale: UiLocale,
-  record: Pick<SyncRecord, "language" | "supportedLanguage">
+  syncHistoryEntry: Pick<SyncHistoryEntry, "language" | "supportedLanguage">
 ): string {
-  if (record.supportedLanguage === "python3") {
+  if (syncHistoryEntry.supportedLanguage === "python3") {
     return "Python3";
   }
 
-  if (record.supportedLanguage === "swift") {
+  if (syncHistoryEntry.supportedLanguage === "swift") {
     return "Swift";
   }
 
-  return record.language.trim().length > 0
-    ? record.language
+  return syncHistoryEntry.language.trim().length > 0
+    ? syncHistoryEntry.language
     : t(locale, "label.unknownLanguage");
 }
 
@@ -335,20 +349,45 @@ export function getUnsupportedLanguageReason(locale: UiLocale): string {
 
 function successActions(
   locale: UiLocale,
-  record: SyncRecord | null
+  syncHistoryEntry: SyncHistoryEntry | null
 ): ToastActionView[] {
   const actions: ToastActionView[] = [];
 
-  if (record?.commitUrl !== null && record?.commitUrl !== undefined) {
-    actions.push(toastAction("open_commit", t(locale, "action.commit"), record.id, true));
+  if (
+    syncHistoryEntry?.commitUrl !== null &&
+    syncHistoryEntry?.commitUrl !== undefined
+  ) {
+    actions.push(
+      toastAction(
+        "open_commit",
+        t(locale, "action.commit"),
+        syncHistoryEntry.id,
+        null,
+        true
+      )
+    );
   }
 
-  if (record?.fileUrl !== null && record?.fileUrl !== undefined) {
-    actions.push(toastAction("open_file", t(locale, "action.file"), record.id, false));
+  if (syncHistoryEntry?.fileUrl !== null && syncHistoryEntry?.fileUrl !== undefined) {
+    actions.push(
+      toastAction(
+        "open_file",
+        t(locale, "action.file"),
+        syncHistoryEntry.id,
+        null,
+        false
+      )
+    );
   }
 
   actions.push(
-    toastAction("dismiss", t(locale, "action.dismiss"), null, actions.length === 0)
+    toastAction(
+      "dismiss",
+      t(locale, "action.dismiss"),
+      null,
+      null,
+      actions.length === 0
+    )
   );
 
   return actions;
@@ -358,46 +397,62 @@ function failureActions(
   locale: UiLocale,
   input: ToastModelInput
 ): ToastActionView[] {
-  const error = input.error ?? input.record?.error ?? null;
+  const error = input.error ?? input.syncHistoryEntry?.error ?? null;
 
   if (error?.code === "programmers_extract_failed") {
     return [];
   }
 
   const canRetry =
-    input.canRetry !== false && typeof input.record?.retryPayloadId === "string";
+    input.canRetry !== false &&
+    typeof input.syncHistoryEntry?.retryBundleId === "string";
 
   if (canRetry) {
     return [
-      toastAction("retry", t(locale, "action.retry"), input.record?.id ?? null, true),
-      toastAction("open_options", t(locale, "action.openOptions"), null, false)
+      toastAction(
+        "retry",
+        t(locale, "action.retry"),
+        input.syncHistoryEntry?.id ?? null,
+        input.syncHistoryEntry?.retryBundleId ?? null,
+        true
+      ),
+      toastAction("open_options", t(locale, "action.openOptions"), null, null, false)
     ];
   }
 
-  return [toastAction("open_options", t(locale, "action.openOptions"), null, true)];
+  return [toastAction("open_options", t(locale, "action.openOptions"), null, null, true)];
 }
 
 function failureDetail(locale: UiLocale, error: NormalizedError | null): string {
   return error?.userMessage ?? t(locale, "detail.toastFailureFallback");
 }
 
-function unsupportedDetail(locale: UiLocale, record: SyncRecord | null): string {
-  if (record?.language !== undefined && record.language.trim().length > 0) {
+function unsupportedDetail(
+  locale: UiLocale,
+  syncHistoryEntry: SyncHistoryEntry | null
+): string {
+  if (
+    syncHistoryEntry?.language !== undefined &&
+    syncHistoryEntry.language.trim().length > 0
+  ) {
     return t(locale, "detail.unsupportedLanguageNamed", {
-      language: record.language
+      language: syncHistoryEntry.language
     });
   }
 
   return t(locale, "detail.unsupportedLanguageDefault");
 }
 
-function describeRecord(locale: UiLocale, record: SyncRecord | null): string | null {
-  if (record === null) {
+function describeSyncHistoryEntry(
+  locale: UiLocale,
+  syncHistoryEntry: SyncHistoryEntry | null
+): string | null {
+  if (syncHistoryEntry === null) {
     return null;
   }
 
-  const title = getToastRecordTitle(record);
-  const language = getSyncRecordLanguageLabel(locale, record);
+  const title = getToastEntryTitle(syncHistoryEntry);
+  const language = getSyncHistoryEntryLanguageLabel(locale, syncHistoryEntry);
 
   if (title.length === 0 && language.length === 0) {
     return null;
@@ -407,13 +462,13 @@ function describeRecord(locale: UiLocale, record: SyncRecord | null): string | n
     return title;
   }
 
-  return t(locale, "detail.recordInLanguage", { title, language });
+  return t(locale, "detail.syncInLanguage", { title, language });
 }
 
-function getToastRecordTitle(record: SyncRecord): string {
-  const title = record.problemTitle?.trim() ?? "";
-  const titleSlug = record.titleSlug.trim();
-  const frontendId = record.problemFrontendId?.trim() ?? "";
+function getToastEntryTitle(syncHistoryEntry: SyncHistoryEntry): string {
+  const title = syncHistoryEntry.problemTitle?.trim() ?? "";
+  const titleSlug = syncHistoryEntry.titleSlug.trim();
+  const frontendId = syncHistoryEntry.problemFrontendId?.trim() ?? "";
 
   if (title.length > 0) {
     return title;
@@ -424,22 +479,24 @@ function getToastRecordTitle(record: SyncRecord): string {
   }
 
   if (frontendId.length > 0) {
-    return `${getPlatformLabel(record.platform)} ${frontendId}`;
+    return `${getPlatformLabel(syncHistoryEntry.codingPlatform)} ${frontendId}`;
   }
 
-  return getPlatformLabel(record.platform);
+  return getPlatformLabel(syncHistoryEntry.codingPlatform);
 }
 
 function toastAction(
   action: ToastAction,
   label: string,
-  recordId: string | null,
+  syncHistoryEntryId: string | null,
+  retryBundleId: string | null,
   primary: boolean
 ): ToastActionView {
   return {
     action,
     label,
-    recordId,
+    syncHistoryEntryId,
+    retryBundleId,
     primary
   };
 }

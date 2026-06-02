@@ -13,6 +13,14 @@
 - 검증 대상 저장소는 PAT를 발급한 GitHub 계정이 owner인 repository다.
 - 검증 대상은 repository picker에서 선택한다. 권장 수동 검증 repository는 `zaehorang/Swift_Algorithm`이다.
 - 실제 풀이 기록 branch를 오염시키지 않기 위해 `solvesync-test` 같은 별도 branch를 사용한다. 이 branch는 Options의 Create branch action으로 생성할 수 있다.
+- Domain naming migration의 현재 Sync Repository는 `zaehorang/Swift_Algorithm`이다. 이 migration의 Solution Catalog v2 변경은 일반 수동 검증 branch가 아니라 `main`에 직접 반영한다.
+
+## Domain Naming Migration Checks
+이번 migration phase에서는 extension 동작 검증과 별도로 문서 및 catalog 계약을 확인한다.
+
+1. `CONTEXT.md`의 표준 용어가 `docs/PRD.md`, `docs/ARCHITECTURE.md`, `docs/UI_GUIDE.md`, `docs/MANUAL_VALIDATION.md`, `docs/DEFERRED_WORK.md`, `AGENTS.md`에 반영되어 있는지 확인한다.
+2. `docs/adr/0026-domain-naming-v4-storage-runtime-and-catalog-migration.md`가 storage v4, runtime message rename, Solution Catalog v2, catalog file path 유지 결정을 포함하는지 확인한다.
+3. Solution Catalog v2 반영 step 이후 `zaehorang/Swift_Algorithm`의 `main`에서 `leetcode/.leetcode-sync/index.json`과 `programmers/.programmers-sync/index.json`이 v2 schema와 `lastAcceptedSourceId`를 사용하는지 확인한다.
 
 ## Build와 Load
 1. 저장소 루트에서 build를 실행한다.
@@ -58,8 +66,8 @@ npm run build
 2. LeetCode에서 Swift 또는 Python3로 Accepted 제출을 만든다.
 3. 결과 panel에 `Accepted n / n testcases passed` 형태의 결과 문구가 렌더링되는지 확인한다.
 4. toast가 Syncing에서 Synced로 바뀌는지 확인한다.
-5. toast 또는 Popup history에서 commit link와 file link를 확인한다.
-6. GitHub 대상 repository의 선택한 branch에서 solution file, `leetcode/README.md`, `leetcode/.leetcode-sync/index.json`이 같은 commit에 포함되었는지 확인한다.
+5. toast 또는 Popup의 Sync History에서 commit link와 file link를 확인한다.
+6. GitHub Sync Repository의 Sync Branch에서 solution file, `leetcode/README.md`, `leetcode/.leetcode-sync/index.json`이 같은 commit에 포함되었는지 확인한다.
 7. 같은 submission이 다시 감지되어도 중복 commit이 생기지 않는지 확인한다.
 
 ## Programmers Successful Sync Flow
@@ -69,13 +77,13 @@ npm run build
 4. `통과` 행이나 코드 실행 결과만으로 sync가 시작되지 않는지 확인한다.
 5. editor code, 현재 language, 문제 제목, lesson id가 누락 없이 sync payload에 반영되는지 확인한다.
 6. toast가 Syncing에서 Synced로 바뀌는지 확인한다.
-7. GitHub 대상 repository의 선택한 branch에서 solution file, `programmers/README.md`, `programmers/.programmers-sync/index.json`이 같은 commit에 포함되었는지 확인한다.
-8. 같은 code snapshot이 다시 감지되어도 중복 commit이 생기지 않는지 확인한다.
+7. GitHub Sync Repository의 Sync Branch에서 solution file, `programmers/README.md`, `programmers/.programmers-sync/index.json`이 같은 commit에 포함되었는지 확인한다.
+8. 같은 Accepted Editor Snapshot이 다시 감지되어도 중복 commit이 생기지 않는지 확인한다.
 
 ## Same Problem Update Flow
 1. 같은 문제와 같은 언어로 다른 Accepted 제출을 만든다.
 2. 기존 solution path가 최신 풀이로 갱신되는지 확인한다.
-3. 해당 platform index의 language entry와 platform README table이 갱신되는지 확인한다.
+3. 해당 Solution Catalog의 language entry와 Solution README table이 갱신되는지 확인한다.
 4. 제출별 별도 solution file이 생기지 않는지 확인한다.
 
 ## Auto Sync Off Flow
@@ -88,11 +96,11 @@ npm run build
 ## Unsupported Language Flow
 1. Swift와 Python3가 아닌 언어로 Accepted 제출을 만든다.
 2. GitHub commit이 생성되지 않는지 확인한다.
-3. toast 또는 Popup history가 Unsupported language 상태를 보여주는지 확인한다.
+3. toast 또는 Popup의 Sync History가 Unsupported language 상태를 보여주는지 확인한다.
 
 ## LeetCode Accepted Detector Regression
 1. LeetCode problem page에서 `Accepted Solutions`, `Accepted Submissions`, `Acceptance Rate` 같은 generic 문구가 보여도 sync가 시작되지 않는지 확인한다.
-2. Wrong Answer, Runtime Error, Pending, Judging 결과에서는 toast 또는 Popup history에 sync record가 추가되지 않는지 확인한다.
+2. Wrong Answer, Runtime Error, Pending, Judging 결과에서는 toast 또는 Popup의 Sync History에 항목이 추가되지 않는지 확인한다.
 3. 새 Accepted 제출 후 결과 panel이 큰 container로 바뀌어도 `Accepted n / n testcases passed` 문구를 기준으로 sync가 시작되는지 확인한다.
 
 ## Programmers Detector and Snapshot Regression
@@ -100,7 +108,7 @@ npm run build
 2. `통과`, `채점 결과`, `합계: 100.0 / 100.0` 문구만 있는 상태에서는 sync가 시작되지 않는지 확인한다.
 3. Swift와 Python3 각각에서 editor code 전체가 누락 없이 GitHub solution file에 저장되는지 확인한다.
 4. 긴 코드 또는 editor가 스크롤된 상태에서도 저장된 solution file에 보이지 않던 줄이 누락되지 않는지 확인한다.
-5. editor code를 추출하지 못하는 상태를 만들 수 있으면 GitHub commit 없이 extract 실패가 history에 기록되는지 확인한다.
+5. editor code를 추출하지 못하는 상태를 만들 수 있으면 GitHub commit 없이 extract 실패가 Sync History에 기록되는지 확인한다.
 
 ## Programmers Editor Extraction Probe
 1. `https://school.programmers.co.kr/learn/courses/30/lessons/120804` 같은 Programmers 문제 페이지를 연다.
@@ -111,13 +119,13 @@ npm run build
 
 ## Retry Flow
 1. 유효하지 않은 branch나 일시적인 GitHub 실패 조건을 만들어 commit 실패를 발생시킨다.
-2. Popup history에 실패 상세와 Retry button이 표시되는지 확인한다.
+2. Popup의 Sync History에 실패 상세와 Retry button이 표시되는지 확인한다.
 3. 설정을 정상화한 뒤 Retry를 실행한다.
 4. Retry 성공 후 commit link와 file link가 표시되는지 확인한다.
-5. retry payload가 삭제되고 같은 submission identity가 processed로 기록되는지 확인한다.
+5. Retry Bundle이 삭제되고 같은 Sync Deduplication Key가 processed로 기록되는지 확인한다.
 
 ## Security Checks
 - Options와 Popup에 PAT가 평문으로 계속 노출되지 않는지 확인한다.
-- UI가 PAT와 retry payload code가 Chrome extension local storage에 저장될 수 있음을 알리는지 확인한다.
-- retry payload는 최대 20개, 최대 7일 보관된다는 안내가 있는지 확인한다.
+- UI가 PAT와 Retry Bundle code가 Chrome extension local storage에 저장될 수 있음을 알리는지 확인한다.
+- Retry Bundle은 최대 20개, 최대 7일 보관된다는 안내가 있는지 확인한다.
 - LeetCode와 Programmers 문제 설명 전문이 GitHub commit이나 local storage에 저장되지 않는지 확인한다.

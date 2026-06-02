@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  buildSubmissionIdentity,
+  buildSyncDeduplicationKey,
   mapLeetCodeLanguage,
   mapProgrammersLanguage
 } from "./language";
@@ -28,17 +28,17 @@ describe("LeetCode language mapping", () => {
     expect(mapProgrammersLanguage("JavaScript")).toBeNull();
   });
 
-  it("builds the stable submission identity", () => {
+  it("builds the stable Sync Deduplication Key", () => {
     expect(
-      buildSubmissionIdentity({
-        platform: "leetcode",
-        submissionId: "123",
+      buildSyncDeduplicationKey({
+        codingPlatform: "leetcode",
+        acceptedSourceId: "123",
         titleSlug: "two-sum",
         language: "Swift"
       })
     ).toEqual({
-      platform: "leetcode",
-      submissionId: "123",
+      codingPlatform: "leetcode",
+      acceptedSourceId: "123",
       titleSlug: "two-sum",
       language: "swift"
     });

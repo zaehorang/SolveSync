@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import type { NormalizedError } from "../shared/errors";
-import type { SyncRecord } from "../shared/types";
+import type { SyncHistoryEntry } from "../shared/types";
 import { createToastModel } from "./toast";
 
 describe("content toast model", () => {
   it("maps setup required status to a localized Options action", () => {
     const model = createToastModel({
       status: "setup_required",
-      record: null,
+      syncHistoryEntry: null,
       error: error("setup_required", "GitHub connection required.")
     }, "ko");
 
@@ -33,7 +33,7 @@ describe("content toast model", () => {
   it("maps Auto Sync off status to a short localized recovery toast", () => {
     const model = createToastModel({
       status: "auto_sync_disabled",
-      record: makeRecord({
+      syncHistoryEntry: makeSyncHistoryEntry({
         status: "auto_sync_disabled"
       }),
       error: error("auto_sync_disabled", "Auto Sync is off.")
@@ -58,14 +58,14 @@ describe("content toast model", () => {
   it("maps syncing and retrying states to progress toasts without actions", () => {
     const syncing = createToastModel({
       status: "syncing",
-      record: makeRecord({
+      syncHistoryEntry: makeSyncHistoryEntry({
         status: "syncing"
       }),
       error: null
     });
     const retrying = createToastModel({
       status: "retrying",
-      record: makeProgrammersRecord({
+      syncHistoryEntry: makeProgrammersSyncHistoryEntry({
         status: "retrying"
       }),
       error: null
@@ -89,10 +89,10 @@ describe("content toast model", () => {
     });
   });
 
-  it("maps successful sync records to commit and file actions", () => {
+  it("maps successful Sync History entries to commit and file actions", () => {
     const model = createToastModel({
       status: "synced",
-      record: makeRecord({
+      syncHistoryEntry: makeSyncHistoryEntry({
         status: "synced",
         commitUrl: "https://github.example/commit",
         fileUrl: "https://github.example/file"
@@ -109,26 +109,29 @@ describe("content toast model", () => {
         {
           action: "open_commit",
           label: "Commit",
-          recordId: "record-1"
+          syncHistoryEntryId: "entry-1",
+          retryBundleId: null
         },
         {
           action: "open_file",
           label: "File",
-          recordId: "record-1"
+          syncHistoryEntryId: "entry-1",
+          retryBundleId: null
         },
         {
           action: "dismiss",
           label: "Dismiss",
-          recordId: null
+          syncHistoryEntryId: null,
+          retryBundleId: null
         }
       ]
     });
   });
 
-  it("renders Programmers synced records with commit and file actions", () => {
+  it("renders Programmers synced entries with commit and file actions", () => {
     const model = createToastModel({
       status: "synced",
-      record: makeProgrammersRecord({
+      syncHistoryEntry: makeProgrammersSyncHistoryEntry({
         status: "synced",
         commitUrl: "https://github.example/programmers-commit",
         fileUrl: "https://github.example/programmers-file"
@@ -145,17 +148,20 @@ describe("content toast model", () => {
         {
           action: "open_commit",
           label: "Commit",
-          recordId: "record-1"
+          syncHistoryEntryId: "entry-1",
+          retryBundleId: null
         },
         {
           action: "open_file",
           label: "File",
-          recordId: "record-1"
+          syncHistoryEntryId: "entry-1",
+          retryBundleId: null
         },
         {
           action: "dismiss",
           label: "Dismiss",
-          recordId: null
+          syncHistoryEntryId: null,
+          retryBundleId: null
         }
       ]
     });
@@ -164,7 +170,7 @@ describe("content toast model", () => {
   it("maps unsupported language status to a localized auto-dismiss toast", () => {
     const model = createToastModel({
       status: "unsupported_language",
-      record: makeRecord({
+      syncHistoryEntry: makeSyncHistoryEntry({
         status: "unsupported_language",
         language: "JavaScript",
         supportedLanguage: null
@@ -185,7 +191,7 @@ describe("content toast model", () => {
   it("renders Programmers extraction failures without retry actions", () => {
     const model = createToastModel({
       status: "failed",
-      record: makeProgrammersRecord({
+      syncHistoryEntry: makeProgrammersSyncHistoryEntry({
         status: "failed",
         error: error(
           "programmers_extract_failed",
@@ -207,10 +213,10 @@ describe("content toast model", () => {
     });
   });
 
-  it("falls back to the platform label for incomplete Programmers records", () => {
+  it("falls back to the platform label for incomplete Programmers entries", () => {
     const model = createToastModel({
       status: "failed",
-      record: makeProgrammersRecord({
+      syncHistoryEntry: makeProgrammersSyncHistoryEntry({
         titleSlug: "",
         problemTitle: null,
         problemFrontendId: null,
@@ -231,7 +237,7 @@ describe("content toast model", () => {
 
     const syncing = createToastModel({
       status: "syncing",
-      record: makeProgrammersRecord({
+      syncHistoryEntry: makeProgrammersSyncHistoryEntry({
         titleSlug: "",
         problemTitle: null,
         problemFrontendId: null
@@ -245,7 +251,7 @@ describe("content toast model", () => {
   it("uses short user-facing errors without debug detail", () => {
     const model = createToastModel({
       status: "failed",
-      record: makeRecord({
+      syncHistoryEntry: makeSyncHistoryEntry({
         status: "failed",
         error: error("github_commit_failed", "GitHub commit failed.", "stack trace")
       }),
@@ -263,21 +269,21 @@ describe("content toast model", () => {
     ]);
   });
 
-  it("shows Retry only when a failed record has a retry payload", () => {
+  it("shows Retry only when a failed entry has a Retry Bundle", () => {
     const retryable = createToastModel({
       status: "failed",
-      record: makeRecord({
+      syncHistoryEntry: makeSyncHistoryEntry({
         status: "failed",
-        retryPayloadId: "retry-1",
+        retryBundleId: "retry-1",
         error: error("github_commit_failed", "GitHub commit failed.")
       }),
       error: error("github_commit_failed", "GitHub commit failed.")
     }, "ko");
     const noPayload = createToastModel({
       status: "failed",
-      record: makeRecord({
+      syncHistoryEntry: makeSyncHistoryEntry({
         status: "failed",
-        retryPayloadId: null,
+        retryBundleId: null,
         error: error("github_commit_failed", "GitHub commit failed.")
       }),
       error: error("github_commit_failed", "GitHub commit failed.")
@@ -287,13 +293,15 @@ describe("content toast model", () => {
       {
         action: "retry",
         label: "재시도",
-        recordId: "record-1",
+        syncHistoryEntryId: "entry-1",
+        retryBundleId: "retry-1",
         primary: true
       },
       {
         action: "open_options",
         label: "Options 열기",
-        recordId: null,
+        syncHistoryEntryId: null,
+        retryBundleId: null,
         primary: false
       }
     ]);
@@ -307,47 +315,49 @@ describe("content toast model", () => {
   });
 });
 
-function makeRecord(overrides: Partial<SyncRecord>): SyncRecord {
+function makeSyncHistoryEntry(overrides: Partial<SyncHistoryEntry>): SyncHistoryEntry {
   return {
-    id: "record-1",
-    platform: "leetcode",
+    id: "entry-1",
+    codingPlatform: "leetcode",
     status: "syncing",
     titleSlug: "two-sum",
     problemTitle: "Two Sum",
     problemFrontendId: "1",
     language: "Swift",
     supportedLanguage: "swift",
-    identity: {
-      platform: "leetcode",
-      submissionId: "123",
+    syncDeduplicationKey: {
+      codingPlatform: "leetcode",
+      acceptedSourceId: "123",
       titleSlug: "two-sum",
       language: "swift"
     },
-    repository: null,
-    branchName: "main",
+    syncRepository: null,
+    syncBranchName: "main",
     solutionPath: "leetcode/swift/0001_two_sum.swift",
     commitSha: null,
     commitUrl: null,
     fileUrl: null,
     error: null,
-    retryPayloadId: null,
+    retryBundleId: null,
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
     ...overrides
   };
 }
 
-function makeProgrammersRecord(overrides: Partial<SyncRecord>): SyncRecord {
-  return makeRecord({
-    platform: "programmers",
+function makeProgrammersSyncHistoryEntry(
+  overrides: Partial<SyncHistoryEntry>
+): SyncHistoryEntry {
+  return makeSyncHistoryEntry({
+    codingPlatform: "programmers",
     titleSlug: "120804_두_수의_곱_구하기",
     problemTitle: "두 수의 곱 구하기",
     problemFrontendId: "120804",
     language: "Swift",
     supportedLanguage: "swift",
-    identity: {
-      platform: "programmers",
-      submissionId: "programmers:120804:swift:abc1234",
+    syncDeduplicationKey: {
+      codingPlatform: "programmers",
+      acceptedSourceId: "programmers:120804:swift:abc1234",
       titleSlug: "120804_두_수의_곱_구하기",
       language: "swift"
     },

@@ -9,7 +9,6 @@ import {
   parseSettingsState,
   resolveUiLocale,
   t,
-  type BranchRef,
   type ConnectionStatus,
   type ConnectionStatusCode,
   type ConnectionStatusView,
@@ -17,9 +16,10 @@ import {
   type IsoDateString,
   type NormalizedError,
   type NormalizedErrorCode,
-  type RepositoryRef,
   type RuntimeMessage,
   type SettingsState,
+  type SyncBranch,
+  type SyncRepository,
   type Tone,
   type UiLanguagePreference,
   type UiLocale
@@ -27,15 +27,15 @@ import {
 
 export interface RepositoryFilterState {
   query: string;
-  repositories: RepositoryRef[];
-  visibleRepositories: RepositoryRef[];
+  repositories: SyncRepository[];
+  visibleRepositories: SyncRepository[];
   hasMatches: boolean;
 }
 
 export interface SettingsValidationDraft {
   githubPat: string;
-  selectedRepository: RepositoryRef | null;
-  selectedBranch: BranchRef | null;
+  syncRepository: SyncRepository | null;
+  syncBranch: SyncBranch | null;
 }
 
 export interface SettingsValidationResult {
@@ -55,7 +55,7 @@ interface InlineMessage {
 }
 
 interface RepositoryListResult {
-  repositories: RepositoryRef[];
+  repositories: SyncRepository[];
   page: number;
   perPage: number;
   totalCount: number;
@@ -63,8 +63,8 @@ interface RepositoryListResult {
 }
 
 interface ConnectionTestResult {
-  repository: RepositoryRef;
-  branch: BranchRef;
+  repository: SyncRepository;
+  branch: SyncBranch;
   baseCommitSha: string;
   baseTreeSha: string;
 }
@@ -84,11 +84,11 @@ type RuntimeResponse<T> = RuntimeSuccessResponse<T> | RuntimeFailureResponse;
 interface OptionsRuntimeState {
   githubPatInput: string;
   patVisible: boolean;
-  repositories: RepositoryRef[];
+  repositories: SyncRepository[];
   repositoryQuery: string;
-  selectedRepository: RepositoryRef | null;
-  branches: BranchRef[];
-  selectedBranch: BranchRef | null;
+  syncRepository: SyncRepository | null;
+  branches: SyncBranch[];
+  syncBranch: SyncBranch | null;
   autoSyncEnabled: boolean;
   uiLanguage: UiLanguagePreference;
   locale: UiLocale;
@@ -154,7 +154,7 @@ function localizedMessage(
 }
 
 export function getRepositoryFilterState(
-  repositories: RepositoryRef[],
+  repositories: SyncRepository[],
   query: string
 ): RepositoryFilterState {
   const normalizedQuery = query.trim().toLowerCase();
@@ -174,8 +174,8 @@ export function getRepositoryFilterState(
 }
 
 export function getDefaultBranchSelection(
-  repository: RepositoryRef | null,
-  branches: BranchRef[],
+  repository: SyncRepository | null,
+  branches: SyncBranch[],
   preferredBranchName: string | null
 ): string | null {
   if (branches.length === 0) {
@@ -209,11 +209,11 @@ export function validateSettingsDraft(
     errors.githubPat = t(locale, "validation.githubPatRequired");
   }
 
-  if (draft.selectedRepository === null) {
+  if (draft.syncRepository === null) {
     errors.repository = t(locale, "validation.repositoryRequired");
   }
 
-  if (draft.selectedBranch === null) {
+  if (draft.syncBranch === null) {
     errors.branch = t(locale, "validation.branchRequired");
   }
 
@@ -272,9 +272,9 @@ function createInitialState(): OptionsRuntimeState {
     patVisible: false,
     repositories: [],
     repositoryQuery: "",
-    selectedRepository: null,
+    syncRepository: null,
     branches: [],
-    selectedBranch: null,
+    syncBranch: null,
     autoSyncEnabled: false,
     uiLanguage: DEFAULT_SETTINGS_STATE.uiLanguage,
     locale: getOptionsLocale(DEFAULT_SETTINGS_STATE.uiLanguage),
@@ -308,8 +308,8 @@ async function initOptionsPage(): Promise<void> {
     state.saveMessage = EMPTY_MESSAGE;
     render(elements, state);
 
-    if (settings.githubPat !== null && settings.selectedRepository !== null) {
-      void loadBranches(elements, state, settings.selectedRepository);
+    if (settings.githubPat !== null && settings.syncRepository !== null) {
+      void loadBranches(elements, state, settings.syncRepository);
     }
   } catch (error) {
     state.loadingSettings = false;
@@ -346,9 +346,9 @@ function bindEvents(elements: OptionsElements, state: OptionsRuntimeState): void
     const selected = state.repositories.find(
       (repository) => repository.fullName === elements.repositorySelect.value
     );
-    state.selectedRepository = selected ?? null;
+    state.syncRepository = selected ?? null;
     state.branches = [];
-    state.selectedBranch = null;
+    state.syncBranch = null;
     state.branchMessage = EMPTY_MESSAGE;
     state.createBranchMessage = EMPTY_MESSAGE;
     render(elements, state);
@@ -362,7 +362,7 @@ function bindEvents(elements: OptionsElements, state: OptionsRuntimeState): void
     const selected = state.branches.find(
       (branch) => branch.name === elements.branchSelect.value
     );
-    state.selectedBranch = selected ?? null;
+    state.syncBranch = selected ?? null;
     state.branchMessage = EMPTY_MESSAGE;
     render(elements, state);
   });
@@ -449,14 +449,14 @@ async function loadRepositories(
     state.repositories = response.data.repositories;
 
     if (
-      state.selectedRepository !== null &&
+      state.syncRepository !== null &&
       !state.repositories.some(
-        (repository) => repository.fullName === state.selectedRepository?.fullName
+        (repository) => repository.fullName === state.syncRepository?.fullName
       )
     ) {
-      state.selectedRepository = null;
+      state.syncRepository = null;
       state.branches = [];
-      state.selectedBranch = null;
+      state.syncBranch = null;
     }
 
     if (response.data.totalCount === 0) {
@@ -510,14 +510,14 @@ async function loadRepositories(
 async function loadBranches(
   elements: OptionsElements,
   state: OptionsRuntimeState,
-  repository: RepositoryRef
+  repository: SyncRepository
 ): Promise<void> {
   state.loadingBranches = true;
   state.branchMessage = localizedMessage("options.message.loadingBranches", "neutral");
   render(elements, state);
 
   try {
-    const response = await sendRuntimeMessage<BranchRef[]>({
+    const response = await sendRuntimeMessage<SyncBranch[]>({
       type: "github:branches:list",
       payload: {
         repository
@@ -532,16 +532,16 @@ async function loadBranches(
     const branchName = getDefaultBranchSelection(
       repository,
       state.branches,
-      state.selectedBranch?.name ?? null
+      state.syncBranch?.name ?? null
     );
-    state.selectedBranch =
+    state.syncBranch =
       branchName === null
         ? null
         : state.branches.find((branch) => branch.name === branchName) ?? null;
 
     if (state.branches.length === 0) {
       state.branchMessage = localizedMessage("options.message.noBranches", "warning");
-    } else if (state.selectedBranch?.name === repository.defaultBranch) {
+    } else if (state.syncBranch?.name === repository.defaultBranch) {
       state.branchMessage = localizedMessage(
         "options.message.defaultBranchSelected",
         "success",
@@ -584,7 +584,7 @@ async function createBranch(
 ): Promise<void> {
   const branchName = elements.createBranchInput.value.trim();
 
-  if (state.selectedRepository === null) {
+  if (state.syncRepository === null) {
     state.createBranchMessage = localizedMessage(
       "options.message.chooseRepositoryBeforeBranch",
       "error"
@@ -621,10 +621,10 @@ async function createBranch(
       uiLanguage: state.uiLanguage
     });
 
-    const response = await sendRuntimeMessage<BranchRef>({
+    const response = await sendRuntimeMessage<SyncBranch>({
       type: "github:branch:create",
       payload: {
-        repository: state.selectedRepository,
+        repository: state.syncRepository,
         branchName
       }
     });
@@ -634,7 +634,7 @@ async function createBranch(
     }
 
     state.branches = mergeBranches(state.branches, [response.data]);
-    state.selectedBranch = response.data;
+    state.syncBranch = response.data;
     state.connectionStatus = createConnectionStatus("branch_created");
     state.createBranchMessage = localizedMessage(
       "options.message.branchCreated",
@@ -647,8 +647,8 @@ async function createBranch(
 
     await saveSettings({
       githubPat: normalizePat(state.githubPatInput),
-      selectedRepository: state.selectedRepository,
-      selectedBranch: state.selectedBranch,
+      syncRepository: state.syncRepository,
+      syncBranch: state.syncBranch,
       autoSyncEnabled: state.autoSyncEnabled,
       uiLanguage: state.uiLanguage,
       connectionStatus: state.connectionStatus
@@ -682,8 +682,8 @@ async function testConnection(
 
   const validation = validateSettingsDraft({
     githubPat: state.githubPatInput,
-    selectedRepository: state.selectedRepository,
-    selectedBranch: state.selectedBranch
+    syncRepository: state.syncRepository,
+    syncBranch: state.syncBranch
   }, state.locale);
   applyValidationMessages(state, validation);
 
@@ -700,8 +700,8 @@ async function testConnection(
   try {
     await saveSettings({
       githubPat: normalizePat(state.githubPatInput),
-      selectedRepository: state.selectedRepository,
-      selectedBranch: state.selectedBranch,
+      syncRepository: state.syncRepository,
+      syncBranch: state.syncBranch,
       autoSyncEnabled: state.autoSyncEnabled,
       uiLanguage: state.uiLanguage,
       connectionStatus: state.connectionStatus
@@ -710,8 +710,8 @@ async function testConnection(
     const response = await sendRuntimeMessage<ConnectionTestResult>({
       type: "github:connection:test",
       payload: {
-        repository: state.selectedRepository as RepositoryRef,
-        branchName: (state.selectedBranch as BranchRef).name
+        repository: state.syncRepository as SyncRepository,
+        branchName: (state.syncBranch as SyncBranch).name
       }
     });
 
@@ -719,16 +719,16 @@ async function testConnection(
       throw response.error;
     }
 
-    state.selectedRepository = response.data.repository;
-    state.selectedBranch = response.data.branch;
+    state.syncRepository = response.data.repository;
+    state.syncBranch = response.data.branch;
     state.repositories = mergeRepositories(state.repositories, [response.data.repository]);
     state.branches = mergeBranches(state.branches, [response.data.branch]);
     state.connectionStatus = createConnectionStatus("connected");
 
     await saveSettings({
       githubPat: normalizePat(state.githubPatInput),
-      selectedRepository: state.selectedRepository,
-      selectedBranch: state.selectedBranch,
+      syncRepository: state.syncRepository,
+      syncBranch: state.syncBranch,
       autoSyncEnabled: state.autoSyncEnabled,
       uiLanguage: state.uiLanguage,
       connectionStatus: state.connectionStatus
@@ -758,8 +758,8 @@ async function saveSettingsFromForm(
 
   const validation = validateSettingsDraft({
     githubPat: state.githubPatInput,
-    selectedRepository: state.selectedRepository,
-    selectedBranch: state.selectedBranch
+    syncRepository: state.syncRepository,
+    syncBranch: state.syncBranch
   }, state.locale);
   applyValidationMessages(state, validation);
 
@@ -779,8 +779,8 @@ async function saveSettingsFromForm(
   try {
     await saveSettings({
       githubPat: normalizePat(state.githubPatInput),
-      selectedRepository: state.selectedRepository,
-      selectedBranch: state.selectedBranch,
+      syncRepository: state.syncRepository,
+      syncBranch: state.syncBranch,
       autoSyncEnabled: state.autoSyncEnabled,
       uiLanguage: state.uiLanguage,
       connectionStatus: state.connectionStatus
@@ -802,11 +802,11 @@ function applySettingsToState(
   settings: SettingsState
 ): void {
   state.githubPatInput = settings.githubPat ?? "";
-  state.selectedRepository = settings.selectedRepository;
-  state.selectedBranch = settings.selectedBranch;
+  state.syncRepository = settings.syncRepository;
+  state.syncBranch = settings.syncBranch;
   state.repositories =
-    settings.selectedRepository === null ? [] : [settings.selectedRepository];
-  state.branches = settings.selectedBranch === null ? [] : [settings.selectedBranch];
+    settings.syncRepository === null ? [] : [settings.syncRepository];
+  state.branches = settings.syncBranch === null ? [] : [settings.syncBranch];
   state.autoSyncEnabled = settings.autoSyncEnabled;
   setUiLanguage(state, settings.uiLanguage);
   state.connectionStatus = settings.connectionStatus;
@@ -864,7 +864,7 @@ function render(elements: OptionsElements, state: OptionsRuntimeState): void {
   renderLanguageControls(elements, state);
 
   elements.testConnectionButton.disabled =
-    state.testingConnection || state.selectedRepository === null || state.selectedBranch === null;
+    state.testingConnection || state.syncRepository === null || state.syncBranch === null;
   elements.testConnectionButton.textContent = state.testingConnection
     ? t(state.locale, "status.testing")
     : t(state.locale, "action.testConnection");
@@ -928,12 +928,12 @@ function renderRepositorySelect(
     })
   );
 
-  if (state.selectedRepository === null) {
+  if (state.syncRepository === null) {
     elements.repositorySelect.selectedIndex = -1;
   } else {
-    elements.repositorySelect.value = state.selectedRepository.fullName;
+    elements.repositorySelect.value = state.syncRepository.fullName;
 
-    if (elements.repositorySelect.value !== state.selectedRepository.fullName) {
+    if (elements.repositorySelect.value !== state.syncRepository.fullName) {
       elements.repositorySelect.selectedIndex = -1;
     }
   }
@@ -955,7 +955,7 @@ function renderBranchSelect(
   state: OptionsRuntimeState
 ): void {
   elements.branchSelect.disabled =
-    state.selectedRepository === null || state.loadingBranches || state.branches.length === 0;
+    state.syncRepository === null || state.loadingBranches || state.branches.length === 0;
 
   elements.branchSelect.replaceChildren(
     ...state.branches.map((branch) => {
@@ -968,10 +968,10 @@ function renderBranchSelect(
     })
   );
 
-  if (state.selectedBranch === null) {
+  if (state.syncBranch === null) {
     elements.branchSelect.selectedIndex = -1;
   } else {
-    elements.branchSelect.value = state.selectedBranch.name;
+    elements.branchSelect.value = state.syncBranch.name;
   }
 }
 
@@ -982,7 +982,7 @@ function renderCreateBranchControls(
   const branchName = elements.createBranchInput.value.trim();
   const branchAlreadyExists = state.branches.some((branch) => branch.name === branchName);
   const canCreate =
-    state.selectedRepository !== null &&
+    state.syncRepository !== null &&
     !state.loadingBranches &&
     !state.creatingBranch &&
     state.branches.length > 0 &&
@@ -990,7 +990,7 @@ function renderCreateBranchControls(
     !branchAlreadyExists;
 
   elements.createBranchInput.disabled =
-    state.selectedRepository === null || state.loadingBranches || state.creatingBranch;
+    state.syncRepository === null || state.loadingBranches || state.creatingBranch;
   elements.createBranchButton.disabled = !canCreate;
   elements.createBranchButton.textContent = state.creatingBranch
     ? t(state.locale, "action.creating")
@@ -1165,10 +1165,10 @@ function createConnectionStatus(
 }
 
 function mergeRepositories(
-  repositories: RepositoryRef[],
-  additional: RepositoryRef[]
-): RepositoryRef[] {
-  const byFullName = new Map<string, RepositoryRef>();
+  repositories: SyncRepository[],
+  additional: SyncRepository[]
+): SyncRepository[] {
+  const byFullName = new Map<string, SyncRepository>();
 
   for (const repository of [...repositories, ...additional]) {
     byFullName.set(repository.fullName, repository);
@@ -1179,8 +1179,8 @@ function mergeRepositories(
   );
 }
 
-function mergeBranches(branches: BranchRef[], additional: BranchRef[]): BranchRef[] {
-  const byName = new Map<string, BranchRef>();
+function mergeBranches(branches: SyncBranch[], additional: SyncBranch[]): SyncBranch[] {
+  const byName = new Map<string, SyncBranch>();
 
   for (const branch of [...branches, ...additional]) {
     byName.set(branch.name, branch);

@@ -1,14 +1,14 @@
 import type {
+  CodingPlatform,
   LeetCodeLanguage,
-  Platform,
-  SubmissionIdentity,
+  SyncDeduplicationKey,
   SupportedLanguage
 } from "./types";
 import { isSupportedLanguage } from "./types";
 
-export interface BuildSubmissionIdentityInput {
-  platform?: Platform;
-  submissionId: string;
+export interface BuildSyncDeduplicationKeyInput {
+  codingPlatform?: CodingPlatform;
+  acceptedSourceId: string;
   titleSlug: string;
   language: LeetCodeLanguage | SupportedLanguage | string;
 }
@@ -53,9 +53,9 @@ export function mapSupportedLanguage(raw: string): SupportedLanguage | null {
   return null;
 }
 
-export function buildSubmissionIdentity(
-  input: BuildSubmissionIdentityInput
-): SubmissionIdentity {
+export function buildSyncDeduplicationKey(
+  input: BuildSyncDeduplicationKeyInput
+): SyncDeduplicationKey {
   const language = isSupportedLanguage(input.language)
     ? input.language
     : mapSupportedLanguage(input.language);
@@ -65,8 +65,8 @@ export function buildSubmissionIdentity(
   }
 
   return {
-    platform: input.platform ?? "leetcode",
-    submissionId: input.submissionId,
+    codingPlatform: input.codingPlatform ?? "leetcode",
+    acceptedSourceId: input.acceptedSourceId,
     titleSlug: input.titleSlug,
     language
   };

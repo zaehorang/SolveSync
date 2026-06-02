@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  isPlatform,
-  isBranchRef,
-  isRepositoryRef,
-  isSubmissionIdentity,
+  isCodingPlatform,
+  isSyncBranch,
+  isSyncRepository,
+  isSyncDeduplicationKey,
+  isSyncHistoryEntry,
   isSupportedLanguage
 } from "./types";
 
@@ -16,29 +17,29 @@ describe("shared domain type guards", () => {
   });
 
   it("guards supported platform values", () => {
-    expect(isPlatform("leetcode")).toBe(true);
-    expect(isPlatform("programmers")).toBe(true);
-    expect(isPlatform("baekjoon")).toBe(false);
+    expect(isCodingPlatform("leetcode")).toBe(true);
+    expect(isCodingPlatform("programmers")).toBe(true);
+    expect(isCodingPlatform("baekjoon")).toBe(false);
   });
 
-  it("guards core GitHub and submission references", () => {
+  it("guards core GitHub and sync deduplication key references", () => {
     expect(
-      isSubmissionIdentity({
-        platform: "leetcode",
-        submissionId: "1",
+      isSyncDeduplicationKey({
+        codingPlatform: "leetcode",
+        acceptedSourceId: "1",
         titleSlug: "two-sum",
         language: "swift"
       })
     ).toBe(true);
     expect(
-      isSubmissionIdentity({
+      isSyncDeduplicationKey({
         submissionId: "1",
         titleSlug: "two-sum",
         language: "swift"
       })
     ).toBe(false);
     expect(
-      isRepositoryRef({
+      isSyncRepository({
         owner: "example",
         name: "solutions",
         fullName: "example/solutions",
@@ -48,11 +49,71 @@ describe("shared domain type guards", () => {
       })
     ).toBe(true);
     expect(
-      isBranchRef({
+      isSyncBranch({
         name: "main",
         sha: "abc123",
         protected: false
       })
     ).toBe(true);
+  });
+
+  it("accepts v4 Sync History shape and rejects legacy-only shape", () => {
+    expect(
+      isSyncHistoryEntry({
+        id: "record-1",
+        codingPlatform: "leetcode",
+        status: "synced",
+        titleSlug: "two-sum",
+        problemTitle: "Two Sum",
+        problemFrontendId: "1",
+        language: "Swift",
+        supportedLanguage: "swift",
+        syncDeduplicationKey: {
+          codingPlatform: "leetcode",
+          acceptedSourceId: "123",
+          titleSlug: "two-sum",
+          language: "swift"
+        },
+        syncRepository: null,
+        syncBranchName: null,
+        solutionPath: "leetcode/swift/0001_two_sum.swift",
+        commitSha: "commit-sha",
+        commitUrl: null,
+        fileUrl: null,
+        error: null,
+        retryBundleId: null,
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z"
+      })
+    ).toBe(true);
+
+    expect(
+      isSyncHistoryEntry({
+        id: "record-legacy",
+        platform: "leetcode",
+        status: "synced",
+        titleSlug: "two-sum",
+        problemTitle: "Two Sum",
+        problemFrontendId: "1",
+        language: "Swift",
+        supportedLanguage: "swift",
+        identity: {
+          platform: "leetcode",
+          submissionId: "123",
+          titleSlug: "two-sum",
+          language: "swift"
+        },
+        syncRepository: null,
+        syncBranchName: null,
+        solutionPath: "leetcode/swift/0001_two_sum.swift",
+        commitSha: "commit-sha",
+        commitUrl: null,
+        fileUrl: null,
+        error: null,
+        retryBundleId: null,
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z"
+      })
+    ).toBe(false);
   });
 });

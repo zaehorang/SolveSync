@@ -1,11 +1,11 @@
 import {
-  compareIndexProblems,
+  compareSolutionCatalogProblems,
   parseProblemNumber,
-  type LeetCodeSyncIndex,
-  type LeetCodeSyncIndexProblem
-} from "./indexFile";
+  type SolutionCatalog,
+  type SolutionCatalogProblem
+} from "./solutionCatalog";
 import { getPlatformPolicy, type PlatformPolicy } from "./platformPolicy";
-import type { Platform } from "./types";
+import type { CodingPlatform } from "./types";
 
 export const README_TABLE_START_MARKER = "<!-- LEETCODE_TABLE_START -->";
 export const README_TABLE_END_MARKER = "<!-- LEETCODE_TABLE_END -->";
@@ -14,12 +14,12 @@ export const PROGRAMMERS_README_TABLE_START_MARKER =
 export const PROGRAMMERS_README_TABLE_END_MARKER = "<!-- PROGRAMMERS_TABLE_END -->";
 
 export function renderManagedReadmeTable(
-  index: LeetCodeSyncIndex,
-  platform: Platform = "leetcode"
+  solutionCatalog: SolutionCatalog,
+  codingPlatform: CodingPlatform = "leetcode"
 ): string {
-  const policy = getPlatformPolicy(platform);
-  const rows = [...index.problems]
-    .sort(compareIndexProblems)
+  const policy = getPlatformPolicy(codingPlatform);
+  const rows = [...solutionCatalog.problems]
+    .sort(compareSolutionCatalogProblems)
     .map((problem) => renderProblemRow(problem, policy));
 
   return [
@@ -32,12 +32,12 @@ export function renderManagedReadmeTable(
 export function mergeReadmeManagedBlock(
   existingReadme: string | null | undefined,
   table: string,
-  platform: Platform = "leetcode"
+  codingPlatform: CodingPlatform = "leetcode"
 ): string {
-  const policy = getPlatformPolicy(platform);
+  const policy = getPlatformPolicy(codingPlatform);
 
   if (existingReadme === null || existingReadme === undefined || existingReadme === "") {
-    return buildInitialReadme(table, platform);
+    return buildInitialReadme(table, codingPlatform);
   }
 
   const block = buildManagedBlock(table, policy);
@@ -56,9 +56,9 @@ export function mergeReadmeManagedBlock(
 
 export function buildInitialReadme(
   table: string,
-  platform: Platform = "leetcode"
+  codingPlatform: CodingPlatform = "leetcode"
 ): string {
-  const policy = getPlatformPolicy(platform);
+  const policy = getPlatformPolicy(codingPlatform);
 
   return `# ${policy.initialReadmeTitle}\n\n${buildManagedBlock(table, policy)}\n`;
 }
@@ -68,7 +68,7 @@ function buildManagedBlock(table: string, policy: PlatformPolicy): string {
 }
 
 function renderProblemRow(
-  problem: LeetCodeSyncIndexProblem,
+  problem: SolutionCatalogProblem,
   policy: PlatformPolicy
 ): string {
   const swiftPath = problem.languages.swift?.solutionPath ?? null;
