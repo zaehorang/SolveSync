@@ -7,7 +7,7 @@ import type {
   LeetCodeDifficulty,
   LeetCodeLanguage,
   ProblemMetadata,
-  SubmissionIdentity,
+  SyncDeduplicationKey,
   SupportedLanguage
 } from "../../shared/types";
 
@@ -87,7 +87,7 @@ export interface SyncableAcceptedSubmissionResult {
   submittedAt: IsoDateString;
   supportedLanguage: SupportedLanguage;
   syncable: true;
-  identity: SubmissionIdentity;
+  syncDeduplicationKey: SyncDeduplicationKey;
 }
 
 export interface UnsupportedAcceptedSubmissionResult {
@@ -95,7 +95,7 @@ export interface UnsupportedAcceptedSubmissionResult {
   submittedAt: IsoDateString;
   supportedLanguage: null;
   syncable: false;
-  identity: null;
+  syncDeduplicationKey: null;
 }
 
 interface LeetCodeClientContext {
@@ -195,7 +195,7 @@ export class LeetCodeClient {
       const submittedAt = toIsoDateString(details.timestamp ?? latest.timestamp);
       const submissionTitleSlug = details.titleSlug ?? latest.titleSlug;
       const submission: AcceptedSubmission = {
-        submissionId: latest.submissionId,
+        acceptedSourceId: latest.submissionId,
         titleSlug: submissionTitleSlug,
         language,
         code: details.code,
@@ -209,7 +209,7 @@ export class LeetCodeClient {
           submittedAt,
           supportedLanguage,
           syncable: false,
-          identity: null
+          syncDeduplicationKey: null
         };
       }
 
@@ -218,9 +218,9 @@ export class LeetCodeClient {
         submittedAt,
         supportedLanguage,
         syncable: true,
-        identity: {
-          platform: "leetcode",
-          submissionId: submission.submissionId,
+        syncDeduplicationKey: {
+          codingPlatform: "leetcode",
+          acceptedSourceId: submission.acceptedSourceId,
           titleSlug: submission.titleSlug,
           language: supportedLanguage
         }

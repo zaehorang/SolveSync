@@ -1,10 +1,10 @@
 import type { NormalizedError } from "./errors";
 import type {
-  RepositoryRef,
-  RetryPayloadSummary,
-  SyncRecord,
+  RetryBundleSummary,
+  SyncHistoryEntry,
   SyncStatus
 } from "./types";
+import type { SyncRepository } from "./types";
 import { isPlainRecord } from "./types";
 import type { PublicSettingsUpdate, SyncHistoryState } from "./storageSchema";
 
@@ -16,14 +16,14 @@ export interface ScaffoldReadyMessage {
 }
 
 export interface LeetCodeAcceptedDetectedPayload {
-  platform: "leetcode";
+  codingPlatform: "leetcode";
   titleSlug: string;
   pageUrl: string;
   detectedAt: string;
 }
 
 export interface ProgrammersAcceptedDetectedPayload {
-  platform: "programmers";
+  codingPlatform: "programmers";
   courseId: string;
   lessonId: string;
   problemTitle: string;
@@ -83,14 +83,14 @@ export interface RepositoryListMessage {
 export interface BranchListMessage {
   type: "github:branches:list";
   payload: {
-    repository: RepositoryRef;
+    repository: SyncRepository;
   };
 }
 
 export interface BranchCreateMessage {
   type: "github:branch:create";
   payload: {
-    repository: RepositoryRef;
+    repository: SyncRepository;
     branchName: string;
   };
 }
@@ -98,7 +98,7 @@ export interface BranchCreateMessage {
 export interface ConnectionTestMessage {
   type: "github:connection:test";
   payload: {
-    repository: RepositoryRef;
+    repository: SyncRepository;
     branchName: string;
   };
 }
@@ -117,7 +117,7 @@ export interface HistoryReadMessage {
   };
 }
 
-export interface RetryPayloadsReadMessage {
+export interface RetryBundlesReadMessage {
   type: "retry-payloads:read";
 }
 
@@ -130,15 +130,15 @@ export type PopupOptionsToBackgroundMessage =
   | ConnectionTestMessage
   | RetrySyncMessage
   | HistoryReadMessage
-  | RetryPayloadsReadMessage;
+  | RetryBundlesReadMessage;
 
-export type RetryPayloadsReadResponse = RetryPayloadSummary[];
+export type RetryBundlesReadResponse = RetryBundleSummary[];
 
 export interface SyncStatusMessage {
   type: "sync:status";
   payload: {
     status: SyncStatus;
-    record: SyncRecord | null;
+    record: SyncHistoryEntry | null;
     error: NormalizedError | null;
   };
 }

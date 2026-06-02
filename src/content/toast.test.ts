@@ -310,16 +310,16 @@ describe("content toast model", () => {
 function makeRecord(overrides: Partial<SyncRecord>): SyncRecord {
   return {
     id: "record-1",
-    platform: "leetcode",
+    codingPlatform: "leetcode",
     status: "syncing",
     titleSlug: "two-sum",
     problemTitle: "Two Sum",
     problemFrontendId: "1",
     language: "Swift",
     supportedLanguage: "swift",
-    identity: {
-      platform: "leetcode",
-      submissionId: "123",
+    syncDeduplicationKey: {
+      codingPlatform: "leetcode",
+      acceptedSourceId: "123",
       titleSlug: "two-sum",
       language: "swift"
     },
@@ -339,15 +339,15 @@ function makeRecord(overrides: Partial<SyncRecord>): SyncRecord {
 
 function makeProgrammersRecord(overrides: Partial<SyncRecord>): SyncRecord {
   return makeRecord({
-    platform: "programmers",
+    codingPlatform: "programmers",
     titleSlug: "120804_두_수의_곱_구하기",
     problemTitle: "두 수의 곱 구하기",
     problemFrontendId: "120804",
     language: "Swift",
     supportedLanguage: "swift",
-    identity: {
-      platform: "programmers",
-      submissionId: "programmers:120804:swift:abc1234",
+    syncDeduplicationKey: {
+      codingPlatform: "programmers",
+      acceptedSourceId: "programmers:120804:swift:abc1234",
       titleSlug: "120804_두_수의_곱_구하기",
       language: "swift"
     },

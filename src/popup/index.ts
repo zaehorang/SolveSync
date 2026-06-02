@@ -5,7 +5,7 @@ import {
   getFailureDetailView as getSharedFailureDetailView,
   getPlatformLabel,
   getSetupStatusView as getSharedSetupStatusView,
-  getSyncRecordLanguageLabel,
+  getSyncHistoryEntryLanguageLabel,
   getSyncStatusLabel,
   getSyncStatusTone,
   getUnsupportedLanguageReason,
@@ -568,9 +568,9 @@ function toHistoryItem(
   return {
     id: record.id,
     status: record.status,
-    platformLabel: getPlatformLabel(record.platform),
+    platformLabel: getPlatformLabel(record.codingPlatform),
     title: getRecordTitle(record, locale),
-    languageLabel: getSyncRecordLanguageLabel(locale, record),
+    languageLabel: getSyncHistoryEntryLanguageLabel(locale, record),
     meta: getRecordMeta(record, nowMs, locale),
     timeLabel: formatRelativeTime(record.updatedAt, nowMs, locale),
     statusLabel: getSyncStatusLabel(locale, record.status),
@@ -605,18 +605,18 @@ function getRecordTitle(record: SyncRecord, locale: UiLocale): string {
   }
 
   if (frontendId.length > 0) {
-    return `${getPlatformLabel(record.platform)} ${frontendId}`;
+    return `${getPlatformLabel(record.codingPlatform)} ${frontendId}`;
   }
 
   return t(locale, "label.platformSubmission", {
-    platform: getPlatformLabel(record.platform)
+    platform: getPlatformLabel(record.codingPlatform)
   });
 }
 
 function getRecordMeta(record: SyncRecord, nowMs: number, locale: UiLocale): string {
   const parts = [
-    getPlatformLabel(record.platform),
-    getSyncRecordLanguageLabel(locale, record),
+    getPlatformLabel(record.codingPlatform),
+    getSyncHistoryEntryLanguageLabel(locale, record),
     formatRelativeTime(record.updatedAt, nowMs, locale)
   ];
 

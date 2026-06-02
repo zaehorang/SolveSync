@@ -93,7 +93,7 @@ describe("background extension storage", () => {
     expect(await storage.isProcessed(makeIdentity("submission-1"))).toBe(true);
     await expect(storage.listProcessedSubmissions()).resolves.toEqual([
       {
-        identity: makeIdentity("submission-1"),
+        syncDeduplicationKey: makeIdentity("submission-1"),
         processedAt: "2026-01-01T00:00:00.000Z",
         commitSha: "commit-sha-1",
         solutionPath: "leetcode/swift/0001_two_sum.swift"
@@ -275,8 +275,8 @@ const problem: ProblemMetadata = {
 
 function makeIdentity(submissionId: string): SubmissionIdentity {
   return {
-    platform: "leetcode",
-    submissionId,
+    codingPlatform: "leetcode",
+    acceptedSourceId: submissionId,
     titleSlug: "two-sum",
     language: "swift"
   };
@@ -287,14 +287,14 @@ function makeSyncRecord(index: number): SyncRecord {
 
   return {
     id: `record-${index}`,
-    platform: "leetcode",
+    codingPlatform: "leetcode",
     status: "synced",
     titleSlug: "two-sum",
     problemTitle: "Two Sum",
     problemFrontendId: "1",
     language: "Swift",
     supportedLanguage: "swift",
-    identity: makeIdentity(`submission-${index}`),
+    syncDeduplicationKey: makeIdentity(`submission-${index}`),
     repository,
     branchName: "main",
     solutionPath: "leetcode/swift/0001_two_sum.swift",
@@ -311,13 +311,13 @@ function makeSyncRecord(index: number): SyncRecord {
 function makeRetryPayload(id: string, createdAt: string): RetryPayload {
   return {
     id,
-    platform: "leetcode",
-    identity: makeIdentity(id),
+    codingPlatform: "leetcode",
+    syncDeduplicationKey: makeIdentity(id),
     repository,
     branch,
     problem,
     submission: {
-      submissionId: id,
+      acceptedSourceId: id,
       titleSlug: "two-sum",
       language: "Swift",
       code: "class Solution {}",

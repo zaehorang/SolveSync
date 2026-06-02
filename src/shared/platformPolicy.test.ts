@@ -6,6 +6,7 @@ describe("platform policy", () => {
   it("describes LeetCode paths, markers, and labels", () => {
     const policy = getPlatformPolicy("leetcode");
 
+    expect(policy.codingPlatform).toBe("leetcode");
     expect(policy.rootFolder).toBe("leetcode");
     expect(policy.solutionReadmePath).toBe("leetcode/README.md");
     expect(policy.solutionCatalogPath).toBe("leetcode/.leetcode-sync/index.json");
@@ -24,6 +25,7 @@ describe("platform policy", () => {
   it("describes Programmers paths, markers, and labels", () => {
     const policy = getPlatformPolicy("programmers");
 
+    expect(policy.codingPlatform).toBe("programmers");
     expect(policy.rootFolder).toBe("programmers");
     expect(policy.solutionReadmePath).toBe("programmers/README.md");
     expect(policy.solutionCatalogPath).toBe(

@@ -4,12 +4,12 @@ import {
   DEFAULT_SETTINGS_STATE,
   EMPTY_IN_FLIGHT_SYNCS_STATE,
   EMPTY_PROCESSED_SUBMISSIONS_STATE,
-  EMPTY_RETRY_PAYLOADS_STATE,
+  EMPTY_RETRY_BUNDLES_STATE,
   EMPTY_SYNC_HISTORY_STATE,
   STORAGE_SCHEMA_VERSION,
   parseInFlightSyncsState,
   parseProcessedSubmissionsState,
-  parseRetryPayloadsState,
+  parseRetryBundlesState,
   parseSettingsState,
   parseSyncHistoryState,
   isSettingsState,
@@ -23,7 +23,7 @@ describe("storage schema contracts", () => {
       DEFAULT_SETTINGS_STATE,
       EMPTY_PROCESSED_SUBMISSIONS_STATE,
       EMPTY_SYNC_HISTORY_STATE,
-      EMPTY_RETRY_PAYLOADS_STATE,
+      EMPTY_RETRY_BUNDLES_STATE,
       EMPTY_IN_FLIGHT_SYNCS_STATE
     ];
 
@@ -116,9 +116,9 @@ describe("storage schema contracts", () => {
       version: STORAGE_SCHEMA_VERSION,
       entries: [
         {
-          identity: {
-            platform: "leetcode",
-            submissionId: "123",
+          syncDeduplicationKey: {
+            codingPlatform: "leetcode",
+            acceptedSourceId: "123",
             titleSlug: "two-sum",
             language: "swift"
           },
@@ -162,10 +162,10 @@ describe("storage schema contracts", () => {
     });
 
     expect(migrated?.records[0]).toMatchObject({
-      platform: "leetcode",
-      identity: {
-        platform: "leetcode",
-        submissionId: "123"
+      codingPlatform: "leetcode",
+      syncDeduplicationKey: {
+        codingPlatform: "leetcode",
+        acceptedSourceId: "123"
       }
     });
   });
@@ -206,7 +206,7 @@ describe("storage schema contracts", () => {
     };
 
     expect(
-      parseRetryPayloadsState({
+      parseRetryBundlesState({
         version: 1,
         payloads: [
           {
@@ -228,10 +228,13 @@ describe("storage schema contracts", () => {
         ]
       })?.payloads[0]
     ).toMatchObject({
-      platform: "leetcode",
-      identity: {
-        platform: "leetcode",
-        submissionId: "123"
+      codingPlatform: "leetcode",
+      syncDeduplicationKey: {
+        codingPlatform: "leetcode",
+        acceptedSourceId: "123"
+      },
+      submission: {
+        acceptedSourceId: "123"
       },
       solutionReadmePath: "leetcode/README.md",
       solutionCatalogPath: "leetcode/.leetcode-sync/index.json"
@@ -247,10 +250,10 @@ describe("storage schema contracts", () => {
             expiresAt: "2026-01-01T00:10:00.000Z"
           }
         ]
-      })?.locks[0]?.identity
+      })?.locks[0]?.syncDeduplicationKey
     ).toEqual({
-      platform: "leetcode",
-      submissionId: "123",
+      codingPlatform: "leetcode",
+      acceptedSourceId: "123",
       titleSlug: "two-sum",
       language: "swift"
     });

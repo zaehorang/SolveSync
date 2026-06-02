@@ -1,7 +1,7 @@
 import type { NormalizedError } from "./errors";
 import { t, type UiLocale } from "./i18n";
 import type { ToastAction } from "./messages";
-import type { Platform, SyncRecord, SyncStatus } from "./types";
+import type { CodingPlatform, SyncHistoryEntry, SyncStatus } from "./types";
 import type {
   ConnectionStatus,
   ConnectionStatusCode,
@@ -44,7 +44,7 @@ export interface ToastViewModel {
 
 export interface ToastModelInput {
   status: SyncStatus;
-  record: SyncRecord | null;
+  record: SyncHistoryEntry | null;
   error: NormalizedError | null;
   canRetry?: boolean;
 }
@@ -177,7 +177,7 @@ export function getSetupStatusView(
 
 export function getFailureDetailView(
   locale: UiLocale,
-  record: SyncRecord
+  record: SyncHistoryEntry
 ): FailureDetailView | null {
   if (record.error === null) {
     return null;
@@ -308,13 +308,13 @@ export function createToastViewModel(
   }
 }
 
-export function getPlatformLabel(platform: Platform): string {
-  return platform === "programmers" ? "Programmers" : "LeetCode";
+export function getPlatformLabel(codingPlatform: CodingPlatform): string {
+  return codingPlatform === "programmers" ? "Programmers" : "LeetCode";
 }
 
-export function getSyncRecordLanguageLabel(
+export function getSyncHistoryEntryLanguageLabel(
   locale: UiLocale,
-  record: Pick<SyncRecord, "language" | "supportedLanguage">
+  record: Pick<SyncHistoryEntry, "language" | "supportedLanguage">
 ): string {
   if (record.supportedLanguage === "python3") {
     return "Python3";
@@ -335,7 +335,7 @@ export function getUnsupportedLanguageReason(locale: UiLocale): string {
 
 function successActions(
   locale: UiLocale,
-  record: SyncRecord | null
+  record: SyncHistoryEntry | null
 ): ToastActionView[] {
   const actions: ToastActionView[] = [];
 
@@ -381,7 +381,7 @@ function failureDetail(locale: UiLocale, error: NormalizedError | null): string 
   return error?.userMessage ?? t(locale, "detail.toastFailureFallback");
 }
 
-function unsupportedDetail(locale: UiLocale, record: SyncRecord | null): string {
+function unsupportedDetail(locale: UiLocale, record: SyncHistoryEntry | null): string {
   if (record?.language !== undefined && record.language.trim().length > 0) {
     return t(locale, "detail.unsupportedLanguageNamed", {
       language: record.language
@@ -391,13 +391,16 @@ function unsupportedDetail(locale: UiLocale, record: SyncRecord | null): string 
   return t(locale, "detail.unsupportedLanguageDefault");
 }
 
-function describeRecord(locale: UiLocale, record: SyncRecord | null): string | null {
+function describeRecord(
+  locale: UiLocale,
+  record: SyncHistoryEntry | null
+): string | null {
   if (record === null) {
     return null;
   }
 
   const title = getToastRecordTitle(record);
-  const language = getSyncRecordLanguageLabel(locale, record);
+  const language = getSyncHistoryEntryLanguageLabel(locale, record);
 
   if (title.length === 0 && language.length === 0) {
     return null;
@@ -410,7 +413,7 @@ function describeRecord(locale: UiLocale, record: SyncRecord | null): string | n
   return t(locale, "detail.recordInLanguage", { title, language });
 }
 
-function getToastRecordTitle(record: SyncRecord): string {
+function getToastRecordTitle(record: SyncHistoryEntry): string {
   const title = record.problemTitle?.trim() ?? "";
   const titleSlug = record.titleSlug.trim();
   const frontendId = record.problemFrontendId?.trim() ?? "";
@@ -424,10 +427,10 @@ function getToastRecordTitle(record: SyncRecord): string {
   }
 
   if (frontendId.length > 0) {
-    return `${getPlatformLabel(record.platform)} ${frontendId}`;
+    return `${getPlatformLabel(record.codingPlatform)} ${frontendId}`;
   }
 
-  return getPlatformLabel(record.platform);
+  return getPlatformLabel(record.codingPlatform);
 }
 
 function toastAction(

@@ -38,11 +38,11 @@ describe("runtime message contracts", () => {
     );
   });
 
-  it("supports platform-discriminated accepted detected messages", () => {
+  it("supports coding platform-discriminated accepted detected messages", () => {
     const leetcodeMessage: RuntimeMessage = {
       type: "content:accepted_detected",
       payload: {
-        platform: "leetcode",
+        codingPlatform: "leetcode",
         titleSlug: "two-sum",
         pageUrl: "https://leetcode.com/problems/two-sum/",
         detectedAt: "2026-01-01T00:00:00.000Z"
@@ -51,7 +51,7 @@ describe("runtime message contracts", () => {
     const programmersMessage: RuntimeMessage = {
       type: "content:accepted_detected",
       payload: {
-        platform: "programmers",
+        codingPlatform: "programmers",
         courseId: "30",
         lessonId: "120804",
         problemTitle: "두 수의 곱 구하기",

@@ -5,20 +5,20 @@ import {
   type UiLanguagePreference
 } from "./i18n";
 import {
-  isBranchRef,
-  isPlatform,
+  isSyncBranch,
+  isCodingPlatform,
   isPlainRecord,
-  isRetryPayload,
-  isRepositoryRef,
-  isSubmissionIdentity,
-  isSyncRecord,
-  type BranchRef,
+  isRetryBundle,
+  isSyncDeduplicationKey,
+  isSyncHistoryEntry,
+  isSyncRepository,
+  type SyncBranch,
+  type CodingPlatform,
   type IsoDateString,
-  type Platform,
-  type RepositoryRef,
-  type RetryPayload,
-  type SubmissionIdentity,
-  type SyncRecord
+  type RetryBundle,
+  type SyncDeduplicationKey,
+  type SyncHistoryEntry,
+  type SyncRepository
 } from "./types";
 
 export const STORAGE_SCHEMA_VERSION = 3;
@@ -58,8 +58,8 @@ export interface ConnectionStatus {
 export interface SettingsState {
   version: typeof STORAGE_SCHEMA_VERSION;
   githubPat: string | null;
-  selectedRepository: RepositoryRef | null;
-  selectedBranch: BranchRef | null;
+  selectedRepository: SyncRepository | null;
+  selectedBranch: SyncBranch | null;
   autoSyncEnabled: boolean;
   uiLanguage: UiLanguagePreference;
   connectionStatus: ConnectionStatus;
@@ -82,7 +82,7 @@ export type PublicSettingsUpdate = Partial<
 >;
 
 export interface ProcessedSubmissionEntry {
-  identity: SubmissionIdentity;
+  syncDeduplicationKey: SyncDeduplicationKey;
   processedAt: IsoDateString;
   commitSha: string;
   solutionPath: string;
@@ -95,16 +95,16 @@ export interface ProcessedSubmissionsState {
 
 export interface SyncHistoryState {
   version: typeof STORAGE_SCHEMA_VERSION;
-  records: SyncRecord[];
+  records: SyncHistoryEntry[];
 }
 
-export interface RetryPayloadsState {
+export interface RetryBundlesState {
   version: typeof STORAGE_SCHEMA_VERSION;
-  payloads: RetryPayload[];
+  payloads: RetryBundle[];
 }
 
 export interface InFlightSyncLock {
-  identity: SubmissionIdentity;
+  syncDeduplicationKey: SyncDeduplicationKey;
   lockedAt: IsoDateString;
   expiresAt: IsoDateString;
 }
@@ -139,7 +139,7 @@ export const EMPTY_SYNC_HISTORY_STATE: SyncHistoryState = {
   records: []
 };
 
-export const EMPTY_RETRY_PAYLOADS_STATE: RetryPayloadsState = {
+export const EMPTY_RETRY_BUNDLES_STATE: RetryBundlesState = {
   version: STORAGE_SCHEMA_VERSION,
   payloads: []
 };
@@ -175,8 +175,8 @@ export function isSettingsState(value: unknown): value is SettingsState {
 
   return (
     (typeof value.githubPat === "string" || value.githubPat === null) &&
-    (isRepositoryRef(value.selectedRepository) || value.selectedRepository === null) &&
-    (isBranchRef(value.selectedBranch) || value.selectedBranch === null) &&
+    (isSyncRepository(value.selectedRepository) || value.selectedRepository === null) &&
+    (isSyncBranch(value.selectedBranch) || value.selectedBranch === null) &&
     typeof value.autoSyncEnabled === "boolean" &&
     isUiLanguagePreference(value.uiLanguage) &&
     isConnectionStatus(value.connectionStatus) &&
@@ -206,7 +206,7 @@ export function isProcessedSubmissionEntry(
   }
 
   return (
-    isSubmissionIdentity(value.identity) &&
+    isSyncDeduplicationKey(value.syncDeduplicationKey) &&
     typeof value.processedAt === "string" &&
     typeof value.commitSha === "string" &&
     typeof value.solutionPath === "string"
@@ -251,7 +251,7 @@ export function isSyncHistoryState(value: unknown): value is SyncHistoryState {
     return false;
   }
 
-  return Array.isArray(value.records) && value.records.every(isSyncRecord);
+  return Array.isArray(value.records) && value.records.every(isSyncHistoryEntry);
 }
 
 export function parseSyncHistoryState(value: unknown): SyncHistoryState | null {
@@ -263,7 +263,7 @@ export function parseSyncHistoryState(value: unknown): SyncHistoryState | null {
     return null;
   }
 
-  const records = value.records.map(normalizeSyncRecord);
+  const records = value.records.map(normalizeSyncHistoryEntry);
 
   if (records.some((record) => record === null)) {
     return null;
@@ -271,19 +271,19 @@ export function parseSyncHistoryState(value: unknown): SyncHistoryState | null {
 
   return {
     version: STORAGE_SCHEMA_VERSION,
-    records: records as SyncRecord[]
+    records: records as SyncHistoryEntry[]
   };
 }
 
-export function isRetryPayloadsState(value: unknown): value is RetryPayloadsState {
+export function isRetryBundlesState(value: unknown): value is RetryBundlesState {
   if (!isVersionedStorageState(value)) {
     return false;
   }
 
-  return Array.isArray(value.payloads) && value.payloads.every(isRetryPayload);
+  return Array.isArray(value.payloads) && value.payloads.every(isRetryBundle);
 }
 
-export function parseRetryPayloadsState(value: unknown): RetryPayloadsState | null {
+export function parseRetryBundlesState(value: unknown): RetryBundlesState | null {
   if (!isPlainRecord(value) || !isSupportedStorageVersion(value.version)) {
     return null;
   }
@@ -292,7 +292,7 @@ export function parseRetryPayloadsState(value: unknown): RetryPayloadsState | nu
     return null;
   }
 
-  const payloads = value.payloads.map(normalizeRetryPayload);
+  const payloads = value.payloads.map(normalizeRetryBundle);
 
   if (payloads.some((payload) => payload === null)) {
     return null;
@@ -300,7 +300,7 @@ export function parseRetryPayloadsState(value: unknown): RetryPayloadsState | nu
 
   return {
     version: STORAGE_SCHEMA_VERSION,
-    payloads: payloads as RetryPayload[]
+    payloads: payloads as RetryBundle[]
   };
 }
 
@@ -310,7 +310,7 @@ export function isInFlightSyncLock(value: unknown): value is InFlightSyncLock {
   }
 
   return (
-    isSubmissionIdentity(value.identity) &&
+    isSyncDeduplicationKey(value.syncDeduplicationKey) &&
     typeof value.lockedAt === "string" &&
     typeof value.expiresAt === "string"
   );
@@ -392,54 +392,77 @@ function normalizeProcessedSubmissionEntry(
     return null;
   }
 
-  const identity = normalizeSubmissionIdentity(value.identity);
+  const { identity: legacyIdentity, ...rest } = value;
+  const syncDeduplicationKey = normalizeSyncDeduplicationKey(
+    value.syncDeduplicationKey ?? legacyIdentity
+  );
   const candidate = {
-    ...value,
-    identity
+    ...rest,
+    syncDeduplicationKey
   };
 
   return isProcessedSubmissionEntry(candidate) ? candidate : null;
 }
 
-function normalizeSyncRecord(value: unknown): SyncRecord | null {
+function normalizeSyncHistoryEntry(value: unknown): SyncHistoryEntry | null {
   if (!isPlainRecord(value)) {
     return null;
   }
 
-  const platform = normalizePlatform(value.platform);
-  const identity =
-    value.identity === null ? null : normalizeSubmissionIdentity(value.identity, platform);
+  const { platform: legacyPlatform, identity: legacyIdentity, ...rest } = value;
+  const codingPlatform = normalizeCodingPlatform(
+    value.codingPlatform ?? legacyPlatform
+  );
+  const syncDeduplicationKeyValue = value.syncDeduplicationKey ?? legacyIdentity;
+  const syncDeduplicationKey =
+    syncDeduplicationKeyValue === null
+      ? null
+      : normalizeSyncDeduplicationKey(syncDeduplicationKeyValue, codingPlatform);
   const candidate = {
-    ...value,
-    platform,
-    identity
+    ...rest,
+    codingPlatform,
+    syncDeduplicationKey
   };
 
-  return isSyncRecord(candidate) ? candidate : null;
+  return isSyncHistoryEntry(candidate) ? candidate : null;
 }
 
-function normalizeRetryPayload(value: unknown): RetryPayload | null {
+function normalizeRetryBundle(value: unknown): RetryBundle | null {
   if (!isPlainRecord(value)) {
     return null;
   }
 
-  const platform = normalizePlatform(value.platform);
-  const identity = normalizeSubmissionIdentity(value.identity, platform);
+  const {
+    platform: legacyPlatform,
+    identity: legacyIdentity,
+    readmePath: legacyReadmePath,
+    indexPath: legacyIndexPath,
+    ...rest
+  } = value;
+  const codingPlatform = normalizeCodingPlatform(
+    value.codingPlatform ?? legacyPlatform
+  );
+  const syncDeduplicationKey = normalizeSyncDeduplicationKey(
+    value.syncDeduplicationKey ?? legacyIdentity,
+    codingPlatform
+  );
+  const submission = normalizeAcceptedSubmission(value.submission);
   const candidate = {
-    ...value,
-    platform,
-    identity,
+    ...rest,
+    codingPlatform,
+    syncDeduplicationKey,
+    submission,
     solutionReadmePath: normalizeLegacyStringField(
       value.solutionReadmePath,
-      value.readmePath
+      legacyReadmePath
     ),
     solutionCatalogPath: normalizeLegacyStringField(
       value.solutionCatalogPath,
-      value.indexPath
+      legacyIndexPath
     )
   };
 
-  return isRetryPayload(candidate) ? candidate : null;
+  return isRetryBundle(candidate) ? candidate : null;
 }
 
 function normalizeInFlightSyncLock(value: unknown): InFlightSyncLock | null {
@@ -447,36 +470,63 @@ function normalizeInFlightSyncLock(value: unknown): InFlightSyncLock | null {
     return null;
   }
 
-  const identity = normalizeSubmissionIdentity(value.identity);
+  const { identity: legacyIdentity, ...rest } = value;
+  const syncDeduplicationKey = normalizeSyncDeduplicationKey(
+    value.syncDeduplicationKey ?? legacyIdentity
+  );
   const candidate = {
-    ...value,
-    identity
+    ...rest,
+    syncDeduplicationKey
   };
 
   return isInFlightSyncLock(candidate) ? candidate : null;
 }
 
-function normalizeSubmissionIdentity(
+function normalizeSyncDeduplicationKey(
   value: unknown,
-  defaultPlatform: Platform = "leetcode"
-): SubmissionIdentity | null {
+  defaultCodingPlatform: CodingPlatform = "leetcode"
+): SyncDeduplicationKey | null {
   if (!isPlainRecord(value)) {
     return null;
   }
 
+  const { platform: legacyPlatform, submissionId: legacySubmissionId, ...rest } = value;
   const candidate = {
-    ...value,
-    platform: normalizePlatform(value.platform, defaultPlatform)
+    ...rest,
+    codingPlatform: normalizeCodingPlatform(
+      value.codingPlatform ?? legacyPlatform,
+      defaultCodingPlatform
+    ),
+    acceptedSourceId: normalizeLegacyStringField(
+      value.acceptedSourceId,
+      legacySubmissionId
+    )
   };
 
-  return isSubmissionIdentity(candidate) ? candidate : null;
+  return isSyncDeduplicationKey(candidate) ? candidate : null;
 }
 
-function normalizePlatform(
+function normalizeAcceptedSubmission(value: unknown): unknown {
+  if (!isPlainRecord(value)) {
+    return value;
+  }
+
+  const { submissionId: legacySubmissionId, ...rest } = value;
+
+  return {
+    ...rest,
+    acceptedSourceId: normalizeLegacyStringField(
+      value.acceptedSourceId,
+      legacySubmissionId
+    )
+  };
+}
+
+function normalizeCodingPlatform(
   value: unknown,
-  defaultPlatform: Platform = "leetcode"
-): Platform {
-  return isPlatform(value) ? value : defaultPlatform;
+  defaultCodingPlatform: CodingPlatform = "leetcode"
+): CodingPlatform {
+  return isCodingPlatform(value) ? value : defaultCodingPlatform;
 }
 
 function normalizeLegacyStringField(

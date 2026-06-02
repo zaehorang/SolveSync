@@ -108,14 +108,14 @@ describe("LeetCode background client", () => {
       supportedLanguage: "swift",
       submittedAt: "2026-01-01T00:00:00.000Z",
       syncable: true,
-      identity: {
-        platform: "leetcode",
-        submissionId: "123456789",
+      syncDeduplicationKey: {
+        codingPlatform: "leetcode",
+        acceptedSourceId: "123456789",
         titleSlug: "two-sum",
         language: "swift"
       },
       submission: {
-        submissionId: "123456789",
+        acceptedSourceId: "123456789",
         titleSlug: "two-sum",
         language: "Swift",
         code: "class Solution {}",
@@ -171,7 +171,7 @@ describe("LeetCode background client", () => {
       supportedLanguage: null,
       submittedAt: "2026-01-01T00:00:00.000Z",
       syncable: false,
-      identity: null,
+      syncDeduplicationKey: null,
       submission: {
         language: "Java"
       }

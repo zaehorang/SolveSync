@@ -13,7 +13,7 @@ import {
   STORAGE_SCHEMA_VERSION,
   type PublicSettingsState
 } from "./storageSchema";
-import type { RepositoryRef, SyncRecord } from "./types";
+import type { SyncHistoryEntry, SyncRepository } from "./types";
 
 describe("shared UI models", () => {
   it("maps connection status labels and details by locale", () => {
@@ -192,19 +192,21 @@ describe("shared UI models", () => {
   });
 });
 
-function makeRecord(overrides: Partial<SyncRecord> = {}): SyncRecord {
+function makeRecord(
+  overrides: Partial<SyncHistoryEntry> = {}
+): SyncHistoryEntry {
   return {
     id: "record-1",
-    platform: "leetcode",
+    codingPlatform: "leetcode",
     status: "synced",
     titleSlug: "two-sum",
     problemTitle: "Two Sum",
     problemFrontendId: "1",
     language: "Swift",
     supportedLanguage: "swift",
-    identity: {
-      platform: "leetcode",
-      submissionId: "123",
+    syncDeduplicationKey: {
+      codingPlatform: "leetcode",
+      acceptedSourceId: "123",
       titleSlug: "two-sum",
       language: "swift"
     },
@@ -223,17 +225,19 @@ function makeRecord(overrides: Partial<SyncRecord> = {}): SyncRecord {
   };
 }
 
-function makeProgrammersRecord(overrides: Partial<SyncRecord> = {}): SyncRecord {
+function makeProgrammersRecord(
+  overrides: Partial<SyncHistoryEntry> = {}
+): SyncHistoryEntry {
   return makeRecord({
-    platform: "programmers",
+    codingPlatform: "programmers",
     titleSlug: "120804_두_수의_곱_구하기",
     problemTitle: "두 수의 곱 구하기",
     problemFrontendId: "120804",
     language: "Swift",
     supportedLanguage: "swift",
-    identity: {
-      platform: "programmers",
-      submissionId: "programmers:120804:swift:abc1234",
+    syncDeduplicationKey: {
+      codingPlatform: "programmers",
+      acceptedSourceId: "programmers:120804:swift:abc1234",
       titleSlug: "120804_두_수의_곱_구하기",
       language: "swift"
     },
@@ -275,7 +279,7 @@ function makeError(
   };
 }
 
-const repository: RepositoryRef = {
+const repository: SyncRepository = {
   owner: "octo",
   name: "algorithms",
   fullName: "octo/algorithms",

@@ -54,7 +54,7 @@ describe("background runtime", () => {
       {
         type: "content:accepted_detected",
         payload: {
-          platform: "leetcode",
+          codingPlatform: "leetcode",
           titleSlug: "two-sum",
           pageUrl: "https://leetcode.com/problems/two-sum/",
           detectedAt: "2026-01-01T00:00:00.000Z"
@@ -71,7 +71,7 @@ describe("background runtime", () => {
       {
         type: "content:accepted_detected",
         payload: {
-          platform: "programmers",
+          codingPlatform: "programmers",
           courseId: "30",
           lessonId: "120804",
           problemTitle: "두 수의 곱 구하기",
@@ -104,7 +104,7 @@ describe("background runtime", () => {
     );
     expect(orchestrator.handleAcceptedDetected).toHaveBeenCalledWith(
       expect.objectContaining({
-        platform: "programmers",
+        codingPlatform: "programmers",
         lessonId: "120804"
       }),
       {
@@ -251,9 +251,9 @@ function installChromeRuntimeMock(): ChromeRuntimeMock {
 function makeOrchestrator(): SyncOrchestrator {
   const duplicateOutcome = {
     kind: "duplicate_in_flight" as const,
-    identity: {
-      platform: "leetcode" as const,
-      submissionId: "123456789",
+    syncDeduplicationKey: {
+      codingPlatform: "leetcode" as const,
+      acceptedSourceId: "123456789",
       titleSlug: "two-sum",
       language: "swift" as const
     }
@@ -268,10 +268,10 @@ function makeOrchestrator(): SyncOrchestrator {
 function makeRetryPayload(id: string): RetryPayload {
   return {
     id,
-    platform: "leetcode",
-    identity: {
-      platform: "leetcode",
-      submissionId: "123456789",
+    codingPlatform: "leetcode",
+    syncDeduplicationKey: {
+      codingPlatform: "leetcode",
+      acceptedSourceId: "123456789",
       titleSlug: "two-sum",
       language: "swift"
     },
@@ -297,7 +297,7 @@ function makeRetryPayload(id: string): RetryPayload {
       url: "https://leetcode.com/problems/two-sum/"
     },
     submission: {
-      submissionId: "123456789",
+      acceptedSourceId: "123456789",
       titleSlug: "two-sum",
       language: "Swift",
       code: "class Solution {}",
@@ -317,16 +317,16 @@ function makeRetryPayload(id: string): RetryPayload {
 function makeSyncRecord(overrides: Partial<SyncRecord> = {}): SyncRecord {
   return {
     id: "record-1",
-    platform: "leetcode",
+    codingPlatform: "leetcode",
     status: "failed",
     titleSlug: "two-sum",
     problemTitle: "Two Sum",
     problemFrontendId: "1",
     language: "Swift",
     supportedLanguage: "swift",
-    identity: {
-      platform: "leetcode",
-      submissionId: "123456789",
+    syncDeduplicationKey: {
+      codingPlatform: "leetcode",
+      acceptedSourceId: "123456789",
       titleSlug: "two-sum",
       language: "swift"
     },

@@ -3,11 +3,11 @@ import { describe, expect, it, vi } from "vitest";
 import { normalizeError } from "../shared/errorNormalize";
 import { createExtensionStorage, type StorageAreaAdapter } from "./storage";
 import type {
-  BranchRef,
+  SyncBranch,
   ProblemMetadata,
-  RepositoryRef,
-  RetryPayload,
-  SubmissionIdentity
+  SyncRepository,
+  RetryBundle,
+  SyncDeduplicationKey
 } from "../shared/types";
 import type { LatestAcceptedSubmissionResult } from "./client/leetcode";
 import type {
@@ -90,7 +90,7 @@ describe("background sync orchestrator", () => {
 
     expect(outcome).toEqual({
       kind: "duplicate_processed",
-      identity
+      syncDeduplicationKey: identity
     });
     expect(harness.github.commits).toHaveLength(0);
     await expect(harness.storage.listHistory()).resolves.toHaveLength(0);
@@ -109,7 +109,7 @@ describe("background sync orchestrator", () => {
 
     expect(outcome).toEqual({
       kind: "duplicate_in_flight",
-      identity
+      syncDeduplicationKey: identity
     });
     expect(harness.github.commits).toHaveLength(0);
   });
@@ -155,7 +155,7 @@ describe("background sync orchestrator", () => {
           lastAcceptedDate: expectedAcceptedDate,
           languages: {
             swift: {
-              lastAcceptedSourceId: identity.submissionId,
+              lastAcceptedSourceId: identity.acceptedSourceId,
               firstAcceptedDate: expectedAcceptedDate,
               lastAcceptedDate: expectedAcceptedDate
             }
@@ -206,7 +206,7 @@ describe("background sync orchestrator", () => {
           lastAcceptedDate: expectedAcceptedDate,
           languages: {
             swift: {
-              lastAcceptedSourceId: programmersIdentity.submissionId,
+              lastAcceptedSourceId: programmersIdentity.acceptedSourceId,
               firstAcceptedDate: expectedAcceptedDate,
               lastAcceptedDate: expectedAcceptedDate
             }
@@ -226,7 +226,7 @@ describe("background sync orchestrator", () => {
 
     expect(outcome).toEqual({
       kind: "duplicate_processed",
-      identity: programmersIdentity
+      syncDeduplicationKey: programmersIdentity
     });
     expect(harness.github.commits).toHaveLength(1);
   });
@@ -243,7 +243,7 @@ describe("background sync orchestrator", () => {
 
     expect(outcome).toEqual({
       kind: "duplicate_in_flight",
-      identity: programmersIdentity
+      syncDeduplicationKey: programmersIdentity
     });
     expect(harness.github.commits).toHaveLength(0);
   });
@@ -262,7 +262,7 @@ describe("background sync orchestrator", () => {
     await expect(harness.storage.listRetryPayloads()).resolves.toHaveLength(0);
     const records = await harness.storage.listHistory();
     expect(records[0]).toMatchObject({
-      platform: "programmers",
+      codingPlatform: "programmers",
       status: "unsupported_language",
       language: "JavaScript",
       supportedLanguage: null,
@@ -284,7 +284,7 @@ describe("background sync orchestrator", () => {
     await expect(harness.storage.listRetryPayloads()).resolves.toHaveLength(0);
     const records = await harness.storage.listHistory();
     expect(records[0]).toMatchObject({
-      platform: "programmers",
+      codingPlatform: "programmers",
       status: "failed",
       retryPayloadId: null,
       error: {
@@ -304,7 +304,7 @@ describe("background sync orchestrator", () => {
     await expect(harness.storage.listRetryPayloads()).resolves.toHaveLength(0);
     const records = await harness.storage.listHistory();
     expect(records[0]).toMatchObject({
-      platform: "programmers",
+      codingPlatform: "programmers",
       status: "failed",
       retryPayloadId: null,
       error: {
@@ -331,7 +331,7 @@ describe("background sync orchestrator", () => {
     const payloads = await harness.storage.listRetryPayloads();
     expect(payloads).toHaveLength(1);
     expect(payloads[0]).toMatchObject({
-      identity,
+      syncDeduplicationKey: identity,
       solutionPath: "leetcode/swift/0001_two_sum.swift",
       attempts: 0
     });
@@ -545,7 +545,7 @@ function createMemoryStorageArea(seed: Record<string, unknown> = {}): StorageAre
   };
 }
 
-const repository: RepositoryRef = {
+const repository: SyncRepository = {
   owner: "octo",
   name: "algorithms",
   fullName: "octo/algorithms",
@@ -554,7 +554,7 @@ const repository: RepositoryRef = {
   htmlUrl: "https://github.com/octo/algorithms"
 };
 
-const branch: BranchRef = {
+const branch: SyncBranch = {
   name: "main",
   sha: "base-sha",
   protected: false
@@ -569,9 +569,9 @@ const problem: ProblemMetadata = {
   url: "https://leetcode.com/problems/two-sum/"
 };
 
-const identity: SubmissionIdentity = {
-  platform: "leetcode",
-  submissionId: "123456789",
+const identity: SyncDeduplicationKey = {
+  codingPlatform: "leetcode",
+  acceptedSourceId: "123456789",
   titleSlug: "two-sum",
   language: "swift"
 };
@@ -582,16 +582,16 @@ const programmersCode = [
   "}"
 ].join("\n");
 
-const programmersIdentity: SubmissionIdentity = {
-  platform: "programmers",
-  submissionId: `programmers:120804:swift:${buildShortCodeHash(programmersCode)}`,
+const programmersIdentity: SyncDeduplicationKey = {
+  codingPlatform: "programmers",
+  acceptedSourceId: `programmers:120804:swift:${buildShortCodeHash(programmersCode)}`,
   titleSlug: "120804_두_수의_곱_구하기",
   language: "swift"
 };
 
 function makeAcceptedDetected() {
   return {
-    platform: "leetcode" as const,
+    codingPlatform: "leetcode" as const,
     titleSlug: "two-sum",
     pageUrl: "https://leetcode.com/problems/two-sum/",
     detectedAt: "2026-01-01T00:00:00.000Z"
@@ -610,7 +610,7 @@ function makeProgrammersAcceptedDetected(
   }> = {}
 ) {
   return {
-    platform: "programmers" as const,
+    codingPlatform: "programmers" as const,
     courseId: overrides.courseId ?? "30",
     lessonId: overrides.lessonId ?? "120804",
     problemTitle: overrides.problemTitle ?? "두 수의 곱 구하기",
@@ -627,10 +627,10 @@ function syncableAcceptedSubmission(): LatestAcceptedSubmissionResult {
   return {
     syncable: true,
     supportedLanguage: "swift",
-    identity,
+    syncDeduplicationKey: identity,
     submittedAt: "2026-01-01T00:00:00.000Z",
     submission: {
-      submissionId: identity.submissionId,
+      acceptedSourceId: identity.acceptedSourceId,
       titleSlug: identity.titleSlug,
       language: "Swift",
       code: "class Solution {}",
@@ -643,10 +643,10 @@ function unsupportedAcceptedSubmission(): LatestAcceptedSubmissionResult {
   return {
     syncable: false,
     supportedLanguage: null,
-    identity: null,
+    syncDeduplicationKey: null,
     submittedAt: "2026-01-01T00:00:00.000Z",
     submission: {
-      submissionId: "987654321",
+      acceptedSourceId: "987654321",
       titleSlug: "two-sum",
       language: "Java",
       code: "class Solution {}",
@@ -655,11 +655,11 @@ function unsupportedAcceptedSubmission(): LatestAcceptedSubmissionResult {
   };
 }
 
-function makeProgrammersRetryPayload(id: string): RetryPayload {
+function makeProgrammersRetryPayload(id: string): RetryBundle {
   return {
     id,
-    platform: "programmers",
-    identity: programmersIdentity,
+    codingPlatform: "programmers",
+    syncDeduplicationKey: programmersIdentity,
     repository,
     branch,
     problem: {
@@ -671,7 +671,7 @@ function makeProgrammersRetryPayload(id: string): RetryPayload {
       url: "https://school.programmers.co.kr/learn/courses/30/lessons/120804"
     },
     submission: {
-      submissionId: programmersIdentity.submissionId,
+      acceptedSourceId: programmersIdentity.acceptedSourceId,
       titleSlug: programmersIdentity.titleSlug,
       language: "Swift",
       code: programmersCode,
@@ -688,11 +688,11 @@ function makeProgrammersRetryPayload(id: string): RetryPayload {
   };
 }
 
-function makeRetryPayload(id: string): RetryPayload {
+function makeRetryPayload(id: string): RetryBundle {
   return {
     id,
-    platform: "leetcode",
-    identity,
+    codingPlatform: "leetcode",
+    syncDeduplicationKey: identity,
     repository,
     branch,
     problem,

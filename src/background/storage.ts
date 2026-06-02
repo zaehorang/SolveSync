@@ -2,28 +2,28 @@ import {
   DEFAULT_SETTINGS_STATE,
   EMPTY_IN_FLIGHT_SYNCS_STATE,
   EMPTY_PROCESSED_SUBMISSIONS_STATE,
-  EMPTY_RETRY_PAYLOADS_STATE,
+  EMPTY_RETRY_BUNDLES_STATE,
   EMPTY_SYNC_HISTORY_STATE,
   STORAGE_KEYS,
   STORAGE_SCHEMA_VERSION,
   parseInFlightSyncsState,
   parseProcessedSubmissionsState,
-  parseRetryPayloadsState,
+  parseRetryBundlesState,
   parseSettingsState,
   parseSyncHistoryState,
   type InFlightSyncsState,
   type ProcessedSubmissionEntry,
   type ProcessedSubmissionsState,
-  type RetryPayloadsState,
+  type RetryBundlesState,
   type SettingsState,
   type StorageKey,
   type SyncHistoryState
 } from "../shared/storageSchema";
 import type {
   IsoDateString,
-  RetryPayload,
-  SubmissionIdentity,
-  SyncRecord
+  RetryBundle,
+  SyncDeduplicationKey,
+  SyncHistoryEntry
 } from "../shared/types";
 
 export const SYNC_HISTORY_LIMIT = 20;
@@ -52,27 +52,27 @@ export interface ExtensionStorage {
     now?: Date | IsoDateString | number
   ): Promise<SettingsState>;
   listProcessedSubmissions(): Promise<ProcessedSubmissionEntry[]>;
-  isProcessed(identity: SubmissionIdentity): Promise<boolean>;
+  isProcessed(syncDeduplicationKey: SyncDeduplicationKey): Promise<boolean>;
   markProcessed(
-    identity: SubmissionIdentity,
+    syncDeduplicationKey: SyncDeduplicationKey,
     details: MarkProcessedDetails,
     now?: Date | IsoDateString | number
   ): Promise<ProcessedSubmissionsState>;
-  appendHistory(record: SyncRecord): Promise<SyncHistoryState>;
-  listHistory(): Promise<SyncRecord[]>;
+  appendHistory(record: SyncHistoryEntry): Promise<SyncHistoryState>;
+  listHistory(): Promise<SyncHistoryEntry[]>;
   saveRetryPayload(
-    payload: RetryPayload,
+    payload: RetryBundle,
     now?: Date | IsoDateString | number
-  ): Promise<RetryPayloadsState>;
-  listRetryPayloads(): Promise<RetryPayload[]>;
-  getRetryPayload(id: string): Promise<RetryPayload | null>;
-  removeRetryPayload(id: string): Promise<RetryPayloadsState>;
-  pruneRetryPayloads(now: Date | IsoDateString | number): Promise<RetryPayloadsState>;
+  ): Promise<RetryBundlesState>;
+  listRetryPayloads(): Promise<RetryBundle[]>;
+  getRetryPayload(id: string): Promise<RetryBundle | null>;
+  removeRetryPayload(id: string): Promise<RetryBundlesState>;
+  pruneRetryPayloads(now: Date | IsoDateString | number): Promise<RetryBundlesState>;
   acquireInFlightLock(
-    identity: SubmissionIdentity,
+    syncDeduplicationKey: SyncDeduplicationKey,
     now: Date | IsoDateString | number
   ): Promise<boolean>;
-  releaseInFlightLock(identity: SubmissionIdentity): Promise<InFlightSyncsState>;
+  releaseInFlightLock(syncDeduplicationKey: SyncDeduplicationKey): Promise<InFlightSyncsState>;
   pruneInFlightLocks(now: Date | IsoDateString | number): Promise<InFlightSyncsState>;
 }
 
@@ -115,19 +115,25 @@ export function createExtensionStorage(area: StorageAreaAdapter): ExtensionStora
     return state.entries;
   }
 
-  async function isProcessed(identity: SubmissionIdentity): Promise<boolean> {
+  async function isProcessed(syncDeduplicationKey: SyncDeduplicationKey): Promise<boolean> {
     const state = await readProcessedSubmissions();
-    return state.entries.some((entry) => isSameIdentity(entry.identity, identity));
+    return state.entries.some((entry) =>
+      isSameSyncDeduplicationKey(entry.syncDeduplicationKey, syncDeduplicationKey)
+    );
   }
 
   async function markProcessed(
-    identity: SubmissionIdentity,
+    syncDeduplicationKey: SyncDeduplicationKey,
     details: MarkProcessedDetails,
     now: Date | IsoDateString | number = new Date()
   ): Promise<ProcessedSubmissionsState> {
     const state = await readProcessedSubmissions();
 
-    if (state.entries.some((entry) => isSameIdentity(entry.identity, identity))) {
+    if (
+      state.entries.some((entry) =>
+        isSameSyncDeduplicationKey(entry.syncDeduplicationKey, syncDeduplicationKey)
+      )
+    ) {
       return state;
     }
 
@@ -136,7 +142,7 @@ export function createExtensionStorage(area: StorageAreaAdapter): ExtensionStora
       entries: [
         ...state.entries,
         {
-          identity,
+          syncDeduplicationKey,
           processedAt: details.processedAt ?? toIsoDateString(now),
           commitSha: details.commitSha,
           solutionPath: details.solutionPath
@@ -156,7 +162,7 @@ export function createExtensionStorage(area: StorageAreaAdapter): ExtensionStora
     );
   }
 
-  async function appendHistory(record: SyncRecord): Promise<SyncHistoryState> {
+  async function appendHistory(record: SyncHistoryEntry): Promise<SyncHistoryState> {
     const state = await readHistory();
     const records = [record, ...state.records.filter((item) => item.id !== record.id)];
     const next: SyncHistoryState = {
@@ -167,31 +173,31 @@ export function createExtensionStorage(area: StorageAreaAdapter): ExtensionStora
     return writeState(area, STORAGE_KEYS.syncHistory, next);
   }
 
-  async function listHistory(): Promise<SyncRecord[]> {
+  async function listHistory(): Promise<SyncHistoryEntry[]> {
     const state = await readHistory();
     return state.records;
   }
 
-  async function readRetryPayloads(): Promise<RetryPayloadsState> {
+  async function readRetryPayloads(): Promise<RetryBundlesState> {
     return readState(
       area,
       STORAGE_KEYS.retryPayloads,
-      EMPTY_RETRY_PAYLOADS_STATE,
-      parseRetryPayloadsState
+      EMPTY_RETRY_BUNDLES_STATE,
+      parseRetryBundlesState
     );
   }
 
   async function saveRetryPayload(
-    payload: RetryPayload,
+    payload: RetryBundle,
     now: Date | IsoDateString | number = payload.createdAt
-  ): Promise<RetryPayloadsState> {
+  ): Promise<RetryBundlesState> {
     const state = await readRetryPayloads();
     const normalizedPayload = normalizeRetryPayloadTtl(payload);
     const payloads = [
       normalizedPayload,
       ...state.payloads.filter((item) => item.id !== normalizedPayload.id)
     ];
-    const next: RetryPayloadsState = {
+    const next: RetryBundlesState = {
       version: STORAGE_SCHEMA_VERSION,
       payloads: capRetryPayloads(pruneRetryPayloadList(payloads, now))
     };
@@ -199,19 +205,19 @@ export function createExtensionStorage(area: StorageAreaAdapter): ExtensionStora
     return writeState(area, STORAGE_KEYS.retryPayloads, next);
   }
 
-  async function listRetryPayloads(): Promise<RetryPayload[]> {
+  async function listRetryPayloads(): Promise<RetryBundle[]> {
     const state = await readRetryPayloads();
     return state.payloads;
   }
 
-  async function getRetryPayload(id: string): Promise<RetryPayload | null> {
+  async function getRetryPayload(id: string): Promise<RetryBundle | null> {
     const state = await readRetryPayloads();
     return state.payloads.find((payload) => payload.id === id) ?? null;
   }
 
-  async function removeRetryPayload(id: string): Promise<RetryPayloadsState> {
+  async function removeRetryPayload(id: string): Promise<RetryBundlesState> {
     const state = await readRetryPayloads();
-    const next: RetryPayloadsState = {
+    const next: RetryBundlesState = {
       version: STORAGE_SCHEMA_VERSION,
       payloads: state.payloads.filter((payload) => payload.id !== id)
     };
@@ -221,9 +227,9 @@ export function createExtensionStorage(area: StorageAreaAdapter): ExtensionStora
 
   async function pruneRetryPayloads(
     now: Date | IsoDateString | number
-  ): Promise<RetryPayloadsState> {
+  ): Promise<RetryBundlesState> {
     const state = await readRetryPayloads();
-    const next: RetryPayloadsState = {
+    const next: RetryBundlesState = {
       version: STORAGE_SCHEMA_VERSION,
       payloads: capRetryPayloads(pruneRetryPayloadList(state.payloads, now))
     };
@@ -241,13 +247,17 @@ export function createExtensionStorage(area: StorageAreaAdapter): ExtensionStora
   }
 
   async function acquireInFlightLock(
-    identity: SubmissionIdentity,
+    syncDeduplicationKey: SyncDeduplicationKey,
     now: Date | IsoDateString | number
   ): Promise<boolean> {
     const state = await readInFlightSyncs();
     const prunedLocks = pruneInFlightLockList(state.locks, now);
 
-    if (prunedLocks.some((lock) => isSameIdentity(lock.identity, identity))) {
+    if (
+      prunedLocks.some((lock) =>
+        isSameSyncDeduplicationKey(lock.syncDeduplicationKey, syncDeduplicationKey)
+      )
+    ) {
       if (prunedLocks.length !== state.locks.length) {
         await writeState(area, STORAGE_KEYS.inFlightSyncs, {
           version: STORAGE_SCHEMA_VERSION,
@@ -265,7 +275,7 @@ export function createExtensionStorage(area: StorageAreaAdapter): ExtensionStora
       locks: [
         ...prunedLocks,
         {
-          identity,
+          syncDeduplicationKey,
           lockedAt,
           expiresAt
         }
@@ -277,12 +287,15 @@ export function createExtensionStorage(area: StorageAreaAdapter): ExtensionStora
   }
 
   async function releaseInFlightLock(
-    identity: SubmissionIdentity
+    syncDeduplicationKey: SyncDeduplicationKey
   ): Promise<InFlightSyncsState> {
     const state = await readInFlightSyncs();
     const next: InFlightSyncsState = {
       version: STORAGE_SCHEMA_VERSION,
-      locks: state.locks.filter((lock) => !isSameIdentity(lock.identity, identity))
+      locks: state.locks.filter(
+        (lock) =>
+          !isSameSyncDeduplicationKey(lock.syncDeduplicationKey, syncDeduplicationKey)
+      )
     };
 
     return writeState(area, STORAGE_KEYS.inFlightSyncs, next);
@@ -349,22 +362,25 @@ async function writeState<T>(
   return cloneState(state);
 }
 
-function isSameIdentity(left: SubmissionIdentity, right: SubmissionIdentity): boolean {
+function isSameSyncDeduplicationKey(
+  left: SyncDeduplicationKey,
+  right: SyncDeduplicationKey
+): boolean {
   return (
-    left.submissionId === right.submissionId &&
-    left.platform === right.platform &&
+    left.acceptedSourceId === right.acceptedSourceId &&
+    left.codingPlatform === right.codingPlatform &&
     left.titleSlug === right.titleSlug &&
     left.language === right.language
   );
 }
 
-function capRetryPayloads(payloads: RetryPayload[]): RetryPayload[] {
+function capRetryPayloads(payloads: RetryBundle[]): RetryBundle[] {
   return [...payloads]
     .sort((left, right) => compareIsoDescending(left.createdAt, right.createdAt))
     .slice(0, RETRY_PAYLOAD_LIMIT);
 }
 
-function normalizeRetryPayloadTtl(payload: RetryPayload): RetryPayload {
+function normalizeRetryPayloadTtl(payload: RetryBundle): RetryBundle {
   const createdAt = parseTimestamp(payload.createdAt);
   const expiresAt = parseTimestamp(payload.expiresAt);
 
@@ -385,9 +401,9 @@ function normalizeRetryPayloadTtl(payload: RetryPayload): RetryPayload {
 }
 
 function pruneRetryPayloadList(
-  payloads: RetryPayload[],
+  payloads: RetryBundle[],
   now: Date | IsoDateString | number
-): RetryPayload[] {
+): RetryBundle[] {
   const nowTimestamp = toTimestamp(now);
 
   return payloads.filter((payload) => {

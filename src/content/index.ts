@@ -63,7 +63,7 @@ export function createAcceptedDetectedMessage(
   return {
     type: "content:accepted_detected",
     payload: {
-      platform: "leetcode",
+      codingPlatform: "leetcode",
       titleSlug,
       pageUrl,
       detectedAt
@@ -77,7 +77,7 @@ export function createProgrammersAcceptedDetectedMessage(
   return {
     type: "content:accepted_detected",
     payload: {
-      platform: "programmers",
+      codingPlatform: "programmers",
       courseId: snapshot.courseId,
       lessonId: snapshot.lessonId,
       problemTitle: snapshot.problemTitle,

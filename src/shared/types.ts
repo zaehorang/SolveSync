@@ -2,7 +2,7 @@ import { isNormalizedError, type NormalizedError } from "./errors";
 
 export type IsoDateString = string;
 
-export type Platform = "leetcode" | "programmers";
+export type CodingPlatform = "leetcode" | "programmers";
 
 export type SupportedLanguage = "swift" | "python3";
 
@@ -41,21 +41,21 @@ export interface ProblemMetadata {
 }
 
 export interface AcceptedSubmission {
-  submissionId: string;
+  acceptedSourceId: string;
   titleSlug: string;
   language: LeetCodeLanguage;
   code: string;
   acceptedAt: IsoDateString;
 }
 
-export interface SubmissionIdentity {
-  platform: Platform;
-  submissionId: string;
+export interface SyncDeduplicationKey {
+  codingPlatform: CodingPlatform;
+  acceptedSourceId: string;
   titleSlug: string;
   language: SupportedLanguage;
 }
 
-export interface RepositoryRef {
+export interface SyncRepository {
   owner: string;
   name: string;
   fullName: string;
@@ -64,7 +64,7 @@ export interface RepositoryRef {
   htmlUrl: string;
 }
 
-export interface BranchRef {
+export interface SyncBranch {
   name: string;
   sha: string;
   protected: boolean;
@@ -79,17 +79,17 @@ export type SyncStatus =
   | "failed"
   | "retrying";
 
-export interface SyncRecord {
+export interface SyncHistoryEntry {
   id: string;
-  platform: Platform;
+  codingPlatform: CodingPlatform;
   status: SyncStatus;
   titleSlug: string;
   problemTitle: string | null;
   problemFrontendId: string | null;
   language: LeetCodeLanguage;
   supportedLanguage: SupportedLanguage | null;
-  identity: SubmissionIdentity | null;
-  repository: RepositoryRef | null;
+  syncDeduplicationKey: SyncDeduplicationKey | null;
+  repository: SyncRepository | null;
   branchName: string | null;
   solutionPath: string | null;
   commitSha: string | null;
@@ -101,12 +101,12 @@ export interface SyncRecord {
   updatedAt: IsoDateString;
 }
 
-export interface RetryPayload {
+export interface RetryBundle {
   id: string;
-  platform: Platform;
-  identity: SubmissionIdentity;
-  repository: RepositoryRef;
-  branch: BranchRef;
+  codingPlatform: CodingPlatform;
+  syncDeduplicationKey: SyncDeduplicationKey;
+  repository: SyncRepository;
+  branch: SyncBranch;
   problem: ProblemMetadata;
   submission: AcceptedSubmission;
   solutionPath: string;
@@ -119,14 +119,35 @@ export interface RetryPayload {
   lastError: NormalizedError | null;
 }
 
-export interface RetryPayloadSummary {
+export interface RetryBundleSummary {
   id: string;
-  platform: Platform;
-  identity: SubmissionIdentity;
+  codingPlatform: CodingPlatform;
+  syncDeduplicationKey: SyncDeduplicationKey;
   attempts: number;
   expiresAt: IsoDateString;
   lastError: NormalizedError | null;
 }
+
+/** @deprecated Transitional for this phase; use CodingPlatform. */
+export type Platform = CodingPlatform;
+
+/** @deprecated Transitional for this phase; use SyncDeduplicationKey. */
+export type SubmissionIdentity = SyncDeduplicationKey;
+
+/** @deprecated Transitional for this phase; use SyncRepository. */
+export type RepositoryRef = SyncRepository;
+
+/** @deprecated Transitional for this phase; use SyncBranch. */
+export type BranchRef = SyncBranch;
+
+/** @deprecated Transitional for this phase; use SyncHistoryEntry. */
+export type SyncRecord = SyncHistoryEntry;
+
+/** @deprecated Transitional for this phase; use RetryBundle. */
+export type RetryPayload = RetryBundle;
+
+/** @deprecated Transitional for this phase; use RetryBundleSummary. */
+export type RetryPayloadSummary = RetryBundleSummary;
 
 export function isSyncStatus(value: unknown): value is SyncStatus {
   return (
@@ -144,7 +165,7 @@ export function isSupportedLanguage(value: unknown): value is SupportedLanguage 
   return value === "swift" || value === "python3";
 }
 
-export function isPlatform(value: unknown): value is Platform {
+export function isCodingPlatform(value: unknown): value is CodingPlatform {
   return value === "leetcode" || value === "programmers";
 }
 
@@ -152,20 +173,22 @@ export function isPlainRecord(value: unknown): value is Record<string, unknown> 
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-export function isSubmissionIdentity(value: unknown): value is SubmissionIdentity {
+export function isSyncDeduplicationKey(
+  value: unknown
+): value is SyncDeduplicationKey {
   if (!isPlainRecord(value)) {
     return false;
   }
 
   return (
-    isPlatform(value.platform) &&
-    typeof value.submissionId === "string" &&
+    isCodingPlatform(value.codingPlatform) &&
+    typeof value.acceptedSourceId === "string" &&
     typeof value.titleSlug === "string" &&
     isSupportedLanguage(value.language)
   );
 }
 
-export function isRepositoryRef(value: unknown): value is RepositoryRef {
+export function isSyncRepository(value: unknown): value is SyncRepository {
   if (!isPlainRecord(value)) {
     return false;
   }
@@ -180,7 +203,7 @@ export function isRepositoryRef(value: unknown): value is RepositoryRef {
   );
 }
 
-export function isBranchRef(value: unknown): value is BranchRef {
+export function isSyncBranch(value: unknown): value is SyncBranch {
   if (!isPlainRecord(value)) {
     return false;
   }
@@ -213,7 +236,7 @@ export function isAcceptedSubmission(value: unknown): value is AcceptedSubmissio
   }
 
   return (
-    typeof value.submissionId === "string" &&
+    typeof value.acceptedSourceId === "string" &&
     typeof value.titleSlug === "string" &&
     typeof value.language === "string" &&
     typeof value.code === "string" &&
@@ -221,22 +244,23 @@ export function isAcceptedSubmission(value: unknown): value is AcceptedSubmissio
   );
 }
 
-export function isSyncRecord(value: unknown): value is SyncRecord {
+export function isSyncHistoryEntry(value: unknown): value is SyncHistoryEntry {
   if (!isPlainRecord(value)) {
     return false;
   }
 
   return (
     typeof value.id === "string" &&
-    isPlatform(value.platform) &&
+    isCodingPlatform(value.codingPlatform) &&
     isSyncStatus(value.status) &&
     typeof value.titleSlug === "string" &&
     (typeof value.problemTitle === "string" || value.problemTitle === null) &&
     (typeof value.problemFrontendId === "string" || value.problemFrontendId === null) &&
     typeof value.language === "string" &&
     (isSupportedLanguage(value.supportedLanguage) || value.supportedLanguage === null) &&
-    (isSubmissionIdentity(value.identity) || value.identity === null) &&
-    (isRepositoryRef(value.repository) || value.repository === null) &&
+    (isSyncDeduplicationKey(value.syncDeduplicationKey) ||
+      value.syncDeduplicationKey === null) &&
+    (isSyncRepository(value.repository) || value.repository === null) &&
     (typeof value.branchName === "string" || value.branchName === null) &&
     (typeof value.solutionPath === "string" || value.solutionPath === null) &&
     (typeof value.commitSha === "string" || value.commitSha === null) &&
@@ -249,17 +273,17 @@ export function isSyncRecord(value: unknown): value is SyncRecord {
   );
 }
 
-export function isRetryPayload(value: unknown): value is RetryPayload {
+export function isRetryBundle(value: unknown): value is RetryBundle {
   if (!isPlainRecord(value)) {
     return false;
   }
 
   return (
     typeof value.id === "string" &&
-    isPlatform(value.platform) &&
-    isSubmissionIdentity(value.identity) &&
-    isRepositoryRef(value.repository) &&
-    isBranchRef(value.branch) &&
+    isCodingPlatform(value.codingPlatform) &&
+    isSyncDeduplicationKey(value.syncDeduplicationKey) &&
+    isSyncRepository(value.repository) &&
+    isSyncBranch(value.branch) &&
     isProblemMetadata(value.problem) &&
     isAcceptedSubmission(value.submission) &&
     typeof value.solutionPath === "string" &&

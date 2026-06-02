@@ -1,4 +1,4 @@
-import type { Platform, SupportedLanguage } from "./types";
+import type { CodingPlatform, SupportedLanguage } from "./types";
 
 export interface LanguagePathPolicy {
   folder: string;
@@ -11,7 +11,7 @@ export interface ReadmeMarkers {
 }
 
 export interface PlatformPolicy {
-  platform: Platform;
+  codingPlatform: CodingPlatform;
   rootFolder: string;
   languages: Record<SupportedLanguage, LanguagePathPolicy>;
   solutionReadmePath: string;
@@ -23,7 +23,7 @@ export interface PlatformPolicy {
 
 export const PLATFORM_POLICIES = {
   leetcode: {
-    platform: "leetcode",
+    codingPlatform: "leetcode",
     rootFolder: "leetcode",
     languages: {
       swift: {
@@ -45,7 +45,7 @@ export const PLATFORM_POLICIES = {
     commitPlatformLabel: "leetcode"
   },
   programmers: {
-    platform: "programmers",
+    codingPlatform: "programmers",
     rootFolder: "programmers",
     languages: {
       swift: {
@@ -66,15 +66,15 @@ export const PLATFORM_POLICIES = {
     initialReadmeTitle: "Programmers Solutions",
     commitPlatformLabel: "programmers"
   }
-} as const satisfies Record<Platform, PlatformPolicy>;
+} as const satisfies Record<CodingPlatform, PlatformPolicy>;
 
-export function getPlatformPolicy(platform: Platform): PlatformPolicy {
-  return PLATFORM_POLICIES[platform];
+export function getPlatformPolicy(codingPlatform: CodingPlatform): PlatformPolicy {
+  return PLATFORM_POLICIES[codingPlatform];
 }
 
 export function getLanguagePathPolicy(
-  platform: Platform,
+  codingPlatform: CodingPlatform,
   language: SupportedLanguage
 ): LanguagePathPolicy {
-  return getPlatformPolicy(platform).languages[language];
+  return getPlatformPolicy(codingPlatform).languages[language];
 }

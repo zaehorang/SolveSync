@@ -12,14 +12,14 @@ import { normalizeError, normalizeLeetCodeError } from "../shared/errorNormalize
 import type { NormalizedError, NormalizedErrorCode } from "../shared/errors";
 import type {
   AcceptedSubmission,
-  BranchRef,
+  SyncBranch,
   IsoDateString,
   LeetCodeLanguage,
   ProblemMetadata,
-  RepositoryRef,
-  RetryPayload,
-  SubmissionIdentity,
-  SyncRecord,
+  SyncRepository,
+  RetryBundle,
+  SyncDeduplicationKey,
+  SyncHistoryEntry,
   SyncStatus
 } from "../shared/types";
 import type { SyncHistoryState } from "../shared/storageSchema";
@@ -76,15 +76,15 @@ export interface SyncOrchestratorOptions {
 }
 
 export type AcceptedSyncOutcome =
-  | { kind: "recorded"; record: SyncRecord; history: SyncHistoryState }
-  | { kind: "duplicate_processed"; identity: SubmissionIdentity }
-  | { kind: "duplicate_in_flight"; identity: SubmissionIdentity };
+  | { kind: "recorded"; record: SyncHistoryEntry; history: SyncHistoryState }
+  | { kind: "duplicate_processed"; syncDeduplicationKey: SyncDeduplicationKey }
+  | { kind: "duplicate_in_flight"; syncDeduplicationKey: SyncDeduplicationKey };
 
 export type RetrySyncOutcome =
-  | { kind: "recorded"; record: SyncRecord; history: SyncHistoryState }
-  | { kind: "missing_retry_payload"; record: SyncRecord; history: SyncHistoryState }
-  | { kind: "duplicate_processed"; identity: SubmissionIdentity }
-  | { kind: "duplicate_in_flight"; identity: SubmissionIdentity };
+  | { kind: "recorded"; record: SyncHistoryEntry; history: SyncHistoryState }
+  | { kind: "missing_retry_payload"; record: SyncHistoryEntry; history: SyncHistoryState }
+  | { kind: "duplicate_processed"; syncDeduplicationKey: SyncDeduplicationKey }
+  | { kind: "duplicate_in_flight"; syncDeduplicationKey: SyncDeduplicationKey };
 
 export interface SyncOrchestrator {
   handleAcceptedDetected(
@@ -98,11 +98,11 @@ export interface SyncOrchestrator {
 }
 
 interface PreparedCommit {
-  identity: SubmissionIdentity;
+  syncDeduplicationKey: SyncDeduplicationKey;
   problem: ProblemMetadata;
   submission: AcceptedSubmission;
-  repository: RepositoryRef;
-  branch: BranchRef;
+  repository: SyncRepository;
+  branch: SyncBranch;
   solutionPath: string;
   solutionReadmePath: string;
   solutionCatalogPath: string;
@@ -112,7 +112,7 @@ interface PreparedCommit {
 interface CommitFilesBuildInput {
   problem: ProblemMetadata;
   submission: AcceptedSubmission;
-  identity: SubmissionIdentity;
+  syncDeduplicationKey: SyncDeduplicationKey;
   solutionPath: string;
   solutionReadmePath: string;
   solutionCatalogPath: string;
@@ -126,7 +126,7 @@ type ResolvedSource =
       kind: "syncable";
       problem: ProblemMetadata;
       submission: AcceptedSubmission;
-      identity: SubmissionIdentity;
+      syncDeduplicationKey: SyncDeduplicationKey;
     }
   | {
       kind: "unsupported_language";
@@ -144,14 +144,14 @@ type ResolvedSource =
 
 interface RecordInput {
   status: SyncStatus;
-  platform?: SubmissionIdentity["platform"];
+  codingPlatform?: SyncDeduplicationKey["codingPlatform"];
   titleSlug: string;
   problemTitle?: string | null;
   problemFrontendId?: string | null;
   language?: string;
-  supportedLanguage?: SubmissionIdentity["language"] | null;
-  identity?: SubmissionIdentity | null;
-  repository?: RepositoryRef | null;
+  supportedLanguage?: SyncDeduplicationKey["language"] | null;
+  syncDeduplicationKey?: SyncDeduplicationKey | null;
+  repository?: SyncRepository | null;
   branchName?: string | null;
   solutionPath?: string | null;
   commitSha?: string | null;
@@ -182,7 +182,7 @@ export function createSyncOrchestrator(
     if (!hasRequiredSetup(settings)) {
       const record = makeRecord({
         status: "setup_required",
-        platform: payload.platform,
+        codingPlatform: payload.codingPlatform,
         titleSlug: initialTitleSlug,
         problemTitle: getInitialProblemTitle(payload),
         language: getInitialLanguage(payload),
@@ -196,7 +196,7 @@ export function createSyncOrchestrator(
     if (!settings.autoSyncEnabled) {
       const record = makeRecord({
         status: "auto_sync_disabled",
-        platform: payload.platform,
+        codingPlatform: payload.codingPlatform,
         titleSlug: initialTitleSlug,
         problemTitle: getInitialProblemTitle(payload),
         language: getInitialLanguage(payload),
@@ -215,10 +215,12 @@ export function createSyncOrchestrator(
       source = await resolveAcceptedSource(payload);
     } catch (error) {
       const normalized =
-        payload.platform === "leetcode" ? normalizeLeetCodeError(error) : normalizeError(error);
+        payload.codingPlatform === "leetcode"
+          ? normalizeLeetCodeError(error)
+          : normalizeError(error);
       const record = makeRecord({
         status: "failed",
-        platform: payload.platform,
+        codingPlatform: payload.codingPlatform,
         titleSlug: initialTitleSlug,
         problemTitle: getInitialProblemTitle(payload),
         language: getInitialLanguage(payload),
@@ -234,7 +236,7 @@ export function createSyncOrchestrator(
     if (source.kind === "extract_failed") {
       const record = makeRecord({
         status: "failed",
-        platform: payload.platform,
+        codingPlatform: payload.codingPlatform,
         titleSlug: source.titleSlug,
         problemTitle: source.problemTitle,
         problemFrontendId: source.problemFrontendId,
@@ -251,7 +253,7 @@ export function createSyncOrchestrator(
     if (source.kind === "unsupported_language") {
       const record = makeRecord({
         status: "unsupported_language",
-        platform: payload.platform,
+        codingPlatform: payload.codingPlatform,
         titleSlug: source.problem.titleSlug,
         problemTitle: source.problem.title,
         problemFrontendId: source.problem.frontendId,
@@ -260,7 +262,7 @@ export function createSyncOrchestrator(
         branchName: settings.selectedBranch.name,
         error: explicitError(
           "unsupported_language",
-          `Unsupported ${payload.platform} language: ${source.submission.language}`
+          `Unsupported ${payload.codingPlatform} language: ${source.submission.language}`
         ),
         timestamp: now()
       });
@@ -271,48 +273,48 @@ export function createSyncOrchestrator(
     const prepared = prepareCommit(
       source.problem,
       source.submission,
-      source.identity,
+      source.syncDeduplicationKey,
       settings.selectedRepository,
       settings.selectedBranch
     );
 
-    if (await options.storage.isProcessed(prepared.identity)) {
+    if (await options.storage.isProcessed(prepared.syncDeduplicationKey)) {
       return {
         kind: "duplicate_processed",
-        identity: prepared.identity
+        syncDeduplicationKey: prepared.syncDeduplicationKey
       };
     }
 
     const locked = await options.storage.acquireInFlightLock(
-      prepared.identity,
+      prepared.syncDeduplicationKey,
       now()
     );
 
     if (!locked) {
       return {
         kind: "duplicate_in_flight",
-        identity: prepared.identity
+        syncDeduplicationKey: prepared.syncDeduplicationKey
       };
     }
 
     try {
-      if (await options.storage.isProcessed(prepared.identity)) {
+      if (await options.storage.isProcessed(prepared.syncDeduplicationKey)) {
         return {
           kind: "duplicate_processed",
-          identity: prepared.identity
+          syncDeduplicationKey: prepared.syncDeduplicationKey
         };
       }
 
       await broadcastStatus(
         makeRecord({
           status: "syncing",
-          platform: prepared.identity.platform,
+          codingPlatform: prepared.syncDeduplicationKey.codingPlatform,
           titleSlug: prepared.problem.titleSlug,
           problemTitle: prepared.problem.title,
           problemFrontendId: prepared.problem.frontendId,
           language: prepared.submission.language,
-          supportedLanguage: prepared.identity.language,
-          identity: prepared.identity,
+          supportedLanguage: prepared.syncDeduplicationKey.language,
+          syncDeduplicationKey: prepared.syncDeduplicationKey,
           repository: prepared.repository,
           branchName: prepared.branch.name,
           solutionPath: prepared.solutionPath,
@@ -331,13 +333,13 @@ export function createSyncOrchestrator(
         const normalized = normalizeError(error);
         const record = makeRecord({
           status: "failed",
-          platform: prepared.identity.platform,
+          codingPlatform: prepared.syncDeduplicationKey.codingPlatform,
           titleSlug: prepared.problem.titleSlug,
           problemTitle: prepared.problem.title,
           problemFrontendId: prepared.problem.frontendId,
           language: prepared.submission.language,
-          supportedLanguage: prepared.identity.language,
-          identity: prepared.identity,
+          supportedLanguage: prepared.syncDeduplicationKey.language,
+          syncDeduplicationKey: prepared.syncDeduplicationKey,
           repository: prepared.repository,
           branchName: prepared.branch.name,
           solutionPath: prepared.solutionPath,
@@ -351,7 +353,7 @@ export function createSyncOrchestrator(
       const result = await commitPreparedFiles(github, prepared, files, now());
       const syncedAt = now();
       await options.storage.markProcessed(
-        prepared.identity,
+        prepared.syncDeduplicationKey,
         {
           commitSha: result.commitSha,
           solutionPath: prepared.solutionPath
@@ -361,13 +363,13 @@ export function createSyncOrchestrator(
 
       const record = makeRecord({
         status: "synced",
-        platform: prepared.identity.platform,
+        codingPlatform: prepared.syncDeduplicationKey.codingPlatform,
         titleSlug: prepared.problem.titleSlug,
         problemTitle: prepared.problem.title,
         problemFrontendId: prepared.problem.frontendId,
         language: prepared.submission.language,
-        supportedLanguage: prepared.identity.language,
-        identity: prepared.identity,
+        supportedLanguage: prepared.syncDeduplicationKey.language,
+        syncDeduplicationKey: prepared.syncDeduplicationKey,
         repository: result.repository,
         branchName: result.branch.name,
         solutionPath: prepared.solutionPath,
@@ -385,13 +387,13 @@ export function createSyncOrchestrator(
 
       const record = makeRecord({
         status: "failed",
-        platform: prepared.identity.platform,
+        codingPlatform: prepared.syncDeduplicationKey.codingPlatform,
         titleSlug: prepared.problem.titleSlug,
         problemTitle: prepared.problem.title,
         problemFrontendId: prepared.problem.frontendId,
         language: prepared.submission.language,
-        supportedLanguage: prepared.identity.language,
-        identity: prepared.identity,
+        supportedLanguage: prepared.syncDeduplicationKey.language,
+        syncDeduplicationKey: prepared.syncDeduplicationKey,
         repository: prepared.repository,
         branchName: prepared.branch.name,
         solutionPath: prepared.solutionPath,
@@ -402,14 +404,14 @@ export function createSyncOrchestrator(
 
       return recordAndBroadcast(record, target);
     } finally {
-      await options.storage.releaseInFlightLock(prepared.identity);
+      await options.storage.releaseInFlightLock(prepared.syncDeduplicationKey);
     }
   }
 
   async function resolveAcceptedSource(
     payload: AcceptedDetectedPayload
   ): Promise<ResolvedSource> {
-    if (payload.platform === "leetcode") {
+    if (payload.codingPlatform === "leetcode") {
       return resolveLeetCodeSource(payload.titleSlug);
     }
 
@@ -434,7 +436,7 @@ export function createSyncOrchestrator(
       kind: "syncable",
       problem,
       submission: accepted.submission,
-      identity: accepted.identity
+      syncDeduplicationKey: accepted.syncDeduplicationKey
     };
   }
 
@@ -464,21 +466,21 @@ export function createSyncOrchestrator(
       };
     }
 
-    if (await options.storage.isProcessed(payload.identity)) {
+    if (await options.storage.isProcessed(payload.syncDeduplicationKey)) {
       await options.storage.removeRetryPayload(payload.id);
 
       return {
         kind: "duplicate_processed",
-        identity: payload.identity
+        syncDeduplicationKey: payload.syncDeduplicationKey
       };
     }
 
-    const locked = await options.storage.acquireInFlightLock(payload.identity, now());
+    const locked = await options.storage.acquireInFlightLock(payload.syncDeduplicationKey, now());
 
     if (!locked) {
       return {
         kind: "duplicate_in_flight",
-        identity: payload.identity
+        syncDeduplicationKey: payload.syncDeduplicationKey
       };
     }
 
@@ -492,13 +494,13 @@ export function createSyncOrchestrator(
       await broadcastStatus(
         makeRecord({
           status: "retrying",
-          platform: payload.platform,
+          codingPlatform: payload.codingPlatform,
           titleSlug: payload.problem.titleSlug,
           problemTitle: payload.problem.title,
           problemFrontendId: payload.problem.frontendId,
           language: payload.submission.language,
-          supportedLanguage: payload.identity.language,
-          identity: payload.identity,
+          supportedLanguage: payload.syncDeduplicationKey.language,
+          syncDeduplicationKey: payload.syncDeduplicationKey,
           repository: payload.repository,
           branchName: payload.branch.name,
           solutionPath: payload.solutionPath,
@@ -514,7 +516,7 @@ export function createSyncOrchestrator(
       const syncedAt = now();
 
       await options.storage.markProcessed(
-        payload.identity,
+        payload.syncDeduplicationKey,
         {
           commitSha: result.commitSha,
           solutionPath: payload.solutionPath
@@ -525,13 +527,13 @@ export function createSyncOrchestrator(
 
       const record = makeRecord({
         status: "synced",
-        platform: payload.platform,
+        codingPlatform: payload.codingPlatform,
         titleSlug: payload.problem.titleSlug,
         problemTitle: payload.problem.title,
         problemFrontendId: payload.problem.frontendId,
         language: payload.submission.language,
-        supportedLanguage: payload.identity.language,
-        identity: payload.identity,
+        supportedLanguage: payload.syncDeduplicationKey.language,
+        syncDeduplicationKey: payload.syncDeduplicationKey,
         repository: result.repository,
         branchName: result.branch.name,
         solutionPath: payload.solutionPath,
@@ -544,7 +546,7 @@ export function createSyncOrchestrator(
       return recordAndBroadcast(record, target);
     } catch (error) {
       const normalized = normalizeError(error);
-      const failedPayload: RetryPayload = {
+      const failedPayload: RetryBundle = {
         ...payload,
         attempts: payload.attempts + 1,
         lastError: normalized
@@ -553,13 +555,13 @@ export function createSyncOrchestrator(
 
       const record = makeRecord({
         status: "failed",
-        platform: payload.platform,
+        codingPlatform: payload.codingPlatform,
         titleSlug: payload.problem.titleSlug,
         problemTitle: payload.problem.title,
         problemFrontendId: payload.problem.frontendId,
         language: payload.submission.language,
-        supportedLanguage: payload.identity.language,
-        identity: payload.identity,
+        supportedLanguage: payload.syncDeduplicationKey.language,
+        syncDeduplicationKey: payload.syncDeduplicationKey,
         repository: payload.repository,
         branchName: payload.branch.name,
         solutionPath: payload.solutionPath,
@@ -570,7 +572,7 @@ export function createSyncOrchestrator(
 
       return recordAndBroadcast(record, target);
     } finally {
-      await options.storage.releaseInFlightLock(payload.identity);
+      await options.storage.releaseInFlightLock(payload.syncDeduplicationKey);
     }
   }
 
@@ -615,7 +617,7 @@ export function createSyncOrchestrator(
     return buildCommitFiles({
       problem: prepared.problem,
       submission: prepared.submission,
-      identity: prepared.identity,
+      syncDeduplicationKey: prepared.syncDeduplicationKey,
       solutionPath: prepared.solutionPath,
       solutionReadmePath: prepared.solutionReadmePath,
       solutionCatalogPath: prepared.solutionCatalogPath,
@@ -638,7 +640,7 @@ export function createSyncOrchestrator(
     return buildCommitFiles({
       problem: prepared.problem,
       submission: prepared.submission,
-      identity: prepared.identity,
+      syncDeduplicationKey: prepared.syncDeduplicationKey,
       solutionPath: prepared.solutionPath,
       solutionReadmePath: prepared.solutionReadmePath,
       solutionCatalogPath: prepared.solutionCatalogPath,
@@ -649,7 +651,7 @@ export function createSyncOrchestrator(
   }
 
   async function recordAndBroadcast(
-    record: SyncRecord,
+    record: SyncHistoryEntry,
     target?: SyncBroadcastTarget
   ): Promise<AcceptedSyncOutcome & RetrySyncOutcome> {
     const history = await appendAndBroadcast(record, target);
@@ -662,7 +664,7 @@ export function createSyncOrchestrator(
   }
 
   async function appendAndBroadcast(
-    record: SyncRecord,
+    record: SyncHistoryEntry,
     target?: SyncBroadcastTarget
   ): Promise<SyncHistoryState> {
     const history = await options.storage.appendHistory(record);
@@ -681,7 +683,7 @@ export function createSyncOrchestrator(
   }
 
   async function broadcastStatus(
-    record: SyncRecord,
+    record: SyncHistoryEntry,
     error: NormalizedError | null,
     target?: SyncBroadcastTarget
   ): Promise<void> {
@@ -698,19 +700,19 @@ export function createSyncOrchestrator(
     );
   }
 
-  function makeRecord(input: RecordInput): SyncRecord {
+  function makeRecord(input: RecordInput): SyncHistoryEntry {
     const timestamp = input.timestamp ?? now();
 
     return {
       id: createId("record"),
-      platform: input.platform ?? "leetcode",
+      codingPlatform: input.codingPlatform ?? "leetcode",
       status: input.status,
       titleSlug: input.titleSlug,
       problemTitle: input.problemTitle ?? null,
       problemFrontendId: input.problemFrontendId ?? null,
       language: input.language ?? "",
       supportedLanguage: input.supportedLanguage ?? null,
-      identity: input.identity ?? null,
+      syncDeduplicationKey: input.syncDeduplicationKey ?? null,
       repository: input.repository ?? null,
       branchName: input.branchName ?? null,
       solutionPath: input.solutionPath ?? null,
@@ -728,11 +730,11 @@ export function createSyncOrchestrator(
     prepared: PreparedCommit,
     error: NormalizedError,
     createdAt: IsoDateString
-  ): RetryPayload {
+  ): RetryBundle {
     return {
       id: createId("retry"),
-      platform: prepared.identity.platform,
-      identity: prepared.identity,
+      codingPlatform: prepared.syncDeduplicationKey.codingPlatform,
+      syncDeduplicationKey: prepared.syncDeduplicationKey,
       repository: prepared.repository,
       branch: prepared.branch,
       problem: prepared.problem,
@@ -755,7 +757,7 @@ export function createSyncOrchestrator(
 }
 
 function resolveProgrammersSource(
-  payload: Extract<AcceptedDetectedPayload, { platform: "programmers" }>
+  payload: Extract<AcceptedDetectedPayload, { codingPlatform: "programmers" }>
 ): ResolvedSource {
   const lessonId = payload.lessonId.trim();
   const title = payload.problemTitle.trim();
@@ -787,10 +789,10 @@ function resolveProgrammersSource(
 
   const supportedLanguage = mapProgrammersLanguage(language);
   const codeHash = buildShortCodeHash(code);
-  const submissionId =
+  const acceptedSourceId =
     supportedLanguage === null
       ? `programmers:${lessonId}:unsupported:${codeHash}`
-      : buildProgrammersSubmissionId(lessonId, supportedLanguage, codeHash);
+      : buildProgrammersAcceptedSourceId(lessonId, supportedLanguage, codeHash);
   const problem: ProblemMetadata = {
     problemId: lessonId,
     frontendId: lessonId,
@@ -800,7 +802,7 @@ function resolveProgrammersSource(
     url: payload.pageUrl
   };
   const submission: AcceptedSubmission = {
-    submissionId,
+    acceptedSourceId,
     titleSlug,
     language: language as LeetCodeLanguage,
     code,
@@ -819,18 +821,18 @@ function resolveProgrammersSource(
     kind: "syncable",
     problem,
     submission,
-    identity: {
-      platform: "programmers",
-      submissionId,
+    syncDeduplicationKey: {
+      codingPlatform: "programmers",
+      acceptedSourceId,
       titleSlug,
       language: supportedLanguage
     }
   };
 }
 
-function buildProgrammersSubmissionId(
+function buildProgrammersAcceptedSourceId(
   lessonId: string,
-  language: SubmissionIdentity["language"],
+  language: SyncDeduplicationKey["language"],
   codeHash: string
 ): string {
   return `programmers:${lessonId}:${language}:${codeHash}`;
@@ -852,7 +854,7 @@ function buildShortCodeHash(code: string): string {
 }
 
 function getInitialTitleSlug(payload: AcceptedDetectedPayload): string {
-  if (payload.platform === "leetcode") {
+  if (payload.codingPlatform === "leetcode") {
     return payload.titleSlug;
   }
 
@@ -871,7 +873,7 @@ function getInitialTitleSlug(payload: AcceptedDetectedPayload): string {
 }
 
 function getInitialProblemTitle(payload: AcceptedDetectedPayload): string | null {
-  if (payload.platform === "programmers") {
+  if (payload.codingPlatform === "programmers") {
     const title = payload.problemTitle.trim();
 
     return title.length > 0 ? title : null;
@@ -881,17 +883,17 @@ function getInitialProblemTitle(payload: AcceptedDetectedPayload): string | null
 }
 
 function getInitialLanguage(payload: AcceptedDetectedPayload): string {
-  return payload.platform === "programmers" ? payload.language : "";
+  return payload.codingPlatform === "programmers" ? payload.language : "";
 }
 
 function hasRequiredSetup(settings: {
   githubPat: string | null;
-  selectedRepository: RepositoryRef | null;
-  selectedBranch: BranchRef | null;
+  selectedRepository: SyncRepository | null;
+  selectedBranch: SyncBranch | null;
 }): settings is {
   githubPat: string;
-  selectedRepository: RepositoryRef;
-  selectedBranch: BranchRef;
+  selectedRepository: SyncRepository;
+  selectedBranch: SyncBranch;
 } {
   return (
     settings.githubPat !== null &&
@@ -904,15 +906,15 @@ function hasRequiredSetup(settings: {
 function prepareCommit(
   problem: ProblemMetadata,
   submission: AcceptedSubmission,
-  identity: SubmissionIdentity,
-  repository: RepositoryRef,
-  branch: BranchRef
+  syncDeduplicationKey: SyncDeduplicationKey,
+  repository: SyncRepository,
+  branch: SyncBranch
 ): PreparedCommit {
-  const solutionPath = buildSolutionPath(identity.platform, problem, identity.language);
-  const policy = getPlatformPolicy(identity.platform);
+  const solutionPath = buildSolutionPath(syncDeduplicationKey.codingPlatform, problem, syncDeduplicationKey.language);
+  const policy = getPlatformPolicy(syncDeduplicationKey.codingPlatform);
 
   return {
-    identity,
+    syncDeduplicationKey,
     problem,
     submission,
     repository,
@@ -921,17 +923,17 @@ function prepareCommit(
     solutionReadmePath: policy.solutionReadmePath,
     solutionCatalogPath: policy.solutionCatalogPath,
     commitMessage: buildGitHubCommitMessage({
-      platform: identity.platform,
+      platform: syncDeduplicationKey.codingPlatform,
       frontendId: problem.frontendId,
       title: problem.title,
-      language: identity.language
+      language: syncDeduplicationKey.language
     })
   };
 }
 
-function payloadToPrepared(payload: RetryPayload): PreparedCommit {
+function payloadToPrepared(payload: RetryBundle): PreparedCommit {
   return {
-    identity: payload.identity,
+    syncDeduplicationKey: payload.syncDeduplicationKey,
     problem: payload.problem,
     submission: payload.submission,
     repository: payload.repository,
@@ -971,8 +973,8 @@ function buildCommitFiles(input: CommitFilesBuildInput): GitTreeFile[] {
     baseSolutionCatalog,
     {
       ...input.problem,
-      acceptedSourceId: input.identity.submissionId,
-      language: input.identity.language
+      acceptedSourceId: input.syncDeduplicationKey.acceptedSourceId,
+      language: input.syncDeduplicationKey.language
     },
     input.solutionPath,
     input.syncedAt,
@@ -980,12 +982,12 @@ function buildCommitFiles(input: CommitFilesBuildInput): GitTreeFile[] {
   );
   const readmeTable = renderManagedReadmeTable(
     nextSolutionCatalog,
-    input.identity.platform
+    input.syncDeduplicationKey.codingPlatform
   );
   const readmeContent = mergeReadmeManagedBlock(
     input.existingReadmeText,
     readmeTable,
-    input.identity.platform
+    input.syncDeduplicationKey.codingPlatform
   );
 
   return buildGitTreeFiles({

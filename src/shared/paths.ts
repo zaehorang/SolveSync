@@ -1,5 +1,5 @@
 import { getLanguagePathPolicy } from "./platformPolicy";
-import type { Platform, ProblemMetadata, SupportedLanguage } from "./types";
+import type { CodingPlatform, ProblemMetadata, SupportedLanguage } from "./types";
 import { isSupportedLanguage } from "./types";
 
 export function buildSolutionPath(
@@ -7,20 +7,21 @@ export function buildSolutionPath(
   language: SupportedLanguage
 ): string;
 export function buildSolutionPath(
-  platform: Platform,
+  codingPlatform: CodingPlatform,
   problem: Pick<ProblemMetadata, "frontendId" | "problemId" | "titleSlug" | "title">,
   language: SupportedLanguage
 ): string;
 export function buildSolutionPath(
   platformOrProblem:
-    | Platform
+    | CodingPlatform
     | Pick<ProblemMetadata, "frontendId" | "problemId" | "titleSlug" | "title">,
   problemOrLanguage:
     | Pick<ProblemMetadata, "frontendId" | "problemId" | "titleSlug" | "title">
     | SupportedLanguage,
   maybeLanguage?: SupportedLanguage
 ): string {
-  const platform = typeof platformOrProblem === "string" ? platformOrProblem : "leetcode";
+  const codingPlatform =
+    typeof platformOrProblem === "string" ? platformOrProblem : "leetcode";
   const problem =
     typeof platformOrProblem === "string" ? problemOrLanguage : platformOrProblem;
   const language =
@@ -34,12 +35,12 @@ export function buildSolutionPath(
     throw new Error("Invalid solution path input.");
   }
 
-  const config = getLanguagePathPolicy(platform, language);
+  const config = getLanguagePathPolicy(codingPlatform, language);
   const number = formatPlatformProblemNumber(
-    platform,
+    codingPlatform,
     problem.frontendId || problem.problemId
   );
-  const slug = formatPlatformTitleSlug(platform, problem);
+  const slug = formatPlatformTitleSlug(codingPlatform, problem);
 
   return `${config.folder}/${number}_${slug}.${config.extension}`;
 }
@@ -66,15 +67,20 @@ export function slugToSnakeCase(raw: string): string {
   return sanitized.length > 0 ? sanitized : "solution";
 }
 
-export function formatPlatformProblemNumber(platform: Platform, raw: string): string {
-  return platform === "leetcode" ? formatProblemNumber(raw) : sanitizeProgrammersFilename(raw);
+export function formatPlatformProblemNumber(
+  codingPlatform: CodingPlatform,
+  raw: string
+): string {
+  return codingPlatform === "leetcode"
+    ? formatProblemNumber(raw)
+    : sanitizeProgrammersFilename(raw);
 }
 
 export function formatPlatformTitleSlug(
-  platform: Platform,
+  codingPlatform: CodingPlatform,
   problem: Pick<ProblemMetadata, "titleSlug" | "title">
 ): string {
-  if (platform === "leetcode") {
+  if (codingPlatform === "leetcode") {
     return slugToSnakeCase(problem.titleSlug || problem.title);
   }
 

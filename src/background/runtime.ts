@@ -2,7 +2,7 @@ import { normalizeError } from "../shared/errorNormalize";
 import { isRuntimeMessage, type RuntimeMessage } from "../shared/messages";
 import { toPublicSettingsState, type ConnectionStatusCode } from "../shared/storageSchema";
 import type { NormalizedError, NormalizedErrorCode } from "../shared/errors";
-import type { RepositoryRef, RetryPayload, RetryPayloadSummary } from "../shared/types";
+import type { SyncRepository, RetryBundle, RetryBundleSummary } from "../shared/types";
 import { createDefaultExtensionStorage, type ExtensionStorage } from "./storage";
 import { createGitHubClient, type GitHubClient } from "./client/github";
 import { createLeetCodeClient } from "./client/leetcode";
@@ -197,7 +197,7 @@ async function handleRuntimeMessage(
     case "retry-payloads:read": {
       const state = await context.storage.pruneRetryPayloads(new Date().toISOString());
 
-      return success(state.payloads.map(toRetryPayloadSummary));
+      return success(state.payloads.map(toRetryBundleSummary));
     }
 
     case "sync:status":
@@ -294,9 +294,9 @@ function sendTabMessage(tabId: number, message: RuntimeMessage): Promise<void> {
 }
 
 function filterRepositories(
-  repositories: RepositoryRef[],
+  repositories: SyncRepository[],
   query: string | null
-): RepositoryRef[] {
+): SyncRepository[] {
   const normalized = query?.trim().toLowerCase();
 
   if (normalized === undefined || normalized.length === 0) {
@@ -308,11 +308,11 @@ function filterRepositories(
   );
 }
 
-function toRetryPayloadSummary(payload: RetryPayload): RetryPayloadSummary {
+function toRetryBundleSummary(payload: RetryBundle): RetryBundleSummary {
   return {
     id: payload.id,
-    platform: payload.platform,
-    identity: payload.identity,
+    codingPlatform: payload.codingPlatform,
+    syncDeduplicationKey: payload.syncDeduplicationKey,
     attempts: payload.attempts,
     expiresAt: payload.expiresAt,
     lastError: payload.lastError
