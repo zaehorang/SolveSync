@@ -78,8 +78,11 @@
     {
       "step": 9,
       "name": "final-validation",
-      "status": "pending",
-      "timeout_sec": 3600
+      "status": "completed",
+      "timeout_sec": 3600,
+      "started_at": "2026-06-02T16:38:36+0900",
+      "summary": "full SolveSync gates passed and Swift_Algorithm catalog v2 remote state verified",
+      "completed_at": "2026-06-02T16:41:39+0900"
     }
   ],
   "created_at": "2026-06-02T15:28:46+0900"
