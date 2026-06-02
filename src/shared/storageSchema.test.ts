@@ -104,7 +104,7 @@ describe("storage schema contracts", () => {
     });
   });
 
-  it("migrates v1-v3 processed identities to Sync Deduplication Keys", () => {
+  it("migrates v1-v3 processed entries to Sync Deduplication Keys", () => {
     for (const version of legacyStorageVersions) {
       const migrated = parseProcessedSyncDeduplicationKeysState({
         version,
@@ -183,7 +183,7 @@ describe("storage schema contracts", () => {
     }
   });
 
-  it("migrates v1-v3 retry payloads and lock identities to v4 fields", () => {
+  it("migrates v1-v3 Retry Bundle inputs and lock entries to v4 fields", () => {
     const legacyIdentity = {
       submissionId: "123",
       titleSlug: "two-sum",

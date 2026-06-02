@@ -1,6 +1,9 @@
 import {
   APP_NAME,
   DEFAULT_UI_LANGUAGE,
+  RETRY_BUNDLES_READ_TYPE,
+  SYNC_HISTORY_READ_TYPE,
+  SYNC_HISTORY_UPDATED_TYPE,
   getConnectionStatusView as getSharedConnectionStatusView,
   getFailureDetailView as getSharedFailureDetailView,
   getPlatformLabel,
@@ -198,7 +201,7 @@ function bindEvents(elements: PopupElements, state: PopupRuntimeState): void {
 
 function bindRuntimeUpdates(elements: PopupElements, state: PopupRuntimeState): void {
   chrome.runtime.onMessage.addListener((message: RuntimeMessage) => {
-    if (message.type === "sync-history:updated") {
+    if (message.type === SYNC_HISTORY_UPDATED_TYPE) {
       state.syncHistoryEntries = message.payload.syncHistory.entries;
       void refreshRetryBundles(elements, state);
       render(elements, state);
@@ -229,13 +232,13 @@ async function refreshPopupData(
         type: "settings:read"
       }),
       sendRuntimeMessage<SyncHistoryEntry[]>({
-        type: "sync-history:read",
+        type: SYNC_HISTORY_READ_TYPE,
         payload: {
           limit: HISTORY_LIMIT
         }
       }),
       sendRuntimeMessage<RetryBundleSummary[]>({
-        type: "retry-bundles:read"
+        type: RETRY_BUNDLES_READ_TYPE
       })
     ]);
 
@@ -270,7 +273,7 @@ async function refreshRetryBundles(
   state: PopupRuntimeState
 ): Promise<void> {
   const response = await sendRuntimeMessage<RetryBundleSummary[]>({
-    type: "retry-bundles:read"
+    type: RETRY_BUNDLES_READ_TYPE
   });
 
   if (response.ok) {

@@ -128,27 +128,6 @@ export interface RetryBundleSummary {
   lastError: NormalizedError | null;
 }
 
-/** @deprecated Transitional for this phase; use CodingPlatform. */
-export type Platform = CodingPlatform;
-
-/** @deprecated Transitional for this phase; use SyncDeduplicationKey. */
-export type SubmissionIdentity = SyncDeduplicationKey;
-
-/** @deprecated Transitional for this phase; use SyncRepository. */
-export type RepositoryRef = SyncRepository;
-
-/** @deprecated Transitional for this phase; use SyncBranch. */
-export type BranchRef = SyncBranch;
-
-/** @deprecated Transitional for this phase; use SyncHistoryEntry. */
-export type SyncRecord = SyncHistoryEntry;
-
-/** @deprecated Transitional for this phase; use RetryBundle. */
-export type RetryPayload = RetryBundle;
-
-/** @deprecated Transitional for this phase; use RetryBundleSummary. */
-export type RetryPayloadSummary = RetryBundleSummary;
-
 export function isSyncStatus(value: unknown): value is SyncStatus {
   return (
     value === "setup_required" ||
