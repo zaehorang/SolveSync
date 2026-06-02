@@ -29,7 +29,7 @@ Language preference:
 Implementation rules:
 - 사용자에게 보이는 문자열은 i18n key 기반으로 관리한다.
 - Options, Popup, Toast 안에 영어와 한국어 hard-coded 문구가 섞여 있으면 안 된다.
-- GitHub, LeetCode, Programmers, PAT, Auto Sync, Swift, Python3 같은 제품/플랫폼 용어는 번역하지 않아도 된다.
+- GitHub, LeetCode, Programmers, PAT, Auto Sync, Swift, Python3 같은 제품/Coding Platform 용어는 번역하지 않아도 된다.
 - `document.documentElement.lang`은 실제 표시 locale에 맞춰 `en` 또는 `ko`로 설정한다.
 
 ## Options Page
@@ -47,42 +47,42 @@ Implementation rules:
 필수 section:
 - General: Auto Sync, Repository, Branch, Language.
 - GitHub Connection: PAT, repository loading, branch loading, branch create, connection test.
-- Security: PAT와 retry payload disclosure.
+- Security: PAT와 Retry Bundle disclosure.
 - About: 제품 이름, local unpacked v1 성격, backend 없음 안내.
 - Save controls.
 
 필수 field:
 - GitHub PAT input. 기본은 masked display다.
-- Repository picker. 설정이 없으면 비어 있고, PAT 입력 후 접근 가능한 본인 owner repository 목록에서 선택한다.
-- Branch picker. repository 선택 전에는 disabled 상태이며, repository 선택 후 branch 목록에서 선택한다. 기본 선택값은 repository default branch다.
+- Sync Repository picker. 설정이 없으면 비어 있고, PAT 입력 후 접근 가능한 본인 owner repository 목록에서 선택한다.
+- Sync Branch picker. Sync Repository 선택 전에는 disabled 상태이며, Sync Repository 선택 후 branch 목록에서 선택한다. 기본 선택값은 repository default branch다.
 - Auto Sync switch.
 - Language segmented control.
 
 PAT checklist는 다음 내용을 포함해야 한다.
 - Fine-grained personal access token을 생성한다.
-- 대상 저장소만 선택한다.
+- Sync Repository만 선택한다.
 - Contents read/write 권한을 부여한다.
 - Metadata는 GitHub가 제공하는 read-only 기본 권한을 사용한다.
 - 사용자가 감당할 수 있는 만료일을 설정한다.
 
-Repository picker:
+Sync Repository picker:
 - PAT 입력 후 Load repositories action을 제공한다.
 - 목록은 입력된 PAT로 접근 가능한 본인 owner repository만 보여준다.
 - 목록이 비어 있으면 token에 본인 owner repository가 포함되어 있는지 확인하라는 상태를 보여준다.
 - 목록이 길 수 있으므로 검색 가능한 UI를 제공한다.
 - repository를 자동 선택하지 않는다.
 
-Branch picker:
-- repository 선택 후 branch 목록을 불러온다.
+Sync Branch picker:
+- Sync Repository 선택 후 branch 목록을 불러온다.
 - repository default branch를 기본 선택값으로 표시한다.
-- 원하는 branch가 없으면 Create branch action을 제공한다.
+- 원하는 Sync Branch가 없으면 Create branch action을 제공한다.
 - Create branch는 사용자가 명시적으로 실행한 경우에만 동작한다.
 - branch 생성 실패 시 원인과 다음 행동을 보여준다.
 
 Security disclosure에는 다음 사용자 고지를 표시한다.
 - PAT는 Chrome extension local storage에 저장된다.
-- 실패 retry payload는 Accepted solution code를 local storage에 임시 저장할 수 있다.
-- retry payload는 최대 20개, 최대 7일 보관하고 retry 성공 후 삭제한다.
+- 실패 Retry Bundle은 Accepted solution code를 local storage에 임시 저장할 수 있다.
+- Retry Bundle은 최대 20개, 최대 7일 보관하고 retry 성공 후 삭제한다.
 - v1 확장은 별도 backend server를 운영하지 않는다.
 - Solution code는 설정된 GitHub sync commit을 위해서만 GitHub로 전송된다.
 - LeetCode/Programmers 문제 설명 전문은 저장하지 않는다.
@@ -115,8 +115,8 @@ Chrome action popup sizing:
 - 상단 setup/status card.
 - Auto Sync toggle.
 - GitHub connection summary.
-- Repository와 Branch summary.
-- 최근 sync history. 최신 항목을 위에 둔다.
+- Sync Repository와 Sync Branch summary.
+- 최근 Sync History. 최신 항목을 위에 둔다.
 - 실패 항목 선택 시 failure detail panel.
 - retry 가능한 실패의 Retry button.
 - Options link.
@@ -137,15 +137,15 @@ History item 내용:
 - Unsupported language인 경우 commit이 만들어지지 않았다는 짧은 이유.
 
 History limit:
-- 최근 20개 record만 보여준다.
-- history가 없으면 Accepted submission이 sync된 뒤 여기에 표시된다는 조용한 empty state를 보여준다.
+- Sync History는 최근 20개 항목만 보여준다.
+- Sync History가 없으면 Accepted submission이 sync된 뒤 여기에 표시된다는 조용한 empty state를 보여준다.
 
 Retry behavior:
-- Retry payload가 있을 때만 Retry button을 보여준다. v1에서 일반 수동 sync button은 제공하지 않는다.
+- Retry Bundle이 있을 때만 Retry button을 보여준다. v1에서 일반 수동 sync button은 제공하지 않는다.
 - Retry 중에는 button을 disable하고 진행 중 text를 보여준다.
 - Retry 성공 후 item에 commit link와 file link를 반영한다.
-- Retry 실패 후 payload는 유지하고 error detail을 갱신한다.
-- retry payload가 만료되었거나 삭제된 항목에는 Retry button을 숨기고 Options 또는 문제 재제출 같은 다음 행동을 안내한다.
+- Retry 실패 후 Retry Bundle은 유지하고 error detail을 갱신한다.
+- Retry Bundle이 만료되었거나 삭제된 항목에는 Retry button을 숨기고 Options 또는 문제 재제출 같은 다음 행동을 안내한다.
 
 ## Problem Page Sync Popup / Toast
 목적: 문제 풀이 흐름을 끊지 않는 즉시 feedback과 복구 action 제공.
