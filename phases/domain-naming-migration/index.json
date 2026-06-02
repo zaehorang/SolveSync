@@ -61,7 +61,10 @@
     {
       "step": 7,
       "name": "copy-and-doc-cleanup",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-06-02T16:31:25+0900",
+      "summary": "stale naming aliases, copy, and docs cleaned up after v4 migration",
+      "completed_at": "2026-06-02T16:35:19+0900"
     },
     {
       "step": 8,
