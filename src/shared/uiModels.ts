@@ -110,7 +110,7 @@ export function getSetupStatusView(
     };
   }
 
-  if (settings.selectedRepository === null) {
+  if (settings.syncRepository === null) {
     return {
       label: t(locale, "status.repositoryRequired"),
       detail: t(locale, "detail.repositoryRequired"),
@@ -118,7 +118,7 @@ export function getSetupStatusView(
     };
   }
 
-  if (settings.selectedBranch === null) {
+  if (settings.syncBranch === null) {
     return {
       label: t(locale, "status.branchRequired"),
       detail: t(locale, "detail.branchRequired"),
@@ -126,7 +126,7 @@ export function getSetupStatusView(
     };
   }
 
-  const target = `${settings.selectedRepository.fullName} / ${settings.selectedBranch.name}`;
+  const target = `${settings.syncRepository.fullName} / ${settings.syncBranch.name}`;
 
   if (!settings.autoSyncEnabled) {
     return {

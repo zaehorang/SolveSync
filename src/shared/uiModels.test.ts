@@ -44,7 +44,7 @@ describe("shared UI models", () => {
     expect(
       getSetupStatusView("ko", {
         ...makePublicSettings(),
-        selectedRepository: null
+        syncRepository: null
       })
     ).toMatchObject({
       label: "저장소 필요",
@@ -250,8 +250,8 @@ function makePublicSettings(): PublicSettingsState {
   return {
     version: STORAGE_SCHEMA_VERSION,
     hasGithubPat: true,
-    selectedRepository: repository,
-    selectedBranch: {
+    syncRepository: repository,
+    syncBranch: {
       name: "main",
       sha: "branch-sha",
       protected: false

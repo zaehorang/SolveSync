@@ -28,7 +28,7 @@ import type {
   BackgroundToContentPopupMessage
 } from "../shared/messages";
 import {
-  RETRY_PAYLOAD_TTL_MS,
+  RETRY_BUNDLE_TTL_MS,
   type ExtensionStorage
 } from "./storage";
 import {
@@ -176,8 +176,8 @@ export function createSyncOrchestrator(
     const settings = await options.storage.getSettings();
     const initialTimestamp = now();
     const initialTitleSlug = getInitialTitleSlug(payload);
-    await options.storage.pruneRetryPayloads(initialTimestamp);
-    await options.storage.pruneInFlightLocks(initialTimestamp);
+    await options.storage.pruneRetryBundles(initialTimestamp);
+    await options.storage.pruneSyncDeduplicationKeyLocks(initialTimestamp);
 
     if (!hasRequiredSetup(settings)) {
       const record = makeRecord({
@@ -200,8 +200,8 @@ export function createSyncOrchestrator(
         titleSlug: initialTitleSlug,
         problemTitle: getInitialProblemTitle(payload),
         language: getInitialLanguage(payload),
-        repository: settings.selectedRepository,
-        branchName: settings.selectedBranch.name,
+        repository: settings.syncRepository,
+        branchName: settings.syncBranch.name,
         error: explicitError("auto_sync_disabled", "Auto Sync is off."),
         timestamp: initialTimestamp
       });
@@ -224,8 +224,8 @@ export function createSyncOrchestrator(
         titleSlug: initialTitleSlug,
         problemTitle: getInitialProblemTitle(payload),
         language: getInitialLanguage(payload),
-        repository: settings.selectedRepository,
-        branchName: settings.selectedBranch.name,
+        repository: settings.syncRepository,
+        branchName: settings.syncBranch.name,
         error: normalized,
         timestamp: now()
       });
@@ -241,8 +241,8 @@ export function createSyncOrchestrator(
         problemTitle: source.problemTitle,
         problemFrontendId: source.problemFrontendId,
         language: source.language,
-        repository: settings.selectedRepository,
-        branchName: settings.selectedBranch.name,
+        repository: settings.syncRepository,
+        branchName: settings.syncBranch.name,
         error: source.error,
         timestamp: now()
       });
@@ -258,8 +258,8 @@ export function createSyncOrchestrator(
         problemTitle: source.problem.title,
         problemFrontendId: source.problem.frontendId,
         language: source.submission.language,
-        repository: settings.selectedRepository,
-        branchName: settings.selectedBranch.name,
+        repository: settings.syncRepository,
+        branchName: settings.syncBranch.name,
         error: explicitError(
           "unsupported_language",
           `Unsupported ${payload.codingPlatform} language: ${source.submission.language}`
@@ -274,18 +274,18 @@ export function createSyncOrchestrator(
       source.problem,
       source.submission,
       source.syncDeduplicationKey,
-      settings.selectedRepository,
-      settings.selectedBranch
+      settings.syncRepository,
+      settings.syncBranch
     );
 
-    if (await options.storage.isProcessed(prepared.syncDeduplicationKey)) {
+    if (await options.storage.hasProcessedSyncDeduplicationKey(prepared.syncDeduplicationKey)) {
       return {
         kind: "duplicate_processed",
         syncDeduplicationKey: prepared.syncDeduplicationKey
       };
     }
 
-    const locked = await options.storage.acquireInFlightLock(
+    const locked = await options.storage.acquireSyncDeduplicationKeyLock(
       prepared.syncDeduplicationKey,
       now()
     );
@@ -298,7 +298,7 @@ export function createSyncOrchestrator(
     }
 
     try {
-      if (await options.storage.isProcessed(prepared.syncDeduplicationKey)) {
+      if (await options.storage.hasProcessedSyncDeduplicationKey(prepared.syncDeduplicationKey)) {
         return {
           kind: "duplicate_processed",
           syncDeduplicationKey: prepared.syncDeduplicationKey
@@ -352,7 +352,7 @@ export function createSyncOrchestrator(
 
       const result = await commitPreparedFiles(github, prepared, files, now());
       const syncedAt = now();
-      await options.storage.markProcessed(
+      await options.storage.markSyncDeduplicationKeyProcessed(
         prepared.syncDeduplicationKey,
         {
           commitSha: result.commitSha,
@@ -383,7 +383,7 @@ export function createSyncOrchestrator(
     } catch (error) {
       const normalized = normalizeError(error);
       const retryPayload = makeRetryPayload(prepared, normalized, now());
-      await options.storage.saveRetryPayload(retryPayload, retryPayload.createdAt);
+      await options.storage.saveRetryBundle(retryPayload, retryPayload.createdAt);
 
       const record = makeRecord({
         status: "failed",
@@ -404,7 +404,7 @@ export function createSyncOrchestrator(
 
       return recordAndBroadcast(record, target);
     } finally {
-      await options.storage.releaseInFlightLock(prepared.syncDeduplicationKey);
+      await options.storage.releaseSyncDeduplicationKeyLock(prepared.syncDeduplicationKey);
     }
   }
 
@@ -445,10 +445,10 @@ export function createSyncOrchestrator(
     target?: SyncBroadcastTarget
   ): Promise<RetrySyncOutcome> {
     const timestamp = now();
-    await options.storage.pruneRetryPayloads(timestamp);
-    await options.storage.pruneInFlightLocks(timestamp);
+    await options.storage.pruneRetryBundles(timestamp);
+    await options.storage.pruneSyncDeduplicationKeyLocks(timestamp);
 
-    const payload = await options.storage.getRetryPayload(retryPayloadId);
+    const payload = await options.storage.getRetryBundle(retryPayloadId);
 
     if (payload === null) {
       const record = makeRecord({
@@ -466,8 +466,8 @@ export function createSyncOrchestrator(
       };
     }
 
-    if (await options.storage.isProcessed(payload.syncDeduplicationKey)) {
-      await options.storage.removeRetryPayload(payload.id);
+    if (await options.storage.hasProcessedSyncDeduplicationKey(payload.syncDeduplicationKey)) {
+      await options.storage.removeRetryBundle(payload.id);
 
       return {
         kind: "duplicate_processed",
@@ -475,7 +475,7 @@ export function createSyncOrchestrator(
       };
     }
 
-    const locked = await options.storage.acquireInFlightLock(payload.syncDeduplicationKey, now());
+    const locked = await options.storage.acquireSyncDeduplicationKeyLock(payload.syncDeduplicationKey, now());
 
     if (!locked) {
       return {
@@ -515,7 +515,7 @@ export function createSyncOrchestrator(
       const result = await commitPrepared(github, payloadToPrepared(payload), now());
       const syncedAt = now();
 
-      await options.storage.markProcessed(
+      await options.storage.markSyncDeduplicationKeyProcessed(
         payload.syncDeduplicationKey,
         {
           commitSha: result.commitSha,
@@ -523,7 +523,7 @@ export function createSyncOrchestrator(
         },
         syncedAt
       );
-      await options.storage.removeRetryPayload(payload.id);
+      await options.storage.removeRetryBundle(payload.id);
 
       const record = makeRecord({
         status: "synced",
@@ -551,7 +551,7 @@ export function createSyncOrchestrator(
         attempts: payload.attempts + 1,
         lastError: normalized
       };
-      await options.storage.saveRetryPayload(failedPayload, now());
+      await options.storage.saveRetryBundle(failedPayload, now());
 
       const record = makeRecord({
         status: "failed",
@@ -572,7 +572,7 @@ export function createSyncOrchestrator(
 
       return recordAndBroadcast(record, target);
     } finally {
-      await options.storage.releaseInFlightLock(payload.syncDeduplicationKey);
+      await options.storage.releaseSyncDeduplicationKeyLock(payload.syncDeduplicationKey);
     }
   }
 
@@ -667,7 +667,7 @@ export function createSyncOrchestrator(
     record: SyncHistoryEntry,
     target?: SyncBroadcastTarget
   ): Promise<SyncHistoryState> {
-    const history = await options.storage.appendHistory(record);
+    const history = await options.storage.appendSyncHistoryEntry(record);
     await broadcastStatus(record, record.error, target);
     await broadcast(
       {
@@ -745,7 +745,7 @@ export function createSyncOrchestrator(
       commitMessage: prepared.commitMessage,
       attempts: 0,
       createdAt,
-      expiresAt: addMs(createdAt, RETRY_PAYLOAD_TTL_MS),
+      expiresAt: addMs(createdAt, RETRY_BUNDLE_TTL_MS),
       lastError: error
     };
   }
@@ -888,18 +888,18 @@ function getInitialLanguage(payload: AcceptedDetectedPayload): string {
 
 function hasRequiredSetup(settings: {
   githubPat: string | null;
-  selectedRepository: SyncRepository | null;
-  selectedBranch: SyncBranch | null;
+  syncRepository: SyncRepository | null;
+  syncBranch: SyncBranch | null;
 }): settings is {
   githubPat: string;
-  selectedRepository: SyncRepository;
-  selectedBranch: SyncBranch;
+  syncRepository: SyncRepository;
+  syncBranch: SyncBranch;
 } {
   return (
     settings.githubPat !== null &&
     settings.githubPat.trim().length > 0 &&
-    settings.selectedRepository !== null &&
-    settings.selectedBranch !== null
+    settings.syncRepository !== null &&
+    settings.syncBranch !== null
   );
 }
 

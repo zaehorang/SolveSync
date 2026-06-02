@@ -46,8 +46,8 @@ describe("options state helpers", () => {
   it("validates missing required settings before save", () => {
     const validation = validateSettingsDraft({
       githubPat: " ",
-      selectedRepository: null,
-      selectedBranch: null
+      syncRepository: null,
+      syncBranch: null
     });
 
     expect(validation.isValid).toBe(false);
@@ -62,8 +62,8 @@ describe("options state helpers", () => {
     const validation = validateSettingsDraft(
       {
         githubPat: " ",
-        selectedRepository: null,
-        selectedBranch: null
+        syncRepository: null,
+        syncBranch: null
       },
       "ko"
     );

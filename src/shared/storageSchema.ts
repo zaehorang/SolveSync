@@ -21,14 +21,19 @@ import {
   type SyncRepository
 } from "./types";
 
-export const STORAGE_SCHEMA_VERSION = 3;
-const PREVIOUS_STORAGE_SCHEMA_VERSION = 2;
-const LEGACY_STORAGE_SCHEMA_VERSION = 1;
+export const STORAGE_SCHEMA_VERSION = 4;
+const LEGACY_STORAGE_SCHEMA_VERSIONS = [1, 2, 3] as const;
 
 export const STORAGE_KEYS = {
   settings: "settings",
-  processedSubmissions: "processedSubmissions",
+  processedSyncDeduplicationKeys: "processedSyncDeduplicationKeys",
   syncHistory: "syncHistory",
+  retryBundles: "retryBundles",
+  syncDeduplicationKeyLocks: "syncDeduplicationKeyLocks"
+} as const;
+
+export const LEGACY_STORAGE_KEYS = {
+  processedSubmissions: "processedSubmissions",
   retryPayloads: "retryPayloads",
   inFlightSyncs: "inFlightSyncs"
 } as const;
@@ -58,8 +63,8 @@ export interface ConnectionStatus {
 export interface SettingsState {
   version: typeof STORAGE_SCHEMA_VERSION;
   githubPat: string | null;
-  selectedRepository: SyncRepository | null;
-  selectedBranch: SyncBranch | null;
+  syncRepository: SyncRepository | null;
+  syncBranch: SyncBranch | null;
   autoSyncEnabled: boolean;
   uiLanguage: UiLanguagePreference;
   connectionStatus: ConnectionStatus;
@@ -73,52 +78,52 @@ export type PublicSettingsState = Omit<SettingsState, "githubPat"> & {
 export type PublicSettingsUpdate = Partial<
   Pick<
     SettingsState,
-    | "selectedRepository"
-    | "selectedBranch"
+    | "syncRepository"
+    | "syncBranch"
     | "autoSyncEnabled"
     | "uiLanguage"
     | "connectionStatus"
   >
 >;
 
-export interface ProcessedSubmissionEntry {
+export interface ProcessedSyncDeduplicationKeyEntry {
   syncDeduplicationKey: SyncDeduplicationKey;
   processedAt: IsoDateString;
   commitSha: string;
   solutionPath: string;
 }
 
-export interface ProcessedSubmissionsState {
+export interface ProcessedSyncDeduplicationKeysState {
   version: typeof STORAGE_SCHEMA_VERSION;
-  entries: ProcessedSubmissionEntry[];
+  entries: ProcessedSyncDeduplicationKeyEntry[];
 }
 
 export interface SyncHistoryState {
   version: typeof STORAGE_SCHEMA_VERSION;
-  records: SyncHistoryEntry[];
+  entries: SyncHistoryEntry[];
 }
 
 export interface RetryBundlesState {
   version: typeof STORAGE_SCHEMA_VERSION;
-  payloads: RetryBundle[];
+  bundles: RetryBundle[];
 }
 
-export interface InFlightSyncLock {
+export interface SyncDeduplicationKeyLock {
   syncDeduplicationKey: SyncDeduplicationKey;
   lockedAt: IsoDateString;
   expiresAt: IsoDateString;
 }
 
-export interface InFlightSyncsState {
+export interface SyncDeduplicationKeyLocksState {
   version: typeof STORAGE_SCHEMA_VERSION;
-  locks: InFlightSyncLock[];
+  locks: SyncDeduplicationKeyLock[];
 }
 
 export const DEFAULT_SETTINGS_STATE: SettingsState = {
   version: STORAGE_SCHEMA_VERSION,
   githubPat: null,
-  selectedRepository: null,
-  selectedBranch: null,
+  syncRepository: null,
+  syncBranch: null,
   autoSyncEnabled: false,
   uiLanguage: DEFAULT_UI_LANGUAGE,
   connectionStatus: {
@@ -129,22 +134,22 @@ export const DEFAULT_SETTINGS_STATE: SettingsState = {
   updatedAt: null
 };
 
-export const EMPTY_PROCESSED_SUBMISSIONS_STATE: ProcessedSubmissionsState = {
+export const EMPTY_PROCESSED_SYNC_DEDUPLICATION_KEYS_STATE: ProcessedSyncDeduplicationKeysState = {
   version: STORAGE_SCHEMA_VERSION,
   entries: []
 };
 
 export const EMPTY_SYNC_HISTORY_STATE: SyncHistoryState = {
   version: STORAGE_SCHEMA_VERSION,
-  records: []
+  entries: []
 };
 
 export const EMPTY_RETRY_BUNDLES_STATE: RetryBundlesState = {
   version: STORAGE_SCHEMA_VERSION,
-  payloads: []
+  bundles: []
 };
 
-export const EMPTY_IN_FLIGHT_SYNCS_STATE: InFlightSyncsState = {
+export const EMPTY_SYNC_DEDUPLICATION_KEY_LOCKS_STATE: SyncDeduplicationKeyLocksState = {
   version: STORAGE_SCHEMA_VERSION,
   locks: []
 };
@@ -175,8 +180,8 @@ export function isSettingsState(value: unknown): value is SettingsState {
 
   return (
     (typeof value.githubPat === "string" || value.githubPat === null) &&
-    (isSyncRepository(value.selectedRepository) || value.selectedRepository === null) &&
-    (isSyncBranch(value.selectedBranch) || value.selectedBranch === null) &&
+    (isSyncRepository(value.syncRepository) || value.syncRepository === null) &&
+    (isSyncBranch(value.syncBranch) || value.syncBranch === null) &&
     typeof value.autoSyncEnabled === "boolean" &&
     isUiLanguagePreference(value.uiLanguage) &&
     isConnectionStatus(value.connectionStatus) &&
@@ -189,18 +194,28 @@ export function parseSettingsState(value: unknown): SettingsState | null {
     return null;
   }
 
+  const {
+    selectedRepository: legacySelectedRepository,
+    selectedBranch: legacySelectedBranch,
+    ...rest
+  } = value;
   const candidate = {
-    ...value,
+    ...rest,
     version: STORAGE_SCHEMA_VERSION,
+    syncRepository: normalizeLegacyObjectField(
+      value.syncRepository,
+      legacySelectedRepository
+    ),
+    syncBranch: normalizeLegacyObjectField(value.syncBranch, legacySelectedBranch),
     uiLanguage: normalizeUiLanguagePreference(value.uiLanguage)
   };
 
   return isSettingsState(candidate) ? candidate : null;
 }
 
-export function isProcessedSubmissionEntry(
+export function isProcessedSyncDeduplicationKeyEntry(
   value: unknown
-): value is ProcessedSubmissionEntry {
+): value is ProcessedSyncDeduplicationKeyEntry {
   if (!isPlainRecord(value)) {
     return false;
   }
@@ -213,19 +228,22 @@ export function isProcessedSubmissionEntry(
   );
 }
 
-export function isProcessedSubmissionsState(
+export function isProcessedSyncDeduplicationKeysState(
   value: unknown
-): value is ProcessedSubmissionsState {
+): value is ProcessedSyncDeduplicationKeysState {
   if (!isVersionedStorageState(value)) {
     return false;
   }
 
-  return Array.isArray(value.entries) && value.entries.every(isProcessedSubmissionEntry);
+  return (
+    Array.isArray(value.entries) &&
+    value.entries.every(isProcessedSyncDeduplicationKeyEntry)
+  );
 }
 
-export function parseProcessedSubmissionsState(
+export function parseProcessedSyncDeduplicationKeysState(
   value: unknown
-): ProcessedSubmissionsState | null {
+): ProcessedSyncDeduplicationKeysState | null {
   if (!isPlainRecord(value) || !isSupportedStorageVersion(value.version)) {
     return null;
   }
@@ -234,7 +252,7 @@ export function parseProcessedSubmissionsState(
     return null;
   }
 
-  const entries = value.entries.map(normalizeProcessedSubmissionEntry);
+  const entries = value.entries.map(normalizeProcessedSyncDeduplicationKeyEntry);
 
   if (entries.some((entry) => entry === null)) {
     return null;
@@ -242,7 +260,7 @@ export function parseProcessedSubmissionsState(
 
   return {
     version: STORAGE_SCHEMA_VERSION,
-    entries: entries as ProcessedSubmissionEntry[]
+    entries: entries as ProcessedSyncDeduplicationKeyEntry[]
   };
 }
 
@@ -251,7 +269,7 @@ export function isSyncHistoryState(value: unknown): value is SyncHistoryState {
     return false;
   }
 
-  return Array.isArray(value.records) && value.records.every(isSyncHistoryEntry);
+  return Array.isArray(value.entries) && value.entries.every(isSyncHistoryEntry);
 }
 
 export function parseSyncHistoryState(value: unknown): SyncHistoryState | null {
@@ -259,19 +277,26 @@ export function parseSyncHistoryState(value: unknown): SyncHistoryState | null {
     return null;
   }
 
-  if (!Array.isArray(value.records)) {
+  const legacyRecords = value.records;
+  const rawEntries = Array.isArray(value.entries)
+    ? value.entries
+    : Array.isArray(legacyRecords)
+      ? legacyRecords
+      : null;
+
+  if (rawEntries === null) {
     return null;
   }
 
-  const records = value.records.map(normalizeSyncHistoryEntry);
+  const entries = rawEntries.map(normalizeSyncHistoryEntry);
 
-  if (records.some((record) => record === null)) {
+  if (entries.some((entry) => entry === null)) {
     return null;
   }
 
   return {
     version: STORAGE_SCHEMA_VERSION,
-    records: records as SyncHistoryEntry[]
+    entries: entries as SyncHistoryEntry[]
   };
 }
 
@@ -280,7 +305,7 @@ export function isRetryBundlesState(value: unknown): value is RetryBundlesState 
     return false;
   }
 
-  return Array.isArray(value.payloads) && value.payloads.every(isRetryBundle);
+  return Array.isArray(value.bundles) && value.bundles.every(isRetryBundle);
 }
 
 export function parseRetryBundlesState(value: unknown): RetryBundlesState | null {
@@ -288,23 +313,32 @@ export function parseRetryBundlesState(value: unknown): RetryBundlesState | null
     return null;
   }
 
-  if (!Array.isArray(value.payloads)) {
+  const legacyPayloads = value.payloads;
+  const rawBundles = Array.isArray(value.bundles)
+    ? value.bundles
+    : Array.isArray(legacyPayloads)
+      ? legacyPayloads
+      : null;
+
+  if (rawBundles === null) {
     return null;
   }
 
-  const payloads = value.payloads.map(normalizeRetryBundle);
+  const bundles = rawBundles.map(normalizeRetryBundle);
 
-  if (payloads.some((payload) => payload === null)) {
+  if (bundles.some((bundle) => bundle === null)) {
     return null;
   }
 
   return {
     version: STORAGE_SCHEMA_VERSION,
-    payloads: payloads as RetryBundle[]
+    bundles: bundles as RetryBundle[]
   };
 }
 
-export function isInFlightSyncLock(value: unknown): value is InFlightSyncLock {
+export function isSyncDeduplicationKeyLock(
+  value: unknown
+): value is SyncDeduplicationKeyLock {
   if (!isPlainRecord(value)) {
     return false;
   }
@@ -316,15 +350,19 @@ export function isInFlightSyncLock(value: unknown): value is InFlightSyncLock {
   );
 }
 
-export function isInFlightSyncsState(value: unknown): value is InFlightSyncsState {
+export function isSyncDeduplicationKeyLocksState(
+  value: unknown
+): value is SyncDeduplicationKeyLocksState {
   if (!isVersionedStorageState(value)) {
     return false;
   }
 
-  return Array.isArray(value.locks) && value.locks.every(isInFlightSyncLock);
+  return Array.isArray(value.locks) && value.locks.every(isSyncDeduplicationKeyLock);
 }
 
-export function parseInFlightSyncsState(value: unknown): InFlightSyncsState | null {
+export function parseSyncDeduplicationKeyLocksState(
+  value: unknown
+): SyncDeduplicationKeyLocksState | null {
   if (!isPlainRecord(value) || !isSupportedStorageVersion(value.version)) {
     return null;
   }
@@ -333,7 +371,7 @@ export function parseInFlightSyncsState(value: unknown): InFlightSyncsState | nu
     return null;
   }
 
-  const locks = value.locks.map(normalizeInFlightSyncLock);
+  const locks = value.locks.map(normalizeSyncDeduplicationKeyLock);
 
   if (locks.some((lock) => lock === null)) {
     return null;
@@ -341,7 +379,7 @@ export function parseInFlightSyncsState(value: unknown): InFlightSyncsState | nu
 
   return {
     version: STORAGE_SCHEMA_VERSION,
-    locks: locks as InFlightSyncLock[]
+    locks: locks as SyncDeduplicationKeyLock[]
   };
 }
 
@@ -376,8 +414,7 @@ export function isConnectionStatusCode(value: unknown): value is ConnectionStatu
 function isSupportedStorageVersion(value: unknown): boolean {
   return (
     value === STORAGE_SCHEMA_VERSION ||
-    value === PREVIOUS_STORAGE_SCHEMA_VERSION ||
-    value === LEGACY_STORAGE_SCHEMA_VERSION
+    (LEGACY_STORAGE_SCHEMA_VERSIONS as readonly number[]).includes(value as number)
   );
 }
 
@@ -385,9 +422,9 @@ function normalizeUiLanguagePreference(value: unknown): UiLanguagePreference {
   return isUiLanguagePreference(value) ? value : DEFAULT_UI_LANGUAGE;
 }
 
-function normalizeProcessedSubmissionEntry(
+function normalizeProcessedSyncDeduplicationKeyEntry(
   value: unknown
-): ProcessedSubmissionEntry | null {
+): ProcessedSyncDeduplicationKeyEntry | null {
   if (!isPlainRecord(value)) {
     return null;
   }
@@ -401,7 +438,7 @@ function normalizeProcessedSubmissionEntry(
     syncDeduplicationKey
   };
 
-  return isProcessedSubmissionEntry(candidate) ? candidate : null;
+  return isProcessedSyncDeduplicationKeyEntry(candidate) ? candidate : null;
 }
 
 function normalizeSyncHistoryEntry(value: unknown): SyncHistoryEntry | null {
@@ -465,7 +502,9 @@ function normalizeRetryBundle(value: unknown): RetryBundle | null {
   return isRetryBundle(candidate) ? candidate : null;
 }
 
-function normalizeInFlightSyncLock(value: unknown): InFlightSyncLock | null {
+function normalizeSyncDeduplicationKeyLock(
+  value: unknown
+): SyncDeduplicationKeyLock | null {
   if (!isPlainRecord(value)) {
     return null;
   }
@@ -479,7 +518,7 @@ function normalizeInFlightSyncLock(value: unknown): InFlightSyncLock | null {
     syncDeduplicationKey
   };
 
-  return isInFlightSyncLock(candidate) ? candidate : null;
+  return isSyncDeduplicationKeyLock(candidate) ? candidate : null;
 }
 
 function normalizeSyncDeduplicationKey(
@@ -534,4 +573,11 @@ function normalizeLegacyStringField(
   legacyValue: unknown
 ): unknown {
   return typeof currentValue === "string" ? currentValue : legacyValue;
+}
+
+function normalizeLegacyObjectField(
+  currentValue: unknown,
+  legacyValue: unknown
+): unknown {
+  return currentValue === undefined ? legacyValue : currentValue;
 }

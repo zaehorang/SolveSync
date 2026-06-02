@@ -199,7 +199,7 @@ function bindEvents(elements: PopupElements, state: PopupRuntimeState): void {
 function bindRuntimeUpdates(elements: PopupElements, state: PopupRuntimeState): void {
   chrome.runtime.onMessage.addListener((message: RuntimeMessage) => {
     if (message.type === "history:updated") {
-      state.historyRecords = message.payload.history.records;
+      state.historyRecords = message.payload.history.entries;
       void refreshRetryPayloads(elements, state);
       render(elements, state);
     }
@@ -712,9 +712,9 @@ function renderSettingsSummary(
   elements.connectionDetail.textContent = connection.detail ?? "";
   elements.connectionDetail.hidden = connection.detail === null;
   elements.repositorySummary.textContent =
-    settings.selectedRepository?.fullName ?? t(locale, "popup.summary.notSelected");
+    settings.syncRepository?.fullName ?? t(locale, "popup.summary.notSelected");
   elements.branchSummary.textContent =
-    settings.selectedBranch?.name ?? t(locale, "popup.summary.notSelected");
+    settings.syncBranch?.name ?? t(locale, "popup.summary.notSelected");
 }
 
 function getToneMarker(tone: Tone): string {

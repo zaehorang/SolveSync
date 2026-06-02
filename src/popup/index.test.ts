@@ -12,7 +12,7 @@ describe("popup index owner repository copy", () => {
     expect(
       getSetupStatusView({
         ...makePublicSettings(),
-        selectedRepository: null
+        syncRepository: null
       })
     ).toMatchObject({
       label: "Repository required",
@@ -42,7 +42,7 @@ function makePublicSettings(): PublicSettingsState {
   return {
     version: STORAGE_SCHEMA_VERSION,
     hasGithubPat: true,
-    selectedRepository: {
+    syncRepository: {
       owner: "octo",
       name: "algorithms",
       fullName: "octo/algorithms",
@@ -50,7 +50,7 @@ function makePublicSettings(): PublicSettingsState {
       private: true,
       htmlUrl: "https://github.com/octo/algorithms"
     },
-    selectedBranch: {
+    syncBranch: {
       name: "main",
       sha: "branch-sha",
       protected: false

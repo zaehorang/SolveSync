@@ -6,8 +6,8 @@ describe("options index owner repository copy", () => {
   it("asks users to choose from owned repositories", () => {
     const validation = validateSettingsDraft({
       githubPat: "pat",
-      selectedRepository: null,
-      selectedBranch: null
+      syncRepository: null,
+      syncBranch: null
     });
 
     expect(validation.errors.repository).toBe(
@@ -27,8 +27,8 @@ describe("options index owner repository copy", () => {
     const validation = validateSettingsDraft(
       {
         githubPat: "pat",
-        selectedRepository: null,
-        selectedBranch: null
+        syncRepository: null,
+        syncBranch: null
       },
       "ko"
     );

@@ -61,7 +61,7 @@ describe("background sync orchestrator", () => {
     await harness.sync.handleAcceptedDetected(makeAcceptedDetected());
 
     expect(harness.github.commits).toHaveLength(0);
-    const records = await harness.storage.listHistory();
+    const records = await harness.storage.listSyncHistoryEntries();
     expect(records[0]).toMatchObject({
       status: "unsupported_language",
       language: "Java",
@@ -73,7 +73,7 @@ describe("background sync orchestrator", () => {
   it("skips already processed identities without a duplicate commit", async () => {
     const harness = makeHarness();
     await harness.saveSettings();
-    await harness.storage.markProcessed(
+    await harness.storage.markSyncDeduplicationKeyProcessed(
       identity,
       {
         commitSha: "existing-commit",
@@ -93,13 +93,13 @@ describe("background sync orchestrator", () => {
       syncDeduplicationKey: identity
     });
     expect(harness.github.commits).toHaveLength(0);
-    await expect(harness.storage.listHistory()).resolves.toHaveLength(0);
+    await expect(harness.storage.listSyncHistoryEntries()).resolves.toHaveLength(0);
   });
 
   it("skips identities that already have an in-flight lock", async () => {
     const harness = makeHarness();
     await harness.saveSettings();
-    await harness.storage.acquireInFlightLock(identity, "2026-01-01T00:00:00.000Z");
+    await harness.storage.acquireSyncDeduplicationKeyLock(identity, "2026-01-01T00:00:00.000Z");
     harness.leetcode.fetchProblemMetadata.mockResolvedValue(problem);
     harness.leetcode.fetchLatestAcceptedSubmission.mockResolvedValue(
       syncableAcceptedSubmission()
@@ -126,7 +126,7 @@ describe("background sync orchestrator", () => {
     await harness.sync.handleAcceptedDetected(makeAcceptedDetected());
 
     expect(harness.github.commits).toHaveLength(1);
-    expect(await harness.storage.isProcessed(identity)).toBe(true);
+    expect(await harness.storage.hasProcessedSyncDeduplicationKey(identity)).toBe(true);
     await expect(historyStatuses(harness.storage)).resolves.toEqual(["synced"]);
     expect(harness.github.commits[0]?.files.map((file) => file.path)).toEqual([
       "leetcode/swift/0001_two_sum.swift",
@@ -174,7 +174,7 @@ describe("background sync orchestrator", () => {
 
     expect(harness.leetcode.fetchProblemMetadata).not.toHaveBeenCalled();
     expect(harness.github.commits).toHaveLength(1);
-    expect(await harness.storage.isProcessed(programmersIdentity)).toBe(true);
+    expect(await harness.storage.hasProcessedSyncDeduplicationKey(programmersIdentity)).toBe(true);
     expect(harness.github.commits[0]).toMatchObject({
       message: "solve: programmers 120804 두 수의 곱 구하기 in swift"
     });
@@ -234,7 +234,7 @@ describe("background sync orchestrator", () => {
   it("skips Programmers identities that already have an in-flight lock", async () => {
     const harness = makeHarness();
     await harness.saveSettings();
-    await harness.storage.acquireInFlightLock(
+    await harness.storage.acquireSyncDeduplicationKeyLock(
       programmersIdentity,
       "2026-01-01T00:00:00.000Z"
     );
@@ -259,8 +259,8 @@ describe("background sync orchestrator", () => {
     );
 
     expect(harness.github.commits).toHaveLength(0);
-    await expect(harness.storage.listRetryPayloads()).resolves.toHaveLength(0);
-    const records = await harness.storage.listHistory();
+    await expect(harness.storage.listRetryBundles()).resolves.toHaveLength(0);
+    const records = await harness.storage.listSyncHistoryEntries();
     expect(records[0]).toMatchObject({
       codingPlatform: "programmers",
       status: "unsupported_language",
@@ -281,8 +281,8 @@ describe("background sync orchestrator", () => {
     );
 
     expect(harness.github.commits).toHaveLength(0);
-    await expect(harness.storage.listRetryPayloads()).resolves.toHaveLength(0);
-    const records = await harness.storage.listHistory();
+    await expect(harness.storage.listRetryBundles()).resolves.toHaveLength(0);
+    const records = await harness.storage.listSyncHistoryEntries();
     expect(records[0]).toMatchObject({
       codingPlatform: "programmers",
       status: "failed",
@@ -301,8 +301,8 @@ describe("background sync orchestrator", () => {
     await harness.sync.handleAcceptedDetected(makeProgrammersAcceptedDetected());
 
     expect(harness.github.commits).toHaveLength(0);
-    await expect(harness.storage.listRetryPayloads()).resolves.toHaveLength(0);
-    const records = await harness.storage.listHistory();
+    await expect(harness.storage.listRetryBundles()).resolves.toHaveLength(0);
+    const records = await harness.storage.listSyncHistoryEntries();
     expect(records[0]).toMatchObject({
       codingPlatform: "programmers",
       status: "failed",
@@ -327,15 +327,15 @@ describe("background sync orchestrator", () => {
 
     await harness.sync.handleAcceptedDetected(makeAcceptedDetected());
 
-    expect(await harness.storage.isProcessed(identity)).toBe(false);
-    const payloads = await harness.storage.listRetryPayloads();
+    expect(await harness.storage.hasProcessedSyncDeduplicationKey(identity)).toBe(false);
+    const payloads = await harness.storage.listRetryBundles();
     expect(payloads).toHaveLength(1);
     expect(payloads[0]).toMatchObject({
       syncDeduplicationKey: identity,
       solutionPath: "leetcode/swift/0001_two_sum.swift",
       attempts: 0
     });
-    const records = await harness.storage.listHistory();
+    const records = await harness.storage.listSyncHistoryEntries();
     expect(records[0]).toMatchObject({
       status: "failed",
       retryPayloadId: payloads[0]?.id
@@ -354,8 +354,8 @@ describe("background sync orchestrator", () => {
     await harness.sync.handleAcceptedDetected(makeAcceptedDetected());
 
     expect(harness.github.commits).toHaveLength(0);
-    await expect(harness.storage.listRetryPayloads()).resolves.toHaveLength(0);
-    const records = await harness.storage.listHistory();
+    await expect(harness.storage.listRetryBundles()).resolves.toHaveLength(0);
+    const records = await harness.storage.listSyncHistoryEntries();
     expect(records[0]).toMatchObject({
       status: "failed",
       retryPayloadId: null,
@@ -368,27 +368,27 @@ describe("background sync orchestrator", () => {
   it("retries a saved payload, deletes it, and marks processed on success", async () => {
     const harness = makeHarness();
     await harness.saveSettings();
-    await harness.storage.saveRetryPayload(makeRetryPayload("retry-1"));
+    await harness.storage.saveRetryBundle(makeRetryPayload("retry-1"));
 
     await harness.sync.handleRetry("retry-1");
 
     expect(harness.leetcode.fetchProblemMetadata).not.toHaveBeenCalled();
     expect(harness.github.commits).toHaveLength(1);
-    expect(await harness.storage.isProcessed(identity)).toBe(true);
-    await expect(harness.storage.getRetryPayload("retry-1")).resolves.toBeNull();
+    expect(await harness.storage.hasProcessedSyncDeduplicationKey(identity)).toBe(true);
+    await expect(harness.storage.getRetryBundle("retry-1")).resolves.toBeNull();
     await expect(historyStatuses(harness.storage)).resolves.toEqual(["synced"]);
   });
 
   it("retries a saved Programmers payload with the platform commit files", async () => {
     const harness = makeHarness();
     await harness.saveSettings();
-    await harness.storage.saveRetryPayload(makeProgrammersRetryPayload("retry-programmers"));
+    await harness.storage.saveRetryBundle(makeProgrammersRetryPayload("retry-programmers"));
 
     await harness.sync.handleRetry("retry-programmers");
 
     expect(harness.github.commits).toHaveLength(1);
-    expect(await harness.storage.isProcessed(programmersIdentity)).toBe(true);
-    await expect(harness.storage.getRetryPayload("retry-programmers")).resolves.toBeNull();
+    expect(await harness.storage.hasProcessedSyncDeduplicationKey(programmersIdentity)).toBe(true);
+    await expect(harness.storage.getRetryBundle("retry-programmers")).resolves.toBeNull();
     expect(harness.github.commits[0]).toMatchObject({
       message: "solve: programmers 120804 두 수의 곱 구하기 in swift"
     });
@@ -402,7 +402,7 @@ describe("background sync orchestrator", () => {
   it("keeps retry payloads and updates failure detail when retry fails", async () => {
     const harness = makeHarness();
     await harness.saveSettings();
-    await harness.storage.saveRetryPayload(makeRetryPayload("retry-1"));
+    await harness.storage.saveRetryBundle(makeRetryPayload("retry-1"));
     harness.github.commitError = normalizeError({
       code: "github_commit_failed",
       message: "retry failed"
@@ -410,14 +410,14 @@ describe("background sync orchestrator", () => {
 
     await harness.sync.handleRetry("retry-1");
 
-    const payload = await harness.storage.getRetryPayload("retry-1");
+    const payload = await harness.storage.getRetryBundle("retry-1");
     expect(payload).toMatchObject({
       attempts: 1,
       lastError: {
         code: "github_commit_failed"
       }
     });
-    expect(await harness.storage.isProcessed(identity)).toBe(false);
+    expect(await harness.storage.hasProcessedSyncDeduplicationKey(identity)).toBe(false);
     await expect(historyStatuses(harness.storage)).resolves.toEqual(["failed"]);
   });
 });
@@ -459,8 +459,8 @@ function makeHarness(): Harness {
     async saveSettings(update = {}) {
       await storage.saveSettings({
         githubPat: "test-pat-placeholder",
-        selectedRepository: repository,
-        selectedBranch: branch,
+        syncRepository: repository,
+        syncBranch: branch,
         autoSyncEnabled: update.autoSyncEnabled ?? true
       });
     }
@@ -722,7 +722,7 @@ function buildShortCodeHash(code: string): string {
 async function historyStatuses(
   storage: ReturnType<typeof createExtensionStorage>
 ): Promise<string[]> {
-  return (await storage.listHistory()).map((record) => record.status);
+  return (await storage.listSyncHistoryEntries()).map((record) => record.status);
 }
 
 function committedContent(harness: Harness, path: string): string {

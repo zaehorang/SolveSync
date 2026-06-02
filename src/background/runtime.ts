@@ -188,16 +188,16 @@ async function handleRuntimeMessage(
       return success(await context.orchestrator.handleRetry(message.payload.retryPayloadId));
 
     case "history:read": {
-      const records = await context.storage.listHistory();
+      const records = await context.storage.listSyncHistoryEntries();
       const limit = Math.max(0, message.payload.limit);
 
       return success(records.slice(0, limit));
     }
 
     case "retry-payloads:read": {
-      const state = await context.storage.pruneRetryPayloads(new Date().toISOString());
+      const state = await context.storage.pruneRetryBundles(new Date().toISOString());
 
-      return success(state.payloads.map(toRetryBundleSummary));
+      return success(state.bundles.map(toRetryBundleSummary));
     }
 
     case "sync:status":
@@ -238,7 +238,7 @@ async function handleToastAction(
       return null;
     }
 
-    const record = (await storage.listHistory()).find((item) => item.id === payload.recordId);
+    const record = (await storage.listSyncHistoryEntries()).find((item) => item.id === payload.recordId);
 
     if (record?.retryPayloadId !== null && record?.retryPayloadId !== undefined) {
       await orchestrator.handleRetry(record.retryPayloadId, target);
@@ -255,7 +255,7 @@ async function handleToastAction(
     return null;
   }
 
-  const record = (await storage.listHistory()).find((item) => item.id === payload.recordId);
+  const record = (await storage.listSyncHistoryEntries()).find((item) => item.id === payload.recordId);
   const url = payload.action === "open_commit" ? record?.commitUrl : record?.fileUrl;
 
   if (url !== undefined && url !== null) {

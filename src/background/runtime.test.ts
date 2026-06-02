@@ -118,7 +118,7 @@ describe("background runtime", () => {
     const chromeMock = installChromeRuntimeMock();
     const storage = createExtensionStorage(createMemoryStorageArea());
     const orchestrator = makeOrchestrator();
-    await storage.appendHistory(makeSyncRecord({ retryPayloadId: "retry-1" }));
+    await storage.appendSyncHistoryEntry(makeSyncRecord({ retryPayloadId: "retry-1" }));
 
     registerBackgroundRuntime({
       storage,
@@ -153,7 +153,7 @@ describe("background runtime", () => {
     const chromeMock = installChromeRuntimeMock();
     const storage = createExtensionStorage(createMemoryStorageArea());
     const orchestrator = makeOrchestrator();
-    await storage.appendHistory(makeSyncRecord({ retryPayloadId: null }));
+    await storage.appendSyncHistoryEntry(makeSyncRecord({ retryPayloadId: null }));
 
     registerBackgroundRuntime({
       storage,
@@ -178,7 +178,7 @@ describe("background runtime", () => {
     const chromeMock = installChromeRuntimeMock();
     const storage = createExtensionStorage(createMemoryStorageArea());
     const orchestrator = makeOrchestrator();
-    await storage.saveRetryPayload(makeRetryPayload("retry-1"));
+    await storage.saveRetryBundle(makeRetryPayload("retry-1"));
 
     registerBackgroundRuntime({
       storage,

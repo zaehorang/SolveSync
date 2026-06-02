@@ -117,7 +117,7 @@ describe("popup state helpers", () => {
     const setup = getSetupStatusView(
       {
         ...makePublicSettings(),
-        selectedRepository: null
+        syncRepository: null
       },
       "ko"
     );
@@ -217,7 +217,7 @@ describe("popup state helpers", () => {
     expect(
       getSetupStatusView({
         ...makePublicSettings(),
-        selectedRepository: null
+        syncRepository: null
       })
     ).toMatchObject({
       label: "Repository required",
@@ -338,8 +338,8 @@ function makePublicSettings(): PublicSettingsState {
   return {
     version: STORAGE_SCHEMA_VERSION,
     hasGithubPat: true,
-    selectedRepository: repository,
-    selectedBranch: {
+    syncRepository: repository,
+    syncBranch: {
       name: "main",
       sha: "branch-sha",
       protected: false
