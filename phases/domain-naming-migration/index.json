@@ -37,7 +37,10 @@
     {
       "step": 4,
       "name": "runtime-and-sync-core",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-06-02T16:04:32+0900",
+      "summary": "runtime messages and background sync core migrated to Sync History and Retry Bundle naming",
+      "completed_at": "2026-06-02T16:16:50+0900"
     },
     {
       "step": 5,
