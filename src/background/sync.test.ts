@@ -165,7 +165,7 @@ describe("background sync orchestrator", () => {
     });
   });
 
-  it("commits Programmers snapshots with platform README and index files", async () => {
+  it("commits Programmers Accepted Editor Snapshots with platform README and index files", async () => {
     const harness = makeHarness();
     await harness.saveSettings();
     harness.github.files.set("programmers/README.md", "# Programmers\n");

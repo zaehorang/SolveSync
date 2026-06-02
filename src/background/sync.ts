@@ -808,7 +808,7 @@ function resolveProgrammersSource(
       language,
       error: explicitError(
         "programmers_extract_failed",
-        "Programmers snapshot is missing lesson id, title, language, or code."
+        "Programmers accepted source is missing lesson id, title, language, or code."
       )
     };
   }

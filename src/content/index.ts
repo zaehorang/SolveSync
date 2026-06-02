@@ -35,7 +35,7 @@ export type ContentPageContext =
       platform: "unsupported";
     };
 
-export interface ProgrammersAcceptedSnapshot extends ProgrammersRoute {
+export interface ProgrammersAcceptedEditorSnapshot extends ProgrammersRoute {
   problemTitle: string;
   rawLanguage: string;
   code: string;
@@ -72,19 +72,19 @@ export function createAcceptedDetectedMessage(
 }
 
 export function createProgrammersAcceptedDetectedMessage(
-  snapshot: ProgrammersAcceptedSnapshot
+  acceptedEditorSnapshot: ProgrammersAcceptedEditorSnapshot
 ): AcceptedDetectedMessage {
   return {
     type: "content:accepted_detected",
     payload: {
       codingPlatform: "programmers",
-      courseId: snapshot.courseId,
-      lessonId: snapshot.lessonId,
-      problemTitle: snapshot.problemTitle,
-      language: snapshot.rawLanguage,
-      code: snapshot.code,
-      pageUrl: snapshot.pageUrl,
-      detectedAt: snapshot.detectedAt
+      courseId: acceptedEditorSnapshot.courseId,
+      lessonId: acceptedEditorSnapshot.lessonId,
+      problemTitle: acceptedEditorSnapshot.problemTitle,
+      language: acceptedEditorSnapshot.rawLanguage,
+      code: acceptedEditorSnapshot.code,
+      pageUrl: acceptedEditorSnapshot.pageUrl,
+      detectedAt: acceptedEditorSnapshot.detectedAt
     }
   };
 }
@@ -114,12 +114,12 @@ export function resolveContentToastLocale(
   return resolveUiLocale(settings?.uiLanguage ?? DEFAULT_UI_LANGUAGE, browserLanguage);
 }
 
-export function extractProgrammersAcceptedSnapshot(
+export function extractProgrammersAcceptedEditorSnapshot(
   documentRef: Pick<Document, "querySelector" | "title">,
   route: ProgrammersRoute,
   pageUrl: string,
   detectedAt: string
-): ProgrammersAcceptedSnapshot {
+): ProgrammersAcceptedEditorSnapshot {
   return {
     ...route,
     problemTitle: extractProgrammersProblemTitle(documentRef, route.lessonId),
@@ -219,7 +219,7 @@ function createAcceptedMessageForPage(
   }
 
   return createProgrammersAcceptedDetectedMessage(
-    extractProgrammersAcceptedSnapshot(document, page, window.location.href, detectedAt)
+    extractProgrammersAcceptedEditorSnapshot(document, page, window.location.href, detectedAt)
   );
 }
 
