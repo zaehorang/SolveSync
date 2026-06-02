@@ -10,6 +10,22 @@ import type { PublicSettingsUpdate, SyncHistoryState } from "./storageSchema";
 
 export type ExtensionSurface = "background" | "content" | "options" | "popup";
 
+const SYNC_MESSAGE_PREFIX = "sync-";
+const LEGACY_HISTORY_READ_TYPE = "history:read";
+const LEGACY_HISTORY_UPDATED_TYPE = "history:updated";
+const LEGACY_RETRY_PAYLOADS_READ_TYPE = "retry-payloads:read";
+
+type SyncHistoryReadType =
+  `${typeof SYNC_MESSAGE_PREFIX}${typeof LEGACY_HISTORY_READ_TYPE}`;
+type SyncHistoryUpdatedType =
+  `${typeof SYNC_MESSAGE_PREFIX}${typeof LEGACY_HISTORY_UPDATED_TYPE}`;
+
+export const SYNC_HISTORY_READ_TYPE =
+  `${SYNC_MESSAGE_PREFIX}${LEGACY_HISTORY_READ_TYPE}` as SyncHistoryReadType;
+export const SYNC_HISTORY_UPDATED_TYPE =
+  `${SYNC_MESSAGE_PREFIX}${LEGACY_HISTORY_UPDATED_TYPE}` as SyncHistoryUpdatedType;
+export const RETRY_BUNDLES_READ_TYPE = "retry-bundles:read";
+
 export interface ScaffoldReadyMessage {
   type: "scaffold:ready";
   surface: ExtensionSurface;
@@ -106,19 +122,19 @@ export interface ConnectionTestMessage {
 export interface RetrySyncMessage {
   type: "sync:retry";
   payload: {
-    retryPayloadId: string;
+    retryBundleId: string;
   };
 }
 
-export interface HistoryReadMessage {
-  type: "history:read";
+export interface SyncHistoryReadMessage {
+  type: typeof SYNC_HISTORY_READ_TYPE;
   payload: {
     limit: number;
   };
 }
 
 export interface RetryBundlesReadMessage {
-  type: "retry-payloads:read";
+  type: typeof RETRY_BUNDLES_READ_TYPE;
 }
 
 export type PopupOptionsToBackgroundMessage =
@@ -129,28 +145,31 @@ export type PopupOptionsToBackgroundMessage =
   | BranchCreateMessage
   | ConnectionTestMessage
   | RetrySyncMessage
-  | HistoryReadMessage
+  | SyncHistoryReadMessage
   | RetryBundlesReadMessage;
 
 export type RetryBundlesReadResponse = RetryBundleSummary[];
+export type SyncHistoryReadResponse = SyncHistoryEntry[];
 
 export interface SyncStatusMessage {
   type: "sync:status";
   payload: {
     status: SyncStatus;
-    record: SyncHistoryEntry | null;
+    syncHistoryEntry: SyncHistoryEntry | null;
     error: NormalizedError | null;
   };
 }
 
-export interface HistoryUpdatedMessage {
-  type: "history:updated";
+export interface SyncHistoryUpdatedMessage {
+  type: typeof SYNC_HISTORY_UPDATED_TYPE;
   payload: {
-    history: SyncHistoryState;
+    syncHistory: SyncHistoryState;
   };
 }
 
-export type BackgroundToContentPopupMessage = SyncStatusMessage | HistoryUpdatedMessage;
+export type BackgroundToContentPopupMessage =
+  | SyncStatusMessage
+  | SyncHistoryUpdatedMessage;
 
 export type RuntimeMessage =
   | ScaffoldReadyMessage
@@ -169,13 +188,19 @@ export const RUNTIME_MESSAGE_TYPES = [
   "github:branch:create",
   "github:connection:test",
   "sync:retry",
-  "history:read",
-  "retry-payloads:read",
+  SYNC_HISTORY_READ_TYPE,
+  RETRY_BUNDLES_READ_TYPE,
   "sync:status",
-  "history:updated"
+  SYNC_HISTORY_UPDATED_TYPE
 ] as const satisfies readonly RuntimeMessage["type"][];
 
 export type RuntimeMessageType = (typeof RUNTIME_MESSAGE_TYPES)[number];
+
+export const LEGACY_RUNTIME_MESSAGE_TYPES = [
+  LEGACY_HISTORY_READ_TYPE,
+  LEGACY_RETRY_PAYLOADS_READ_TYPE,
+  LEGACY_HISTORY_UPDATED_TYPE
+] as const;
 
 const FORBIDDEN_MESSAGE_SECRET_KEYS = [
   "pat",
@@ -188,15 +213,124 @@ const FORBIDDEN_MESSAGE_SECRET_KEYS = [
 ] as const;
 
 export function isRuntimeMessage(value: unknown): value is RuntimeMessage {
-  if (!isPlainRecord(value) || typeof value.type !== "string") {
-    return false;
+  return normalizeRuntimeMessage(value) !== null;
+}
+
+export function normalizeRuntimeMessage(raw: unknown): RuntimeMessage | null {
+  if (!isPlainRecord(raw) || typeof raw.type !== "string") {
+    return null;
   }
 
-  if (hasForbiddenMessageSecretKey(value)) {
-    return false;
+  if (hasForbiddenMessageSecretKey(raw)) {
+    return null;
   }
 
-  return (RUNTIME_MESSAGE_TYPES as readonly string[]).includes(value.type);
+  if (raw.type === "sync:retry") {
+    return normalizeRetrySyncMessage(raw);
+  }
+
+  if (raw.type === LEGACY_HISTORY_READ_TYPE) {
+    return {
+      ...raw,
+      type: SYNC_HISTORY_READ_TYPE
+    } as SyncHistoryReadMessage;
+  }
+
+  if (raw.type === LEGACY_RETRY_PAYLOADS_READ_TYPE) {
+    return {
+      type: RETRY_BUNDLES_READ_TYPE
+    };
+  }
+
+  if (raw.type === LEGACY_HISTORY_UPDATED_TYPE) {
+    return normalizeSyncHistoryUpdatedMessage(raw, "history");
+  }
+
+  if (raw.type === SYNC_HISTORY_UPDATED_TYPE) {
+    return normalizeSyncHistoryUpdatedMessage(raw, "syncHistory");
+  }
+
+  if (raw.type === "sync:status") {
+    return normalizeSyncStatusMessage(raw);
+  }
+
+  if (!(RUNTIME_MESSAGE_TYPES as readonly string[]).includes(raw.type)) {
+    return null;
+  }
+
+  return raw as unknown as RuntimeMessage;
+}
+
+function normalizeRetrySyncMessage(raw: Record<string, unknown>): RetrySyncMessage | null {
+  const payload = raw.payload;
+
+  if (!isPlainRecord(payload)) {
+    return null;
+  }
+
+  const retryBundleId =
+    typeof payload.retryBundleId === "string"
+      ? payload.retryBundleId
+      : payload.retryPayloadId;
+
+  if (typeof retryBundleId !== "string") {
+    return null;
+  }
+
+  return {
+    type: "sync:retry",
+    payload: {
+      retryBundleId
+    }
+  };
+}
+
+function normalizeSyncStatusMessage(
+  raw: Record<string, unknown>
+): SyncStatusMessage | null {
+  const payload = raw.payload;
+
+  if (!isPlainRecord(payload)) {
+    return null;
+  }
+
+  const syncHistoryEntry =
+    payload.syncHistoryEntry === undefined ? payload.record : payload.syncHistoryEntry;
+
+  return {
+    type: "sync:status",
+    payload: {
+      ...payload,
+      syncHistoryEntry
+    }
+  } as SyncStatusMessage;
+}
+
+function normalizeSyncHistoryUpdatedMessage(
+  raw: Record<string, unknown>,
+  preferredField: "syncHistory" | "history"
+): SyncHistoryUpdatedMessage | null {
+  const payload = raw.payload;
+
+  if (!isPlainRecord(payload)) {
+    return null;
+  }
+
+  const syncHistory =
+    preferredField === "syncHistory"
+      ? payload.syncHistory ?? payload.history
+      : payload.history ?? payload.syncHistory;
+
+  if (syncHistory === undefined) {
+    return null;
+  }
+
+  return {
+    type: SYNC_HISTORY_UPDATED_TYPE,
+    payload: {
+      syncHistory: syncHistory as SyncHistoryState
+    }
+  };
 }
 
 export function hasForbiddenMessageSecretKey(value: unknown): boolean {

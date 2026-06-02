@@ -44,7 +44,7 @@ export interface ToastViewModel {
 
 export interface ToastModelInput {
   status: SyncStatus;
-  record: SyncHistoryEntry | null;
+  syncHistoryEntry: SyncHistoryEntry | null;
   error: NormalizedError | null;
   canRetry?: boolean;
 }
@@ -199,7 +199,7 @@ export function getFailureDetailView(
 
   if (record.error.code === "programmers_extract_failed") {
     detailLines.push(t(locale, "detail.noCommitPayloadRetryUnavailable"));
-  } else if (record.retryPayloadId === null && record.status === "failed") {
+  } else if (record.retryBundleId === null && record.status === "failed") {
     detailLines.push(t(locale, "detail.retryPayloadUnavailable"));
   }
 
@@ -268,7 +268,7 @@ export function createToastViewModel(
     case "syncing":
       return {
         title: t(locale, "toast.syncingTitle"),
-        detail: describeRecord(locale, input.record),
+        detail: describeRecord(locale, input.syncHistoryEntry),
         tone: "neutral",
         actions: [],
         autoDismissMs: null
@@ -276,7 +276,7 @@ export function createToastViewModel(
     case "retrying":
       return {
         title: t(locale, "toast.retryingTitle"),
-        detail: describeRecord(locale, input.record),
+        detail: describeRecord(locale, input.syncHistoryEntry),
         tone: "neutral",
         actions: [],
         autoDismissMs: null
@@ -284,15 +284,15 @@ export function createToastViewModel(
     case "synced":
       return {
         title: t(locale, "toast.syncedTitle"),
-        detail: describeRecord(locale, input.record),
+        detail: describeRecord(locale, input.syncHistoryEntry),
         tone: "success",
-        actions: successActions(locale, input.record),
+        actions: successActions(locale, input.syncHistoryEntry),
         autoDismissMs: 5000
       };
     case "unsupported_language":
       return {
         title: t(locale, "status.unsupportedLanguage"),
-        detail: unsupportedDetail(locale, input.record),
+        detail: unsupportedDetail(locale, input.syncHistoryEntry),
         tone: "warning",
         actions: [],
         autoDismissMs: 8000
@@ -300,7 +300,10 @@ export function createToastViewModel(
     case "failed":
       return {
         title: t(locale, "toast.failedTitle"),
-        detail: failureDetail(locale, input.error ?? input.record?.error ?? null),
+        detail: failureDetail(
+          locale,
+          input.error ?? input.syncHistoryEntry?.error ?? null
+        ),
         tone: "error",
         actions: failureActions(locale, input),
         autoDismissMs: null
@@ -358,18 +361,24 @@ function failureActions(
   locale: UiLocale,
   input: ToastModelInput
 ): ToastActionView[] {
-  const error = input.error ?? input.record?.error ?? null;
+  const error = input.error ?? input.syncHistoryEntry?.error ?? null;
 
   if (error?.code === "programmers_extract_failed") {
     return [];
   }
 
   const canRetry =
-    input.canRetry !== false && typeof input.record?.retryPayloadId === "string";
+    input.canRetry !== false &&
+    typeof input.syncHistoryEntry?.retryBundleId === "string";
 
   if (canRetry) {
     return [
-      toastAction("retry", t(locale, "action.retry"), input.record?.id ?? null, true),
+      toastAction(
+        "retry",
+        t(locale, "action.retry"),
+        input.syncHistoryEntry?.id ?? null,
+        true
+      ),
       toastAction("open_options", t(locale, "action.openOptions"), null, false)
     ];
   }

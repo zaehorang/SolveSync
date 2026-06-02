@@ -83,7 +83,7 @@ export interface CommitGitDataResult {
 }
 
 export interface BuildGitHubCommitMessageInput {
-  platform?: CodingPlatform;
+  codingPlatform?: CodingPlatform;
   frontendId: string;
   title: string;
   language: SupportedLanguage;
@@ -204,7 +204,7 @@ export class GitHubClient {
           )}&sort=full_name&direction=asc&per_page=${PAGE_SIZE}&page=${page}`
       );
 
-      return repositories.map(toRepositoryRef);
+      return repositories.map(toSyncRepository);
     });
   }
 
@@ -217,7 +217,7 @@ export class GitHubClient {
           )}/branches?per_page=${PAGE_SIZE}&page=${page}`
       );
 
-      return branches.map(toBranchRef);
+      return branches.map(toSyncBranch);
     });
   }
 
@@ -345,7 +345,7 @@ export class GitHubClient {
         `/repos/${encodePathPart(input.owner)}/${encodePathPart(input.name)}`
       );
 
-      return toRepositoryRef(response);
+      return toSyncRepository(response);
     } catch (error) {
       if (isHttpStatus(error, 404)) {
         throw explicitNormalizedError(
@@ -629,13 +629,13 @@ export function createGitHubClient(options: GitHubClientOptions): GitHubClient {
 export function buildGitHubCommitMessage(
   input: BuildGitHubCommitMessageInput
 ): string {
-  const platform = input.platform ?? "leetcode";
-  const policy = getPlatformPolicy(platform);
+  const codingPlatform = input.codingPlatform ?? "leetcode";
+  const policy = getPlatformPolicy(codingPlatform);
 
   return `solve: ${policy.commitPlatformLabel} ${formatPlatformProblemNumber(
-    platform,
+    codingPlatform,
     input.frontendId
-  )} ${toCommitTitle(input.title, platform)} in ${input.language}`;
+  )} ${toCommitTitle(input.title, codingPlatform)} in ${input.language}`;
 }
 
 async function githubRequest<T>(
@@ -809,7 +809,7 @@ function isRefUpdateConflict(error: unknown): boolean {
   return isHttpStatus(error, 409) || isHttpStatus(error, 422);
 }
 
-function toRepositoryRef(response: GitHubRepoResponse): SyncRepository {
+function toSyncRepository(response: GitHubRepoResponse): SyncRepository {
   return {
     owner: response.owner.login,
     name: response.name,
@@ -833,7 +833,7 @@ function repositoryFromInput(input: GitHubRepositoryInput): SyncRepository {
   };
 }
 
-function toBranchRef(response: GitHubBranchResponse): SyncBranch {
+function toSyncBranch(response: GitHubBranchResponse): SyncBranch {
   return {
     name: response.name,
     sha: response.commit.sha,

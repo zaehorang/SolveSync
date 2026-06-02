@@ -2,8 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import {
   RUNTIME_MESSAGE_TYPES,
+  RETRY_BUNDLES_READ_TYPE,
+  SYNC_HISTORY_READ_TYPE,
+  SYNC_HISTORY_UPDATED_TYPE,
   hasForbiddenMessageSecretKey,
   isRuntimeMessage,
+  normalizeRuntimeMessage,
   type RuntimeMessage
 } from "./messages";
 
@@ -30,12 +34,67 @@ describe("runtime message contracts", () => {
         "github:branch:create",
         "github:connection:test",
         "sync:retry",
-        "history:read",
-        "retry-payloads:read",
+        SYNC_HISTORY_READ_TYPE,
+        RETRY_BUNDLES_READ_TYPE,
         "sync:status",
-        "history:updated"
+        SYNC_HISTORY_UPDATED_TYPE
       ])
     );
+  });
+
+  it("normalizes legacy Sync History and Retry Bundle message aliases", () => {
+    expect(
+      normalizeRuntimeMessage({
+        type: "history:read",
+        payload: {
+          limit: 20
+        }
+      })
+    ).toEqual({
+      type: SYNC_HISTORY_READ_TYPE,
+      payload: {
+        limit: 20
+      }
+    });
+    expect(
+      normalizeRuntimeMessage({
+        type: "retry-payloads:read"
+      })
+    ).toEqual({
+      type: RETRY_BUNDLES_READ_TYPE
+    });
+    expect(
+      normalizeRuntimeMessage({
+        type: "sync:retry",
+        payload: {
+          retryPayloadId: "retry-1"
+        }
+      })
+    ).toEqual({
+      type: "sync:retry",
+      payload: {
+        retryBundleId: "retry-1"
+      }
+    });
+    expect(
+      normalizeRuntimeMessage({
+        type: "history:updated",
+        payload: {
+          history: {
+            version: 4,
+            entries: []
+          }
+        }
+      })
+    ).toEqual({
+      type: SYNC_HISTORY_UPDATED_TYPE,
+      payload: {
+        syncHistory: {
+          version: 4,
+          entries: []
+        }
+      }
+    });
   });
 
   it("supports coding platform-discriminated accepted detected messages", () => {
@@ -66,7 +125,7 @@ describe("runtime message contracts", () => {
     expect(isRuntimeMessage(programmersMessage)).toBe(true);
   });
 
-  it("accepts typed content toast retry actions without exposing retry payload code", () => {
+  it("accepts typed content toast retry actions without exposing retry bundle code", () => {
     const message: RuntimeMessage = {
       type: "content:toast_action",
       payload: {

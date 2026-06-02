@@ -6,8 +6,8 @@ import {
   type NormalizedError,
   type PublicSettingsState,
   type RepositoryRef,
-  type RetryPayloadSummary,
-  type SyncRecord
+  type RetryBundleSummary,
+  type SyncHistoryEntry
 } from "../shared";
 import {
   buildHistoryDisplayModel,
@@ -50,13 +50,13 @@ describe("popup state helpers", () => {
     const failed = makeRecord({
       id: "failed",
       status: "failed",
-      retryPayloadId: "retry-1",
+      retryBundleId: "retry-1",
       error: makeError("github_commit_failed", "Could not commit the solution.")
     });
 
     const withoutPayload = buildHistoryDisplayModel([failed], []);
     const withPayload = buildHistoryDisplayModel([failed], [
-      makeRetryPayloadSummary("retry-1")
+      makeRetryBundleSummary("retry-1")
     ]);
 
     expect(withoutPayload.items[0]?.canRetry).toBe(false);
@@ -96,7 +96,7 @@ describe("popup state helpers", () => {
   it("maps failure detail to summary and technical lines", () => {
     const failed = makeRecord({
       status: "failed",
-      retryPayloadId: null,
+      retryBundleId: null,
       error: {
         ...makeError("github_branch_protected", "GitHub branch is protected."),
         debugMessage: "Protected branch update rejected."
@@ -123,7 +123,7 @@ describe("popup state helpers", () => {
     );
     const failed = makeProgrammersRecord({
       status: "failed",
-      retryPayloadId: null,
+      retryBundleId: null,
       updatedAt: "2026-01-01T00:03:00.000Z",
       error: {
         ...makeError(
@@ -162,7 +162,7 @@ describe("popup state helpers", () => {
   it("marks Programmers extraction failures as not retryable", () => {
     const failed = makeProgrammersRecord({
       status: "failed",
-      retryPayloadId: null,
+      retryBundleId: null,
       error: makeError(
         "programmers_extract_failed",
         "Could not read the Programmers editor code."
@@ -251,7 +251,7 @@ describe("popup state helpers", () => {
   });
 });
 
-function makeRecord(overrides: Partial<SyncRecord> = {}): SyncRecord {
+function makeRecord(overrides: Partial<SyncHistoryEntry> = {}): SyncHistoryEntry {
   const timestamp = "2026-01-01T00:00:00.000Z";
 
   return {
@@ -269,22 +269,22 @@ function makeRecord(overrides: Partial<SyncRecord> = {}): SyncRecord {
       titleSlug: "two-sum",
       language: "swift"
     },
-    repository,
-    branchName: "main",
+    syncRepository,
+    syncBranchName: "main",
     solutionPath: "leetcode/swift/0001_two_sum.swift",
     commitSha: "commit-sha",
     commitUrl: "https://github.com/octo/algorithms/commit/commit-sha",
     fileUrl:
       "https://github.com/octo/algorithms/blob/main/leetcode/swift/0001_two_sum.swift",
     error: null,
-    retryPayloadId: null,
+    retryBundleId: null,
     createdAt: timestamp,
     updatedAt: timestamp,
     ...overrides
   };
 }
 
-function makeRetryPayloadSummary(id: string): RetryPayloadSummary {
+function makeRetryBundleSummary(id: string): RetryBundleSummary {
   return {
     id,
     codingPlatform: "leetcode",
@@ -300,7 +300,7 @@ function makeRetryPayloadSummary(id: string): RetryPayloadSummary {
   };
 }
 
-function makeProgrammersRecord(overrides: Partial<SyncRecord> = {}): SyncRecord {
+function makeProgrammersRecord(overrides: Partial<SyncHistoryEntry> = {}): SyncHistoryEntry {
   return makeRecord({
     codingPlatform: "programmers",
     titleSlug: "120804_두_수의_곱_구하기",
@@ -338,7 +338,7 @@ function makePublicSettings(): PublicSettingsState {
   return {
     version: STORAGE_SCHEMA_VERSION,
     hasGithubPat: true,
-    syncRepository: repository,
+    syncRepository: syncRepository,
     syncBranch: {
       name: "main",
       sha: "branch-sha",
@@ -355,7 +355,7 @@ function makePublicSettings(): PublicSettingsState {
   };
 }
 
-const repository: RepositoryRef = {
+const syncRepository: RepositoryRef = {
   owner: "octo",
   name: "algorithms",
   fullName: "octo/algorithms",

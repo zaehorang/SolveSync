@@ -74,14 +74,14 @@ describe("shared domain type guards", () => {
           titleSlug: "two-sum",
           language: "swift"
         },
-        repository: null,
-        branchName: null,
+        syncRepository: null,
+        syncBranchName: null,
         solutionPath: "leetcode/swift/0001_two_sum.swift",
         commitSha: "commit-sha",
         commitUrl: null,
         fileUrl: null,
         error: null,
-        retryPayloadId: null,
+        retryBundleId: null,
         createdAt: "2026-01-01T00:00:00.000Z",
         updatedAt: "2026-01-01T00:00:00.000Z"
       })
@@ -103,14 +103,14 @@ describe("shared domain type guards", () => {
           titleSlug: "two-sum",
           language: "swift"
         },
-        repository: null,
-        branchName: null,
+        syncRepository: null,
+        syncBranchName: null,
         solutionPath: "leetcode/swift/0001_two_sum.swift",
         commitSha: "commit-sha",
         commitUrl: null,
         fileUrl: null,
         error: null,
-        retryPayloadId: null,
+        retryBundleId: null,
         createdAt: "2026-01-01T00:00:00.000Z",
         updatedAt: "2026-01-01T00:00:00.000Z"
       })

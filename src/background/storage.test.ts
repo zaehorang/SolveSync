@@ -106,7 +106,7 @@ describe("background extension storage", () => {
     const storage = createExtensionStorage(createMemoryStorageArea());
 
     for (let index = 0; index < SYNC_HISTORY_LIMIT + 5; index += 1) {
-      await storage.appendSyncHistoryEntry(makeSyncRecord(index));
+      await storage.appendSyncHistoryEntry(makeSyncHistoryEntry(index));
     }
 
     const history = await storage.listSyncHistoryEntries();
@@ -283,7 +283,7 @@ function makeSyncDeduplicationKey(acceptedSourceId: string): SyncDeduplicationKe
   };
 }
 
-function makeSyncRecord(index: number): SyncHistoryEntry {
+function makeSyncHistoryEntry(index: number): SyncHistoryEntry {
   const createdAt = addMs("2026-01-01T00:00:00.000Z", index * 1000);
 
   return {
@@ -296,14 +296,14 @@ function makeSyncRecord(index: number): SyncHistoryEntry {
     language: "Swift",
     supportedLanguage: "swift",
     syncDeduplicationKey: makeSyncDeduplicationKey(`source-${index}`),
-    repository,
-    branchName: "main",
+    syncRepository: repository,
+    syncBranchName: "main",
     solutionPath: "leetcode/swift/0001_two_sum.swift",
     commitSha: `commit-sha-${index}`,
     commitUrl: `https://github.com/octo/algorithms/commit/commit-sha-${index}`,
     fileUrl: "https://github.com/octo/algorithms/blob/main/leetcode/swift/0001_two_sum.swift",
     error: null,
-    retryPayloadId: null,
+    retryBundleId: null,
     createdAt,
     updatedAt: createdAt
   };
@@ -314,8 +314,8 @@ function makeRetryBundle(id: string, createdAt: string): RetryBundle {
     id,
     codingPlatform: "leetcode",
     syncDeduplicationKey: makeSyncDeduplicationKey(id),
-    repository,
-    branch,
+    syncRepository: repository,
+    syncBranch: branch,
     problem,
     submission: {
       acceptedSourceId: id,

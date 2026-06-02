@@ -16,10 +16,10 @@ import {
   type I18nKey,
   type NormalizedError,
   type PublicSettingsState,
-  type RetryPayloadSummary,
+  type RetryBundleSummary,
   type RuntimeMessage,
   type SetupStatusView,
-  type SyncRecord,
+  type SyncHistoryEntry,
   type SyncStatus,
   type Tone,
   type UiLocale
@@ -60,7 +60,7 @@ export interface PopupHistoryItem {
   fileUrl: string | null;
   failure: FailureDetailView | null;
   unsupportedReason: string | null;
-  retryPayloadId: string | null;
+  retryBundleId: string | null;
   canRetry: boolean;
 }
 
@@ -71,11 +71,11 @@ export interface PopupHistoryModel {
 
 interface PopupRuntimeState {
   settings: PublicSettingsState | null;
-  historyRecords: SyncRecord[];
-  retryPayloads: RetryPayloadSummary[];
+  historyRecords: SyncHistoryEntry[];
+  retryBundles: RetryBundleSummary[];
   loading: boolean;
   savingAutoSync: boolean;
-  retryingPayloadIds: Set<string>;
+  retryingBundleIds: Set<string>;
   expandedRecordId: string | null;
   message: InlineMessage;
 }
@@ -137,16 +137,16 @@ export function getSetupStatusView(
 }
 
 export function buildHistoryDisplayModel(
-  records: SyncRecord[],
-  retryPayloads: RetryPayloadSummary[],
+  records: SyncHistoryEntry[],
+  retryBundles: RetryBundleSummary[],
   nowMs = Date.now(),
   locale: UiLocale = "en"
 ): PopupHistoryModel {
-  const retryPayloadIds = new Set(retryPayloads.map((payload) => payload.id));
+  const retryBundleIds = new Set(retryBundles.map((payload) => payload.id));
   const items = [...records]
     .sort(compareRecordsByUpdatedAtDescending)
     .slice(0, HISTORY_LIMIT)
-    .map((record) => toHistoryItem(record, retryPayloadIds, nowMs, locale));
+    .map((record) => toHistoryItem(record, retryBundleIds, nowMs, locale));
 
   return {
     items,
@@ -155,7 +155,7 @@ export function buildHistoryDisplayModel(
 }
 
 export function getFailureDetail(
-  record: SyncRecord,
+  record: SyncHistoryEntry,
   locale: UiLocale = "en"
 ): FailureDetailView | null {
   return getSharedFailureDetailView(locale, record);
@@ -165,10 +165,10 @@ function createInitialState(): PopupRuntimeState {
   return {
     settings: null,
     historyRecords: [],
-    retryPayloads: [],
+    retryBundles: [],
     loading: true,
     savingAutoSync: false,
-    retryingPayloadIds: new Set(),
+    retryingBundleIds: new Set(),
     expandedRecordId: null,
     message: EMPTY_MESSAGE
   };
@@ -198,13 +198,13 @@ function bindEvents(elements: PopupElements, state: PopupRuntimeState): void {
 
 function bindRuntimeUpdates(elements: PopupElements, state: PopupRuntimeState): void {
   chrome.runtime.onMessage.addListener((message: RuntimeMessage) => {
-    if (message.type === "history:updated") {
-      state.historyRecords = message.payload.history.entries;
-      void refreshRetryPayloads(elements, state);
+    if (message.type === "sync-history:updated") {
+      state.historyRecords = message.payload.syncHistory.entries;
+      void refreshRetryBundles(elements, state);
       render(elements, state);
     }
 
-    if (message.type === "sync:status" && message.payload.record !== null) {
+    if (message.type === "sync:status" && message.payload.syncHistoryEntry !== null) {
       const locale = getPopupLocale(state.settings);
       state.message = {
         text: getSyncStatusLabel(locale, message.payload.status),
@@ -224,18 +224,18 @@ async function refreshPopupData(
   render(elements, state);
 
   try {
-    const [settings, history, retryPayloads] = await Promise.all([
+    const [settings, history, retryBundles] = await Promise.all([
       sendRuntimeMessage<PublicSettingsState>({
         type: "settings:read"
       }),
-      sendRuntimeMessage<SyncRecord[]>({
-        type: "history:read",
+      sendRuntimeMessage<SyncHistoryEntry[]>({
+        type: "sync-history:read",
         payload: {
           limit: HISTORY_LIMIT
         }
       }),
-      sendRuntimeMessage<RetryPayloadSummary[]>({
-        type: "retry-payloads:read"
+      sendRuntimeMessage<RetryBundleSummary[]>({
+        type: "retry-bundles:read"
       })
     ]);
 
@@ -247,13 +247,13 @@ async function refreshPopupData(
       throw history.error;
     }
 
-    if (!retryPayloads.ok) {
-      throw retryPayloads.error;
+    if (!retryBundles.ok) {
+      throw retryBundles.error;
     }
 
     state.settings = settings.data;
     state.historyRecords = history.data;
-    state.retryPayloads = retryPayloads.data;
+    state.retryBundles = retryBundles.data;
   } catch (error) {
     state.message = {
       text: normalizeError(error).userMessage,
@@ -265,16 +265,16 @@ async function refreshPopupData(
   }
 }
 
-async function refreshRetryPayloads(
+async function refreshRetryBundles(
   elements: PopupElements,
   state: PopupRuntimeState
 ): Promise<void> {
-  const response = await sendRuntimeMessage<RetryPayloadSummary[]>({
-    type: "retry-payloads:read"
+  const response = await sendRuntimeMessage<RetryBundleSummary[]>({
+    type: "retry-bundles:read"
   });
 
   if (response.ok) {
-    state.retryPayloads = response.data;
+    state.retryBundles = response.data;
     render(elements, state);
   }
 }
@@ -319,9 +319,9 @@ async function updateAutoSync(
 async function retrySync(
   elements: PopupElements,
   state: PopupRuntimeState,
-  retryPayloadId: string
+  retryBundleId: string
 ): Promise<void> {
-  state.retryingPayloadIds.add(retryPayloadId);
+  state.retryingBundleIds.add(retryBundleId);
   state.message = localizedMessage("toast.retryingTitle", "neutral");
   render(elements, state);
 
@@ -329,7 +329,7 @@ async function retrySync(
     const response = await sendRuntimeMessage({
       type: "sync:retry",
       payload: {
-        retryPayloadId
+        retryBundleId
       }
     });
 
@@ -344,7 +344,7 @@ async function retrySync(
       tone: "error"
     };
   } finally {
-    state.retryingPayloadIds.delete(retryPayloadId);
+    state.retryingBundleIds.delete(retryBundleId);
     render(elements, state);
   }
 }
@@ -376,7 +376,7 @@ function render(elements: PopupElements, state: PopupRuntimeState): void {
 
   const model = buildHistoryDisplayModel(
     state.historyRecords,
-    state.retryPayloads,
+    state.retryBundles,
     Date.now(),
     locale
   );
@@ -507,9 +507,9 @@ function createControlsRow(
   });
   row.append(detailsButton);
 
-  if (item.canRetry && item.retryPayloadId !== null) {
+  if (item.canRetry && item.retryBundleId !== null) {
     const retryButton = document.createElement("button");
-    const retrying = state.retryingPayloadIds.has(item.retryPayloadId);
+    const retrying = state.retryingBundleIds.has(item.retryBundleId);
     retryButton.className = "button primary compact";
     retryButton.type = "button";
     retryButton.disabled = retrying;
@@ -517,8 +517,8 @@ function createControlsRow(
       ? t(locale, "status.retrying")
       : t(locale, "action.retry");
     retryButton.addEventListener("click", () => {
-      if (item.retryPayloadId !== null) {
-        void retrySync(elements, state, item.retryPayloadId);
+      if (item.retryBundleId !== null) {
+        void retrySync(elements, state, item.retryBundleId);
       }
     });
     row.append(retryButton);
@@ -553,16 +553,16 @@ function createExternalLink(url: string, label: string): HTMLAnchorElement {
 }
 
 function toHistoryItem(
-  record: SyncRecord,
-  retryPayloadIds: Set<string>,
+  record: SyncHistoryEntry,
+  retryBundleIds: Set<string>,
   nowMs: number,
   locale: UiLocale
 ): PopupHistoryItem {
-  const retryPayloadId = record.retryPayloadId;
+  const retryBundleId = record.retryBundleId;
   const canRetry =
     record.status === "failed" &&
-    retryPayloadId !== null &&
-    retryPayloadIds.has(retryPayloadId) &&
+    retryBundleId !== null &&
+    retryBundleIds.has(retryBundleId) &&
     record.error?.retryable !== false;
 
   return {
@@ -582,12 +582,12 @@ function toHistoryItem(
       record.status === "unsupported_language"
         ? getUnsupportedLanguageReason(locale)
         : null,
-    retryPayloadId,
+    retryBundleId,
     canRetry
   };
 }
 
-function getRecordTitle(record: SyncRecord, locale: UiLocale): string {
+function getRecordTitle(record: SyncHistoryEntry, locale: UiLocale): string {
   const title = record.problemTitle?.trim() ?? "";
   const frontendId = record.problemFrontendId?.trim() ?? "";
   const titleSlug = record.titleSlug.trim();
@@ -613,15 +613,15 @@ function getRecordTitle(record: SyncRecord, locale: UiLocale): string {
   });
 }
 
-function getRecordMeta(record: SyncRecord, nowMs: number, locale: UiLocale): string {
+function getRecordMeta(record: SyncHistoryEntry, nowMs: number, locale: UiLocale): string {
   const parts = [
     getPlatformLabel(record.codingPlatform),
     getSyncHistoryEntryLanguageLabel(locale, record),
     formatRelativeTime(record.updatedAt, nowMs, locale)
   ];
 
-  if (record.repository !== null && record.branchName !== null) {
-    parts.push(`${record.repository.fullName}@${record.branchName}`);
+  if (record.syncRepository !== null && record.syncBranchName !== null) {
+    parts.push(`${record.syncRepository.fullName}@${record.syncBranchName}`);
   }
 
   return parts.join(" / ");
@@ -657,13 +657,13 @@ function formatRelativeTime(value: string, nowMs: number, locale: UiLocale): str
 }
 
 function compareRecordsByUpdatedAtDescending(
-  left: SyncRecord,
-  right: SyncRecord
+  left: SyncHistoryEntry,
+  right: SyncHistoryEntry
 ): number {
   return parseRecordTimestamp(right) - parseRecordTimestamp(left);
 }
 
-function parseRecordTimestamp(record: SyncRecord): number {
+function parseRecordTimestamp(record: SyncHistoryEntry): number {
   const updatedAt = Date.parse(record.updatedAt);
 
   if (Number.isFinite(updatedAt)) {

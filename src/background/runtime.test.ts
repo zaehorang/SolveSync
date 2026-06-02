@@ -2,9 +2,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createExtensionStorage, type StorageAreaAdapter } from "./storage";
 import { registerBackgroundRuntime } from "./runtime";
-import type { RuntimeMessage } from "../shared/messages";
 import type { SyncOrchestrator } from "./sync";
-import type { RetryPayload, SyncRecord } from "../shared/types";
+import type { RetryBundle, SyncHistoryEntry } from "../shared/types";
 
 describe("background runtime", () => {
   afterEach(() => {
@@ -90,7 +89,7 @@ describe("background runtime", () => {
     await dispatchMessage(chromeMock.listener, {
       type: "sync:retry",
       payload: {
-        retryPayloadId: "retry-1"
+        retryBundleId: "retry-1"
       }
     });
 
@@ -118,7 +117,7 @@ describe("background runtime", () => {
     const chromeMock = installChromeRuntimeMock();
     const storage = createExtensionStorage(createMemoryStorageArea());
     const orchestrator = makeOrchestrator();
-    await storage.appendSyncHistoryEntry(makeSyncRecord({ retryPayloadId: "retry-1" }));
+    await storage.appendSyncHistoryEntry(makeSyncHistoryEntry({ retryBundleId: "retry-1" }));
 
     registerBackgroundRuntime({
       storage,
@@ -149,11 +148,11 @@ describe("background runtime", () => {
     });
   });
 
-  it("does not retry a toast failure without a retry payload", async () => {
+  it("does not retry a toast failure without a retry bundle", async () => {
     const chromeMock = installChromeRuntimeMock();
     const storage = createExtensionStorage(createMemoryStorageArea());
     const orchestrator = makeOrchestrator();
-    await storage.appendSyncHistoryEntry(makeSyncRecord({ retryPayloadId: null }));
+    await storage.appendSyncHistoryEntry(makeSyncHistoryEntry({ retryBundleId: null }));
 
     registerBackgroundRuntime({
       storage,
@@ -174,11 +173,11 @@ describe("background runtime", () => {
     expect(orchestrator.handleRetry).not.toHaveBeenCalled();
   });
 
-  it("returns retry payload summaries without exposing stored solution code", async () => {
+  it("returns retry bundle summaries without exposing stored solution code", async () => {
     const chromeMock = installChromeRuntimeMock();
     const storage = createExtensionStorage(createMemoryStorageArea());
     const orchestrator = makeOrchestrator();
-    await storage.saveRetryBundle(makeRetryPayload("retry-1"));
+    await storage.saveRetryBundle(makeRetryBundle("retry-1"));
 
     registerBackgroundRuntime({
       storage,
@@ -189,7 +188,7 @@ describe("background runtime", () => {
     });
 
     const response = await dispatchMessage(chromeMock.listener, {
-      type: "retry-payloads:read"
+      type: "retry-bundles:read"
     });
 
     expect(response).toMatchObject({
@@ -203,6 +202,44 @@ describe("background runtime", () => {
       ]
     });
     expect(JSON.stringify(response)).not.toContain("class Solution");
+  });
+
+  it("normalizes legacy retry and read aliases at ingress", async () => {
+    const chromeMock = installChromeRuntimeMock();
+    const storage = createExtensionStorage(createMemoryStorageArea());
+    const orchestrator = makeOrchestrator();
+    await storage.saveRetryBundle(makeRetryBundle("retry-1"));
+
+    registerBackgroundRuntime({
+      storage,
+      orchestrator,
+      githubClientFactory: () => {
+        throw new Error("GitHub client should not be created.");
+      }
+    });
+
+    const retryResponse = await dispatchMessage(chromeMock.listener, {
+      type: "sync:retry",
+      payload: {
+        retryPayloadId: "retry-1"
+      }
+    });
+    const retryBundlesResponse = await dispatchMessage(chromeMock.listener, {
+      type: "retry-payloads:read"
+    });
+
+    expect(retryResponse).toMatchObject({
+      ok: true
+    });
+    expect(orchestrator.handleRetry).toHaveBeenCalledWith("retry-1");
+    expect(retryBundlesResponse).toMatchObject({
+      ok: true,
+      data: [
+        {
+          id: "retry-1"
+        }
+      ]
+    });
   });
 });
 
@@ -265,7 +302,7 @@ function makeOrchestrator(): SyncOrchestrator {
   };
 }
 
-function makeRetryPayload(id: string): RetryPayload {
+function makeRetryBundle(id: string): RetryBundle {
   return {
     id,
     codingPlatform: "leetcode",
@@ -275,7 +312,7 @@ function makeRetryPayload(id: string): RetryPayload {
       titleSlug: "two-sum",
       language: "swift"
     },
-    repository: {
+    syncRepository: {
       owner: "octo",
       name: "algorithms",
       fullName: "octo/algorithms",
@@ -283,7 +320,7 @@ function makeRetryPayload(id: string): RetryPayload {
       private: true,
       htmlUrl: "https://github.com/octo/algorithms"
     },
-    branch: {
+    syncBranch: {
       name: "main",
       sha: "branch-sha",
       protected: false
@@ -314,7 +351,7 @@ function makeRetryPayload(id: string): RetryPayload {
   };
 }
 
-function makeSyncRecord(overrides: Partial<SyncRecord> = {}): SyncRecord {
+function makeSyncHistoryEntry(overrides: Partial<SyncHistoryEntry> = {}): SyncHistoryEntry {
   return {
     id: "record-1",
     codingPlatform: "leetcode",
@@ -330,7 +367,7 @@ function makeSyncRecord(overrides: Partial<SyncRecord> = {}): SyncRecord {
       titleSlug: "two-sum",
       language: "swift"
     },
-    repository: {
+    syncRepository: {
       owner: "octo",
       name: "algorithms",
       fullName: "octo/algorithms",
@@ -338,13 +375,13 @@ function makeSyncRecord(overrides: Partial<SyncRecord> = {}): SyncRecord {
       private: true,
       htmlUrl: "https://github.com/octo/algorithms"
     },
-    branchName: "main",
+    syncBranchName: "main",
     solutionPath: "leetcode/swift/0001_two_sum.swift",
     commitSha: null,
     commitUrl: null,
     fileUrl: null,
     error: null,
-    retryPayloadId: "retry-1",
+    retryBundleId: "retry-1",
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
     ...overrides
@@ -353,7 +390,7 @@ function makeSyncRecord(overrides: Partial<SyncRecord> = {}): SyncRecord {
 
 async function dispatchMessage(
   listener: MessageListener,
-  message: RuntimeMessage,
+  message: unknown,
   sender: chrome.runtime.MessageSender = {}
 ): Promise<unknown> {
   return new Promise((resolve) => {

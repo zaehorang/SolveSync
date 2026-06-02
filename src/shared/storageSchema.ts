@@ -446,7 +446,14 @@ function normalizeSyncHistoryEntry(value: unknown): SyncHistoryEntry | null {
     return null;
   }
 
-  const { platform: legacyPlatform, identity: legacyIdentity, ...rest } = value;
+  const {
+    platform: legacyPlatform,
+    identity: legacyIdentity,
+    repository: legacyRepository,
+    branchName: legacyBranchName,
+    retryPayloadId: legacyRetryPayloadId,
+    ...rest
+  } = value;
   const codingPlatform = normalizeCodingPlatform(
     value.codingPlatform ?? legacyPlatform
   );
@@ -458,7 +465,19 @@ function normalizeSyncHistoryEntry(value: unknown): SyncHistoryEntry | null {
   const candidate = {
     ...rest,
     codingPlatform,
-    syncDeduplicationKey
+    syncDeduplicationKey,
+    syncRepository: normalizeLegacyObjectField(
+      value.syncRepository,
+      legacyRepository
+    ),
+    syncBranchName: normalizeLegacyObjectField(
+      value.syncBranchName,
+      legacyBranchName
+    ),
+    retryBundleId: normalizeLegacyObjectField(
+      value.retryBundleId,
+      legacyRetryPayloadId
+    )
   };
 
   return isSyncHistoryEntry(candidate) ? candidate : null;
@@ -472,6 +491,8 @@ function normalizeRetryBundle(value: unknown): RetryBundle | null {
   const {
     platform: legacyPlatform,
     identity: legacyIdentity,
+    repository: legacyRepository,
+    branch: legacyBranch,
     readmePath: legacyReadmePath,
     indexPath: legacyIndexPath,
     ...rest
@@ -488,6 +509,11 @@ function normalizeRetryBundle(value: unknown): RetryBundle | null {
     ...rest,
     codingPlatform,
     syncDeduplicationKey,
+    syncRepository: normalizeLegacyObjectField(
+      value.syncRepository,
+      legacyRepository
+    ),
+    syncBranch: normalizeLegacyObjectField(value.syncBranch, legacyBranch),
     submission,
     solutionReadmePath: normalizeLegacyStringField(
       value.solutionReadmePath,

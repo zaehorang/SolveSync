@@ -89,14 +89,14 @@ export interface SyncHistoryEntry {
   language: LeetCodeLanguage;
   supportedLanguage: SupportedLanguage | null;
   syncDeduplicationKey: SyncDeduplicationKey | null;
-  repository: SyncRepository | null;
-  branchName: string | null;
+  syncRepository: SyncRepository | null;
+  syncBranchName: string | null;
   solutionPath: string | null;
   commitSha: string | null;
   commitUrl: string | null;
   fileUrl: string | null;
   error: NormalizedError | null;
-  retryPayloadId: string | null;
+  retryBundleId: string | null;
   createdAt: IsoDateString;
   updatedAt: IsoDateString;
 }
@@ -105,8 +105,8 @@ export interface RetryBundle {
   id: string;
   codingPlatform: CodingPlatform;
   syncDeduplicationKey: SyncDeduplicationKey;
-  repository: SyncRepository;
-  branch: SyncBranch;
+  syncRepository: SyncRepository;
+  syncBranch: SyncBranch;
   problem: ProblemMetadata;
   submission: AcceptedSubmission;
   solutionPath: string;
@@ -260,14 +260,14 @@ export function isSyncHistoryEntry(value: unknown): value is SyncHistoryEntry {
     (isSupportedLanguage(value.supportedLanguage) || value.supportedLanguage === null) &&
     (isSyncDeduplicationKey(value.syncDeduplicationKey) ||
       value.syncDeduplicationKey === null) &&
-    (isSyncRepository(value.repository) || value.repository === null) &&
-    (typeof value.branchName === "string" || value.branchName === null) &&
+    (isSyncRepository(value.syncRepository) || value.syncRepository === null) &&
+    (typeof value.syncBranchName === "string" || value.syncBranchName === null) &&
     (typeof value.solutionPath === "string" || value.solutionPath === null) &&
     (typeof value.commitSha === "string" || value.commitSha === null) &&
     (typeof value.commitUrl === "string" || value.commitUrl === null) &&
     (typeof value.fileUrl === "string" || value.fileUrl === null) &&
     (isNormalizedError(value.error) || value.error === null) &&
-    (typeof value.retryPayloadId === "string" || value.retryPayloadId === null) &&
+    (typeof value.retryBundleId === "string" || value.retryBundleId === null) &&
     typeof value.createdAt === "string" &&
     typeof value.updatedAt === "string"
   );
@@ -282,8 +282,8 @@ export function isRetryBundle(value: unknown): value is RetryBundle {
     typeof value.id === "string" &&
     isCodingPlatform(value.codingPlatform) &&
     isSyncDeduplicationKey(value.syncDeduplicationKey) &&
-    isSyncRepository(value.repository) &&
-    isSyncBranch(value.branch) &&
+    isSyncRepository(value.syncRepository) &&
+    isSyncBranch(value.syncBranch) &&
     isProblemMetadata(value.problem) &&
     isAcceptedSubmission(value.submission) &&
     typeof value.solutionPath === "string" &&

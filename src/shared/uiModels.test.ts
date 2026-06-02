@@ -76,7 +76,7 @@ describe("shared UI models", () => {
   it("builds localized failure detail lines", () => {
     const failed = makeRecord({
       status: "failed",
-      retryPayloadId: null,
+      retryBundleId: null,
       error: {
         ...makeError("github_branch_protected", "GitHub branch is protected."),
         debugMessage: "Protected branch update rejected."
@@ -95,7 +95,7 @@ describe("shared UI models", () => {
       "ko",
       makeRecord({
         status: "failed",
-        retryPayloadId: null,
+        retryBundleId: null,
         error: makeError(
           "programmers_extract_failed",
           "Could not read the Programmers editor code."
@@ -111,7 +111,7 @@ describe("shared UI models", () => {
   it("builds localized toast actions and stable product labels", () => {
     const synced = createToastViewModel("ko", {
       status: "synced",
-      record: makeProgrammersRecord({
+      syncHistoryEntry: makeProgrammersRecord({
         status: "synced",
         commitUrl: "https://github.example/commit",
         fileUrl: "https://github.example/file"
@@ -144,7 +144,7 @@ describe("shared UI models", () => {
 
     const setup = createToastViewModel("en", {
       status: "setup_required",
-      record: null,
+      syncHistoryEntry: null,
       error: makeError("setup_required", "GitHub connection required.")
     });
 
@@ -160,9 +160,9 @@ describe("shared UI models", () => {
   it("shows retry action only when the toast input marks retry available", () => {
     const retryable = createToastViewModel("ko", {
       status: "failed",
-      record: makeRecord({
+      syncHistoryEntry: makeRecord({
         status: "failed",
-        retryPayloadId: "retry-1",
+        retryBundleId: "retry-1",
         error: makeError("github_commit_failed", "Could not commit the solution.")
       }),
       error: makeError("github_commit_failed", "Could not commit the solution."),
@@ -170,9 +170,9 @@ describe("shared UI models", () => {
     });
     const notRetryable = createToastViewModel("ko", {
       status: "failed",
-      record: makeRecord({
+      syncHistoryEntry: makeRecord({
         status: "failed",
-        retryPayloadId: "retry-1",
+        retryBundleId: "retry-1",
         error: makeError("github_commit_failed", "Could not commit the solution.")
       }),
       error: makeError("github_commit_failed", "Could not commit the solution."),
@@ -210,15 +210,15 @@ function makeRecord(
       titleSlug: "two-sum",
       language: "swift"
     },
-    repository,
-    branchName: "main",
+    syncRepository,
+    syncBranchName: "main",
     solutionPath: "leetcode/swift/0001_two_sum.swift",
     commitSha: "commit-sha",
     commitUrl: "https://github.com/octo/algorithms/commit/commit-sha",
     fileUrl:
       "https://github.com/octo/algorithms/blob/main/leetcode/swift/0001_two_sum.swift",
     error: null,
-    retryPayloadId: null,
+    retryBundleId: null,
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
     ...overrides
@@ -250,7 +250,7 @@ function makePublicSettings(): PublicSettingsState {
   return {
     version: STORAGE_SCHEMA_VERSION,
     hasGithubPat: true,
-    syncRepository: repository,
+    syncRepository: syncRepository,
     syncBranch: {
       name: "main",
       sha: "branch-sha",
@@ -279,7 +279,7 @@ function makeError(
   };
 }
 
-const repository: SyncRepository = {
+const syncRepository: SyncRepository = {
   owner: "octo",
   name: "algorithms",
   fullName: "octo/algorithms",
