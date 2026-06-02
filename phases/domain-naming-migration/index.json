@@ -45,7 +45,10 @@
     {
       "step": 5,
       "name": "ui-surfaces",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-06-02T16:16:53+0900",
+      "summary": "options, popup, toast, i18n, and UI models migrated to sync destination, Sync History, and Retry Bundle naming",
+      "completed_at": "2026-06-02T16:28:48+0900"
     },
     {
       "step": 6,
