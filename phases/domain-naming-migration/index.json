@@ -29,7 +29,10 @@
     {
       "step": 3,
       "name": "storage-schema-v4",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-06-02T15:55:15+0900",
+      "summary": "storage schema v4 added with renamed settings, deduplication key, retry bundle, and history state migration",
+      "completed_at": "2026-06-02T16:04:29+0900"
     },
     {
       "step": 4,
