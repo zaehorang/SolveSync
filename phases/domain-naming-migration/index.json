@@ -13,7 +13,10 @@
     {
       "step": 1,
       "name": "solution-catalog-v2",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-06-02T15:34:22+0900",
+      "summary": "Solution Catalog v2 introduced with lastAcceptedSourceId and legacy v1 parsing",
+      "completed_at": "2026-06-02T15:41:43+0900"
     },
     {
       "step": 2,
