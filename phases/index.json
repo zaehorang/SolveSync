@@ -27,7 +27,8 @@
     },
     {
       "dir": "domain-naming-migration",
-      "status": "pending"
+      "status": "completed",
+      "completed_at": "2026-06-02T16:41:42+0900"
     }
   ]
 }
