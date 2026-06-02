@@ -24,6 +24,10 @@
       "dir": "harness-runner-refactor",
       "status": "completed",
       "completed_at": "2026-06-02T01:17:50+0900"
+    },
+    {
+      "dir": "domain-naming-migration",
+      "status": "pending"
     }
   ]
 }

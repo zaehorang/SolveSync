@@ -1,0 +1,58 @@
+{
+  "project": "SolveSync",
+  "phase": "domain-naming-migration",
+  "steps": [
+    {
+      "step": 0,
+      "name": "docs-contracts",
+      "status": "pending"
+    },
+    {
+      "step": 1,
+      "name": "solution-catalog-v2",
+      "status": "pending"
+    },
+    {
+      "step": 2,
+      "name": "shared-domain-types",
+      "status": "pending"
+    },
+    {
+      "step": 3,
+      "name": "storage-schema-v4",
+      "status": "pending"
+    },
+    {
+      "step": 4,
+      "name": "runtime-and-sync-core",
+      "status": "pending"
+    },
+    {
+      "step": 5,
+      "name": "ui-surfaces",
+      "status": "pending"
+    },
+    {
+      "step": 6,
+      "name": "accepted-editor-snapshot",
+      "status": "pending"
+    },
+    {
+      "step": 7,
+      "name": "copy-and-doc-cleanup",
+      "status": "pending"
+    },
+    {
+      "step": 8,
+      "name": "swift-algorithm-catalog",
+      "status": "pending",
+      "timeout_sec": 3600
+    },
+    {
+      "step": 9,
+      "name": "final-validation",
+      "status": "pending",
+      "timeout_sec": 3600
+    }
+  ]
+}
