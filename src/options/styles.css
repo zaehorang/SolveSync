@@ -138,6 +138,31 @@ h3 {
   margin-top: 0;
 }
 
+.setup-flow {
+  display: grid;
+  gap: 16px;
+}
+
+.setup-step {
+  border-top: 1px solid var(--ss-hairline);
+  padding-top: 16px;
+}
+
+.setup-step:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.branch-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.branch-controls .field {
+  margin-top: 0;
+}
+
 .field {
   display: grid;
   gap: 7px;
@@ -316,6 +341,11 @@ select[size] {
   padding-top: 16px;
 }
 
+.compact-checklist {
+  margin-top: 12px;
+  padding-top: 12px;
+}
+
 .checklist,
 .disclosure-list {
   margin: 0;
@@ -324,9 +354,21 @@ select[size] {
   line-height: 1.55;
 }
 
+.checklist.compact,
+.disclosure-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 28px;
+}
+
 .checklist li + li,
 .disclosure-list li + li {
   margin-top: 4px;
+}
+
+.checklist.compact li + li,
+.disclosure-list li + li {
+  margin-top: 0;
 }
 
 .status-box {
@@ -423,6 +465,17 @@ select[size] {
   .inline-heading,
   .action-panel {
     display: grid;
+  }
+
+  .branch-controls,
+  .checklist.compact,
+  .disclosure-list {
+    grid-template-columns: 1fr;
+  }
+
+  .checklist.compact li + li,
+  .disclosure-list li + li {
+    margin-top: 4px;
   }
 
   .input-action-row {

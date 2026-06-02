@@ -47,11 +47,12 @@ Implementation rules:
 - marketing hero나 큰 홍보 영역을 만들지 않는다.
 - v1은 Manifest `options_page` 기반 full-page Options를 사용한다.
 - PAT, repository/branch 선택, branch 생성, connection test 같은 긴 설정 작업은 Popup이 아니라 Options에서 수행한다.
+- 첫 설정 흐름은 `GitHub PAT → Load repositories → Sync Repository → Sync Branch → Create branch → Connection test → Save` 순서로 보여준다.
 - embedded options(`options_ui`)나 side panel 전환은 별도 제품 결정 없이는 하지 않는다.
 
 필수 section:
-- General: Auto Sync, Repository, Branch, Language.
 - GitHub Connection: PAT, repository loading, branch loading, branch create, connection test.
+- General: Auto Sync, Language.
 - Security: PAT와 Retry Bundle disclosure.
 - About: 제품 이름, local unpacked v1 성격, backend 없음 안내.
 - Save controls.

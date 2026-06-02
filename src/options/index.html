@@ -16,6 +16,107 @@
         </header>
 
         <form id="options-form" class="settings-form" novalidate>
+          <section class="panel setup-panel" aria-labelledby="github-title">
+            <div class="section-heading">
+              <div>
+                <h2 id="github-title" data-i18n="options.section.github.title"></h2>
+                <p class="section-copy" data-i18n="options.section.github.copy"></p>
+              </div>
+            </div>
+
+            <div class="setup-flow">
+              <div class="setup-step">
+                <div class="field">
+                  <label for="github-pat" data-i18n="options.field.githubPat"></label>
+                  <div class="input-action-row">
+                    <input
+                      id="github-pat"
+                      type="password"
+                      autocomplete="off"
+                      spellcheck="false"
+                      data-i18n-placeholder="options.field.githubPatPlaceholder"
+                    />
+                    <button id="toggle-pat" class="button secondary" type="button"></button>
+                  </div>
+                  <p id="pat-error" class="field-message" aria-live="polite"></p>
+                </div>
+
+                <div class="checklist-block compact-checklist" aria-labelledby="pat-checklist-title">
+                  <h3 id="pat-checklist-title" data-i18n="options.patChecklist.title"></h3>
+                  <ul class="checklist compact">
+                    <li data-i18n="options.patChecklist.create"></li>
+                    <li data-i18n="options.patChecklist.target"></li>
+                    <li data-i18n="options.patChecklist.contents"></li>
+                    <li data-i18n="options.patChecklist.metadata"></li>
+                    <li data-i18n="options.patChecklist.expiration"></li>
+                  </ul>
+                </div>
+              </div>
+
+              <div class="setup-step">
+                <div class="section-heading inline-heading">
+                  <div>
+                    <h3 id="repository-title" data-i18n="options.repository.title"></h3>
+                    <p class="section-copy" data-i18n="options.repository.copy"></p>
+                  </div>
+                  <button id="load-repositories" class="button secondary" type="button"></button>
+                </div>
+
+                <div class="field">
+                  <label for="repository-search" data-i18n="options.field.repositorySearch"></label>
+                  <input
+                    id="repository-search"
+                    type="search"
+                    autocomplete="off"
+                    data-i18n-placeholder="options.field.repositorySearchPlaceholder"
+                  />
+                </div>
+
+                <div class="field">
+                  <label for="repository-select" data-i18n="options.field.repositoryList"></label>
+                  <select id="repository-select" size="6"></select>
+                  <p id="repository-status" class="field-message" aria-live="polite"></p>
+                </div>
+              </div>
+
+              <div class="setup-step branch-controls">
+                <div class="field">
+                  <label for="branch-select" data-i18n="options.field.branchSelect"></label>
+                  <p class="section-copy" data-i18n="options.branch.copy"></p>
+                  <select id="branch-select" disabled></select>
+                  <p id="branch-status" class="field-message" aria-live="polite"></p>
+                </div>
+
+                <div class="field">
+                  <label for="create-branch-name" data-i18n="options.field.createBranch"></label>
+                  <p class="section-copy" data-i18n="options.createBranch.copy"></p>
+                  <div class="input-action-row">
+                    <input
+                      id="create-branch-name"
+                      type="text"
+                      autocomplete="off"
+                      data-i18n-placeholder="options.field.createBranchPlaceholder"
+                      disabled
+                    />
+                    <button id="create-branch" class="button secondary" type="button" disabled></button>
+                  </div>
+                  <p id="create-branch-status" class="field-message" aria-live="polite"></p>
+                </div>
+              </div>
+
+              <div class="connection-test" aria-labelledby="connection-test-title">
+                <div class="section-heading inline-heading">
+                  <div>
+                    <h3 id="connection-test-title" data-i18n="options.connectionTest.title"></h3>
+                    <p class="section-copy" data-i18n="options.connectionTest.copy"></p>
+                  </div>
+                  <button id="test-connection" class="button primary" type="button"></button>
+                </div>
+                <div id="connection-status" class="status-box neutral" aria-live="polite"></div>
+              </div>
+            </div>
+          </section>
+
           <section class="panel" aria-labelledby="general-title">
             <div class="section-heading">
               <div>
@@ -64,102 +165,6 @@
                   ></button>
                 </div>
               </div>
-            </div>
-
-            <div class="settings-row">
-              <div class="section-heading inline-heading">
-                <div>
-                  <h3 id="repository-title" data-i18n="options.field.repositorySelect"></h3>
-                  <p class="section-copy" data-i18n="options.repository.copy"></p>
-                </div>
-                <button id="load-repositories" class="button secondary" type="button"></button>
-              </div>
-
-              <div class="field">
-                <label for="repository-search" data-i18n="options.field.repositorySearch"></label>
-                <input
-                  id="repository-search"
-                  type="search"
-                  autocomplete="off"
-                  data-i18n-placeholder="options.field.repositorySearchPlaceholder"
-                />
-              </div>
-
-              <div class="field">
-                <label for="repository-select" data-i18n="options.field.repositorySelect"></label>
-                <select id="repository-select" size="6"></select>
-                <p id="repository-status" class="field-message" aria-live="polite"></p>
-              </div>
-            </div>
-
-            <div class="settings-row">
-              <div class="field">
-                <label for="branch-select" data-i18n="options.field.branchSelect"></label>
-                <p class="section-copy" data-i18n="options.branch.copy"></p>
-                <select id="branch-select" disabled></select>
-                <p id="branch-status" class="field-message" aria-live="polite"></p>
-              </div>
-            </div>
-          </section>
-
-          <section class="panel" aria-labelledby="github-title">
-            <div class="section-heading">
-              <div>
-                <h2 id="github-title" data-i18n="options.section.github.title"></h2>
-                <p class="section-copy" data-i18n="options.section.github.copy"></p>
-              </div>
-            </div>
-
-            <div class="field">
-              <label for="github-pat" data-i18n="options.field.githubPat"></label>
-              <div class="input-action-row">
-                <input
-                  id="github-pat"
-                  type="password"
-                  autocomplete="off"
-                  spellcheck="false"
-                  data-i18n-placeholder="options.field.githubPatPlaceholder"
-                />
-                <button id="toggle-pat" class="button secondary" type="button"></button>
-              </div>
-              <p id="pat-error" class="field-message" aria-live="polite"></p>
-            </div>
-
-            <div class="checklist-block" aria-labelledby="pat-checklist-title">
-              <h3 id="pat-checklist-title" data-i18n="options.patChecklist.title"></h3>
-              <ul class="checklist">
-                <li data-i18n="options.patChecklist.create"></li>
-                <li data-i18n="options.patChecklist.target"></li>
-                <li data-i18n="options.patChecklist.contents"></li>
-                <li data-i18n="options.patChecklist.metadata"></li>
-                <li data-i18n="options.patChecklist.expiration"></li>
-              </ul>
-            </div>
-
-            <div class="field">
-              <label for="create-branch-name" data-i18n="options.field.createBranch"></label>
-              <div class="input-action-row">
-                <input
-                  id="create-branch-name"
-                  type="text"
-                  autocomplete="off"
-                  data-i18n-placeholder="options.field.createBranchPlaceholder"
-                  disabled
-                />
-                <button id="create-branch" class="button secondary" type="button" disabled></button>
-              </div>
-              <p id="create-branch-status" class="field-message" aria-live="polite"></p>
-            </div>
-
-            <div class="connection-test" aria-labelledby="connection-test-title">
-              <div class="section-heading inline-heading">
-                <div>
-                  <h3 id="connection-test-title" data-i18n="options.connectionTest.title"></h3>
-                  <p class="section-copy" data-i18n="options.connectionTest.copy"></p>
-                </div>
-                <button id="test-connection" class="button primary" type="button"></button>
-              </div>
-              <div id="connection-status" class="status-box neutral" aria-live="polite"></div>
             </div>
           </section>
 
