@@ -69,8 +69,11 @@
     {
       "step": 8,
       "name": "swift-algorithm-catalog",
-      "status": "pending",
-      "timeout_sec": 3600
+      "status": "completed",
+      "timeout_sec": 3600,
+      "started_at": "2026-06-02T16:35:22+0900",
+      "summary": "Swift_Algorithm main catalog JSON migrated to Solution Catalog v2 with lastAcceptedSourceId",
+      "completed_at": "2026-06-02T16:38:36+0900"
     },
     {
       "step": 9,
