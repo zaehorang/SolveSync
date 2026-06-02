@@ -70,7 +70,8 @@ export interface ToastActionMessage {
   type: "content:toast_action";
   payload: {
     action: ToastAction;
-    recordId: string | null;
+    syncHistoryEntryId: string | null;
+    retryBundleId: string | null;
   };
 }
 
@@ -229,6 +230,10 @@ export function normalizeRuntimeMessage(raw: unknown): RuntimeMessage | null {
     return normalizeRetrySyncMessage(raw);
   }
 
+  if (raw.type === "content:toast_action") {
+    return normalizeToastActionMessage(raw);
+  }
+
   if (raw.type === LEGACY_HISTORY_READ_TYPE) {
     return {
       ...raw,
@@ -283,6 +288,48 @@ function normalizeRetrySyncMessage(raw: Record<string, unknown>): RetrySyncMessa
       retryBundleId
     }
   };
+}
+
+function normalizeToastActionMessage(
+  raw: Record<string, unknown>
+): ToastActionMessage | null {
+  const payload = raw.payload;
+
+  if (!isPlainRecord(payload)) {
+    return null;
+  }
+
+  const action = payload.action;
+  if (!isToastAction(action)) {
+    return null;
+  }
+
+  const syncHistoryEntryId =
+    typeof payload.syncHistoryEntryId === "string"
+      ? payload.syncHistoryEntryId
+      : payload.recordId;
+  const retryBundleId = payload.retryBundleId;
+
+  return {
+    type: "content:toast_action",
+    payload: {
+      action,
+      syncHistoryEntryId:
+        typeof syncHistoryEntryId === "string" ? syncHistoryEntryId : null,
+      retryBundleId: typeof retryBundleId === "string" ? retryBundleId : null
+    }
+  };
+}
+
+function isToastAction(value: unknown): value is ToastAction {
+  return (
+    value === "open_options" ||
+    value === "open_popup" ||
+    value === "open_commit" ||
+    value === "open_file" ||
+    value === "retry" ||
+    value === "dismiss"
+  );
 }
 
 function normalizeSyncStatusMessage(

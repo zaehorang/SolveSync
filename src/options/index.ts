@@ -9,7 +9,6 @@ import {
   parseSettingsState,
   resolveUiLocale,
   t,
-  type BranchRef,
   type ConnectionStatus,
   type ConnectionStatusCode,
   type ConnectionStatusView,
@@ -17,9 +16,10 @@ import {
   type IsoDateString,
   type NormalizedError,
   type NormalizedErrorCode,
-  type RepositoryRef,
   type RuntimeMessage,
   type SettingsState,
+  type SyncBranch,
+  type SyncRepository,
   type Tone,
   type UiLanguagePreference,
   type UiLocale
@@ -27,15 +27,15 @@ import {
 
 export interface RepositoryFilterState {
   query: string;
-  repositories: RepositoryRef[];
-  visibleRepositories: RepositoryRef[];
+  repositories: SyncRepository[];
+  visibleRepositories: SyncRepository[];
   hasMatches: boolean;
 }
 
 export interface SettingsValidationDraft {
   githubPat: string;
-  syncRepository: RepositoryRef | null;
-  syncBranch: BranchRef | null;
+  syncRepository: SyncRepository | null;
+  syncBranch: SyncBranch | null;
 }
 
 export interface SettingsValidationResult {
@@ -55,7 +55,7 @@ interface InlineMessage {
 }
 
 interface RepositoryListResult {
-  repositories: RepositoryRef[];
+  repositories: SyncRepository[];
   page: number;
   perPage: number;
   totalCount: number;
@@ -63,8 +63,8 @@ interface RepositoryListResult {
 }
 
 interface ConnectionTestResult {
-  repository: RepositoryRef;
-  branch: BranchRef;
+  repository: SyncRepository;
+  branch: SyncBranch;
   baseCommitSha: string;
   baseTreeSha: string;
 }
@@ -84,11 +84,11 @@ type RuntimeResponse<T> = RuntimeSuccessResponse<T> | RuntimeFailureResponse;
 interface OptionsRuntimeState {
   githubPatInput: string;
   patVisible: boolean;
-  repositories: RepositoryRef[];
+  repositories: SyncRepository[];
   repositoryQuery: string;
-  syncRepository: RepositoryRef | null;
-  branches: BranchRef[];
-  syncBranch: BranchRef | null;
+  syncRepository: SyncRepository | null;
+  branches: SyncBranch[];
+  syncBranch: SyncBranch | null;
   autoSyncEnabled: boolean;
   uiLanguage: UiLanguagePreference;
   locale: UiLocale;
@@ -154,7 +154,7 @@ function localizedMessage(
 }
 
 export function getRepositoryFilterState(
-  repositories: RepositoryRef[],
+  repositories: SyncRepository[],
   query: string
 ): RepositoryFilterState {
   const normalizedQuery = query.trim().toLowerCase();
@@ -174,8 +174,8 @@ export function getRepositoryFilterState(
 }
 
 export function getDefaultBranchSelection(
-  repository: RepositoryRef | null,
-  branches: BranchRef[],
+  repository: SyncRepository | null,
+  branches: SyncBranch[],
   preferredBranchName: string | null
 ): string | null {
   if (branches.length === 0) {
@@ -510,14 +510,14 @@ async function loadRepositories(
 async function loadBranches(
   elements: OptionsElements,
   state: OptionsRuntimeState,
-  repository: RepositoryRef
+  repository: SyncRepository
 ): Promise<void> {
   state.loadingBranches = true;
   state.branchMessage = localizedMessage("options.message.loadingBranches", "neutral");
   render(elements, state);
 
   try {
-    const response = await sendRuntimeMessage<BranchRef[]>({
+    const response = await sendRuntimeMessage<SyncBranch[]>({
       type: "github:branches:list",
       payload: {
         repository
@@ -621,7 +621,7 @@ async function createBranch(
       uiLanguage: state.uiLanguage
     });
 
-    const response = await sendRuntimeMessage<BranchRef>({
+    const response = await sendRuntimeMessage<SyncBranch>({
       type: "github:branch:create",
       payload: {
         repository: state.syncRepository,
@@ -710,8 +710,8 @@ async function testConnection(
     const response = await sendRuntimeMessage<ConnectionTestResult>({
       type: "github:connection:test",
       payload: {
-        repository: state.syncRepository as RepositoryRef,
-        branchName: (state.syncBranch as BranchRef).name
+        repository: state.syncRepository as SyncRepository,
+        branchName: (state.syncBranch as SyncBranch).name
       }
     });
 
@@ -1165,10 +1165,10 @@ function createConnectionStatus(
 }
 
 function mergeRepositories(
-  repositories: RepositoryRef[],
-  additional: RepositoryRef[]
-): RepositoryRef[] {
-  const byFullName = new Map<string, RepositoryRef>();
+  repositories: SyncRepository[],
+  additional: SyncRepository[]
+): SyncRepository[] {
+  const byFullName = new Map<string, SyncRepository>();
 
   for (const repository of [...repositories, ...additional]) {
     byFullName.set(repository.fullName, repository);
@@ -1179,8 +1179,8 @@ function mergeRepositories(
   );
 }
 
-function mergeBranches(branches: BranchRef[], additional: BranchRef[]): BranchRef[] {
-  const byName = new Map<string, BranchRef>();
+function mergeBranches(branches: SyncBranch[], additional: SyncBranch[]): SyncBranch[] {
+  const byName = new Map<string, SyncBranch>();
 
   for (const branch of [...branches, ...additional]) {
     byName.set(branch.name, branch);

@@ -47,8 +47,8 @@ describe("shared UI models", () => {
         syncRepository: null
       })
     ).toMatchObject({
-      label: "저장소 필요",
-      detail: "Options에서 본인 저장소를 선택하세요.",
+      label: "Sync Repository 필요",
+      detail: "Options에서 Sync Repository를 선택하세요.",
       tone: "warning"
     });
     expect(
@@ -74,7 +74,7 @@ describe("shared UI models", () => {
   });
 
   it("builds localized failure detail lines", () => {
-    const failed = makeRecord({
+    const failed = makeSyncHistoryEntry({
       status: "failed",
       retryBundleId: null,
       error: {
@@ -88,12 +88,12 @@ describe("shared UI models", () => {
       detailLines: [
         "Code: github_branch_protected",
         "Detail: Protected branch update rejected.",
-        "Retry payload is unavailable. Check Options or submit again."
+        "Retry Bundle is unavailable. Check Options or submit again."
       ]
     });
     const programmersFailure = getFailureDetailView(
       "ko",
-      makeRecord({
+      makeSyncHistoryEntry({
         status: "failed",
         retryBundleId: null,
         error: makeError(
@@ -104,14 +104,14 @@ describe("shared UI models", () => {
     );
 
     expect(programmersFailure?.detailLines).toContain(
-      "Commit payload가 생성되지 않아 재시도할 수 없습니다."
+      "GitHub commit 데이터가 생성되지 않아 재시도할 수 없습니다."
     );
   });
 
   it("builds localized toast actions and stable product labels", () => {
     const synced = createToastViewModel("ko", {
       status: "synced",
-      syncHistoryEntry: makeProgrammersRecord({
+      syncHistoryEntry: makeProgrammersSyncHistoryEntry({
         status: "synced",
         commitUrl: "https://github.example/commit",
         fileUrl: "https://github.example/file"
@@ -127,17 +127,20 @@ describe("shared UI models", () => {
         {
           action: "open_commit",
           label: "Commit",
-          recordId: "record-1"
+          syncHistoryEntryId: "entry-1",
+          retryBundleId: null
         },
         {
           action: "open_file",
           label: "File",
-          recordId: "record-1"
+          syncHistoryEntryId: "entry-1",
+          retryBundleId: null
         },
         {
           action: "dismiss",
           label: "닫기",
-          recordId: null
+          syncHistoryEntryId: null,
+          retryBundleId: null
         }
       ]
     });
@@ -160,7 +163,7 @@ describe("shared UI models", () => {
   it("shows retry action only when the toast input marks retry available", () => {
     const retryable = createToastViewModel("ko", {
       status: "failed",
-      syncHistoryEntry: makeRecord({
+      syncHistoryEntry: makeSyncHistoryEntry({
         status: "failed",
         retryBundleId: "retry-1",
         error: makeError("github_commit_failed", "Could not commit the solution.")
@@ -170,7 +173,7 @@ describe("shared UI models", () => {
     });
     const notRetryable = createToastViewModel("ko", {
       status: "failed",
-      syncHistoryEntry: makeRecord({
+      syncHistoryEntry: makeSyncHistoryEntry({
         status: "failed",
         retryBundleId: "retry-1",
         error: makeError("github_commit_failed", "Could not commit the solution.")
@@ -184,7 +187,8 @@ describe("shared UI models", () => {
         expect.objectContaining({
           action: "retry",
           label: "재시도",
-          recordId: "record-1"
+          syncHistoryEntryId: "entry-1",
+          retryBundleId: "retry-1"
         })
       ])
     );
@@ -192,11 +196,11 @@ describe("shared UI models", () => {
   });
 });
 
-function makeRecord(
+function makeSyncHistoryEntry(
   overrides: Partial<SyncHistoryEntry> = {}
 ): SyncHistoryEntry {
   return {
-    id: "record-1",
+    id: "entry-1",
     codingPlatform: "leetcode",
     status: "synced",
     titleSlug: "two-sum",
@@ -225,10 +229,10 @@ function makeRecord(
   };
 }
 
-function makeProgrammersRecord(
+function makeProgrammersSyncHistoryEntry(
   overrides: Partial<SyncHistoryEntry> = {}
 ): SyncHistoryEntry {
-  return makeRecord({
+  return makeSyncHistoryEntry({
     codingPlatform: "programmers",
     titleSlug: "120804_두_수의_곱_구하기",
     problemTitle: "두 수의 곱 구하기",

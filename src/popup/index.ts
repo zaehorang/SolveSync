@@ -71,12 +71,12 @@ export interface PopupHistoryModel {
 
 interface PopupRuntimeState {
   settings: PublicSettingsState | null;
-  historyRecords: SyncHistoryEntry[];
+  syncHistoryEntries: SyncHistoryEntry[];
   retryBundles: RetryBundleSummary[];
   loading: boolean;
   savingAutoSync: boolean;
   retryingBundleIds: Set<string>;
-  expandedRecordId: string | null;
+  expandedSyncHistoryEntryId: string | null;
   message: InlineMessage;
 }
 
@@ -137,16 +137,16 @@ export function getSetupStatusView(
 }
 
 export function buildHistoryDisplayModel(
-  records: SyncHistoryEntry[],
+  syncHistoryEntries: SyncHistoryEntry[],
   retryBundles: RetryBundleSummary[],
   nowMs = Date.now(),
   locale: UiLocale = "en"
 ): PopupHistoryModel {
-  const retryBundleIds = new Set(retryBundles.map((payload) => payload.id));
-  const items = [...records]
-    .sort(compareRecordsByUpdatedAtDescending)
+  const retryBundleIds = new Set(retryBundles.map((bundle) => bundle.id));
+  const items = [...syncHistoryEntries]
+    .sort(compareSyncHistoryEntriesByUpdatedAtDescending)
     .slice(0, HISTORY_LIMIT)
-    .map((record) => toHistoryItem(record, retryBundleIds, nowMs, locale));
+    .map((entry) => toHistoryItem(entry, retryBundleIds, nowMs, locale));
 
   return {
     items,
@@ -155,21 +155,21 @@ export function buildHistoryDisplayModel(
 }
 
 export function getFailureDetail(
-  record: SyncHistoryEntry,
+  syncHistoryEntry: SyncHistoryEntry,
   locale: UiLocale = "en"
 ): FailureDetailView | null {
-  return getSharedFailureDetailView(locale, record);
+  return getSharedFailureDetailView(locale, syncHistoryEntry);
 }
 
 function createInitialState(): PopupRuntimeState {
   return {
     settings: null,
-    historyRecords: [],
+    syncHistoryEntries: [],
     retryBundles: [],
     loading: true,
     savingAutoSync: false,
     retryingBundleIds: new Set(),
-    expandedRecordId: null,
+    expandedSyncHistoryEntryId: null,
     message: EMPTY_MESSAGE
   };
 }
@@ -199,7 +199,7 @@ function bindEvents(elements: PopupElements, state: PopupRuntimeState): void {
 function bindRuntimeUpdates(elements: PopupElements, state: PopupRuntimeState): void {
   chrome.runtime.onMessage.addListener((message: RuntimeMessage) => {
     if (message.type === "sync-history:updated") {
-      state.historyRecords = message.payload.syncHistory.entries;
+      state.syncHistoryEntries = message.payload.syncHistory.entries;
       void refreshRetryBundles(elements, state);
       render(elements, state);
     }
@@ -252,7 +252,7 @@ async function refreshPopupData(
     }
 
     state.settings = settings.data;
-    state.historyRecords = history.data;
+    state.syncHistoryEntries = history.data;
     state.retryBundles = retryBundles.data;
   } catch (error) {
     state.message = {
@@ -375,7 +375,7 @@ function render(elements: PopupElements, state: PopupRuntimeState): void {
   renderSettingsSummary(elements, state.settings, locale);
 
   const model = buildHistoryDisplayModel(
-    state.historyRecords,
+    state.syncHistoryEntries,
     state.retryBundles,
     Date.now(),
     locale
@@ -452,7 +452,7 @@ function createHistoryElement(
     entry.append(controls);
   }
 
-  if (state.expandedRecordId === item.id && item.failure !== null) {
+  if (state.expandedSyncHistoryEntryId === item.id && item.failure !== null) {
     entry.append(createFailureDetailPanel(item.failure));
   }
 
@@ -498,11 +498,12 @@ function createControlsRow(
   detailsButton.className = "button secondary compact";
   detailsButton.type = "button";
   detailsButton.textContent =
-    state.expandedRecordId === item.id
+    state.expandedSyncHistoryEntryId === item.id
       ? t(locale, "action.hideDetails")
       : t(locale, "action.details");
   detailsButton.addEventListener("click", () => {
-    state.expandedRecordId = state.expandedRecordId === item.id ? null : item.id;
+    state.expandedSyncHistoryEntryId =
+      state.expandedSyncHistoryEntryId === item.id ? null : item.id;
     render(elements, state);
   });
   row.append(detailsButton);
@@ -553,33 +554,36 @@ function createExternalLink(url: string, label: string): HTMLAnchorElement {
 }
 
 function toHistoryItem(
-  record: SyncHistoryEntry,
+  syncHistoryEntry: SyncHistoryEntry,
   retryBundleIds: Set<string>,
   nowMs: number,
   locale: UiLocale
 ): PopupHistoryItem {
-  const retryBundleId = record.retryBundleId;
+  const retryBundleId = syncHistoryEntry.retryBundleId;
   const canRetry =
-    record.status === "failed" &&
+    syncHistoryEntry.status === "failed" &&
     retryBundleId !== null &&
     retryBundleIds.has(retryBundleId) &&
-    record.error?.retryable !== false;
+    syncHistoryEntry.error?.retryable !== false;
 
   return {
-    id: record.id,
-    status: record.status,
-    platformLabel: getPlatformLabel(record.codingPlatform),
-    title: getRecordTitle(record, locale),
-    languageLabel: getSyncHistoryEntryLanguageLabel(locale, record),
-    meta: getRecordMeta(record, nowMs, locale),
-    timeLabel: formatRelativeTime(record.updatedAt, nowMs, locale),
-    statusLabel: getSyncStatusLabel(locale, record.status),
-    tone: getSyncStatusTone(record.status),
-    commitUrl: record.commitUrl,
-    fileUrl: record.fileUrl,
-    failure: record.status === "failed" ? getSharedFailureDetailView(locale, record) : null,
+    id: syncHistoryEntry.id,
+    status: syncHistoryEntry.status,
+    platformLabel: getPlatformLabel(syncHistoryEntry.codingPlatform),
+    title: getSyncHistoryEntryTitle(syncHistoryEntry, locale),
+    languageLabel: getSyncHistoryEntryLanguageLabel(locale, syncHistoryEntry),
+    meta: getSyncHistoryEntryMeta(syncHistoryEntry, nowMs, locale),
+    timeLabel: formatRelativeTime(syncHistoryEntry.updatedAt, nowMs, locale),
+    statusLabel: getSyncStatusLabel(locale, syncHistoryEntry.status),
+    tone: getSyncStatusTone(syncHistoryEntry.status),
+    commitUrl: syncHistoryEntry.commitUrl,
+    fileUrl: syncHistoryEntry.fileUrl,
+    failure:
+      syncHistoryEntry.status === "failed"
+        ? getSharedFailureDetailView(locale, syncHistoryEntry)
+        : null,
     unsupportedReason:
-      record.status === "unsupported_language"
+      syncHistoryEntry.status === "unsupported_language"
         ? getUnsupportedLanguageReason(locale)
         : null,
     retryBundleId,
@@ -587,10 +591,13 @@ function toHistoryItem(
   };
 }
 
-function getRecordTitle(record: SyncHistoryEntry, locale: UiLocale): string {
-  const title = record.problemTitle?.trim() ?? "";
-  const frontendId = record.problemFrontendId?.trim() ?? "";
-  const titleSlug = record.titleSlug.trim();
+function getSyncHistoryEntryTitle(
+  syncHistoryEntry: SyncHistoryEntry,
+  locale: UiLocale
+): string {
+  const title = syncHistoryEntry.problemTitle?.trim() ?? "";
+  const frontendId = syncHistoryEntry.problemFrontendId?.trim() ?? "";
+  const titleSlug = syncHistoryEntry.titleSlug.trim();
 
   if (title.length > 0 && frontendId.length > 0) {
     return `${frontendId}. ${title}`;
@@ -605,23 +612,32 @@ function getRecordTitle(record: SyncHistoryEntry, locale: UiLocale): string {
   }
 
   if (frontendId.length > 0) {
-    return `${getPlatformLabel(record.codingPlatform)} ${frontendId}`;
+    return `${getPlatformLabel(syncHistoryEntry.codingPlatform)} ${frontendId}`;
   }
 
   return t(locale, "label.platformSubmission", {
-    platform: getPlatformLabel(record.codingPlatform)
+    platform: getPlatformLabel(syncHistoryEntry.codingPlatform)
   });
 }
 
-function getRecordMeta(record: SyncHistoryEntry, nowMs: number, locale: UiLocale): string {
+function getSyncHistoryEntryMeta(
+  syncHistoryEntry: SyncHistoryEntry,
+  nowMs: number,
+  locale: UiLocale
+): string {
   const parts = [
-    getPlatformLabel(record.codingPlatform),
-    getSyncHistoryEntryLanguageLabel(locale, record),
-    formatRelativeTime(record.updatedAt, nowMs, locale)
+    getPlatformLabel(syncHistoryEntry.codingPlatform),
+    getSyncHistoryEntryLanguageLabel(locale, syncHistoryEntry),
+    formatRelativeTime(syncHistoryEntry.updatedAt, nowMs, locale)
   ];
 
-  if (record.syncRepository !== null && record.syncBranchName !== null) {
-    parts.push(`${record.syncRepository.fullName}@${record.syncBranchName}`);
+  if (
+    syncHistoryEntry.syncRepository !== null &&
+    syncHistoryEntry.syncBranchName !== null
+  ) {
+    parts.push(
+      `${syncHistoryEntry.syncRepository.fullName}@${syncHistoryEntry.syncBranchName}`
+    );
   }
 
   return parts.join(" / ");
@@ -656,21 +672,21 @@ function formatRelativeTime(value: string, nowMs: number, locale: UiLocale): str
   return t(locale, "time.daysAgo", { count: diffDays });
 }
 
-function compareRecordsByUpdatedAtDescending(
+function compareSyncHistoryEntriesByUpdatedAtDescending(
   left: SyncHistoryEntry,
   right: SyncHistoryEntry
 ): number {
-  return parseRecordTimestamp(right) - parseRecordTimestamp(left);
+  return parseSyncHistoryEntryTimestamp(right) - parseSyncHistoryEntryTimestamp(left);
 }
 
-function parseRecordTimestamp(record: SyncHistoryEntry): number {
-  const updatedAt = Date.parse(record.updatedAt);
+function parseSyncHistoryEntryTimestamp(syncHistoryEntry: SyncHistoryEntry): number {
+  const updatedAt = Date.parse(syncHistoryEntry.updatedAt);
 
   if (Number.isFinite(updatedAt)) {
     return updatedAt;
   }
 
-  const createdAt = Date.parse(record.createdAt);
+  const createdAt = Date.parse(syncHistoryEntry.createdAt);
 
   return Number.isFinite(createdAt) ? createdAt : 0;
 }

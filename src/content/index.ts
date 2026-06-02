@@ -329,13 +329,15 @@ function normalizeText(value: string): string {
 
 function sendToastAction(
   action: Extract<RuntimeMessage, { type: "content:toast_action" }>["payload"]["action"],
-  recordId: string | null
+  syncHistoryEntryId: string | null,
+  retryBundleId: string | null
 ): void {
   sendRuntimeMessage({
     type: "content:toast_action",
     payload: {
       action,
-      recordId
+      syncHistoryEntryId,
+      retryBundleId
     }
   });
 }

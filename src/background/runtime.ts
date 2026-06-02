@@ -242,15 +242,15 @@ async function handleToastAction(
   }
 
   if (payload.action === "retry") {
-    if (payload.recordId === null) {
+    const retryBundleId =
+      payload.retryBundleId ??
+      (await findRetryBundleIdForToastAction(payload.syncHistoryEntryId, storage));
+
+    if (retryBundleId === null) {
       return null;
     }
 
-    const record = (await storage.listSyncHistoryEntries()).find((item) => item.id === payload.recordId);
-
-    if (record?.retryBundleId !== null && record?.retryBundleId !== undefined) {
-      await orchestrator.handleRetry(record.retryBundleId, target);
-    }
+    await orchestrator.handleRetry(retryBundleId, target);
 
     return null;
   }
@@ -259,18 +259,38 @@ async function handleToastAction(
     return null;
   }
 
-  if (payload.recordId === null) {
+  if (payload.syncHistoryEntryId === null) {
     return null;
   }
 
-  const record = (await storage.listSyncHistoryEntries()).find((item) => item.id === payload.recordId);
-  const url = payload.action === "open_commit" ? record?.commitUrl : record?.fileUrl;
+  const syncHistoryEntry = (await storage.listSyncHistoryEntries()).find(
+    (item) => item.id === payload.syncHistoryEntryId
+  );
+  const url =
+    payload.action === "open_commit"
+      ? syncHistoryEntry?.commitUrl
+      : syncHistoryEntry?.fileUrl;
 
   if (url !== undefined && url !== null) {
     await chrome.tabs.create({ url });
   }
 
   return null;
+}
+
+async function findRetryBundleIdForToastAction(
+  syncHistoryEntryId: string | null,
+  storage: ExtensionStorage
+): Promise<string | null> {
+  if (syncHistoryEntryId === null) {
+    return null;
+  }
+
+  const syncHistoryEntry = (await storage.listSyncHistoryEntries()).find(
+    (item) => item.id === syncHistoryEntryId
+  );
+
+  return syncHistoryEntry?.retryBundleId ?? null;
 }
 
 function createChromeBroadcast(): SyncBroadcast {

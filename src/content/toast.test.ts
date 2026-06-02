@@ -33,7 +33,7 @@ describe("content toast model", () => {
   it("maps Auto Sync off status to a short localized recovery toast", () => {
     const model = createToastModel({
       status: "auto_sync_disabled",
-      syncHistoryEntry: makeRecord({
+      syncHistoryEntry: makeSyncHistoryEntry({
         status: "auto_sync_disabled"
       }),
       error: error("auto_sync_disabled", "Auto Sync is off.")
@@ -58,14 +58,14 @@ describe("content toast model", () => {
   it("maps syncing and retrying states to progress toasts without actions", () => {
     const syncing = createToastModel({
       status: "syncing",
-      syncHistoryEntry: makeRecord({
+      syncHistoryEntry: makeSyncHistoryEntry({
         status: "syncing"
       }),
       error: null
     });
     const retrying = createToastModel({
       status: "retrying",
-      syncHistoryEntry: makeProgrammersRecord({
+      syncHistoryEntry: makeProgrammersSyncHistoryEntry({
         status: "retrying"
       }),
       error: null
@@ -89,10 +89,10 @@ describe("content toast model", () => {
     });
   });
 
-  it("maps successful sync records to commit and file actions", () => {
+  it("maps successful Sync History entries to commit and file actions", () => {
     const model = createToastModel({
       status: "synced",
-      syncHistoryEntry: makeRecord({
+      syncHistoryEntry: makeSyncHistoryEntry({
         status: "synced",
         commitUrl: "https://github.example/commit",
         fileUrl: "https://github.example/file"
@@ -109,26 +109,29 @@ describe("content toast model", () => {
         {
           action: "open_commit",
           label: "Commit",
-          recordId: "record-1"
+          syncHistoryEntryId: "entry-1",
+          retryBundleId: null
         },
         {
           action: "open_file",
           label: "File",
-          recordId: "record-1"
+          syncHistoryEntryId: "entry-1",
+          retryBundleId: null
         },
         {
           action: "dismiss",
           label: "Dismiss",
-          recordId: null
+          syncHistoryEntryId: null,
+          retryBundleId: null
         }
       ]
     });
   });
 
-  it("renders Programmers synced records with commit and file actions", () => {
+  it("renders Programmers synced entries with commit and file actions", () => {
     const model = createToastModel({
       status: "synced",
-      syncHistoryEntry: makeProgrammersRecord({
+      syncHistoryEntry: makeProgrammersSyncHistoryEntry({
         status: "synced",
         commitUrl: "https://github.example/programmers-commit",
         fileUrl: "https://github.example/programmers-file"
@@ -145,17 +148,20 @@ describe("content toast model", () => {
         {
           action: "open_commit",
           label: "Commit",
-          recordId: "record-1"
+          syncHistoryEntryId: "entry-1",
+          retryBundleId: null
         },
         {
           action: "open_file",
           label: "File",
-          recordId: "record-1"
+          syncHistoryEntryId: "entry-1",
+          retryBundleId: null
         },
         {
           action: "dismiss",
           label: "Dismiss",
-          recordId: null
+          syncHistoryEntryId: null,
+          retryBundleId: null
         }
       ]
     });
@@ -164,7 +170,7 @@ describe("content toast model", () => {
   it("maps unsupported language status to a localized auto-dismiss toast", () => {
     const model = createToastModel({
       status: "unsupported_language",
-      syncHistoryEntry: makeRecord({
+      syncHistoryEntry: makeSyncHistoryEntry({
         status: "unsupported_language",
         language: "JavaScript",
         supportedLanguage: null
@@ -185,7 +191,7 @@ describe("content toast model", () => {
   it("renders Programmers extraction failures without retry actions", () => {
     const model = createToastModel({
       status: "failed",
-      syncHistoryEntry: makeProgrammersRecord({
+      syncHistoryEntry: makeProgrammersSyncHistoryEntry({
         status: "failed",
         error: error(
           "programmers_extract_failed",
@@ -207,10 +213,10 @@ describe("content toast model", () => {
     });
   });
 
-  it("falls back to the platform label for incomplete Programmers records", () => {
+  it("falls back to the platform label for incomplete Programmers entries", () => {
     const model = createToastModel({
       status: "failed",
-      syncHistoryEntry: makeProgrammersRecord({
+      syncHistoryEntry: makeProgrammersSyncHistoryEntry({
         titleSlug: "",
         problemTitle: null,
         problemFrontendId: null,
@@ -231,7 +237,7 @@ describe("content toast model", () => {
 
     const syncing = createToastModel({
       status: "syncing",
-      syncHistoryEntry: makeProgrammersRecord({
+      syncHistoryEntry: makeProgrammersSyncHistoryEntry({
         titleSlug: "",
         problemTitle: null,
         problemFrontendId: null
@@ -245,7 +251,7 @@ describe("content toast model", () => {
   it("uses short user-facing errors without debug detail", () => {
     const model = createToastModel({
       status: "failed",
-      syncHistoryEntry: makeRecord({
+      syncHistoryEntry: makeSyncHistoryEntry({
         status: "failed",
         error: error("github_commit_failed", "GitHub commit failed.", "stack trace")
       }),
@@ -263,10 +269,10 @@ describe("content toast model", () => {
     ]);
   });
 
-  it("shows Retry only when a failed record has a retry payload", () => {
+  it("shows Retry only when a failed entry has a Retry Bundle", () => {
     const retryable = createToastModel({
       status: "failed",
-      syncHistoryEntry: makeRecord({
+      syncHistoryEntry: makeSyncHistoryEntry({
         status: "failed",
         retryBundleId: "retry-1",
         error: error("github_commit_failed", "GitHub commit failed.")
@@ -275,7 +281,7 @@ describe("content toast model", () => {
     }, "ko");
     const noPayload = createToastModel({
       status: "failed",
-      syncHistoryEntry: makeRecord({
+      syncHistoryEntry: makeSyncHistoryEntry({
         status: "failed",
         retryBundleId: null,
         error: error("github_commit_failed", "GitHub commit failed.")
@@ -287,13 +293,15 @@ describe("content toast model", () => {
       {
         action: "retry",
         label: "재시도",
-        recordId: "record-1",
+        syncHistoryEntryId: "entry-1",
+        retryBundleId: "retry-1",
         primary: true
       },
       {
         action: "open_options",
         label: "Options 열기",
-        recordId: null,
+        syncHistoryEntryId: null,
+        retryBundleId: null,
         primary: false
       }
     ]);
@@ -307,9 +315,9 @@ describe("content toast model", () => {
   });
 });
 
-function makeRecord(overrides: Partial<SyncHistoryEntry>): SyncHistoryEntry {
+function makeSyncHistoryEntry(overrides: Partial<SyncHistoryEntry>): SyncHistoryEntry {
   return {
-    id: "record-1",
+    id: "entry-1",
     codingPlatform: "leetcode",
     status: "syncing",
     titleSlug: "two-sum",
@@ -337,8 +345,10 @@ function makeRecord(overrides: Partial<SyncHistoryEntry>): SyncHistoryEntry {
   };
 }
 
-function makeProgrammersRecord(overrides: Partial<SyncHistoryEntry>): SyncHistoryEntry {
-  return makeRecord({
+function makeProgrammersSyncHistoryEntry(
+  overrides: Partial<SyncHistoryEntry>
+): SyncHistoryEntry {
+  return makeSyncHistoryEntry({
     codingPlatform: "programmers",
     titleSlug: "120804_두_수의_곱_구하기",
     problemTitle: "두 수의 곱 구하기",

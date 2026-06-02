@@ -8,15 +8,15 @@ import {
 import { getSetupStatusView } from "./index";
 
 describe("popup index owner repository copy", () => {
-  it("asks users to choose an owned repository", () => {
+  it("asks users to choose a Sync Repository", () => {
     expect(
       getSetupStatusView({
         ...makePublicSettings(),
         syncRepository: null
       })
     ).toMatchObject({
-      label: "Repository required",
-      detail: "Open Options and choose an owned repository.",
+      label: "Sync Repository required",
+      detail: "Open Options and choose a Sync Repository.",
       tone: "warning"
     });
   });

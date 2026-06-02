@@ -130,12 +130,32 @@ describe("runtime message contracts", () => {
       type: "content:toast_action",
       payload: {
         action: "retry",
-        recordId: "record-1"
+        syncHistoryEntryId: "entry-1",
+        retryBundleId: "retry-1"
       }
     };
 
     expect(isRuntimeMessage(message)).toBe(true);
     expect(JSON.stringify(message)).not.toContain("class Solution");
+  });
+
+  it("normalizes legacy content toast action entry ids", () => {
+    expect(
+      normalizeRuntimeMessage({
+        type: "content:toast_action",
+        payload: {
+          action: "open_commit",
+          recordId: "entry-1"
+        }
+      })
+    ).toEqual({
+      type: "content:toast_action",
+      payload: {
+        action: "open_commit",
+        syncHistoryEntryId: "entry-1",
+        retryBundleId: null
+      }
+    });
   });
 
   it("rejects runtime messages with secret-bearing payload keys", () => {

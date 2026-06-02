@@ -5,9 +5,9 @@ import {
   STORAGE_SCHEMA_VERSION,
   type NormalizedError,
   type PublicSettingsState,
-  type RepositoryRef,
   type RetryBundleSummary,
-  type SyncHistoryEntry
+  type SyncHistoryEntry,
+  type SyncRepository
 } from "../shared";
 import {
   buildHistoryDisplayModel,
@@ -17,12 +17,12 @@ import {
 } from "./index";
 
 describe("popup state helpers", () => {
-  it("sorts history records newest first for display", () => {
-    const older = makeRecord({
+  it("sorts Sync History entries newest first for display", () => {
+    const older = makeSyncHistoryEntry({
       id: "older",
       updatedAt: "2026-01-01T00:00:00.000Z"
     });
-    const newer = makeRecord({
+    const newer = makeSyncHistoryEntry({
       id: "newer",
       updatedAt: "2026-01-01T00:03:00.000Z"
     });
@@ -46,8 +46,8 @@ describe("popup state helpers", () => {
     });
   });
 
-  it("shows retry only when the failed item still has a saved retry payload", () => {
-    const failed = makeRecord({
+  it("shows retry only when the failed item still has a saved Retry Bundle", () => {
+    const failed = makeSyncHistoryEntry({
       id: "failed",
       status: "failed",
       retryBundleId: "retry-1",
@@ -64,8 +64,8 @@ describe("popup state helpers", () => {
   });
 
   it("shows the platform label for Programmers history items", () => {
-    const programmers = makeProgrammersRecord({
-      id: "programmers-record",
+    const programmers = makeProgrammersSyncHistoryEntry({
+      id: "programmers-entry",
       updatedAt: "2026-01-01T00:03:00.000Z"
     });
 
@@ -94,7 +94,7 @@ describe("popup state helpers", () => {
   });
 
   it("maps failure detail to summary and technical lines", () => {
-    const failed = makeRecord({
+    const failed = makeSyncHistoryEntry({
       status: "failed",
       retryBundleId: null,
       error: {
@@ -108,7 +108,7 @@ describe("popup state helpers", () => {
       detailLines: [
         "Code: github_branch_protected",
         "Detail: Protected branch update rejected.",
-        "Retry payload is unavailable. Check Options or submit again."
+        "Retry Bundle is unavailable. Check Options or submit again."
       ]
     });
   });
@@ -121,7 +121,7 @@ describe("popup state helpers", () => {
       },
       "ko"
     );
-    const failed = makeProgrammersRecord({
+    const failed = makeProgrammersSyncHistoryEntry({
       status: "failed",
       retryBundleId: null,
       updatedAt: "2026-01-01T00:03:00.000Z",
@@ -141,8 +141,8 @@ describe("popup state helpers", () => {
     );
 
     expect(setup).toMatchObject({
-      label: "저장소 필요",
-      detail: "Options에서 본인 저장소를 선택하세요.",
+      label: "Sync Repository 필요",
+      detail: "Options에서 Sync Repository를 선택하세요.",
       tone: "warning"
     });
     expect(model.items[0]).toMatchObject({
@@ -153,14 +153,14 @@ describe("popup state helpers", () => {
         detailLines: [
           "Code: programmers_extract_failed",
           "Detail: textarea#code value is empty.",
-          "Commit payload가 생성되지 않아 재시도할 수 없습니다."
+          "GitHub commit 데이터가 생성되지 않아 재시도할 수 없습니다."
         ]
       }
     });
   });
 
   it("marks Programmers extraction failures as not retryable", () => {
-    const failed = makeProgrammersRecord({
+    const failed = makeProgrammersSyncHistoryEntry({
       status: "failed",
       retryBundleId: null,
       error: makeError(
@@ -178,14 +178,14 @@ describe("popup state helpers", () => {
         summary: "Could not read the Programmers editor code.",
         detailLines: [
           "Code: programmers_extract_failed",
-          "Retry is unavailable because no commit payload was created."
+          "Retry is unavailable because no GitHub commit data was created."
         ]
       }
     });
   });
 
   it("explains unsupported language items without offering GitHub links", () => {
-    const unsupported = makeRecord({
+    const unsupported = makeSyncHistoryEntry({
       status: "unsupported_language",
       language: "Java",
       supportedLanguage: null,
@@ -220,8 +220,8 @@ describe("popup state helpers", () => {
         syncRepository: null
       })
     ).toMatchObject({
-      label: "Repository required",
-      detail: "Open Options and choose an owned repository.",
+      label: "Sync Repository required",
+      detail: "Open Options and choose a Sync Repository.",
       tone: "warning"
     });
 
@@ -251,11 +251,13 @@ describe("popup state helpers", () => {
   });
 });
 
-function makeRecord(overrides: Partial<SyncHistoryEntry> = {}): SyncHistoryEntry {
+function makeSyncHistoryEntry(
+  overrides: Partial<SyncHistoryEntry> = {}
+): SyncHistoryEntry {
   const timestamp = "2026-01-01T00:00:00.000Z";
 
   return {
-    id: "record-1",
+    id: "entry-1",
     codingPlatform: "leetcode",
     status: "synced",
     titleSlug: "two-sum",
@@ -300,8 +302,10 @@ function makeRetryBundleSummary(id: string): RetryBundleSummary {
   };
 }
 
-function makeProgrammersRecord(overrides: Partial<SyncHistoryEntry> = {}): SyncHistoryEntry {
-  return makeRecord({
+function makeProgrammersSyncHistoryEntry(
+  overrides: Partial<SyncHistoryEntry> = {}
+): SyncHistoryEntry {
+  return makeSyncHistoryEntry({
     codingPlatform: "programmers",
     titleSlug: "120804_두_수의_곱_구하기",
     problemTitle: "두 수의 곱 구하기",
@@ -355,7 +359,7 @@ function makePublicSettings(): PublicSettingsState {
   };
 }
 
-const syncRepository: RepositoryRef = {
+const syncRepository: SyncRepository = {
   owner: "octo",
   name: "algorithms",
   fullName: "octo/algorithms",

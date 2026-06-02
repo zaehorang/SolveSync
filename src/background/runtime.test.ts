@@ -133,7 +133,8 @@ describe("background runtime", () => {
         type: "content:toast_action",
         payload: {
           action: "retry",
-          recordId: "record-1"
+          syncHistoryEntryId: null,
+          retryBundleId: "retry-1"
         }
       },
       {
@@ -166,7 +167,8 @@ describe("background runtime", () => {
       type: "content:toast_action",
       payload: {
         action: "retry",
-        recordId: "record-1"
+        syncHistoryEntryId: "record-1",
+        retryBundleId: null
       }
     });
 
