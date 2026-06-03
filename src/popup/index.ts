@@ -535,6 +535,7 @@ function createLanguageBadge(language: string): HTMLSpanElement {
   const badge = document.createElement("span");
   badge.className = "language-badge";
   badge.textContent = language;
+  badge.title = language;
 
   return badge;
 }

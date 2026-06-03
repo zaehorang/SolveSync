@@ -60,6 +60,10 @@ npm run build
 2. 긴 repository 이름, 긴 branch 이름, 긴 문제 제목이 Popup 380px 폭에서 horizontal scroll이나 겹침 없이 줄바꿈되는지 확인한다.
 3. LeetCode와 Programmers 문제 페이지에서 toast가 오른쪽 아래에 표시되고 좁은 viewport에서도 화면 safe margin 안에 들어오는지 확인한다.
 4. toast의 Setup required, Syncing, Synced, Failed 상태에서 버튼 text와 link가 잘리지 않는지 확인한다.
+5. Options page의 GitHub Connection section이 PAT, Sync Repository, Sync Branch, Connection test의 4단계 설정 흐름으로 보이고, 긴 form을 스크롤해도 Save controls에 접근할 수 있는지 확인한다.
+6. Popup Sync History에서 같은 Coding Platform의 같은 문제에 대한 Swift/Python3 항목이 한 카드로 묶이고, language badge와 status badge text가 `Sync/ed`처럼 깨지지 않는지 확인한다.
+7. Popup Sync History에서 Commit/File은 link로, Details/Retry는 button으로 표시되는지 확인한다.
+8. 실패 Sync History 항목이 Retry 가능하면 Retry button을 보여주고, Retry Bundle이 없거나 retry 불가이면 다음 행동 안내를 보여주는지 확인한다.
 
 ## LeetCode Successful Sync Flow
 1. Auto Sync를 켠다.

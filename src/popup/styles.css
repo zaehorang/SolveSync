@@ -472,6 +472,9 @@ a:focus-visible {
   font-size: var(--ss-badge-pill-font-size);
   font-weight: var(--ss-badge-pill-font-weight);
   line-height: var(--ss-badge-pill-line-height);
+  overflow: hidden;
+  overflow-wrap: normal;
+  text-overflow: ellipsis;
   white-space: var(--ss-badge-pill-white-space);
 }
 
