@@ -42,7 +42,8 @@
     },
     {
       "dir": "8-ui-hierarchy-polish",
-      "status": "pending"
+      "status": "completed",
+      "completed_at": "2026-06-04T00:54:16+0900"
     }
   ]
 }
