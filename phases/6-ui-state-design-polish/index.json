@@ -21,7 +21,10 @@
     {
       "step": 2,
       "name": "popup-history-recovery",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-06-03T23:32:11+0900",
+      "summary": "Popup history grouping, no-wrap status badges, retry recovery affordances, and link/button distinction added",
+      "completed_at": "2026-06-03T23:36:47+0900"
     },
     {
       "step": 3,
