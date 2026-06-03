@@ -37,7 +37,8 @@
     },
     {
       "dir": "7-popup-operational-polish",
-      "status": "pending"
+      "status": "completed",
+      "completed_at": "2026-06-03T23:53:14+0900"
     }
   ]
 }
