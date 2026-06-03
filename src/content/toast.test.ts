@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { NormalizedError } from "../shared/errors";
 import type { SyncHistoryEntry } from "../shared/types";
-import { createToastModel } from "./toast";
+import { CONTENT_TOAST_CSS, createToastModel } from "./toast";
 
 describe("content toast model", () => {
   it("maps setup required status to a localized Options action", () => {
@@ -73,6 +73,7 @@ describe("content toast model", () => {
 
     expect(syncing).toMatchObject({
       state: "syncing",
+      semanticTone: "progress",
       title: "Syncing to GitHub...",
       detail: "Two Sum in Swift",
       tone: "neutral",
@@ -81,6 +82,7 @@ describe("content toast model", () => {
     });
     expect(retrying).toMatchObject({
       state: "retrying",
+      semanticTone: "progress",
       title: "Sync 재시도 중...",
       detail: "두 수의 곱 구하기, Swift",
       tone: "neutral",
@@ -102,6 +104,7 @@ describe("content toast model", () => {
 
     expect(model).toMatchObject({
       state: "synced",
+      semanticTone: "success",
       title: "Synced to GitHub",
       tone: "success",
       autoDismissMs: 5000,
@@ -206,6 +209,7 @@ describe("content toast model", () => {
 
     expect(model).toMatchObject({
       state: "failed",
+      semanticTone: "failed",
       title: "Sync failed",
       detail: "Could not read the Programmers editor code.",
       tone: "error",
@@ -312,6 +316,17 @@ describe("content toast model", () => {
         primary: true
       }
     ]);
+  });
+
+  it("keeps toast Shadow DOM styles aligned with semantic state affordances", () => {
+    expect(CONTENT_TOAST_CSS).toContain("--ss-state-progress-bg");
+    expect(CONTENT_TOAST_CSS).toContain("--ss-state-failed-bg");
+    expect(CONTENT_TOAST_CSS).toContain('data-semantic-tone="progress"');
+    expect(CONTENT_TOAST_CSS).toContain(".status-mark.is-busy::before");
+    expect(CONTENT_TOAST_CSS).toContain("-webkit-line-clamp: 2");
+    expect(CONTENT_TOAST_CSS).toContain("white-space: nowrap");
+    expect(CONTENT_TOAST_CSS).toContain(".close::before");
+    expect(CONTENT_TOAST_CSS).toContain("@media (prefers-reduced-motion: reduce)");
   });
 });
 
