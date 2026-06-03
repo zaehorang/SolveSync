@@ -434,10 +434,22 @@ describe("popup state helpers", () => {
     });
   });
 
-  it("keeps sticky status and batch recovery CSS contracts", () => {
+  it("keeps non-overlapping top controls and batch recovery CSS contracts", () => {
     const css = readFileSync(new URL("./styles.css", import.meta.url), "utf8");
+    const statusCardRule = css.match(/\.status-card\s*\{[^}]*\}/s)?.[0] ?? "";
 
-    expect(css).toMatch(/\.status-card\s*\{[^}]*position:\s*sticky/s);
+    expect(statusCardRule).toContain("position: static");
+    expect(css).not.toContain("position: sticky");
+    expect(css).toMatch(/body\s*\{[^}]*overflow-x:\s*hidden/s);
+    expect(css).not.toContain("100vw");
+    expect(css).toContain(".controls-panel");
+    expect(css).toContain(".popup-switch-row");
+    expect(css).toContain(".popup-switch-control");
+    expect(css).toMatch(
+      /\.popup-switch-row input:checked \+ \.popup-switch-control\s*\{/s
+    );
+    expect(css).toMatch(/\.summary-row\s*\{[^}]*min-width:\s*0/s);
+    expect(css).toMatch(/\.summary-row dd\s*\{[^}]*min-width:\s*0/s);
     expect(css).toContain(".history-problem-group");
     expect(css).toContain(".history-problem-header");
     expect(css).toContain(".history-entry-list");
@@ -448,6 +460,17 @@ describe("popup state helpers", () => {
     expect(css).toContain(".history-batch-list");
     expect(css).toContain(".history-error-batch");
     expect(css).toContain(".history-retry-all-button");
+  });
+
+  it("keeps Auto Sync as a native checkbox wrapped by its label", () => {
+    const html = readFileSync(new URL("./index.html", import.meta.url), "utf8");
+
+    expect(html).toMatch(
+      /<label class="popup-switch-row" for="auto-sync-toggle">[\s\S]*<input id="auto-sync-toggle" type="checkbox" \/>/
+    );
+    expect(html).toContain(
+      '<span class="popup-switch-control" aria-hidden="true"></span>'
+    );
   });
 
   it("summarizes setup state from public settings", () => {
