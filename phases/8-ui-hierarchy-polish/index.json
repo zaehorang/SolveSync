@@ -5,7 +5,10 @@
     {
       "step": 0,
       "name": "popup-history-hierarchy",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-06-04T00:36:30+0900",
+      "summary": "Popup history duplicates removed and problem/entry hierarchy clarified",
+      "completed_at": "2026-06-04T00:40:06+0900"
     },
     {
       "step": 1,
@@ -23,5 +26,6 @@
       "status": "pending",
       "timeout_sec": 3600
     }
-  ]
+  ],
+  "created_at": "2026-06-04T00:36:30+0900"
 }
