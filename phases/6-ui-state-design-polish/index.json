@@ -37,8 +37,11 @@
     {
       "step": 4,
       "name": "integration-qa",
-      "status": "pending",
-      "timeout_sec": 3600
+      "status": "completed",
+      "timeout_sec": 3600,
+      "started_at": "2026-06-03T23:40:22+0900",
+      "summary": "Integration QA completed for design tokens, Options flow, Popup recovery history, and content toast polish",
+      "completed_at": "2026-06-03T23:43:26+0900"
     }
   ],
   "created_at": "2026-06-03T23:24:00+0900"
