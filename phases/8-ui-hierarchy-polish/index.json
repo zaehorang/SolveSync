@@ -1,0 +1,27 @@
+{
+  "project": "SolveSync",
+  "phase": "8-ui-hierarchy-polish",
+  "steps": [
+    {
+      "step": 0,
+      "name": "popup-history-hierarchy",
+      "status": "pending"
+    },
+    {
+      "step": 1,
+      "name": "popup-top-controls",
+      "status": "pending"
+    },
+    {
+      "step": 2,
+      "name": "options-save-panel",
+      "status": "pending"
+    },
+    {
+      "step": 3,
+      "name": "integration-qa",
+      "status": "pending",
+      "timeout_sec": 3600
+    }
+  ]
+}
