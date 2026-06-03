@@ -415,7 +415,7 @@ a:focus-visible {
 
 .history-list {
   display: grid;
-  gap: 0;
+  gap: 8px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -423,13 +423,23 @@ a:focus-visible {
 
 .history-item {
   min-width: 0;
-  border-top: 1px solid var(--ss-hairline);
-  padding: 10px 0;
+  border: 1px solid var(--ss-hairline);
+  border-radius: 8px;
+  padding: 10px;
+  background: rgb(255 255 255 / 0.54);
 }
 
 .history-item:first-child {
-  border-top: 0;
-  padding-top: 2px;
+  padding-top: 10px;
+}
+
+.history-problem-group {
+  box-shadow: 0 6px 18px rgb(15 23 42 / 0.04);
+}
+
+.history-problem-header {
+  border-bottom: 1px solid var(--ss-hairline);
+  padding-bottom: 8px;
 }
 
 .history-title-block {
@@ -450,17 +460,12 @@ a:focus-visible {
   line-height: 1.35;
 }
 
-.language-badge-row,
 .history-entry-summary {
   display: flex;
   min-width: 0;
   align-items: center;
   flex-wrap: wrap;
   gap: 6px;
-}
-
-.language-badge-row {
-  margin-top: 8px;
 }
 
 .language-badge {
@@ -484,7 +489,7 @@ a:focus-visible {
 
 .history-entry-list {
   display: grid;
-  gap: 8px;
+  gap: 0;
   margin-top: 8px;
 }
 
@@ -523,7 +528,8 @@ a:focus-visible {
 .history-entry-row {
   min-width: 0;
   border-top: 1px solid var(--ss-hairline);
-  padding-top: 8px;
+  border-left: 2px solid transparent;
+  padding: 8px 0 0 8px;
 }
 
 .history-entry-row:first-child {
@@ -532,11 +538,23 @@ a:focus-visible {
 }
 
 .history-entry-row.progress {
-  border-color: var(--ss-state-progress-border);
+  border-left-color: var(--ss-state-progress-border);
 }
 
 .history-entry-row.failed {
-  border-color: var(--ss-state-failed-border);
+  border-left-color: var(--ss-state-failed-border);
+}
+
+.history-sync-entry.success {
+  border-left-color: var(--ss-state-success-border);
+}
+
+.history-sync-entry.warning {
+  border-left-color: var(--ss-state-warning-border);
+}
+
+.history-sync-entry.disabled {
+  border-left-color: var(--ss-state-disabled-border);
 }
 
 .history-entry-summary {
@@ -620,15 +638,33 @@ a:focus-visible {
   margin-top: 8px;
 }
 
+.history-entry-actions {
+  align-items: center;
+}
+
 .history-link {
+  display: inline-flex;
+  min-height: 32px;
+  align-items: center;
+  border: 1px solid var(--ss-hairline);
+  border-radius: 999px;
+  padding: 5px 10px;
+  background: rgb(255 255 255 / 0.68);
   color: var(--ss-accent);
   font-size: 0.8125rem;
   font-weight: 700;
+  line-height: 1.2;
   text-decoration: none;
   white-space: nowrap;
 }
 
+.history-link-pill {
+  max-width: 100%;
+}
+
 .history-link:hover {
+  border-color: rgb(37 99 235 / 0.3);
+  background: rgb(219 234 254 / 0.55);
   text-decoration: underline;
 }
 
