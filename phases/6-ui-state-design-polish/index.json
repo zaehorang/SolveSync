@@ -1,0 +1,32 @@
+{
+  "project": "SolveSync",
+  "phase": "6-ui-state-design-polish",
+  "steps": [
+    {
+      "step": 0,
+      "name": "semantic-ui-tokens",
+      "status": "pending"
+    },
+    {
+      "step": 1,
+      "name": "options-setup-flow",
+      "status": "pending"
+    },
+    {
+      "step": 2,
+      "name": "popup-history-recovery",
+      "status": "pending"
+    },
+    {
+      "step": 3,
+      "name": "content-toast-polish",
+      "status": "pending"
+    },
+    {
+      "step": 4,
+      "name": "integration-qa",
+      "status": "pending",
+      "timeout_sec": 3600
+    }
+  ]
+}

@@ -29,6 +29,10 @@
       "dir": "5-domain-naming-migration",
       "status": "completed",
       "completed_at": "2026-06-02T16:41:42+0900"
+    },
+    {
+      "dir": "6-ui-state-design-polish",
+      "status": "pending"
     }
   ]
 }
