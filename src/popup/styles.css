@@ -108,9 +108,13 @@ h3 {
 
 .status-card {
   display: grid;
+  position: sticky;
+  top: 8px;
+  z-index: 2;
   grid-template-columns: 34px minmax(0, 1fr);
   gap: 10px;
   padding: 12px;
+  min-width: 0;
 }
 
 .status-card.neutral {
@@ -482,6 +486,38 @@ a:focus-visible {
   display: grid;
   gap: 8px;
   margin-top: 8px;
+}
+
+.history-batch-list {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.history-error-batch {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+  border: 1px solid var(--ss-state-failed-border);
+  border-radius: 6px;
+  padding: 8px;
+  background: var(--ss-state-failed-bg);
+}
+
+.history-error-batch-summary {
+  min-width: 0;
+  margin: 0;
+  color: var(--ss-state-failed-fg);
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.history-retry-all-button {
+  justify-self: end;
 }
 
 .history-entry-row {

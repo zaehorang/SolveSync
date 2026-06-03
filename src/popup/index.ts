@@ -67,10 +67,19 @@ export interface PopupHistoryItem {
   commitUrl: string | null;
   fileUrl: string | null;
   failure: FailureDetailView | null;
+  failureCode: NormalizedError["code"] | null;
   unsupportedReason: string | null;
   recoveryHint: string | null;
   retryBundleId: string | null;
   canRetry: boolean;
+}
+
+export interface PopupHistoryBatch {
+  id: string;
+  count: number;
+  summary: string;
+  retryBundleIds: string[];
+  entryIds: string[];
 }
 
 export interface PopupHistoryGroup {
@@ -80,6 +89,7 @@ export interface PopupHistoryGroup {
   meta: string;
   languageBadges: string[];
   tone: SemanticStateTone;
+  errorBatches: PopupHistoryBatch[];
   entries: PopupHistoryItem[];
 }
 
@@ -171,7 +181,7 @@ export function buildHistoryDisplayModel(
 
   return {
     items,
-    groups: groupHistoryItems(items),
+    groups: groupHistoryItems(items, locale),
     entryCount: items.length,
     emptyText: t(locale, "history.empty")
   };
@@ -372,6 +382,62 @@ async function retrySync(
   }
 }
 
+async function retryAllSync(
+  elements: PopupElements,
+  state: PopupRuntimeState,
+  retryBundleIds: string[]
+): Promise<void> {
+  const uniqueRetryBundleIds = [...new Set(retryBundleIds)];
+
+  if (uniqueRetryBundleIds.length === 0) {
+    return;
+  }
+
+  for (const retryBundleId of uniqueRetryBundleIds) {
+    state.retryingBundleIds.add(retryBundleId);
+  }
+
+  state.message = localizedMessage("toast.retryingTitle", "neutral");
+  render(elements, state);
+
+  let firstError: NormalizedError | null = null;
+
+  try {
+    for (const retryBundleId of uniqueRetryBundleIds) {
+      const response = await sendRuntimeMessage<unknown>({
+        type: "sync:retry",
+        payload: {
+          retryBundleId
+        }
+      });
+
+      if (!response.ok && firstError === null) {
+        firstError = response.error;
+      }
+    }
+
+    await refreshPopupData(elements, state);
+
+    if (firstError !== null) {
+      state.message = {
+        text: firstError.userMessage,
+        tone: "error"
+      };
+    }
+  } catch (error) {
+    state.message = {
+      text: normalizeError(error).userMessage,
+      tone: "error"
+    };
+  } finally {
+    for (const retryBundleId of uniqueRetryBundleIds) {
+      state.retryingBundleIds.delete(retryBundleId);
+    }
+
+    render(elements, state);
+  }
+}
+
 function render(elements: PopupElements, state: PopupRuntimeState): void {
   const locale = getPopupLocale(state.settings);
   document.documentElement.lang = locale;
@@ -461,6 +527,17 @@ function createHistoryGroupElement(
   );
   entry.append(languageBadges);
 
+  if (group.errorBatches.length > 0) {
+    const batchList = document.createElement("div");
+    batchList.className = "history-batch-list";
+    batchList.append(
+      ...group.errorBatches.map((batch) =>
+        createHistoryErrorBatchElement(elements, state, batch, locale)
+      )
+    );
+    entry.append(batchList);
+  }
+
   const entryList = document.createElement("div");
   entryList.className = "history-entry-list";
   entryList.append(
@@ -471,6 +548,37 @@ function createHistoryGroupElement(
   entry.append(entryList);
 
   return entry;
+}
+
+function createHistoryErrorBatchElement(
+  elements: PopupElements,
+  state: PopupRuntimeState,
+  batch: PopupHistoryBatch,
+  locale: UiLocale
+): HTMLDivElement {
+  const panel = document.createElement("div");
+  panel.className = "history-error-batch";
+
+  const summary = document.createElement("p");
+  summary.className = "history-error-batch-summary";
+  summary.textContent = batch.summary;
+
+  const retrying = batch.retryBundleIds.some((retryBundleId) =>
+    state.retryingBundleIds.has(retryBundleId)
+  );
+  const retryButton = document.createElement("button");
+  retryButton.className = "button primary compact history-retry-all-button";
+  retryButton.type = "button";
+  retryButton.disabled = retrying;
+  retryButton.textContent = retrying
+    ? t(locale, "status.retrying")
+    : t(locale, "action.retryAll");
+  retryButton.addEventListener("click", () => {
+    void retryAllSync(elements, state, batch.retryBundleIds);
+  });
+
+  panel.append(summary, retryButton);
+  return panel;
 }
 
 function createHistoryEntryRow(
@@ -668,6 +776,10 @@ function toHistoryItem(
     commitUrl: syncHistoryEntry.commitUrl,
     fileUrl: syncHistoryEntry.fileUrl,
     failure,
+    failureCode:
+      syncHistoryEntry.status === "failed"
+        ? syncHistoryEntry.error?.code ?? null
+        : null,
     unsupportedReason:
       syncHistoryEntry.status === "unsupported_language"
         ? getUnsupportedLanguageReason(locale)
@@ -683,7 +795,10 @@ function toHistoryItem(
   };
 }
 
-function groupHistoryItems(items: PopupHistoryItem[]): PopupHistoryGroup[] {
+function groupHistoryItems(
+  items: PopupHistoryItem[],
+  locale: UiLocale
+): PopupHistoryGroup[] {
   const groups: PopupHistoryGroup[] = [];
   const groupsByKey = new Map<string, PopupHistoryGroup>();
 
@@ -698,6 +813,7 @@ function groupHistoryItems(items: PopupHistoryItem[]): PopupHistoryGroup[] {
         meta: getHistoryGroupMeta(item),
         languageBadges: [],
         tone: item.tone,
+        errorBatches: [],
         entries: []
       };
 
@@ -718,7 +834,86 @@ function groupHistoryItems(items: PopupHistoryItem[]): PopupHistoryGroup[] {
     }
   }
 
+  for (const group of groups) {
+    group.errorBatches = buildHistoryErrorBatches(group, locale);
+  }
+
   return groups;
+}
+
+function buildHistoryErrorBatches(
+  group: PopupHistoryGroup,
+  locale: UiLocale
+): PopupHistoryBatch[] {
+  const batches: PopupHistoryBatch[] = [];
+  let currentItems: PopupHistoryItem[] = [];
+
+  const flushCurrentBatch = (): void => {
+    if (currentItems.length < 2) {
+      currentItems = [];
+      return;
+    }
+
+    const firstItem = currentItems[0];
+    const summary = firstItem?.failure?.summary ?? "";
+
+    batches.push({
+      id: `${group.id}:error-batch:${batches.length}`,
+      count: currentItems.length,
+      summary: t(locale, "history.retryBatchSummary", {
+        count: currentItems.length,
+        summary
+      }),
+      retryBundleIds: currentItems
+        .map((item) => item.retryBundleId)
+        .filter((retryBundleId): retryBundleId is string => retryBundleId !== null),
+      entryIds: currentItems.map((item) => item.id)
+    });
+
+    currentItems = [];
+  };
+
+  for (const item of group.entries) {
+    if (!isRetryableBatchItem(item)) {
+      flushCurrentBatch();
+      continue;
+    }
+
+    const firstItem = currentItems[0];
+
+    if (firstItem === undefined || hasSameBatchFailure(firstItem, item)) {
+      currentItems.push(item);
+      continue;
+    }
+
+    flushCurrentBatch();
+    currentItems.push(item);
+  }
+
+  flushCurrentBatch();
+
+  return batches;
+}
+
+function isRetryableBatchItem(item: PopupHistoryItem): boolean {
+  return (
+    item.status === "failed" &&
+    item.canRetry &&
+    item.retryBundleId !== null &&
+    item.failure !== null &&
+    item.failureCode !== null
+  );
+}
+
+function hasSameBatchFailure(
+  left: PopupHistoryItem,
+  right: PopupHistoryItem
+): boolean {
+  return (
+    left.failureCode !== null &&
+    left.failureCode === right.failureCode &&
+    left.failure?.summary === right.failure?.summary
+  );
 }
 
 function getHistoryGroupMeta(item: PopupHistoryItem): string {

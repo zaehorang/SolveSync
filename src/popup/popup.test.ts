@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+
 import { describe, expect, it } from "vitest";
 
 import {
@@ -66,6 +68,126 @@ describe("popup state helpers", () => {
     );
     expect(withPayload.items[0]?.canRetry).toBe(true);
     expect(withPayload.items[0]?.recoveryHint).toBeNull();
+  });
+
+  it("batches adjacent retryable failures with the same error code and summary in a problem group", () => {
+    const newerFailure = makeSyncHistoryEntry({
+      id: "newer-failure",
+      status: "failed",
+      updatedAt: "2026-01-01T00:04:00.000Z",
+      commitUrl: null,
+      fileUrl: null,
+      retryBundleId: "retry-newer",
+      error: makeError("github_commit_failed", "Could not commit the solution.")
+    });
+    const olderFailure = makeSyncHistoryEntry({
+      id: "older-failure",
+      status: "failed",
+      updatedAt: "2026-01-01T00:03:00.000Z",
+      commitUrl: null,
+      fileUrl: null,
+      retryBundleId: "retry-older",
+      error: makeError("github_commit_failed", "Could not commit the solution.")
+    });
+
+    const model = buildHistoryDisplayModel(
+      [olderFailure, newerFailure],
+      [makeRetryBundleSummary("retry-newer"), makeRetryBundleSummary("retry-older")],
+      Date.parse("2026-01-01T00:05:00.000Z")
+    );
+
+    expect(model.groups).toHaveLength(1);
+    expect(model.groups[0]?.errorBatches).toEqual([
+      {
+        id: "leetcode:1:error-batch:0",
+        count: 2,
+        summary: "2 failed · Could not commit the solution.",
+        retryBundleIds: ["retry-newer", "retry-older"],
+        entryIds: ["newer-failure", "older-failure"]
+      }
+    ]);
+  });
+
+  it("does not batch failures when error code, summary, or retryability differ", () => {
+    const sameSummaryDifferentCode = buildHistoryDisplayModel(
+      [
+        makeSyncHistoryEntry({
+          id: "commit-failure",
+          status: "failed",
+          updatedAt: "2026-01-01T00:04:00.000Z",
+          retryBundleId: "retry-commit",
+          error: makeError("github_commit_failed", "Shared failure.")
+        }),
+        makeSyncHistoryEntry({
+          id: "conflict-failure",
+          status: "failed",
+          updatedAt: "2026-01-01T00:03:00.000Z",
+          retryBundleId: "retry-conflict",
+          error: {
+            ...makeError("github_conflict_failed", "Shared failure."),
+            retryable: true
+          }
+        })
+      ],
+      [
+        makeRetryBundleSummary("retry-commit"),
+        makeRetryBundleSummary("retry-conflict")
+      ],
+      Date.parse("2026-01-01T00:05:00.000Z")
+    );
+    const differentSummary = buildHistoryDisplayModel(
+      [
+        makeSyncHistoryEntry({
+          id: "summary-a",
+          status: "failed",
+          updatedAt: "2026-01-01T00:04:00.000Z",
+          retryBundleId: "retry-summary-a",
+          error: makeError("github_commit_failed", "First failure.")
+        }),
+        makeSyncHistoryEntry({
+          id: "summary-b",
+          status: "failed",
+          updatedAt: "2026-01-01T00:03:00.000Z",
+          retryBundleId: "retry-summary-b",
+          error: makeError("github_commit_failed", "Second failure.")
+        })
+      ],
+      [
+        makeRetryBundleSummary("retry-summary-a"),
+        makeRetryBundleSummary("retry-summary-b")
+      ],
+      Date.parse("2026-01-01T00:05:00.000Z")
+    );
+    const unavailableRetry = buildHistoryDisplayModel(
+      [
+        makeSyncHistoryEntry({
+          id: "retryable",
+          status: "failed",
+          updatedAt: "2026-01-01T00:04:00.000Z",
+          retryBundleId: "retry-available",
+          error: makeError("github_commit_failed", "Shared failure.")
+        }),
+        makeSyncHistoryEntry({
+          id: "not-retryable",
+          status: "failed",
+          updatedAt: "2026-01-01T00:03:00.000Z",
+          retryBundleId: "retry-unavailable",
+          error: {
+            ...makeError("github_commit_failed", "Shared failure."),
+            retryable: false
+          }
+        })
+      ],
+      [
+        makeRetryBundleSummary("retry-available"),
+        makeRetryBundleSummary("retry-unavailable")
+      ],
+      Date.parse("2026-01-01T00:05:00.000Z")
+    );
+
+    expect(sameSummaryDifferentCode.groups[0]?.errorBatches).toEqual([]);
+    expect(differentSummary.groups[0]?.errorBatches).toEqual([]);
+    expect(unavailableRetry.groups[0]?.errorBatches).toEqual([]);
   });
 
   it("groups repeated same-platform problem entries while preserving language actions", () => {
@@ -286,6 +408,15 @@ describe("popup state helpers", () => {
       fileUrl: null,
       canRetry: false
     });
+  });
+
+  it("keeps sticky status and batch recovery CSS contracts", () => {
+    const css = readFileSync(new URL("./styles.css", import.meta.url), "utf8");
+
+    expect(css).toMatch(/\.status-card\s*\{[^}]*position:\s*sticky/s);
+    expect(css).toContain(".history-batch-list");
+    expect(css).toContain(".history-error-batch");
+    expect(css).toContain(".history-retry-all-button");
   });
 
   it("summarizes setup state from public settings", () => {
