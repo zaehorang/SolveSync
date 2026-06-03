@@ -34,6 +34,7 @@ describe("popup state helpers", () => {
     );
 
     expect(model.items.map((item) => item.id)).toEqual(["newer", "older"]);
+    expect(model.entryCount).toBe(2);
     expect(model.items[0]).toMatchObject({
       title: "1. Two Sum",
       platformLabel: "LeetCode",
@@ -60,7 +61,85 @@ describe("popup state helpers", () => {
     ]);
 
     expect(withoutPayload.items[0]?.canRetry).toBe(false);
+    expect(withoutPayload.items[0]?.recoveryHint).toBe(
+      "Retry Bundle is unavailable. Check Options or submit again."
+    );
     expect(withPayload.items[0]?.canRetry).toBe(true);
+    expect(withPayload.items[0]?.recoveryHint).toBeNull();
+  });
+
+  it("groups repeated same-platform problem entries while preserving language actions", () => {
+    const failedSwift = makeSyncHistoryEntry({
+      id: "swift-failed",
+      status: "failed",
+      updatedAt: "2026-01-01T00:04:00.000Z",
+      commitUrl: null,
+      fileUrl: null,
+      retryBundleId: "retry-1",
+      error: makeError("github_commit_failed", "Could not commit the solution.")
+    });
+    const syncedPython = makeSyncHistoryEntry({
+      id: "python-synced",
+      language: "Python3",
+      supportedLanguage: "python3",
+      solutionPath: "leetcode/python/0001_two_sum.py",
+      fileUrl:
+        "https://github.com/octo/algorithms/blob/main/leetcode/python/0001_two_sum.py",
+      syncDeduplicationKey: {
+        codingPlatform: "leetcode",
+        acceptedSourceId: "456",
+        titleSlug: "two-sum",
+        language: "python3"
+      },
+      updatedAt: "2026-01-01T00:03:00.000Z"
+    });
+
+    const model = buildHistoryDisplayModel(
+      [syncedPython, failedSwift],
+      [makeRetryBundleSummary("retry-1")],
+      Date.parse("2026-01-01T00:05:00.000Z")
+    );
+
+    expect(model.entryCount).toBe(2);
+    expect(model.items).toHaveLength(2);
+    expect(model.groups).toHaveLength(1);
+    expect(model.groups[0]).toMatchObject({
+      title: "1. Two Sum",
+      platformLabel: "LeetCode",
+      meta: "LeetCode / 1m ago / octo/algorithms@main",
+      languageBadges: ["Swift", "Python3"]
+    });
+    expect(model.groups[0]?.entries.map((entry) => entry.id)).toEqual([
+      "swift-failed",
+      "python-synced"
+    ]);
+    expect(model.groups[0]?.entries[0]).toMatchObject({
+      statusLabel: "Failed",
+      canRetry: true,
+      retryBundleId: "retry-1"
+    });
+    expect(model.groups[0]?.entries[1]).toMatchObject({
+      languageLabel: "Python3",
+      statusLabel: "Synced",
+      fileUrl:
+        "https://github.com/octo/algorithms/blob/main/leetcode/python/0001_two_sum.py"
+    });
+  });
+
+  it("keeps syncing and retrying history badges on the progress tone", () => {
+    const syncing = makeSyncHistoryEntry({
+      id: "syncing",
+      status: "syncing"
+    });
+    const retrying = makeSyncHistoryEntry({
+      id: "retrying",
+      status: "retrying",
+      updatedAt: "2026-01-01T00:01:00.000Z"
+    });
+
+    const model = buildHistoryDisplayModel([syncing, retrying], []);
+
+    expect(model.items.map((item) => item.tone)).toEqual(["progress", "progress"]);
   });
 
   it("shows the platform label for Programmers history items", () => {
@@ -174,6 +253,7 @@ describe("popup state helpers", () => {
     expect(model.items[0]).toMatchObject({
       statusLabel: "Failed",
       canRetry: false,
+      recoveryHint: "Retry is unavailable because no GitHub commit data was created.",
       failure: {
         summary: "Could not read the Programmers editor code.",
         detailLines: [

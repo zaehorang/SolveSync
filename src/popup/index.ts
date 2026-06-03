@@ -10,6 +10,7 @@ import {
   getSetupStatusView as getSharedSetupStatusView,
   getSyncHistoryEntryLanguageLabel,
   getSyncStatusLabel,
+  getSyncStatusSemanticTone,
   getSyncStatusTone,
   getUnsupportedLanguageReason,
   normalizeError,
@@ -21,6 +22,7 @@ import {
   type PublicSettingsState,
   type RetryBundleSummary,
   type RuntimeMessage,
+  type SemanticStateTone,
   type SetupStatusView,
   type SyncHistoryEntry,
   type SyncStatus,
@@ -51,24 +53,40 @@ export type PopupSetupStatusView = SetupStatusView;
 
 export interface PopupHistoryItem {
   id: string;
+  groupKey: string;
   status: SyncStatus;
   platformLabel: string;
   title: string;
   languageLabel: string;
   meta: string;
+  entryMeta: string;
+  targetLabel: string | null;
   timeLabel: string;
   statusLabel: string;
-  tone: Tone;
+  tone: SemanticStateTone;
   commitUrl: string | null;
   fileUrl: string | null;
   failure: FailureDetailView | null;
   unsupportedReason: string | null;
+  recoveryHint: string | null;
   retryBundleId: string | null;
   canRetry: boolean;
 }
 
+export interface PopupHistoryGroup {
+  id: string;
+  platformLabel: string;
+  title: string;
+  meta: string;
+  languageBadges: string[];
+  tone: SemanticStateTone;
+  entries: PopupHistoryItem[];
+}
+
 export interface PopupHistoryModel {
   items: PopupHistoryItem[];
+  groups: PopupHistoryGroup[];
+  entryCount: number;
   emptyText: string;
 }
 
@@ -153,6 +171,8 @@ export function buildHistoryDisplayModel(
 
   return {
     items,
+    groups: groupHistoryItems(items),
+    entryCount: items.length,
     emptyText: t(locale, "history.empty")
   };
 }
@@ -385,12 +405,12 @@ function render(elements: PopupElements, state: PopupRuntimeState): void {
   );
   elements.historyCount.textContent = t(
     locale,
-    model.items.length === 1 ? "history.countOne" : "history.count",
+    model.entryCount === 1 ? "history.countOne" : "history.count",
     {
-      count: model.items.length
+      count: model.entryCount
     }
   );
-  elements.historyEmpty.hidden = model.items.length > 0;
+  elements.historyEmpty.hidden = model.entryCount > 0;
   elements.historyEmpty.textContent = model.emptyText;
   renderHistoryList(elements, state, model, locale);
 }
@@ -402,18 +422,20 @@ function renderHistoryList(
   locale: UiLocale
 ): void {
   elements.historyList.replaceChildren(
-    ...model.items.map((item) => createHistoryElement(elements, state, item, locale))
+    ...model.groups.map((group) =>
+      createHistoryGroupElement(elements, state, group, locale)
+    )
   );
 }
 
-function createHistoryElement(
+function createHistoryGroupElement(
   elements: PopupElements,
   state: PopupRuntimeState,
-  item: PopupHistoryItem,
+  group: PopupHistoryGroup,
   locale: UiLocale
 ): HTMLLIElement {
   const entry = document.createElement("li");
-  entry.className = `history-item ${item.tone}`;
+  entry.className = `history-item ${group.tone}`;
 
   const header = document.createElement("div");
   header.className = "history-header";
@@ -422,44 +444,99 @@ function createHistoryElement(
   titleBlock.className = "history-title-block";
 
   const title = document.createElement("h3");
-  title.textContent = item.title;
+  title.textContent = group.title;
 
   const meta = document.createElement("p");
   meta.className = "history-meta";
-  meta.textContent = item.meta;
+  meta.textContent = group.meta;
 
   titleBlock.append(title, meta);
+  header.append(titleBlock);
+  entry.append(header);
+
+  const languageBadges = document.createElement("div");
+  languageBadges.className = "language-badge-row";
+  languageBadges.append(
+    ...group.languageBadges.map((language) => createLanguageBadge(language))
+  );
+  entry.append(languageBadges);
+
+  const entryList = document.createElement("div");
+  entryList.className = "history-entry-list";
+  entryList.append(
+    ...group.entries.map((item) =>
+      createHistoryEntryRow(elements, state, item, locale)
+    )
+  );
+  entry.append(entryList);
+
+  return entry;
+}
+
+function createHistoryEntryRow(
+  elements: PopupElements,
+  state: PopupRuntimeState,
+  item: PopupHistoryItem,
+  locale: UiLocale
+): HTMLDivElement {
+  const row = document.createElement("div");
+  row.className = `history-entry-row ${item.tone}`;
+
+  const summary = document.createElement("div");
+  summary.className = "history-entry-summary";
+
+  const language = createLanguageBadge(item.languageLabel);
 
   const badge = document.createElement("span");
   badge.className = `status-badge ${item.tone}`;
   badge.textContent = item.statusLabel;
 
-  header.append(titleBlock, badge);
-  entry.append(header);
+  summary.append(language, badge);
+  row.append(summary);
+
+  const meta = document.createElement("p");
+  meta.className = "history-meta";
+  meta.textContent = item.entryMeta;
+  row.append(meta);
 
   const detailText = item.failure?.summary ?? item.unsupportedReason;
   if (detailText !== null) {
     const detail = document.createElement("p");
     detail.className = "history-detail";
     detail.textContent = detailText;
-    entry.append(detail);
+    row.append(detail);
+  }
+
+  if (item.recoveryHint !== null) {
+    const hint = document.createElement("p");
+    hint.className = "history-recovery";
+    hint.textContent = item.recoveryHint;
+    row.append(hint);
   }
 
   const links = createLinksRow(item, locale);
   if (links !== null) {
-    entry.append(links);
+    row.append(links);
   }
 
   const controls = createControlsRow(elements, state, item, locale);
   if (controls !== null) {
-    entry.append(controls);
+    row.append(controls);
   }
 
   if (state.expandedSyncHistoryEntryId === item.id && item.failure !== null) {
-    entry.append(createFailureDetailPanel(item.failure));
+    row.append(createFailureDetailPanel(item.failure));
   }
 
-  return entry;
+  return row;
+}
+
+function createLanguageBadge(language: string): HTMLSpanElement {
+  const badge = document.createElement("span");
+  badge.className = "language-badge";
+  badge.textContent = language;
+
+  return badge;
 }
 
 function createLinksRow(item: PopupHistoryItem, locale: UiLocale): HTMLDivElement | null {
@@ -548,6 +625,7 @@ function createFailureDetailPanel(failure: FailureDetailView): HTMLDivElement {
 
 function createExternalLink(url: string, label: string): HTMLAnchorElement {
   const link = document.createElement("a");
+  link.className = "history-link";
   link.href = url;
   link.target = "_blank";
   link.rel = "noopener noreferrer";
@@ -568,30 +646,122 @@ function toHistoryItem(
     retryBundleId !== null &&
     retryBundleIds.has(retryBundleId) &&
     syncHistoryEntry.error?.retryable !== false;
+  const failure =
+    syncHistoryEntry.status === "failed"
+      ? getSharedFailureDetailView(locale, syncHistoryEntry)
+      : null;
 
   return {
     id: syncHistoryEntry.id,
+    groupKey: getSyncHistoryGroupKey(syncHistoryEntry),
     status: syncHistoryEntry.status,
     platformLabel: getPlatformLabel(syncHistoryEntry.codingPlatform),
     title: getSyncHistoryEntryTitle(syncHistoryEntry, locale),
     languageLabel: getSyncHistoryEntryLanguageLabel(locale, syncHistoryEntry),
     meta: getSyncHistoryEntryMeta(syncHistoryEntry, nowMs, locale),
+    entryMeta: getSyncHistoryEntryRowMeta(syncHistoryEntry, nowMs, locale),
+    targetLabel: getSyncTargetLabel(syncHistoryEntry),
     timeLabel: formatRelativeTime(syncHistoryEntry.updatedAt, nowMs, locale),
     statusLabel: getSyncStatusLabel(locale, syncHistoryEntry.status),
-    tone: getSyncStatusTone(syncHistoryEntry.status),
+    tone: getSyncStatusSemanticTone(syncHistoryEntry.status),
     commitUrl: syncHistoryEntry.commitUrl,
     fileUrl: syncHistoryEntry.fileUrl,
-    failure:
-      syncHistoryEntry.status === "failed"
-        ? getSharedFailureDetailView(locale, syncHistoryEntry)
-        : null,
+    failure,
     unsupportedReason:
       syncHistoryEntry.status === "unsupported_language"
         ? getUnsupportedLanguageReason(locale)
         : null,
+    recoveryHint: getHistoryRecoveryHint(
+      syncHistoryEntry,
+      retryBundleIds,
+      canRetry,
+      locale
+    ),
     retryBundleId,
     canRetry
   };
+}
+
+function groupHistoryItems(items: PopupHistoryItem[]): PopupHistoryGroup[] {
+  const groups: PopupHistoryGroup[] = [];
+  const groupsByKey = new Map<string, PopupHistoryGroup>();
+
+  for (const item of items) {
+    const existingGroup = groupsByKey.get(item.groupKey);
+
+    if (existingGroup === undefined) {
+      const group: PopupHistoryGroup = {
+        id: item.groupKey,
+        platformLabel: item.platformLabel,
+        title: item.title,
+        meta: getHistoryGroupMeta(item),
+        languageBadges: [],
+        tone: item.tone,
+        entries: []
+      };
+
+      groupsByKey.set(item.groupKey, group);
+      groups.push(group);
+    }
+
+    const group = groupsByKey.get(item.groupKey);
+
+    if (group === undefined) {
+      continue;
+    }
+
+    group.entries.push(item);
+
+    if (!group.languageBadges.includes(item.languageLabel)) {
+      group.languageBadges.push(item.languageLabel);
+    }
+  }
+
+  return groups;
+}
+
+function getHistoryGroupMeta(item: PopupHistoryItem): string {
+  return [item.platformLabel, item.timeLabel, item.targetLabel]
+    .filter((part): part is string => part !== null && part.length > 0)
+    .join(" / ");
+}
+
+function getHistoryRecoveryHint(
+  syncHistoryEntry: SyncHistoryEntry,
+  retryBundleIds: Set<string>,
+  canRetry: boolean,
+  locale: UiLocale
+): string | null {
+  if (syncHistoryEntry.status !== "failed" || canRetry) {
+    return null;
+  }
+
+  if (syncHistoryEntry.error?.code === "programmers_extract_failed") {
+    return t(locale, "detail.noCommitDataRetryUnavailable");
+  }
+
+  if (
+    syncHistoryEntry.retryBundleId === null ||
+    !retryBundleIds.has(syncHistoryEntry.retryBundleId)
+  ) {
+    return t(locale, "detail.retryBundleUnavailable");
+  }
+
+  if (syncHistoryEntry.error?.retryable === false) {
+    return t(locale, "detail.retryUnavailable");
+  }
+
+  return null;
+}
+
+function getSyncHistoryGroupKey(syncHistoryEntry: SyncHistoryEntry): string {
+  const problemKey =
+    syncHistoryEntry.problemFrontendId?.trim() ||
+    syncHistoryEntry.titleSlug.trim() ||
+    syncHistoryEntry.problemTitle?.trim() ||
+    syncHistoryEntry.id;
+
+  return `${syncHistoryEntry.codingPlatform}:${problemKey.toLowerCase()}`;
 }
 
 function getSyncHistoryEntryTitle(
@@ -644,6 +814,30 @@ function getSyncHistoryEntryMeta(
   }
 
   return parts.join(" / ");
+}
+
+function getSyncHistoryEntryRowMeta(
+  syncHistoryEntry: SyncHistoryEntry,
+  nowMs: number,
+  locale: UiLocale
+): string {
+  return [
+    formatRelativeTime(syncHistoryEntry.updatedAt, nowMs, locale),
+    getSyncTargetLabel(syncHistoryEntry)
+  ]
+    .filter((part): part is string => part !== null && part.length > 0)
+    .join(" / ");
+}
+
+function getSyncTargetLabel(syncHistoryEntry: SyncHistoryEntry): string | null {
+  if (
+    syncHistoryEntry.syncRepository === null ||
+    syncHistoryEntry.syncBranchName === null
+  ) {
+    return null;
+  }
+
+  return `${syncHistoryEntry.syncRepository.fullName}@${syncHistoryEntry.syncBranchName}`;
 }
 
 function formatRelativeTime(value: string, nowMs: number, locale: UiLocale): string {
