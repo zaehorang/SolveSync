@@ -5,7 +5,10 @@
     {
       "step": 0,
       "name": "semantic-ui-tokens",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-06-03T23:24:00+0900",
+      "summary": "semantic UI tokens for selection, state, spacing, and badge styling added",
+      "completed_at": "2026-06-03T23:26:21+0900"
     },
     {
       "step": 1,
@@ -28,5 +31,6 @@
       "status": "pending",
       "timeout_sec": 3600
     }
-  ]
+  ],
+  "created_at": "2026-06-03T23:24:00+0900"
 }
