@@ -7,6 +7,7 @@ import {
   getFailureDetailView,
   getSetupStatusView,
   getSyncStatusLabel,
+  getSyncStatusSemanticTone,
   getSyncStatusTone
 } from "./uiModels";
 import {
@@ -71,6 +72,11 @@ describe("shared UI models", () => {
     expect(getSyncStatusLabel("ko", "unsupported_language")).toBe("미지원 언어");
     expect(getSyncStatusTone("synced")).toBe("success");
     expect(getSyncStatusTone("failed")).toBe("error");
+    expect(getSyncStatusTone("syncing")).toBe("neutral");
+    expect(getSyncStatusTone("retrying")).toBe("neutral");
+    expect(getSyncStatusSemanticTone("syncing")).toBe("progress");
+    expect(getSyncStatusSemanticTone("retrying")).toBe("progress");
+    expect(getSyncStatusSemanticTone("failed")).toBe("failed");
   });
 
   it("builds localized failure detail lines", () => {

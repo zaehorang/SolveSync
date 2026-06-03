@@ -9,6 +9,13 @@ import type {
 } from "./storageSchema";
 
 export type Tone = "neutral" | "success" | "warning" | "error";
+export type SemanticStateTone =
+  | "neutral"
+  | "success"
+  | "warning"
+  | "failed"
+  | "progress"
+  | "disabled";
 
 export interface ConnectionStatusView {
   label: string;
@@ -248,6 +255,24 @@ export function getSyncStatusTone(status: SyncStatus): Tone {
     case "syncing":
     case "retrying":
       return "neutral";
+  }
+}
+
+export function getSyncStatusSemanticTone(
+  status: SyncStatus
+): SemanticStateTone {
+  switch (status) {
+    case "synced":
+      return "success";
+    case "setup_required":
+    case "auto_sync_disabled":
+    case "unsupported_language":
+      return "warning";
+    case "failed":
+      return "failed";
+    case "syncing":
+    case "retrying":
+      return "progress";
   }
 }
 
