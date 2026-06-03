@@ -1,0 +1,17 @@
+{
+  "project": "SolveSync",
+  "phase": "7-popup-operational-polish",
+  "steps": [
+    {
+      "step": 0,
+      "name": "popup-sticky-error-batches",
+      "status": "pending"
+    },
+    {
+      "step": 1,
+      "name": "integration-qa",
+      "status": "pending",
+      "timeout_sec": 3600
+    }
+  ]
+}
