@@ -13,7 +13,10 @@
     {
       "step": 1,
       "name": "options-setup-flow",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-06-03T23:26:24+0900",
+      "summary": "Options setup flow hierarchy, blue selected states, compact empty states, and sticky save controls added",
+      "completed_at": "2026-06-03T23:32:08+0900"
     },
     {
       "step": 2,
