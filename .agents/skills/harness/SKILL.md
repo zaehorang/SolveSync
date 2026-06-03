@@ -11,7 +11,7 @@ description: "Use when this project uses the Harness workflow, when creating or 
 
 ### A. 탐색
 
-작업을 제안하기 전에 `docs/` 아래의 프로젝트 문서를 읽는다. 특히 `docs/PRD.md`, `docs/ARCHITECTURE.md`, `docs/ADR.md`를 읽고 제품, 아키텍처, 설계 의도를 이해한다.
+작업을 제안하기 전에 `docs/` 아래의 프로젝트 문서를 읽는다. 특히 `docs/PRD.md`, `docs/ARCHITECTURE.md`, `docs/adr/`를 읽고 제품, 아키텍처, 설계 의도를 이해한다.
 
 사용자가 명시적으로 sub-agent 또는 위임된 병렬 작업을 요청한 경우에만 병렬 탐색 agent를 사용한다.
 
@@ -109,7 +109,7 @@ Step마다 Markdown 파일을 하나씩 만든다.
 먼저 아래 파일을 읽고 architecture와 design intent를 이해한다:
 
 - `/docs/ARCHITECTURE.md`
-- `/docs/ADR.md`
+- `/docs/adr/`
 - {이전 step에서 생성 또는 변경한 파일}
 
 수정하기 전에 이전 step에서 작성된 code를 주의 깊게 읽는다.
@@ -130,7 +130,7 @@ npm run test
 1. 인수 기준 command를 실행한다.
 2. Architecture checklist를 확인한다:
    - 작업이 `ARCHITECTURE.md`의 directory structure를 따르는가?
-   - `ADR.md`의 stack decision 안에 머무르는가?
+   - `docs/adr/`의 stack decision 안에 머무르는가?
    - `AGENTS.md`의 CRITICAL rule을 위반하지 않는가?
 3. 이 step에 대해 `phases/{task-name}/index.json`을 업데이트한다:
    - 성공: `"status": "completed"`로 설정하고 `"summary": "one-line output summary"`를 추가한다.
