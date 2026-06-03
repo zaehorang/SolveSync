@@ -32,7 +32,8 @@
     },
     {
       "dir": "6-ui-state-design-polish",
-      "status": "pending"
+      "status": "completed",
+      "completed_at": "2026-06-03T23:43:29+0900"
     }
   ]
 }
