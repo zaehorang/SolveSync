@@ -5,6 +5,7 @@ import {
   getConnectionStatusView,
   getDefaultBranchSelection,
   getRepositoryFilterState,
+  getSetupFlowStepStates,
   mapConnectionErrorCode,
   validateSettingsDraft
 } from "./index";
@@ -41,6 +42,39 @@ describe("options state helpers", () => {
     expect(
       getDefaultBranchSelection(repository, branches, "leetcode-sync-test")
     ).toBe("leetcode-sync-test");
+  });
+
+  it("marks setup flow steps as active, complete, or disabled without auto-selecting choices", () => {
+    const repository = makeRepository("octo/algorithms", "main");
+    const branch = makeBranch("main");
+
+    expect(
+      getSetupFlowStepStates({
+        githubPat: "",
+        syncRepository: null,
+        syncBranch: null,
+        connectionStatus: "not_tested"
+      })
+    ).toEqual({
+      pat: "active",
+      repository: "disabled",
+      branch: "disabled",
+      connection: "disabled"
+    });
+
+    expect(
+      getSetupFlowStepStates({
+        githubPat: "pat",
+        syncRepository: repository,
+        syncBranch: branch,
+        connectionStatus: "connected"
+      })
+    ).toEqual({
+      pat: "complete",
+      repository: "complete",
+      branch: "complete",
+      connection: "complete"
+    });
   });
 
   it("validates missing required settings before save", () => {

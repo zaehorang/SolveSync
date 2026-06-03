@@ -99,6 +99,7 @@ h3 {
 .settings-form {
   display: grid;
   gap: 14px;
+  padding-bottom: 96px;
 }
 
 .panel {
@@ -140,17 +141,111 @@ h3 {
 
 .setup-flow {
   display: grid;
-  gap: 16px;
+  gap: 0;
 }
 
 .setup-step {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  column-gap: 12px;
+  row-gap: 12px;
   border-top: 1px solid var(--ss-hairline);
   padding-top: 16px;
+  margin-top: 16px;
 }
 
 .setup-step:first-child {
   border-top: 0;
+  margin-top: 0;
   padding-top: 0;
+}
+
+.setup-step-marker {
+  display: grid;
+  grid-column: 1;
+  grid-row: 1;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--ss-state-neutral-border);
+  border-radius: 50%;
+  background: var(--ss-state-neutral-bg);
+  color: var(--ss-state-neutral-fg);
+  font-size: 0.8125rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.setup-step-header,
+.setup-step-body {
+  grid-column: 2;
+  min-width: 0;
+}
+
+.setup-step-header {
+  display: grid;
+  gap: 4px;
+  align-self: center;
+}
+
+.setup-step-header-action {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.setup-step-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.setup-step-title {
+  margin: 0;
+}
+
+.setup-step-state {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  border: 1px solid var(--ss-state-neutral-border);
+  border-radius: var(--ss-badge-pill-radius);
+  background: var(--ss-state-neutral-bg);
+  color: var(--ss-state-neutral-fg);
+  padding: var(--ss-badge-pill-padding-block)
+    var(--ss-badge-pill-padding-inline);
+  font-size: var(--ss-badge-pill-font-size);
+  font-weight: var(--ss-badge-pill-font-weight);
+  line-height: var(--ss-badge-pill-line-height);
+  white-space: var(--ss-badge-pill-white-space);
+}
+
+.setup-step[data-step-state="active"] .setup-step-marker,
+.setup-step[data-step-state="active"] .setup-step-state {
+  border-color: var(--ss-state-progress-border);
+  background: var(--ss-state-progress-bg);
+  color: var(--ss-state-progress-fg);
+}
+
+.setup-step[data-step-state="complete"] .setup-step-marker,
+.setup-step[data-step-state="complete"] .setup-step-state {
+  border-color: var(--ss-state-success-border);
+  background: var(--ss-state-success-bg);
+  color: var(--ss-state-success-fg);
+}
+
+.setup-step[data-step-state="disabled"] .setup-step-marker,
+.setup-step[data-step-state="disabled"] .setup-step-state {
+  border-color: var(--ss-state-disabled-border);
+  background: var(--ss-state-disabled-bg);
+  color: var(--ss-state-disabled-fg);
+}
+
+.setup-step[data-step-state="disabled"] .setup-step-title {
+  color: var(--ss-state-disabled-fg);
 }
 
 .branch-controls {
@@ -191,7 +286,12 @@ select {
 }
 
 input:focus,
-select:focus,
+select:focus {
+  border-color: var(--ss-selection-border);
+  outline: 2px solid transparent;
+  box-shadow: 0 0 0 3px var(--ss-selection-bg);
+}
+
 button:focus-visible {
   outline: 2px solid var(--ss-accent);
   outline-offset: 2px;
@@ -205,6 +305,30 @@ select:disabled {
 
 select[size] {
   min-height: 176px;
+}
+
+select[data-list-state="empty"],
+select[data-list-state="loading"],
+select[data-list-state="no-matches"] {
+  min-height: 92px;
+  background: var(--ss-surface-muted);
+  color: var(--ss-text-secondary);
+}
+
+select:not(:disabled):has(option:checked:not(:disabled)) {
+  border-color: var(--ss-selection-border);
+  background:
+    linear-gradient(0deg, var(--ss-selection-bg), var(--ss-selection-bg)),
+    rgb(255 255 255 / 0.9);
+}
+
+select option:checked {
+  background: var(--ss-selected-bg);
+  color: var(--ss-selected-fg);
+}
+
+select option:disabled {
+  color: var(--ss-text-muted);
 }
 
 .input-action-row {
@@ -329,13 +453,14 @@ select[size] {
 }
 
 .segment-option.selected {
-  background: rgb(255 255 255 / 0.95);
-  color: var(--ss-text-primary);
-  box-shadow: 0 1px 4px rgb(15 23 42 / 0.12);
+  background: var(--ss-selected-bg);
+  color: var(--ss-selected-fg);
+  box-shadow:
+    0 0 0 1px var(--ss-selected-border) inset,
+    0 1px 4px rgb(15 23 42 / 0.14);
 }
 
-.checklist-block,
-.connection-test {
+.checklist-block {
   margin-top: 16px;
   border-top: 1px solid var(--ss-hairline);
   padding-top: 16px;
@@ -421,13 +546,29 @@ select[size] {
 }
 
 .action-panel {
+  position: sticky;
+  bottom: 16px;
+  z-index: 10;
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
   gap: 12px;
+  border-color: var(--ss-selection-border);
+  background: rgb(255 255 255 / 0.92);
+  box-shadow: 0 14px 34px rgb(15 23 42 / 0.16);
+  backdrop-filter: blur(18px);
+}
+
+.action-panel .button {
+  flex: 0 0 auto;
 }
 
 .action-panel .status-text {
+  flex: 1 1 220px;
+  min-width: min(220px, 100%);
   margin: 0;
+  overflow-wrap: anywhere;
 }
 
 .status-text {
@@ -449,7 +590,7 @@ select[size] {
 
 @media (max-width: 680px) {
   .page-shell {
-    padding: 18px 10px 32px;
+    padding: 18px 10px 28px;
   }
 
   .glass-shell {
@@ -463,8 +604,23 @@ select[size] {
 
   .section-heading,
   .inline-heading,
+  .setup-step-header-action,
   .action-panel {
     display: grid;
+  }
+
+  .settings-form {
+    padding-bottom: 116px;
+  }
+
+  .setup-step {
+    grid-template-columns: 28px minmax(0, 1fr);
+    column-gap: 10px;
+  }
+
+  .setup-step-marker {
+    width: 28px;
+    height: 28px;
   }
 
   .branch-controls,
@@ -484,6 +640,14 @@ select[size] {
 
   .button {
     width: 100%;
+  }
+
+  .action-panel {
+    bottom: 8px;
+  }
+
+  .action-panel .status-text {
+    min-width: 0;
   }
 
   .segmented-control {

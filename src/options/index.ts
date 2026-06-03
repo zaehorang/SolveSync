@@ -32,6 +32,16 @@ export interface RepositoryFilterState {
   hasMatches: boolean;
 }
 
+export type SetupFlowStepId = "pat" | "repository" | "branch" | "connection";
+export type SetupFlowStepState = "active" | "complete" | "disabled";
+
+export interface SetupFlowStateDraft {
+  githubPat: string;
+  syncRepository: SyncRepository | null;
+  syncBranch: SyncBranch | null;
+  connectionStatus: ConnectionStatus | ConnectionStatusCode;
+}
+
 export interface SettingsValidationDraft {
   githubPat: string;
   syncRepository: SyncRepository | null;
@@ -109,6 +119,7 @@ interface OptionsRuntimeState {
 interface OptionsElements {
   form: HTMLFormElement;
   status: HTMLParagraphElement;
+  setupSteps: Record<SetupFlowStepId, SetupStepElements>;
   patInput: HTMLInputElement;
   togglePatButton: HTMLButtonElement;
   patError: HTMLParagraphElement;
@@ -129,10 +140,31 @@ interface OptionsElements {
   saveStatus: HTMLParagraphElement;
 }
 
+interface SetupStepElements {
+  container: HTMLElement;
+  stateLabel: HTMLElement;
+}
+
 const EMPTY_MESSAGE: InlineMessage = {
   text: "",
   tone: "neutral"
 };
+
+const SETUP_FLOW_STEP_IDS: SetupFlowStepId[] = [
+  "pat",
+  "repository",
+  "branch",
+  "connection"
+];
+
+const SETUP_STEP_STATE_LABEL_KEYS: Record<SetupFlowStepState, I18nKey> = {
+  active: "options.setup.state.active",
+  complete: "options.setup.state.complete",
+  disabled: "options.setup.state.disabled"
+};
+
+const REPOSITORY_LIST_READY_SIZE = 6;
+const REPOSITORY_LIST_COMPACT_SIZE = 3;
 
 const DEFAULT_CONNECTION_STATUS: ConnectionStatus = {
   code: "not_tested",
@@ -197,6 +229,29 @@ export function getDefaultBranchSelection(
   }
 
   return branches[0]?.name ?? null;
+}
+
+export function getSetupFlowStepStates(
+  draft: SetupFlowStateDraft
+): Record<SetupFlowStepId, SetupFlowStepState> {
+  const connectionStatusCode =
+    typeof draft.connectionStatus === "string"
+      ? draft.connectionStatus
+      : draft.connectionStatus.code;
+  const hasPat = draft.githubPat.trim().length > 0;
+  const hasRepository = draft.syncRepository !== null;
+  const hasBranch = draft.syncBranch !== null;
+
+  return {
+    pat: hasPat ? "complete" : "active",
+    repository: !hasPat ? "disabled" : hasRepository ? "complete" : "active",
+    branch: !hasRepository ? "disabled" : hasBranch ? "complete" : "active",
+    connection: !hasBranch
+      ? "disabled"
+      : connectionStatusCode === "connected"
+        ? "complete"
+        : "active"
+  };
 }
 
 export function validateSettingsDraft(
@@ -839,6 +894,8 @@ function render(elements: OptionsElements, state: OptionsRuntimeState): void {
     ? t(state.locale, "options.status.loadingSettings")
     : t(state.locale, "options.status.storedProfile");
 
+  renderSetupFlow(elements.setupSteps, state);
+
   elements.patInput.type = state.patVisible ? "text" : "password";
   elements.patInput.value = state.githubPatInput;
   elements.togglePatButton.textContent = state.patVisible
@@ -908,6 +965,34 @@ function renderLanguageControls(
   }
 }
 
+function renderSetupFlow(
+  setupSteps: Record<SetupFlowStepId, SetupStepElements>,
+  state: OptionsRuntimeState
+): void {
+  const stepStates = getSetupFlowStepStates({
+    githubPat: state.githubPatInput,
+    syncRepository: state.syncRepository,
+    syncBranch: state.syncBranch,
+    connectionStatus: state.connectionStatus
+  });
+
+  for (const stepId of SETUP_FLOW_STEP_IDS) {
+    const step = setupSteps[stepId];
+    const stepState = stepStates[stepId];
+
+    step.container.dataset.stepState = stepState;
+    if (stepState === "active") {
+      step.container.setAttribute("aria-current", "step");
+    } else {
+      step.container.removeAttribute("aria-current");
+    }
+    step.stateLabel.textContent = t(
+      state.locale,
+      SETUP_STEP_STATE_LABEL_KEYS[stepState]
+    );
+  }
+}
+
 function renderRepositorySelect(
   elements: OptionsElements,
   state: OptionsRuntimeState
@@ -916,37 +1001,86 @@ function renderRepositorySelect(
     state.repositories,
     state.repositoryQuery
   );
+  const listState = getRepositoryListRenderState(state, filterState);
 
-  elements.repositorySelect.replaceChildren(
-    ...filterState.visibleRepositories.map((repository) => {
-      const option = document.createElement("option");
-      option.value = repository.fullName;
-      option.textContent = repository.private
-        ? `${repository.fullName} (${t(state.locale, "options.suffix.private")})`
-        : repository.fullName;
-      return option;
-    })
-  );
+  elements.repositorySelect.dataset.listState = listState;
+  elements.repositorySelect.size =
+    listState === "ready"
+      ? REPOSITORY_LIST_READY_SIZE
+      : REPOSITORY_LIST_COMPACT_SIZE;
 
-  if (state.syncRepository === null) {
-    elements.repositorySelect.selectedIndex = -1;
-  } else {
-    elements.repositorySelect.value = state.syncRepository.fullName;
+  if (listState === "ready") {
+    elements.repositorySelect.replaceChildren(
+      ...filterState.visibleRepositories.map((repository) => {
+        const option = document.createElement("option");
+        option.value = repository.fullName;
+        option.textContent = repository.private
+          ? `${repository.fullName} (${t(state.locale, "options.suffix.private")})`
+          : repository.fullName;
+        return option;
+      })
+    );
 
-    if (elements.repositorySelect.value !== state.syncRepository.fullName) {
+    if (state.syncRepository === null) {
       elements.repositorySelect.selectedIndex = -1;
+    } else {
+      elements.repositorySelect.value = state.syncRepository.fullName;
+
+      if (elements.repositorySelect.value !== state.syncRepository.fullName) {
+        elements.repositorySelect.selectedIndex = -1;
+      }
     }
+  } else {
+    const option = document.createElement("option");
+    option.disabled = true;
+    option.value = "";
+    option.textContent = t(state.locale, getRepositoryListPlaceholderKey(listState));
+    elements.repositorySelect.replaceChildren(option);
+    elements.repositorySelect.selectedIndex = 0;
   }
 
+  const isSearchNoMatchMessage =
+    state.repositoryMessage.i18nKey ===
+    "options.message.noRepositorySearchMatches";
+
   if (
-    state.repositories.length > 0 &&
-    !filterState.hasMatches &&
+    listState === "no-matches" &&
     state.repositoryMessage.tone !== "error"
   ) {
     state.repositoryMessage = localizedMessage(
       "options.message.noRepositorySearchMatches",
       "warning"
     );
+  } else if (isSearchNoMatchMessage && listState !== "no-matches") {
+    state.repositoryMessage = EMPTY_MESSAGE;
+  }
+}
+
+function getRepositoryListRenderState(
+  state: OptionsRuntimeState,
+  filterState: RepositoryFilterState
+): "ready" | "loading" | "empty" | "no-matches" {
+  if (state.loadingRepositories) {
+    return "loading";
+  }
+
+  if (state.repositories.length === 0) {
+    return "empty";
+  }
+
+  return filterState.hasMatches ? "ready" : "no-matches";
+}
+
+function getRepositoryListPlaceholderKey(
+  state: "loading" | "empty" | "no-matches"
+): I18nKey {
+  switch (state) {
+    case "loading":
+      return "options.repositoryList.loading";
+    case "no-matches":
+      return "options.repositoryList.noMatches";
+    case "empty":
+      return "options.repositoryList.empty";
   }
 }
 
@@ -1050,6 +1184,7 @@ function collectElements(): OptionsElements {
   return {
     form: requireElement("options-form", HTMLFormElement),
     status: requireElement("options-status", HTMLParagraphElement),
+    setupSteps: collectSetupSteps(),
     patInput: requireElement("github-pat", HTMLInputElement),
     togglePatButton: requireElement("toggle-pat", HTMLButtonElement),
     patError: requireElement("pat-error", HTMLParagraphElement),
@@ -1069,6 +1204,36 @@ function collectElements(): OptionsElements {
     saveButton: requireElement("save-settings", HTMLButtonElement),
     saveStatus: requireElement("save-status", HTMLParagraphElement)
   };
+}
+
+function collectSetupSteps(): Record<SetupFlowStepId, SetupStepElements> {
+  return Object.fromEntries(
+    SETUP_FLOW_STEP_IDS.map((stepId) => {
+      const container = document.querySelector<HTMLElement>(
+        `[data-setup-step="${stepId}"]`
+      );
+
+      if (container === null) {
+        throw new Error(`Missing options setup step: ${stepId}`);
+      }
+
+      const stateLabel = container.querySelector<HTMLElement>(
+        "[data-setup-step-state-label]"
+      );
+
+      if (stateLabel === null) {
+        throw new Error(`Missing options setup step state label: ${stepId}`);
+      }
+
+      return [
+        stepId,
+        {
+          container,
+          stateLabel
+        }
+      ];
+    })
+  ) as Record<SetupFlowStepId, SetupStepElements>;
 }
 
 function collectLanguageButtons(): HTMLButtonElement[] {
