@@ -133,30 +133,42 @@ describe("options state helpers", () => {
     });
   });
 
-  it("keeps Save controls balanced on desktop and full width on mobile", () => {
+  it("keeps Save controls as an integrated sticky footer", () => {
+    const html = readFileSync(new URL("./index.html", import.meta.url), "utf8");
     const css = readFileSync(new URL("./styles.css", import.meta.url), "utf8");
     const actionPanelRule = css.match(/\.action-panel\s*\{[^}]*\}/s)?.[0] ?? "";
+    const actionPanelInnerRule =
+      css.match(/\.action-panel-inner\s*\{[^}]*\}/s)?.[0] ?? "";
     const actionButtonRule =
       css.match(/\.action-panel \.button\s*\{[^}]*\}/s)?.[0] ?? "";
     const actionStatusRule =
       css.match(/\.action-panel \.status-text\s*\{[^}]*\}/s)?.[0] ?? "";
 
-    expect(actionPanelRule).toContain("justify-content: flex-end");
-    expect(actionButtonRule).toContain("order: 2");
+    expect(html).toContain('<section class="action-panel"');
+    expect(html).toContain('<div class="action-panel-inner">');
+    expect(html).not.toContain('class="panel action-panel"');
+    expect(actionPanelRule).toContain("bottom: 0");
+    expect(actionPanelRule).toContain("border-top: 1px solid var(--ss-hairline)");
+    expect(actionPanelRule).toContain("background: rgb(238 244 251 / 0.88)");
+    expect(actionPanelRule).not.toContain("border-color");
+    expect(actionPanelInnerRule).toContain("justify-content: flex-end");
     expect(actionButtonRule).toContain("min-width: 128px");
-    expect(actionStatusRule).toContain("order: 1");
-    expect(actionStatusRule).toContain("flex: 1 1 320px");
+    expect(actionStatusRule).toContain("flex: 0 1 520px");
+    expect(actionStatusRule).toContain("text-align: right");
     expect(css).toMatch(
       /\.action-panel \.status-text:empty\s*\{[^}]*display:\s*none/s
     );
     expect(css).toMatch(
-      /@media \(max-width: 680px\)\s*\{[\s\S]*\.action-panel\s*\{[^}]*grid-template-columns:\s*1fr/s
+      /@media \(max-width: 680px\)\s*\{[\s\S]*\.action-panel-inner\s*\{[^}]*grid-template-columns:\s*1fr/s
     );
     expect(css).toMatch(
       /@media \(max-width: 680px\)\s*\{[\s\S]*\.action-panel \.button\s*\{[^}]*width:\s*100%/s
     );
     expect(css).toMatch(
       /@media \(max-width: 680px\)\s*\{[\s\S]*\.action-panel \.button\s*\{[^}]*justify-self:\s*stretch/s
+    );
+    expect(css).toMatch(
+      /@media \(max-width: 680px\)\s*\{[\s\S]*\.action-panel \.status-text\s*\{[^}]*text-align:\s*left/s
     );
   });
 
