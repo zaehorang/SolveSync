@@ -141,6 +141,8 @@ History item 내용:
 - File link. 사용 가능한 경우만 표시한다.
 - 실패한 경우 짧은 error summary.
 - Unsupported language인 경우 commit이 만들어지지 않았다는 짧은 이유.
+- 같은 Coding Platform의 같은 문제에 대해 여러 Sync History event가 있더라도 Popup 카드 안에서는 language별 최신 row 하나만 보여준다.
+- Commit/File link는 language row의 primary action 영역에 두고, time 같은 낮은 우선순위 metadata와 붙어 보이지 않게 분리한다.
 
 History limit:
 - Sync History는 최근 20개 항목만 보여준다.

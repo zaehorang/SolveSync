@@ -54,6 +54,7 @@ export type PopupSetupStatusView = SetupStatusView;
 export interface PopupHistoryItem {
   id: string;
   groupKey: string;
+  languageKey: string;
   status: SyncStatus;
   platformLabel: string;
   title: string;
@@ -579,7 +580,10 @@ function createHistoryEntryRow(
   locale: UiLocale
 ): HTMLDivElement {
   const row = document.createElement("div");
-  row.className = `history-entry-row history-sync-entry ${item.tone}`;
+  row.className = `history-entry-row history-language-row history-sync-entry ${item.tone}`;
+
+  const main = document.createElement("div");
+  main.className = "history-entry-main";
 
   const summary = document.createElement("div");
   summary.className = "history-entry-summary";
@@ -591,10 +595,18 @@ function createHistoryEntryRow(
   badge.textContent = item.statusLabel;
 
   summary.append(language, badge);
-  row.append(summary);
+
+  main.append(summary);
+
+  const links = createLinksRow(item, locale);
+  if (links !== null) {
+    main.append(links);
+  }
+
+  row.append(main);
 
   const meta = document.createElement("p");
-  meta.className = "history-meta";
+  meta.className = "history-meta history-entry-footer";
   meta.textContent = item.entryMeta;
   row.append(meta);
 
@@ -611,11 +623,6 @@ function createHistoryEntryRow(
     hint.className = "history-recovery";
     hint.textContent = item.recoveryHint;
     row.append(hint);
-  }
-
-  const links = createLinksRow(item, locale);
-  if (links !== null) {
-    row.append(links);
   }
 
   const controls = createControlsRow(elements, state, item, locale);
@@ -655,7 +662,7 @@ function createLinksRow(item: PopupHistoryItem, locale: UiLocale): HTMLDivElemen
   }
 
   const row = document.createElement("div");
-  row.className = "link-row history-entry-actions";
+  row.className = "history-entry-links history-entry-actions";
   row.append(...links);
 
   return row;
@@ -754,6 +761,7 @@ function toHistoryItem(
   return {
     id: syncHistoryEntry.id,
     groupKey: getSyncHistoryGroupKey(syncHistoryEntry),
+    languageKey: getSyncHistoryLanguageKey(syncHistoryEntry),
     status: syncHistoryEntry.status,
     platformLabel: getPlatformLabel(syncHistoryEntry.codingPlatform),
     title: getSyncHistoryEntryTitle(syncHistoryEntry, locale),
@@ -816,7 +824,9 @@ function groupHistoryItems(
       continue;
     }
 
-    group.entries.push(item);
+    if (!group.entries.some((entry) => entry.languageKey === item.languageKey)) {
+      group.entries.push(item);
+    }
   }
 
   for (const group of groups) {
@@ -941,6 +951,19 @@ function getSyncHistoryGroupKey(syncHistoryEntry: SyncHistoryEntry): string {
     syncHistoryEntry.id;
 
   return `${syncHistoryEntry.codingPlatform}:${problemKey.toLowerCase()}`;
+}
+
+function getSyncHistoryLanguageKey(syncHistoryEntry: SyncHistoryEntry): string {
+  const supportedLanguage =
+    syncHistoryEntry.syncDeduplicationKey?.language ??
+    syncHistoryEntry.supportedLanguage;
+
+  if (supportedLanguage !== null && supportedLanguage !== undefined) {
+    return supportedLanguage;
+  }
+
+  const language = syncHistoryEntry.language.trim().toLowerCase();
+  return language.length > 0 ? language : "unknown";
 }
 
 function getSyncHistoryEntryTitle(

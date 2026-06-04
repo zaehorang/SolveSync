@@ -61,10 +61,10 @@ npm run build
 3. LeetCode와 Programmers 문제 페이지에서 toast가 오른쪽 아래에 표시되고 좁은 viewport에서도 화면 safe margin 안에 들어오는지 확인한다.
 4. toast의 Setup required, Syncing, Synced, Failed 상태에서 버튼 text와 link가 잘리지 않는지 확인한다.
 5. Options page의 GitHub Connection section이 PAT, Sync Repository, Sync Branch, Connection test의 4단계 설정 흐름으로 보이고, 긴 form을 스크롤해도 Save controls에 접근할 수 있는지 확인한다.
-6. Popup Sync History에서 같은 Coding Platform의 같은 문제에 대한 Swift/Python3 항목이 한 카드로 묶이고, 문제 header와 language별 row의 레벨이 구분되며, language badge와 status badge text가 `Sync/ed`처럼 깨지지 않는지 확인한다.
-7. Popup Sync History에서 Commit/File은 각 language row 안의 link로, Details/Retry는 button으로 표시되고, Sync Repository/Sync Branch가 history group/row meta에 반복 표시되지 않는지 확인한다.
+6. Popup Sync History에서 같은 Coding Platform의 같은 문제에 대한 Swift/Python3 항목이 한 카드로 묶이고, 같은 문제/같은 언어의 반복 sync는 최신 language row 하나만 보이며, language badge와 status badge text가 `Sync/ed`처럼 깨지지 않는지 확인한다.
+7. Popup Sync History에서 Commit/File은 각 language row의 primary action link로 표시되어 footer line이나 time meta와 붙어 보이지 않고, Details/Retry는 button으로 표시되며, Sync Repository/Sync Branch가 history group/row meta에 반복 표시되지 않는지 확인한다.
 8. 긴 Sync History를 스크롤해도 Popup 상단 운영 상태 summary와 history row text가 서로 겹치거나 가려지지 않는지 확인한다.
-9. 같은 문제 group 안의 인접한 동일 retryable failure가 batch summary와 Retry all button으로 묶여 표시되는지 확인한다.
+9. 같은 문제 group 안의 여러 language row에 인접한 동일 retryable failure가 있으면 batch summary와 Retry all button으로 묶여 표시되는지 확인한다.
 10. 실패 Sync History 항목이 Retry 가능하면 Retry button을 보여주고, Retry Bundle이 없거나 retry 불가이면 다음 행동 안내를 보여주는지 확인한다.
 
 ## LeetCode Successful Sync Flow
@@ -126,7 +126,7 @@ npm run build
 ## Retry Flow
 1. 유효하지 않은 branch나 일시적인 GitHub 실패 조건을 만들어 commit 실패를 발생시킨다.
 2. Popup의 Sync History에 실패 상세와 Retry button이 표시되는지 확인한다.
-3. 같은 문제 group 안에 동일 retryable failure가 여러 개 있으면 Retry all button이 표시되고, Retry Bundle이 없는 실패는 Retry all 대상에 포함되지 않는지 확인한다.
+3. 같은 문제 group 안의 여러 language row에 동일 retryable failure가 있으면 Retry all button이 표시되고, Retry Bundle이 없는 실패는 Retry all 대상에 포함되지 않는지 확인한다.
 4. 설정을 정상화한 뒤 Retry 또는 Retry all을 실행한다.
 5. Retry 성공 후 commit link와 file link가 표시되는지 확인한다.
 6. Retry Bundle이 삭제되고 같은 Sync Deduplication Key가 processed로 기록되는지 확인한다.

@@ -93,10 +93,19 @@ describe("popup state helpers", () => {
     });
     const olderFailure = makeSyncHistoryEntry({
       id: "older-failure",
+      language: "Python3",
+      supportedLanguage: "python3",
       status: "failed",
       updatedAt: "2026-01-01T00:03:00.000Z",
       commitUrl: null,
       fileUrl: null,
+      solutionPath: "leetcode/python/0001_two_sum.py",
+      syncDeduplicationKey: {
+        codingPlatform: "leetcode",
+        acceptedSourceId: "456",
+        titleSlug: "two-sum",
+        language: "python3"
+      },
       retryBundleId: "retry-older",
       error: makeError("github_commit_failed", "Could not commit the solution.")
     });
@@ -268,6 +277,90 @@ describe("popup state helpers", () => {
       fileUrl:
         "https://github.com/octo/algorithms/blob/main/leetcode/python/0001_two_sum.py"
     });
+  });
+
+  it("shows only the latest row for each problem language in a history group", () => {
+    const newerSwift = makeSyncHistoryEntry({
+      id: "swift-newer",
+      updatedAt: "2026-01-01T00:04:00.000Z",
+      commitSha: "commit-sha-newer",
+      commitUrl: "https://github.com/octo/algorithms/commit/commit-sha-newer"
+    });
+    const syncedPython = makeSyncHistoryEntry({
+      id: "python-synced",
+      language: "Python3",
+      supportedLanguage: "python3",
+      solutionPath: "leetcode/python/0001_two_sum.py",
+      fileUrl:
+        "https://github.com/octo/algorithms/blob/main/leetcode/python/0001_two_sum.py",
+      syncDeduplicationKey: {
+        codingPlatform: "leetcode",
+        acceptedSourceId: "456",
+        titleSlug: "two-sum",
+        language: "python3"
+      },
+      updatedAt: "2026-01-01T00:03:00.000Z"
+    });
+    const olderSwift = makeSyncHistoryEntry({
+      id: "swift-older",
+      updatedAt: "2026-01-01T00:02:00.000Z",
+      commitSha: "commit-sha-older",
+      commitUrl: "https://github.com/octo/algorithms/commit/commit-sha-older"
+    });
+
+    const model = buildHistoryDisplayModel(
+      [olderSwift, syncedPython, newerSwift],
+      [],
+      Date.parse("2026-01-01T00:05:00.000Z")
+    );
+
+    expect(model.entryCount).toBe(3);
+    expect(model.items.map((item) => item.id)).toEqual([
+      "swift-newer",
+      "python-synced",
+      "swift-older"
+    ]);
+    expect(model.groups).toHaveLength(1);
+    expect(model.groups[0]?.entries.map((entry) => entry.id)).toEqual([
+      "swift-newer",
+      "python-synced"
+    ]);
+    expect(model.groups[0]?.entries[0]).toMatchObject({
+      languageLabel: "Swift",
+      commitUrl: "https://github.com/octo/algorithms/commit/commit-sha-newer"
+    });
+  });
+
+  it("does not render duplicate same-language failure rows or batches", () => {
+    const newerFailure = makeSyncHistoryEntry({
+      id: "swift-failure-newer",
+      status: "failed",
+      updatedAt: "2026-01-01T00:04:00.000Z",
+      commitUrl: null,
+      fileUrl: null,
+      retryBundleId: "retry-newer",
+      error: makeError("github_commit_failed", "Could not commit the solution.")
+    });
+    const olderFailure = makeSyncHistoryEntry({
+      id: "swift-failure-older",
+      status: "failed",
+      updatedAt: "2026-01-01T00:03:00.000Z",
+      commitUrl: null,
+      fileUrl: null,
+      retryBundleId: "retry-older",
+      error: makeError("github_commit_failed", "Could not commit the solution.")
+    });
+
+    const model = buildHistoryDisplayModel(
+      [olderFailure, newerFailure],
+      [makeRetryBundleSummary("retry-newer"), makeRetryBundleSummary("retry-older")],
+      Date.parse("2026-01-01T00:05:00.000Z")
+    );
+
+    expect(model.groups[0]?.entries.map((entry) => entry.id)).toEqual([
+      "swift-failure-newer"
+    ]);
+    expect(model.groups[0]?.errorBatches).toEqual([]);
   });
 
   it("keeps syncing and retrying history badges on the progress tone", () => {
@@ -454,7 +547,11 @@ describe("popup state helpers", () => {
     expect(css).toContain(".history-problem-header");
     expect(css).toContain(".history-entry-list");
     expect(css).toContain(".history-entry-row");
+    expect(css).toContain(".history-language-row");
+    expect(css).toContain(".history-entry-main");
     expect(css).toContain(".history-entry-actions");
+    expect(css).toContain(".history-entry-links");
+    expect(css).toContain(".history-entry-footer");
     expect(css).toContain(".history-link-pill");
     expect(css).toMatch(/\.history-link\s*\{[^}]*min-height:\s*32px/s);
     expect(css).toContain(".history-batch-list");
