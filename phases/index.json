@@ -39,6 +39,11 @@
       "dir": "7-popup-operational-polish",
       "status": "completed",
       "completed_at": "2026-06-03T23:53:14+0900"
+    },
+    {
+      "dir": "8-ui-hierarchy-polish",
+      "status": "completed",
+      "completed_at": "2026-06-04T00:54:16+0900"
     }
   ]
 }

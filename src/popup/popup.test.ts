@@ -40,13 +40,24 @@ describe("popup state helpers", () => {
     expect(model.items[0]).toMatchObject({
       title: "1. Two Sum",
       platformLabel: "LeetCode",
-      meta: "LeetCode / Swift / 1m ago / octo/algorithms@main",
+      meta: "LeetCode / 1m ago",
+      entryMeta: "1m ago",
+      languageLabel: "Swift",
       statusLabel: "Synced",
       timeLabel: "1m ago",
       commitUrl: "https://github.com/octo/algorithms/commit/commit-sha",
       fileUrl:
         "https://github.com/octo/algorithms/blob/main/leetcode/swift/0001_two_sum.swift"
     });
+    expect(model.groups[0]).toMatchObject({
+      meta: "LeetCode / 1m ago"
+    });
+    expect(model.items[0]?.meta).not.toContain("octo/algorithms@main");
+    expect(model.items[0]?.entryMeta).not.toContain("octo/algorithms@main");
+    expect(model.groups[0]?.meta).not.toContain("octo/algorithms@main");
+    expect(Object.prototype.hasOwnProperty.call(model.groups[0], "languageBadges")).toBe(
+      false
+    );
   });
 
   it("shows retry only when the failed item still has a saved Retry Bundle", () => {
@@ -228,12 +239,23 @@ describe("popup state helpers", () => {
     expect(model.groups[0]).toMatchObject({
       title: "1. Two Sum",
       platformLabel: "LeetCode",
-      meta: "LeetCode / 1m ago / octo/algorithms@main",
-      languageBadges: ["Swift", "Python3"]
+      meta: "LeetCode / 1m ago"
     });
+    expect(Object.prototype.hasOwnProperty.call(model.groups[0], "languageBadges")).toBe(
+      false
+    );
     expect(model.groups[0]?.entries.map((entry) => entry.id)).toEqual([
       "swift-failed",
       "python-synced"
+    ]);
+    expect(model.groups[0]?.entries.map((entry) => entry.languageLabel)).toEqual([
+      "Swift",
+      "Python3"
+    ]);
+    expect(model.groups[0]?.meta).not.toContain("octo/algorithms@main");
+    expect(model.groups[0]?.entries.map((entry) => entry.entryMeta)).toEqual([
+      "1m ago",
+      "2m ago"
     ]);
     expect(model.groups[0]?.entries[0]).toMatchObject({
       statusLabel: "Failed",
@@ -279,7 +301,8 @@ describe("popup state helpers", () => {
     expect(model.items[0]).toMatchObject({
       platformLabel: "Programmers",
       title: "120804. 두 수의 곱 구하기",
-      meta: "Programmers / Swift / 1m ago / octo/algorithms@main"
+      meta: "Programmers / 1m ago",
+      languageLabel: "Swift"
     });
   });
 
@@ -348,7 +371,8 @@ describe("popup state helpers", () => {
     });
     expect(model.items[0]).toMatchObject({
       statusLabel: "실패",
-      meta: "Programmers / Swift / 1분 전 / octo/algorithms@main",
+      meta: "Programmers / 1분 전",
+      languageLabel: "Swift",
       failure: {
         summary: "Programmers editor code를 읽지 못했습니다.",
         detailLines: [
@@ -410,13 +434,43 @@ describe("popup state helpers", () => {
     });
   });
 
-  it("keeps sticky status and batch recovery CSS contracts", () => {
+  it("keeps non-overlapping top controls and batch recovery CSS contracts", () => {
     const css = readFileSync(new URL("./styles.css", import.meta.url), "utf8");
+    const statusCardRule = css.match(/\.status-card\s*\{[^}]*\}/s)?.[0] ?? "";
 
-    expect(css).toMatch(/\.status-card\s*\{[^}]*position:\s*sticky/s);
+    expect(statusCardRule).toContain("position: static");
+    expect(css).not.toContain("position: sticky");
+    expect(css).toMatch(/body\s*\{[^}]*overflow-x:\s*hidden/s);
+    expect(css).not.toContain("100vw");
+    expect(css).toContain(".controls-panel");
+    expect(css).toContain(".popup-switch-row");
+    expect(css).toContain(".popup-switch-control");
+    expect(css).toMatch(
+      /\.popup-switch-row input:checked \+ \.popup-switch-control\s*\{/s
+    );
+    expect(css).toMatch(/\.summary-row\s*\{[^}]*min-width:\s*0/s);
+    expect(css).toMatch(/\.summary-row dd\s*\{[^}]*min-width:\s*0/s);
+    expect(css).toContain(".history-problem-group");
+    expect(css).toContain(".history-problem-header");
+    expect(css).toContain(".history-entry-list");
+    expect(css).toContain(".history-entry-row");
+    expect(css).toContain(".history-entry-actions");
+    expect(css).toContain(".history-link-pill");
+    expect(css).toMatch(/\.history-link\s*\{[^}]*min-height:\s*32px/s);
     expect(css).toContain(".history-batch-list");
     expect(css).toContain(".history-error-batch");
     expect(css).toContain(".history-retry-all-button");
+  });
+
+  it("keeps Auto Sync as a native checkbox wrapped by its label", () => {
+    const html = readFileSync(new URL("./index.html", import.meta.url), "utf8");
+
+    expect(html).toMatch(
+      /<label class="popup-switch-row" for="auto-sync-toggle">[\s\S]*<input id="auto-sync-toggle" type="checkbox" \/>/
+    );
+    expect(html).toContain(
+      '<span class="popup-switch-control" aria-hidden="true"></span>'
+    );
   });
 
   it("summarizes setup state from public settings", () => {
