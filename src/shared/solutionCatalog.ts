@@ -6,12 +6,14 @@ import type {
 } from "./types";
 import { isPlainRecord, isSupportedLanguage } from "./types";
 
-export const SOLUTION_CATALOG_VERSION = 2;
-const LEGACY_SOLUTION_CATALOG_VERSION = 1;
+export const SOLUTION_CATALOG_VERSION = 3;
+const LEGACY_SOLUTION_CATALOG_V1_VERSION = 1;
+const LEGACY_SOLUTION_CATALOG_V2_VERSION = 2;
 
 export interface SolutionCatalogLanguageEntry {
   solutionPath: string;
   lastAcceptedSourceId: string;
+  solutionRevisionNumber: number;
   lastSyncedAt: IsoDateString;
   firstAcceptedDate: IsoDateString;
   lastAcceptedDate: IsoDateString;
@@ -98,15 +100,38 @@ export function mergeSolutionCatalogEntry(
   syncedAt: IsoDateString,
   acceptedDate: IsoDateString
 ): SolutionCatalog {
+  return mergeSolutionCatalogEntryWithResult(
+    catalog,
+    acceptedSource,
+    path,
+    syncedAt,
+    acceptedDate
+  ).catalog;
+}
+
+export function mergeSolutionCatalogEntryWithResult(
+  catalog: SolutionCatalog,
+  acceptedSource: SolutionCatalogAcceptedSourceInput,
+  path: string,
+  syncedAt: IsoDateString,
+  acceptedDate: IsoDateString
+): { catalog: SolutionCatalog; solutionRevisionNumber: number } {
   const existingProblem = catalog.problems.find((entry) =>
     isSameProblem(entry, acceptedSource)
   );
   const existingLanguageEntry = existingProblem?.languages[acceptedSource.language];
   const isDuplicateAcceptedSource =
     existingLanguageEntry?.lastAcceptedSourceId === acceptedSource.acceptedSourceId;
+  const solutionRevisionNumber =
+    existingLanguageEntry === undefined
+      ? 1
+      : isDuplicateAcceptedSource
+        ? existingLanguageEntry.solutionRevisionNumber
+        : existingLanguageEntry.solutionRevisionNumber + 1;
   const languageEntry: SolutionCatalogLanguageEntry = {
     solutionPath: path,
     lastAcceptedSourceId: acceptedSource.acceptedSourceId,
+    solutionRevisionNumber,
     lastSyncedAt: isDuplicateAcceptedSource
       ? existingLanguageEntry?.lastSyncedAt ?? syncedAt
       : syncedAt,
@@ -140,7 +165,7 @@ export function mergeSolutionCatalogEntry(
     !isSameProblem(entry, acceptedSource)
   );
 
-  return {
+  const nextCatalog: SolutionCatalog = {
     version: SOLUTION_CATALOG_VERSION,
     problems: [...otherProblems, nextProblem].sort(compareSolutionCatalogProblems),
     activity: mergeActivity(
@@ -149,6 +174,11 @@ export function mergeSolutionCatalogEntry(
       !isDuplicateAcceptedSource,
       existingProblem === undefined
     )
+  };
+
+  return {
+    catalog: nextCatalog,
+    solutionRevisionNumber
   };
 }
 
@@ -209,7 +239,11 @@ function normalizeSolutionCatalog(value: unknown): SolutionCatalog | null {
     return value;
   }
 
-  if (!isPlainRecord(value) || value.version !== LEGACY_SOLUTION_CATALOG_VERSION) {
+  if (
+    !isPlainRecord(value) ||
+    (value.version !== LEGACY_SOLUTION_CATALOG_V1_VERSION &&
+      value.version !== LEGACY_SOLUTION_CATALOG_V2_VERSION)
+  ) {
     return null;
   }
 
@@ -337,7 +371,8 @@ function normalizeLanguageEntry(value: unknown): SolutionCatalogLanguageEntry | 
     lastAcceptedSourceId:
       typeof lastAcceptedSourceId === "string"
         ? lastAcceptedSourceId
-        : legacyLastSubmissionId
+        : legacyLastSubmissionId,
+    solutionRevisionNumber: 1
   };
 
   return isLanguageEntry(candidate) ? candidate : null;
@@ -351,6 +386,7 @@ function isLanguageEntry(value: unknown): value is SolutionCatalogLanguageEntry 
   return (
     typeof value.solutionPath === "string" &&
     typeof value.lastAcceptedSourceId === "string" &&
+    isPositiveInteger(value.solutionRevisionNumber) &&
     typeof value.lastSyncedAt === "string" &&
     typeof value.firstAcceptedDate === "string" &&
     typeof value.lastAcceptedDate === "string"
@@ -386,6 +422,10 @@ function mergeActivity(
 
 function isNonNegativeInteger(value: unknown): value is number {
   return typeof value === "number" && Number.isInteger(value) && value >= 0;
+}
+
+function isPositiveInteger(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value > 0;
 }
 
 function toDebugMessage(error: unknown): string {

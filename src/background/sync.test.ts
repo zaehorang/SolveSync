@@ -140,7 +140,7 @@ describe("background sync orchestrator", () => {
       `| 1 | Two Sum | Easy | ${expectedAcceptedDate} |`
     );
     expect(committedJson(harness, "leetcode/.leetcode-sync/index.json")).toMatchObject({
-      version: 2,
+      version: 3,
       activity: {
         days: {
           [expectedAcceptedDate]: {
@@ -156,6 +156,7 @@ describe("background sync orchestrator", () => {
           languages: {
             swift: {
               lastAcceptedSourceId: syncDeduplicationKey.acceptedSourceId,
+              solutionRevisionNumber: 1,
               firstAcceptedDate: expectedAcceptedDate,
               lastAcceptedDate: expectedAcceptedDate
             }
@@ -191,7 +192,7 @@ describe("background sync orchestrator", () => {
       `| 120804 | 두 수의 곱 구하기 | - | ${expectedAcceptedDate} |`
     );
     expect(committedJson(harness, "programmers/.programmers-sync/index.json")).toMatchObject({
-      version: 2,
+      version: 3,
       activity: {
         days: {
           [expectedAcceptedDate]: {
@@ -207,6 +208,7 @@ describe("background sync orchestrator", () => {
           languages: {
             swift: {
               lastAcceptedSourceId: programmersSyncDeduplicationKey.acceptedSourceId,
+              solutionRevisionNumber: 1,
               firstAcceptedDate: expectedAcceptedDate,
               lastAcceptedDate: expectedAcceptedDate
             }
