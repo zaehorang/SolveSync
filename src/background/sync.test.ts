@@ -7,7 +7,8 @@ import type {
   ProblemMetadata,
   SyncRepository,
   RetryBundle,
-  SyncDeduplicationKey
+  SyncDeduplicationKey,
+  LeetCodeLanguage
 } from "../shared/types";
 import type { LatestAcceptedSubmissionResult } from "./client/leetcode";
 import type {
@@ -126,6 +127,9 @@ describe("background sync orchestrator", () => {
     await harness.sync.handleAcceptedDetected(makeAcceptedDetected());
 
     expect(harness.github.commits).toHaveLength(1);
+    expect(harness.github.commits[0]).toMatchObject({
+      message: "solve: leetcode 0001 two sum in swift #1"
+    });
     expect(await harness.storage.hasProcessedSyncDeduplicationKey(syncDeduplicationKey)).toBe(true);
     await expect(historyStatuses(harness.storage)).resolves.toEqual(["synced"]);
     expect(harness.github.commits[0]?.files.map((file) => file.path)).toEqual([
@@ -248,6 +252,85 @@ describe("background sync orchestrator", () => {
       syncDeduplicationKey: programmersSyncDeduplicationKey
     });
     expect(harness.github.commits).toHaveLength(0);
+  });
+
+  it("calculates #2 for the next sync after an existing v2 Catalog language entry", async () => {
+    const harness = makeHarness();
+    await harness.saveSettings();
+    harness.github.files.set(
+      "leetcode/.leetcode-sync/index.json",
+      JSON.stringify(makeV2CatalogWithSwiftEntry(), null, 2)
+    );
+    harness.leetcode.fetchProblemMetadata.mockResolvedValue(problem);
+    harness.leetcode.fetchLatestAcceptedSubmission.mockResolvedValue(
+      syncableAcceptedSubmission({
+        acceptedSourceId: "987654321"
+      })
+    );
+
+    await harness.sync.handleAcceptedDetected(makeAcceptedDetected());
+
+    expect(harness.github.commits).toHaveLength(1);
+    expect(harness.github.commits[0]).toMatchObject({
+      message: "solve: leetcode 0001 two sum in swift #2"
+    });
+    expect(committedJson(harness, "leetcode/.leetcode-sync/index.json")).toMatchObject({
+      version: 3,
+      problems: [
+        {
+          languages: {
+            swift: {
+              lastAcceptedSourceId: "987654321",
+              solutionRevisionNumber: 2
+            }
+          }
+        }
+      ]
+    });
+  });
+
+  it("keeps a different language for the same problem at #1", async () => {
+    const harness = makeHarness();
+    await harness.saveSettings();
+    harness.github.files.set(
+      "leetcode/.leetcode-sync/index.json",
+      JSON.stringify(makeV2CatalogWithSwiftEntry(), null, 2)
+    );
+    harness.leetcode.fetchProblemMetadata.mockResolvedValue(problem);
+    harness.leetcode.fetchLatestAcceptedSubmission.mockResolvedValue(
+      syncableAcceptedSubmission({
+        acceptedSourceId: "python-accepted-source",
+        language: "Python3",
+        supportedLanguage: "python3",
+        code: "class Solution:\n    pass\n"
+      })
+    );
+
+    await harness.sync.handleAcceptedDetected(makeAcceptedDetected());
+
+    expect(harness.github.commits).toHaveLength(1);
+    expect(harness.github.commits[0]).toMatchObject({
+      message: "solve: leetcode 0001 two sum in python3 #1"
+    });
+    expect(harness.github.commits[0]?.files[0]).toMatchObject({
+      path: "leetcode/python/0001_two_sum.py"
+    });
+    expect(committedJson(harness, "leetcode/.leetcode-sync/index.json")).toMatchObject({
+      version: 3,
+      problems: [
+        {
+          languages: {
+            swift: {
+              solutionRevisionNumber: 1
+            },
+            python3: {
+              lastAcceptedSourceId: "python-accepted-source",
+              solutionRevisionNumber: 1
+            }
+          }
+        }
+      ]
+    });
   });
 
   it("records unsupported Programmers languages without committing", async () => {
@@ -392,7 +475,7 @@ describe("background sync orchestrator", () => {
     expect(await harness.storage.hasProcessedSyncDeduplicationKey(programmersSyncDeduplicationKey)).toBe(true);
     await expect(harness.storage.getRetryBundle("retry-programmers")).resolves.toBeNull();
     expect(harness.github.commits[0]).toMatchObject({
-      message: "solve: programmers 120804 두 수의 곱 구하기 in swift"
+      message: "solve: programmers 120804 두 수의 곱 구하기 in swift #1"
     });
     expect(harness.github.commits[0]?.files.map((file) => file.path)).toEqual([
       "programmers/swift/120804_두_수의_곱_구하기.swift",
@@ -625,17 +708,33 @@ function makeProgrammersAcceptedDetected(
   };
 }
 
-function syncableAcceptedSubmission(): LatestAcceptedSubmissionResult {
+function syncableAcceptedSubmission(
+  overrides: Partial<{
+    acceptedSourceId: string;
+    language: string;
+    supportedLanguage: SyncDeduplicationKey["language"];
+    code: string;
+  }> = {}
+): LatestAcceptedSubmissionResult {
+  const supportedLanguage = overrides.supportedLanguage ?? syncDeduplicationKey.language;
+  const acceptedSourceId =
+    overrides.acceptedSourceId ?? syncDeduplicationKey.acceptedSourceId;
+  const nextSyncDeduplicationKey: SyncDeduplicationKey = {
+    ...syncDeduplicationKey,
+    acceptedSourceId,
+    language: supportedLanguage
+  };
+
   return {
     syncable: true,
-    supportedLanguage: "swift",
-    syncDeduplicationKey: syncDeduplicationKey,
+    supportedLanguage,
+    syncDeduplicationKey: nextSyncDeduplicationKey,
     submittedAt: "2026-01-01T00:00:00.000Z",
     submission: {
-      acceptedSourceId: syncDeduplicationKey.acceptedSourceId,
+      acceptedSourceId,
       titleSlug: syncDeduplicationKey.titleSlug,
-      language: "Swift",
-      code: "class Solution {}",
+      language: (overrides.language ?? "Swift") as LeetCodeLanguage,
+      code: overrides.code ?? "class Solution {}",
       acceptedAt: defaultAcceptedAt
     }
   };
@@ -707,6 +806,37 @@ function makeRetryBundle(id: string): RetryBundle {
     createdAt: "2026-01-01T00:00:00.000Z",
     expiresAt: "2026-01-08T00:00:00.000Z",
     lastError: null
+  };
+}
+
+function makeV2CatalogWithSwiftEntry(): unknown {
+  return {
+    version: 2,
+    activity: {
+      days: {
+        "2026-01-01": {
+          acceptedCount: 1,
+          newProblemCount: 1
+        }
+      }
+    },
+    problems: [
+      {
+        ...problem,
+        lastSyncedAt: "2026-01-01T00:00:00.000Z",
+        firstAcceptedDate: "2026-01-01",
+        lastAcceptedDate: "2026-01-01",
+        languages: {
+          swift: {
+            solutionPath: "leetcode/swift/0001_two_sum.swift",
+            lastAcceptedSourceId: "123456789",
+            lastSyncedAt: "2026-01-01T00:00:00.000Z",
+            firstAcceptedDate: "2026-01-01",
+            lastAcceptedDate: "2026-01-01"
+          }
+        }
+      }
+    ]
   };
 }
 

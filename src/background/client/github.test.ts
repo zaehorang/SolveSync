@@ -185,13 +185,16 @@ describe("GitHub background client", () => {
     });
   });
 
-  it("retries a ref update conflict at most once with refreshed branch state", async () => {
-    const onConflict = vi.fn(() => [
-      {
-        path: "leetcode/README.md",
-        content: "# updated\n"
-      }
-    ]);
+  it("retries a ref update conflict at most once with refreshed files and message", async () => {
+    const onConflict = vi.fn(() => ({
+      files: [
+        {
+          path: "leetcode/README.md",
+          content: "# updated\n"
+        }
+      ],
+      message: "solve: leetcode 0001 two sum in swift #2"
+    }));
     const fetchImpl = mockFetch(
       jsonResponse(refResponse("refs/heads/main", "base-sha")),
       jsonResponse(commitResponse("base-sha", "base-tree-sha")),
@@ -215,7 +218,7 @@ describe("GitHub background client", () => {
         owner: "octo",
         name: "algorithms",
         branchName: "main",
-        message: "solve: leetcode 0001 two sum in swift",
+        message: "solve: leetcode 0001 two sum in swift #1",
         files: [
           {
             path: "leetcode/README.md",
@@ -232,6 +235,16 @@ describe("GitHub background client", () => {
     expect(
       requestMethods(fetchImpl).filter((method) => method === "PATCH")
     ).toHaveLength(2);
+    expect(requestBody(fetchImpl, 5)).toMatchObject({
+      message: "solve: leetcode 0001 two sum in swift #1",
+      tree: "first-tree-sha",
+      parents: ["base-sha"]
+    });
+    expect(requestBody(fetchImpl, 12)).toMatchObject({
+      message: "solve: leetcode 0001 two sum in swift #2",
+      tree: "retry-tree-sha",
+      parents: ["latest-sha"]
+    });
   });
 
   it("normalizes branch protected, rate limited, and auth failures", async () => {
