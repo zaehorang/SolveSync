@@ -1,0 +1,37 @@
+{
+  "project": "SolveSync",
+  "phase": "9-solution-revision-number",
+  "steps": [
+    {
+      "step": 0,
+      "name": "domain-docs",
+      "status": "pending"
+    },
+    {
+      "step": 1,
+      "name": "catalog-revision",
+      "status": "pending"
+    },
+    {
+      "step": 2,
+      "name": "commit-message-contract",
+      "status": "pending"
+    },
+    {
+      "step": 3,
+      "name": "sync-payload-recalculation",
+      "status": "pending"
+    },
+    {
+      "step": 4,
+      "name": "retry-recalculation",
+      "status": "pending"
+    },
+    {
+      "step": 5,
+      "name": "integration-validation",
+      "status": "pending",
+      "timeout_sec": 3600
+    }
+  ]
+}
