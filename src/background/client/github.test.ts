@@ -256,18 +256,33 @@ describe("GitHub background client", () => {
       buildGitHubCommitMessage({
         frontendId: "1",
         title: "Two Sum",
-        language: "swift"
+        language: "swift",
+        solutionRevisionNumber: 1
       })
-    ).toBe("solve: leetcode 0001 two sum in swift");
+    ).toBe("solve: leetcode 0001 two sum in swift #1");
 
     expect(
       buildGitHubCommitMessage({
         codingPlatform: "programmers",
         frontendId: "120804",
         title: "두 수의 곱 구하기",
-        language: "swift"
+        language: "swift",
+        solutionRevisionNumber: 3
       })
-    ).toBe("solve: programmers 120804 두 수의 곱 구하기 in swift");
+    ).toBe("solve: programmers 120804 두 수의 곱 구하기 in swift #3");
+  });
+
+  it("rejects invalid Solution Revision Numbers in solve commit messages", () => {
+    for (const solutionRevisionNumber of [0, -1, 1.5, Number.NaN]) {
+      expect(() =>
+        buildGitHubCommitMessage({
+          frontendId: "1",
+          title: "Two Sum",
+          language: "swift",
+          solutionRevisionNumber
+        })
+      ).toThrow("Solution Revision Number must be a positive integer.");
+    }
   });
 });
 

@@ -177,7 +177,7 @@ describe("background sync orchestrator", () => {
     expect(harness.github.commits).toHaveLength(1);
     expect(await harness.storage.hasProcessedSyncDeduplicationKey(programmersSyncDeduplicationKey)).toBe(true);
     expect(harness.github.commits[0]).toMatchObject({
-      message: "solve: programmers 120804 두 수의 곱 구하기 in swift"
+      message: "solve: programmers 120804 두 수의 곱 구하기 in swift #1"
     });
     expect(harness.github.commits[0]?.files.map((file) => file.path)).toEqual([
       "programmers/swift/120804_두_수의_곱_구하기.swift",

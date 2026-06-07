@@ -87,6 +87,7 @@ export interface BuildGitHubCommitMessageInput {
   frontendId: string;
   title: string;
   language: SupportedLanguage;
+  solutionRevisionNumber: number;
 }
 
 interface GitHubAuthContext {
@@ -629,13 +630,23 @@ export function createGitHubClient(options: GitHubClientOptions): GitHubClient {
 export function buildGitHubCommitMessage(
   input: BuildGitHubCommitMessageInput
 ): string {
+  if (!isPositiveInteger(input.solutionRevisionNumber)) {
+    throw new Error("Solution Revision Number must be a positive integer.");
+  }
+
   const codingPlatform = input.codingPlatform ?? "leetcode";
   const policy = getPlatformPolicy(codingPlatform);
 
   return `solve: ${policy.commitPlatformLabel} ${formatPlatformProblemNumber(
     codingPlatform,
     input.frontendId
-  )} ${toCommitTitle(input.title, codingPlatform)} in ${input.language}`;
+  )} ${toCommitTitle(input.title, codingPlatform)} in ${input.language} #${
+    input.solutionRevisionNumber
+  }`;
+}
+
+function isPositiveInteger(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value > 0;
 }
 
 async function githubRequest<T>(

@@ -952,7 +952,8 @@ function prepareCommit(
       codingPlatform: syncDeduplicationKey.codingPlatform,
       frontendId: problem.frontendId,
       title: problem.title,
-      language: syncDeduplicationKey.language
+      language: syncDeduplicationKey.language,
+      solutionRevisionNumber: 1
     })
   };
 }
