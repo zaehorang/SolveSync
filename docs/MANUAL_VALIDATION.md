@@ -13,14 +13,14 @@
 - 검증 대상 저장소는 PAT를 발급한 GitHub 계정이 owner인 repository다.
 - 검증 대상은 repository picker에서 선택한다. 권장 수동 검증 repository는 `zaehorang/Swift_Algorithm`이다.
 - 실제 풀이 기록 branch를 오염시키지 않기 위해 `solvesync-test` 같은 별도 branch를 사용한다. 이 branch는 Options의 Create branch action으로 생성할 수 있다.
-- Domain naming migration의 현재 Sync Repository는 `zaehorang/Swift_Algorithm`이다. 이 migration의 Solution Catalog v2 변경은 일반 수동 검증 branch가 아니라 `main`에 직접 반영한다.
+- Domain naming migration의 현재 Sync Repository는 `zaehorang/Swift_Algorithm`이다. 이 migration의 Solution Catalog schema 변경은 일반 수동 검증 branch가 아니라 `main`에 직접 반영한다.
 
 ## Domain Naming Migration Checks
 이번 migration phase에서는 extension 동작 검증과 별도로 문서 및 catalog 계약을 확인한다.
 
 1. `CONTEXT.md`의 표준 용어가 `docs/PRD.md`, `docs/ARCHITECTURE.md`, `docs/UI_GUIDE.md`, `docs/MANUAL_VALIDATION.md`, `docs/DEFERRED_WORK.md`, `AGENTS.md`에 반영되어 있는지 확인한다.
 2. `docs/adr/0026-domain-naming-v4-storage-runtime-and-catalog-migration.md`가 storage v4, runtime message rename, Solution Catalog v2, catalog file path 유지 결정을 포함하는지 확인한다.
-3. Solution Catalog v2 반영 step 이후 `zaehorang/Swift_Algorithm`의 `main`에서 `leetcode/.leetcode-sync/index.json`과 `programmers/.programmers-sync/index.json`이 v2 schema와 `lastAcceptedSourceId`를 사용하는지 확인한다.
+3. Solution Catalog schema 반영 step 이후 `zaehorang/Swift_Algorithm`의 `main`에서 `leetcode/.leetcode-sync/index.json`과 `programmers/.programmers-sync/index.json`이 v3 schema, `lastAcceptedSourceId`, language별 `solutionRevisionNumber`를 사용하는지 확인한다.
 
 ## Build와 Load
 1. 저장소 루트에서 build를 실행한다.
