@@ -32,6 +32,10 @@ _Avoid_: Target branch, default branch, generated branch
 Accepted Submission의 풀이 코드가 Sync Repository에 저장된 파일. 같은 문제와 언어의 새 Accepted Submission은 기존 Solution File을 최신 풀이로 갱신한다.
 _Avoid_: Submission file, source file
 
+**Solution Revision Number**:
+같은 Coding Platform, problem, supported language의 Solution File이 Sync Branch에 실제 반영된 revision 번호. GitHub commit 성공으로 Sync Branch에 반영된 경우에만 증가한다.
+_Avoid_: Attempt number, retry count, submission count
+
 **Solution Catalog**:
 Sync Repository 안에서 Coding Platform별로 동기화된 Solution File 목록과 풀이 진행 정보를 기록하는 기준 장부. Solution README는 이 장부에서 생성되며, 중복 처리, Sync History, Retry 상태의 기준 장부는 아니다.
 _Avoid_: Platform solution catalog, README table, progress table, retry state

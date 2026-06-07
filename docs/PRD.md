@@ -6,7 +6,7 @@
 SolveSync는 LeetCode와 Programmers에서 Accepted 된 풀이를 GitHub 문제 풀이 저장소로 자동 동기화하는 개인용 Chrome 확장이다. 사용자가 문제를 푼 뒤 코드 복사, 파일 위치 선택, 커밋, README 갱신, push를 반복하지 않도록 만드는 것이 목적이다.
 
 ## 도메인 Naming 계약
-표준 제품/domain 용어는 `CONTEXT.md`를 따른다. 사용자-facing 문서와 UI는 Coding Platform, Accepted Submission, Accepted Editor Snapshot, Sync Deduplication Key, Sync Repository, Sync Branch, Solution File, Solution Catalog, Solution README, Sync History, Retry Bundle을 기준으로 쓴다.
+표준 제품/domain 용어는 `CONTEXT.md`를 따른다. 사용자-facing 문서와 UI는 Coding Platform, Accepted Submission, Accepted Editor Snapshot, Sync Deduplication Key, Sync Repository, Sync Branch, Solution File, Solution Revision Number, Solution Catalog, Solution README, Sync History, Retry Bundle을 기준으로 쓴다.
 
 이번 domain naming migration은 제품 동작을 바꾸지 않는다. TypeScript, runtime message, storage schema를 같은 용어 체계로 정렬하고, Solution Catalog는 v2 schema에서 `lastAcceptedSourceId`를 저장한다. Solution Catalog 실제 파일 경로는 `leetcode/.leetcode-sync/index.json`과 `programmers/.programmers-sync/index.json`을 유지한다.
 
@@ -117,6 +117,7 @@ SolveSync는 LeetCode와 Programmers에서 Accepted 된 풀이를 GitHub 문제 
 - `programmers/README.md`와 `programmers/.programmers-sync/index.json`이 solution file과 같은 commit에 포함된다.
 - 같은 Sync Deduplication Key가 반복 감지되어도 중복 commit이 생기지 않는다.
 - 같은 문제/언어의 새 Accepted 제출은 기존 solution file을 최신 풀이로 갱신한다.
+- commit message는 같은 Coding Platform, 문제, 언어의 Solution Revision Number를 `#n` suffix로 포함한다.
 - GitHub commit 실패는 성공 처리되지 않고 retry 가능한 실패로 남는다.
 - Sync Repository 폴더가 없어도 sync가 실패하지 않는다.
 - Sync Repository는 코드 기본값이 아니라 Options에서 선택한 repository여야 한다.

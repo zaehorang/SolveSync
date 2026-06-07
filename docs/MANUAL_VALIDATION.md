@@ -91,6 +91,9 @@ npm run build
 2. 기존 solution path가 최신 풀이로 갱신되는지 확인한다.
 3. 해당 Solution Catalog의 language entry와 Solution README table이 갱신되는지 확인한다.
 4. 제출별 별도 solution file이 생기지 않는지 확인한다.
+5. 같은 문제와 같은 언어의 첫 성공 sync commit message가 `#1` suffix를 포함하는지 확인한다.
+6. 같은 문제와 같은 언어의 다른 Accepted 재제출 commit message가 `#2` suffix를 포함하는지 확인한다.
+7. 같은 Accepted가 다시 감지되어도 중복 commit이 생기지 않고 Solution Revision Number가 증가하지 않는지 확인한다.
 
 ## Auto Sync Off Flow
 1. Popup에서 Auto Sync를 끈다.
