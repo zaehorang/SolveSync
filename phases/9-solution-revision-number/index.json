@@ -37,7 +37,10 @@
     {
       "step": 4,
       "name": "retry-recalculation",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-06-07T19:48:52+0900",
+      "summary": "Kept Retry Bundle commitMessage compatibility while verifying retry commits recalculate #n messages from the latest Solution Catalog.",
+      "completed_at": "2026-06-07T19:50:55+0900"
     },
     {
       "step": 5,
