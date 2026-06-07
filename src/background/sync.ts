@@ -42,6 +42,8 @@ import {
 } from "./client/github";
 import type { LatestAcceptedSubmissionResult } from "./client/leetcode";
 
+const UNUSED_LEGACY_RETRY_BUNDLE_COMMIT_MESSAGE = "";
+
 export type SyncBroadcast = (
   message: BackgroundToContentPopupMessage,
   target?: SyncBroadcastTarget
@@ -768,7 +770,7 @@ export function createSyncOrchestrator(
       solutionPath: prepared.solutionPath,
       solutionReadmePath: prepared.solutionReadmePath,
       solutionCatalogPath: prepared.solutionCatalogPath,
-      commitMessage: "",
+      commitMessage: UNUSED_LEGACY_RETRY_BUNDLE_COMMIT_MESSAGE,
       attempts: 0,
       createdAt,
       expiresAt: addMs(createdAt, RETRY_BUNDLE_TTL_MS),

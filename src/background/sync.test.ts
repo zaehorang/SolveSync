@@ -459,9 +459,52 @@ describe("background sync orchestrator", () => {
 
     expect(harness.leetcode.fetchProblemMetadata).not.toHaveBeenCalled();
     expect(harness.github.commits).toHaveLength(1);
+    expect(harness.github.commits[0]).toMatchObject({
+      message: "solve: leetcode 0001 two sum in swift #1"
+    });
     expect(await harness.storage.hasProcessedSyncDeduplicationKey(syncDeduplicationKey)).toBe(true);
     await expect(harness.storage.getRetryBundle("retry-1")).resolves.toBeNull();
     await expect(historyStatuses(harness.storage)).resolves.toEqual(["synced"]);
+  });
+
+  it("recalculates retry commit messages from the latest Solution Catalog instead of the saved Retry Bundle message", async () => {
+    const harness = makeHarness();
+    await harness.saveSettings();
+    harness.github.files.set(
+      "leetcode/.leetcode-sync/index.json",
+      JSON.stringify(
+        makeV2CatalogWithSwiftEntry({
+          lastAcceptedSourceId: "previous-accepted-source"
+        }),
+        null,
+        2
+      )
+    );
+    await harness.storage.saveRetryBundle(
+      makeRetryBundle("retry-1", {
+        commitMessage: "legacy retry message that must not be reused"
+      })
+    );
+
+    await harness.sync.handleRetry("retry-1");
+
+    expect(harness.github.commits).toHaveLength(1);
+    expect(harness.github.commits[0]).toMatchObject({
+      message: "solve: leetcode 0001 two sum in swift #2"
+    });
+    expect(committedJson(harness, "leetcode/.leetcode-sync/index.json")).toMatchObject({
+      version: 3,
+      problems: [
+        {
+          languages: {
+            swift: {
+              lastAcceptedSourceId: syncDeduplicationKey.acceptedSourceId,
+              solutionRevisionNumber: 2
+            }
+          }
+        }
+      ]
+    });
   });
 
   it("retries a saved Programmers Retry Bundle with the Coding Platform commit files", async () => {
@@ -789,7 +832,10 @@ function makeProgrammersRetryBundle(id: string): RetryBundle {
   };
 }
 
-function makeRetryBundle(id: string): RetryBundle {
+function makeRetryBundle(
+  id: string,
+  overrides: Partial<Pick<RetryBundle, "commitMessage">> = {}
+): RetryBundle {
   return {
     id,
     codingPlatform: "leetcode",
@@ -801,7 +847,7 @@ function makeRetryBundle(id: string): RetryBundle {
     solutionPath: "leetcode/swift/0001_two_sum.swift",
     solutionReadmePath: "leetcode/README.md",
     solutionCatalogPath: "leetcode/.leetcode-sync/index.json",
-    commitMessage: "solve: leetcode 0001 two sum in swift",
+    commitMessage: overrides.commitMessage ?? "solve: leetcode 0001 two sum in swift",
     attempts: 0,
     createdAt: "2026-01-01T00:00:00.000Z",
     expiresAt: "2026-01-08T00:00:00.000Z",
@@ -809,7 +855,11 @@ function makeRetryBundle(id: string): RetryBundle {
   };
 }
 
-function makeV2CatalogWithSwiftEntry(): unknown {
+function makeV2CatalogWithSwiftEntry(
+  overrides: Partial<{
+    lastAcceptedSourceId: string;
+  }> = {}
+): unknown {
   return {
     version: 2,
     activity: {
@@ -829,7 +879,8 @@ function makeV2CatalogWithSwiftEntry(): unknown {
         languages: {
           swift: {
             solutionPath: "leetcode/swift/0001_two_sum.swift",
-            lastAcceptedSourceId: "123456789",
+            lastAcceptedSourceId:
+              overrides.lastAcceptedSourceId ?? "123456789",
             lastSyncedAt: "2026-01-01T00:00:00.000Z",
             firstAcceptedDate: "2026-01-01",
             lastAcceptedDate: "2026-01-01"
