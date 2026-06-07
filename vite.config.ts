@@ -1,4 +1,4 @@
-import { copyFileSync, mkdirSync } from "node:fs";
+import { copyFileSync, cpSync, mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
@@ -41,6 +41,9 @@ export default defineConfig({
           resolve(projectRoot, "manifest.json"),
           resolve(outDir, "manifest.json")
         );
+        cpSync(resolve(projectRoot, "icons"), resolve(outDir, "icons"), {
+          recursive: true
+        });
       }
     }
   ]

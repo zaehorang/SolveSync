@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-label="SolveSync toolbar icon">
+  <defs>
+    <linearGradient id="tile" x1="24" y1="20" x2="104" y2="108" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#f8fbff"/>
+      <stop offset="1" stop-color="#dbeafe"/>
+    </linearGradient>
+    <linearGradient id="repo" x1="30" y1="56" x2="98" y2="104" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1e3a8a"/>
+      <stop offset="1" stop-color="#0f172a"/>
+    </linearGradient>
+  </defs>
+  <rect x="16" y="16" width="96" height="96" rx="24" fill="url(#tile)"/>
+  <path d="M30 66h24l8-10h26l8 10h18v24c0 8-6 14-14 14H44c-8 0-14-6-14-14V66Z" fill="url(#repo)"/>
+  <path d="M33 67h22l8-10h24l8 10h17" fill="none" stroke="#b9d3ff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M48 68l15 15 35-38" fill="none" stroke="#16a34a" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

@@ -3,6 +3,12 @@
   "name": "SolveSync",
   "version": "0.1.0",
   "description": "Sync accepted LeetCode Swift and Python3 submissions to a selected GitHub repository.",
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
   "permissions": ["storage"],
   "host_permissions": [
     "https://leetcode.com/*",
@@ -24,6 +30,12 @@
   ],
   "options_page": "options/index.html",
   "action": {
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    },
     "default_title": "SolveSync",
     "default_popup": "popup/index.html"
   }

@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-label="SolveSync icon">
+  <defs>
+    <linearGradient id="tile" x1="24" y1="20" x2="104" y2="108" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#f8fbff"/>
+      <stop offset="1" stop-color="#dbeafe"/>
+    </linearGradient>
+    <linearGradient id="repo" x1="35" y1="55" x2="92" y2="96" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1e3a8a"/>
+      <stop offset="1" stop-color="#0f172a"/>
+    </linearGradient>
+    <linearGradient id="paper" x1="45" y1="36" x2="88" y2="85" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#eaf2ff"/>
+    </linearGradient>
+    <filter id="shadow" x="20" y="32" width="88" height="76" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="5" stdDeviation="4" flood-color="#0f172a" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+  <rect x="16" y="16" width="96" height="96" rx="24" fill="url(#tile)"/>
+  <path d="M88 43c13 6 19 20 16 34-3 13-14 22-27 25" fill="none" stroke="#2563eb" stroke-width="5" stroke-linecap="round" opacity="0.82"/>
+  <path d="M40 88c-11-5-17-17-15-30 2-12 11-22 24-25" fill="none" stroke="#2563eb" stroke-width="5" stroke-linecap="round" opacity="0.18"/>
+  <g filter="url(#shadow)">
+    <path d="M34 65h14l7-9h22l7 9h10v23c0 5-4 9-9 9H43c-5 0-9-4-9-9V65Z" fill="url(#repo)"/>
+    <path d="M36 66h13l7-9h20l7 9h9" fill="none" stroke="#b9d3ff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect x="44" y="39" width="43" height="44" rx="10" fill="url(#paper)" stroke="#c7d8f8" stroke-width="2"/>
+    <path d="M55 62l9 9 18-21" fill="none" stroke="#16a34a" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
