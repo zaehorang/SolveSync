@@ -13,7 +13,10 @@
     {
       "step": 1,
       "name": "catalog-revision",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-06-07T19:41:21+0900",
+      "summary": "Implemented Solution Catalog v3 with language solutionRevisionNumber normalization and merge result revision calculation.",
+      "completed_at": "2026-06-07T19:43:29+0900"
     },
     {
       "step": 2,
