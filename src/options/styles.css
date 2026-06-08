@@ -470,7 +470,7 @@ select option:disabled {
 
 .segmented-control {
   display: inline-grid;
-  grid-template-columns: repeat(3, minmax(76px, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   width: min(420px, 100%);
   gap: 3px;
   border: 1px solid var(--ss-hairline);
@@ -485,9 +485,10 @@ select option:disabled {
   border-radius: 999px;
   background: transparent;
   color: var(--ss-text-secondary);
+  font-size: 0.875rem;
   font-weight: 700;
   line-height: 1.2;
-  padding: 7px 10px;
+  padding: 7px 8px;
   cursor: pointer;
 }
 
@@ -590,8 +591,8 @@ select option:disabled {
   z-index: 10;
   margin: 10px -24px -24px;
   border-top: 1px solid var(--ss-hairline);
-  background: rgb(238 244 251 / 0.88);
-  box-shadow: 0 -8px 24px rgb(15 23 42 / 0.08);
+  background: rgb(238 244 251 / 0.82);
+  box-shadow: 0 -6px 18px rgb(15 23 42 / 0.06);
   backdrop-filter: blur(18px);
   padding: 12px 24px calc(12px + env(safe-area-inset-bottom));
 }
@@ -625,6 +626,18 @@ select option:disabled {
 .status-text {
   margin-bottom: 0;
   font-size: 0.875rem;
+}
+
+.status-text.success {
+  color: var(--ss-success);
+}
+
+.status-text.warning {
+  color: var(--ss-warning);
+}
+
+.status-text.error {
+  color: var(--ss-error);
 }
 
 .visually-hidden {
@@ -716,12 +729,9 @@ select option:disabled {
     text-align: left;
   }
 
-  .segmented-control {
-    grid-template-columns: 1fr;
-    border-radius: var(--ss-radius-panel);
-  }
-
   .segment-option {
-    border-radius: 6px;
+    min-width: 0;
+    padding-right: 6px;
+    padding-left: 6px;
   }
 }

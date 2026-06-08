@@ -1216,7 +1216,8 @@ function renderInlineMessage(
   message: InlineMessage,
   locale: UiLocale
 ): void {
-  element.className = `field-message ${message.tone === "neutral" ? "" : message.tone}`.trim();
+  const baseClass = element.id === "save-status" ? "status-text" : "field-message";
+  element.className = `${baseClass} ${message.tone === "neutral" ? "" : message.tone}`.trim();
   element.textContent =
     message.i18nKey === undefined
       ? message.text

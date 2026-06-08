@@ -247,6 +247,7 @@ describe("options state helpers", () => {
   it("keeps Save controls as an integrated sticky footer", () => {
     const html = readFileSync(new URL("./index.html", import.meta.url), "utf8");
     const css = readFileSync(new URL("./styles.css", import.meta.url), "utf8");
+    const source = readFileSync(new URL("./index.ts", import.meta.url), "utf8");
     const actionPanelRule = css.match(/\.action-panel\s*\{[^}]*\}/s)?.[0] ?? "";
     const actionPanelInnerRule =
       css.match(/\.action-panel-inner\s*\{[^}]*\}/s)?.[0] ?? "";
@@ -260,7 +261,8 @@ describe("options state helpers", () => {
     expect(html).not.toContain('class="panel action-panel"');
     expect(actionPanelRule).toContain("bottom: 0");
     expect(actionPanelRule).toContain("border-top: 1px solid var(--ss-hairline)");
-    expect(actionPanelRule).toContain("background: rgb(238 244 251 / 0.88)");
+    expect(actionPanelRule).toContain("background: rgb(238 244 251 / 0.82)");
+    expect(actionPanelRule).toContain("box-shadow: 0 -6px 18px rgb(15 23 42 / 0.06)");
     expect(actionPanelRule).not.toContain("border-color");
     expect(actionPanelInnerRule).toContain("justify-content: flex-end");
     expect(actionButtonRule).toContain("min-width: 128px");
@@ -280,6 +282,32 @@ describe("options state helpers", () => {
     );
     expect(css).toMatch(
       /@media \(max-width: 680px\)\s*\{[\s\S]*\.action-panel \.status-text\s*\{[^}]*text-align:\s*left/s
+    );
+    expect(source).toContain(
+      'const baseClass = element.id === "save-status" ? "status-text" : "field-message";'
+    );
+    expect(source).toContain("element.className = `${baseClass}");
+  });
+
+  it("keeps the mobile language segmented control in three columns", () => {
+    const css = readFileSync(new URL("./styles.css", import.meta.url), "utf8");
+    const segmentedControlRule =
+      css.match(/\.segmented-control\s*\{[^}]*\}/s)?.[0] ?? "";
+    const mobileRules =
+      css.match(/@media \(max-width: 680px\)\s*\{[\s\S]*\}\s*$/s)?.[0] ?? "";
+
+    expect(segmentedControlRule).toContain(
+      "grid-template-columns: repeat(3, minmax(0, 1fr))"
+    );
+    expect(segmentedControlRule).toContain("border-radius: 999px");
+    expect(mobileRules).not.toMatch(
+      /\.segmented-control\s*\{[^}]*grid-template-columns:\s*1fr/s
+    );
+    expect(mobileRules).not.toMatch(
+      /\.segmented-control\s*\{[^}]*border-radius:\s*var\(--ss-radius-panel\)/s
+    );
+    expect(mobileRules).toMatch(
+      /\.segment-option\s*\{[^}]*min-width:\s*0/s
     );
   });
 
