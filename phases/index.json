@@ -54,6 +54,10 @@
       "dir": "10-ui-state-runtime-polish",
       "status": "completed",
       "completed_at": "2026-06-08T13:29:42+0900"
+    },
+    {
+      "dir": "11-github-public-preview",
+      "status": "pending"
     }
   ]
 }
