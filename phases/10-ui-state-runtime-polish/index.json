@@ -37,7 +37,9 @@
     {
       "step": 4,
       "name": "options-mobile-hierarchy",
-      "status": "pending"
+      "status": "completed",
+      "summary": "Kept language segmented control horizontal at 360px and reduced sticky Save controls visual dominance",
+      "completed_at": "2026-06-08T13:23:09+0900"
     },
     {
       "step": 5,
