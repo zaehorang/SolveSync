@@ -28,9 +28,23 @@ describe("error normalization", () => {
       userMessage: "Could not read the Programmers editor code.",
       retryable: false
     });
+    expect(normalizeError({ code: "extension_state_unavailable" })).toMatchObject({
+      code: "extension_state_unavailable",
+      userMessage:
+        "Could not read extension settings. Reload the extension or reopen Options.",
+      retryable: false
+    });
     expect(normalizeError(new MalformedSolutionCatalogError("bad catalog")).code).toBe(
       "malformed_index"
     );
+  });
+
+  it("keeps unknown generic errors on the GitHub commit fallback", () => {
+    expect(normalizeError(new Error("Unexpected background failure"))).toMatchObject({
+      code: "github_commit_failed",
+      userMessage: "Could not commit the solution to GitHub.",
+      retryable: true
+    });
   });
 
   it("normalizes common GitHub and network failures", () => {

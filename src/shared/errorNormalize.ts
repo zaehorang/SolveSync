@@ -82,6 +82,10 @@ const ERROR_DESCRIPTORS = {
   network_failed: {
     userMessage: "Network request failed.",
     retryable: true
+  },
+  extension_state_unavailable: {
+    userMessage: "Could not read extension settings. Reload the extension or reopen Options.",
+    retryable: false
   }
 } as const satisfies Record<
   NormalizedErrorCode,

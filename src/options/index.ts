@@ -302,6 +302,8 @@ export function mapConnectionErrorCode(
       return "rate_limited";
     case "network_failed":
       return "network_failed";
+    case "extension_state_unavailable":
+      return "not_tested";
     case "setup_required":
     case "auto_sync_disabled":
     case "unsupported_language":

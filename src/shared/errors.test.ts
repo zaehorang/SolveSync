@@ -27,7 +27,8 @@ describe("normalized error contracts", () => {
       "github_commit_failed",
       "github_conflict_failed",
       "malformed_index",
-      "network_failed"
+      "network_failed",
+      "extension_state_unavailable"
     ]);
   });
 

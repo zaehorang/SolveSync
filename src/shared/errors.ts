@@ -17,7 +17,8 @@ export const NORMALIZED_ERROR_CODES = [
   "github_commit_failed",
   "github_conflict_failed",
   "malformed_index",
-  "network_failed"
+  "network_failed",
+  "extension_state_unavailable"
 ] as const;
 
 export type NormalizedErrorCode = (typeof NORMALIZED_ERROR_CODES)[number];
