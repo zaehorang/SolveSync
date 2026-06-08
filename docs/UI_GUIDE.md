@@ -22,6 +22,8 @@ UI copy의 표준 도메인 용어는 `CONTEXT.md`를 따른다. Options, Popup,
 
 사용자에게 내부 storage key나 runtime message type을 노출하지 않는다. 단, Security disclosure에서는 Retry Bundle이 Accepted solution code를 임시 저장할 수 있다는 사실을 명확히 알린다.
 
+Solution Revision Number는 commit message와 Solution Catalog의 추적 정보이며, Popup, Toast, Options, Solution README에는 표시하지 않는다.
+
 ## Language / Localization
 v1 UI는 영어와 한국어를 지원한다.
 
@@ -77,6 +79,7 @@ Sync Repository picker:
 - 목록이 비어 있으면 token에 본인 owner repository가 포함되어 있는지 확인하라는 상태를 보여준다.
 - 목록이 길 수 있으므로 검색 가능한 UI를 제공한다.
 - repository를 자동 선택하지 않는다.
+- Empty, loading, no-match 상태는 선택된 repository처럼 보이면 안 되며 실제 repository option과 시각적으로 구분한다.
 
 Sync Branch picker:
 - Sync Repository 선택 후 branch 목록을 불러온다.

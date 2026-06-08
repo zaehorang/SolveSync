@@ -318,6 +318,7 @@ Message payload에는 실제 PAT, LeetCode/Programmers cookie, session token을 
 - `github_conflict_failed`
 - `malformed_index`
 - `network_failed`
+- `extension_state_unavailable`
 
 Toast는 짧은 메시지만 보여준다. Popup은 상세 메시지와 retry 가능 여부를 보여준다.
 

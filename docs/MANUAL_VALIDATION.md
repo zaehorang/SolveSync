@@ -66,6 +66,7 @@ npm run build
 8. 긴 Sync History를 스크롤해도 Popup 상단 운영 상태 summary와 history row text가 서로 겹치거나 가려지지 않는지 확인한다.
 9. 같은 문제 group 안의 여러 language row에 인접한 동일 retryable failure가 있으면 batch summary와 Retry all button으로 묶여 표시되는지 확인한다.
 10. 실패 Sync History 항목이 Retry 가능하면 Retry button을 보여주고, Retry Bundle이 없거나 retry 불가이면 다음 행동 안내를 보여주는지 확인한다.
+11. Popup, toast, Options, Solution README에 Solution Revision Number가 별도 badge나 metadata로 표시되지 않는지 확인한다.
 
 ## LeetCode Successful Sync Flow
 1. Auto Sync를 켠다.

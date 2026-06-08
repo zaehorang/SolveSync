@@ -1,0 +1,13 @@
+{
+  "project": "SolveSync",
+  "phase": "10-ui-state-runtime-polish",
+  "steps": [
+    { "step": 0, "name": "docs-scope-lock", "status": "pending" },
+    { "step": 1, "name": "shared-error-model", "status": "pending" },
+    { "step": 2, "name": "options-extension-state-errors", "status": "pending" },
+    { "step": 3, "name": "repository-picker-states", "status": "pending" },
+    { "step": 4, "name": "options-mobile-hierarchy", "status": "pending" },
+    { "step": 5, "name": "popup-runtime-fixture", "status": "pending" },
+    { "step": 6, "name": "integration-visual-qa", "status": "pending", "timeout_sec": 3600 }
+  ]
+}
