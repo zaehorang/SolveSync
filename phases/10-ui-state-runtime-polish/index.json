@@ -13,7 +13,10 @@
     {
       "step": 1,
       "name": "shared-error-model",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-06-08T13:13:17+0900",
+      "summary": "Added extension_state_unavailable to shared normalized errors without changing github_commit_failed fallback",
+      "completed_at": "2026-06-08T13:14:11+0900"
     },
     {
       "step": 2,
