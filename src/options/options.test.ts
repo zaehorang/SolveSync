@@ -1,18 +1,25 @@
 import { readFileSync } from "node:fs";
 
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { NormalizedError, SyncBranch, SyncRepository } from "../shared";
 import {
   getConnectionStatusView,
   getDefaultBranchSelection,
+  getOptionsExtensionStateUnavailableMessage,
   getRepositoryFilterState,
   getSetupFlowStepStates,
   mapConnectionErrorCode,
+  readSettings,
+  saveSettings,
   validateSettingsDraft
 } from "./index";
 
 describe("options state helpers", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it("filters repositories by owner or name without selecting a repository", () => {
     const repositories = [
       makeRepository("octo/algorithms"),
@@ -131,6 +138,58 @@ describe("options state helpers", () => {
       label: "연결됨",
       tone: "success"
     });
+  });
+
+  it("shows extension recovery copy when initial settings read fails", async () => {
+    vi.stubGlobal("chrome", {
+      runtime: {},
+      storage: {
+        local: {
+          get: vi.fn().mockRejectedValue(new Error("Storage read failed")),
+          set: vi.fn()
+        }
+      }
+    });
+
+    await expect(readSettings()).rejects.toMatchObject({
+      code: "extension_state_unavailable",
+      userMessage:
+        "Could not read extension settings. Reload the extension or reopen Options."
+    });
+    expect(getOptionsExtensionStateUnavailableMessage("en")).toBe(
+      "Could not access extension settings. Reload the extension or reopen Options."
+    );
+    expect(getOptionsExtensionStateUnavailableMessage("en")).not.toBe(
+      "Could not commit the solution to GitHub."
+    );
+    expect(getOptionsExtensionStateUnavailableMessage("ko")).toBe(
+      "확장 설정에 접근할 수 없습니다. 확장을 다시 로드하거나 Options를 다시 여세요."
+    );
+  });
+
+  it("normalizes settings save write failures as extension-local state failures", async () => {
+    vi.stubGlobal("chrome", {
+      runtime: {},
+      storage: {
+        local: {
+          get: vi.fn().mockResolvedValue({}),
+          set: vi.fn().mockRejectedValue(new Error("Storage write failed"))
+        }
+      }
+    });
+
+    await expect(
+      saveSettings({
+        githubPat: "pat"
+      })
+    ).rejects.toMatchObject({
+      code: "extension_state_unavailable",
+      userMessage:
+        "Could not read extension settings. Reload the extension or reopen Options."
+    });
+    expect(getOptionsExtensionStateUnavailableMessage("en")).not.toContain(
+      "GitHub"
+    );
   });
 
   it("keeps Save controls as an integrated sticky footer", () => {

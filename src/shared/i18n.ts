@@ -178,6 +178,7 @@ const EN_TRANSLATIONS = {
   "options.message.completeRequiredSettings": "Complete the required settings before saving.",
   "options.message.savingSettings": "Saving settings...",
   "options.message.settingsSaved": "Settings saved.",
+  "options.message.extensionStateUnavailable": "Could not access extension settings. Reload the extension or reopen Options.",
   "options.message.noRepositorySearchMatches": "No Sync Repositories match the search.",
   "options.suffix.private": "private",
   "options.suffix.protected": "protected"
@@ -360,6 +361,7 @@ const KO_TRANSLATIONS = {
   "options.message.completeRequiredSettings": "저장하기 전에 필수 설정을 완료하세요.",
   "options.message.savingSettings": "설정 저장 중...",
   "options.message.settingsSaved": "설정을 저장했습니다.",
+  "options.message.extensionStateUnavailable": "확장 설정에 접근할 수 없습니다. 확장을 다시 로드하거나 Options를 다시 여세요.",
   "options.message.noRepositorySearchMatches": "검색과 일치하는 Sync Repository가 없습니다.",
   "options.suffix.private": "private",
   "options.suffix.protected": "protected"

@@ -185,6 +185,32 @@ function localizedMessage(
   };
 }
 
+export function normalizeOptionsExtensionStateError(
+  error: unknown
+): NormalizedError {
+  const debugMessage =
+    error instanceof Error
+      ? error.message
+      : typeof error === "string"
+        ? error
+        : null;
+
+  return normalizeError({
+    code: "extension_state_unavailable",
+    debugMessage
+  });
+}
+
+export function getOptionsExtensionStateUnavailableMessage(
+  locale: UiLocale = "en"
+): string {
+  return t(locale, "options.message.extensionStateUnavailable");
+}
+
+function localizedExtensionStateUnavailableMessage(): InlineMessage {
+  return localizedMessage("options.message.extensionStateUnavailable", "error");
+}
+
 export function getRepositoryFilterState(
   repositories: SyncRepository[],
   query: string
@@ -370,10 +396,7 @@ async function initOptionsPage(): Promise<void> {
     }
   } catch (error) {
     state.loadingSettings = false;
-    state.saveMessage = {
-      text: normalizeError(error).userMessage,
-      tone: "error"
-    };
+    state.saveMessage = localizedExtensionStateUnavailableMessage();
     render(elements, state);
   }
 }
@@ -844,10 +867,14 @@ async function saveSettingsFromForm(
     });
     state.saveMessage = localizedMessage("options.message.settingsSaved", "success");
   } catch (error) {
-    state.saveMessage = {
-      text: normalizeError(error).userMessage,
-      tone: "error"
-    };
+    const normalized = normalizeError(error);
+    state.saveMessage =
+      normalized.code === "extension_state_unavailable"
+        ? localizedExtensionStateUnavailableMessage()
+        : {
+            text: normalized.userMessage,
+            tone: "error"
+          };
   } finally {
     state.savingSettings = false;
     render(elements, state);
@@ -1263,14 +1290,24 @@ function requireElement<T extends HTMLElement>(
   return element;
 }
 
-async function readSettings(): Promise<SettingsState> {
-  const values = await chrome.storage.local.get([STORAGE_KEYS.settings]);
-  const value = values[STORAGE_KEYS.settings];
+export async function readSettings(): Promise<SettingsState> {
+  try {
+    const values = await chrome.storage.local.get([STORAGE_KEYS.settings]);
+    const lastErrorMessage = getChromeRuntimeLastErrorMessage();
 
-  return parseSettingsState(value) ?? DEFAULT_SETTINGS_STATE;
+    if (lastErrorMessage !== null) {
+      throw new Error(lastErrorMessage);
+    }
+
+    const value = values[STORAGE_KEYS.settings];
+
+    return parseSettingsState(value) ?? DEFAULT_SETTINGS_STATE;
+  } catch (error) {
+    throw normalizeOptionsExtensionStateError(error);
+  }
 }
 
-async function saveSettings(
+export async function saveSettings(
   update: Partial<Omit<SettingsState, "version" | "updatedAt">>
 ): Promise<SettingsState> {
   const current = await readSettings();
@@ -1281,9 +1318,18 @@ async function saveSettings(
     updatedAt: new Date().toISOString()
   };
 
-  await chrome.storage.local.set({
-    [STORAGE_KEYS.settings]: next
-  });
+  try {
+    await chrome.storage.local.set({
+      [STORAGE_KEYS.settings]: next
+    });
+    const lastErrorMessage = getChromeRuntimeLastErrorMessage();
+
+    if (lastErrorMessage !== null) {
+      throw new Error(lastErrorMessage);
+    }
+  } catch (error) {
+    throw normalizeOptionsExtensionStateError(error);
+  }
 
   return next;
 }
@@ -1296,7 +1342,7 @@ function sendRuntimeMessage<T>(message: RuntimeMessage): Promise<RuntimeResponse
       if (lastError !== undefined) {
         resolve({
           ok: false,
-          error: normalizeError(new Error(lastError.message))
+          error: normalizeOptionsExtensionStateError(lastError.message)
         });
         return;
       }
@@ -1304,7 +1350,9 @@ function sendRuntimeMessage<T>(message: RuntimeMessage): Promise<RuntimeResponse
       if (response === undefined) {
         resolve({
           ok: false,
-          error: normalizeError(new Error("Background service worker did not respond."))
+          error: normalizeOptionsExtensionStateError(
+            "Background service worker did not respond."
+          )
         });
         return;
       }
@@ -1312,6 +1360,10 @@ function sendRuntimeMessage<T>(message: RuntimeMessage): Promise<RuntimeResponse
       resolve(response);
     });
   });
+}
+
+function getChromeRuntimeLastErrorMessage(): string | null {
+  return chrome.runtime?.lastError?.message ?? null;
 }
 
 function normalizePat(value: string): string | null {
