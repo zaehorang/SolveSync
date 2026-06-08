@@ -141,5 +141,5 @@ SolveSync는 LeetCode와 Programmers에서 Accepted 된 풀이를 GitHub 문제 
 
 ## 릴리즈 전략
 - v1: LeetCode/Programmers Accepted-to-GitHub 전체 흐름을 검증하기 위한 개인용 local unpacked extension.
-- Domain naming migration: 현재 Sync Repository는 `zaehorang/Swift_Algorithm`이며, Solution Catalog schema 변경은 `main`에 직접 반영한다.
+- Domain naming migration: Solution Catalog schema 변경은 사용자가 선택한 Sync Repository의 검증 branch에서 확인하며, 특정 repository를 제품 기본값으로 고정하지 않는다.
 - v2: v1 안정화 후 Chrome Web Store 패키징, 아이콘, 스크린샷, privacy policy, 권한 설명, 심사 대응을 진행한다.

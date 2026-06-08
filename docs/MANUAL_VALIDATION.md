@@ -11,16 +11,16 @@
 - GitHub fine-grained PAT가 준비되어 있다.
 - PAT는 검증 대상 저장소를 선택하고 Metadata read, Contents read/write 권한을 가진다.
 - 검증 대상 저장소는 PAT를 발급한 GitHub 계정이 owner인 repository다.
-- 검증 대상은 repository picker에서 선택한다. 권장 수동 검증 repository는 `zaehorang/Swift_Algorithm`이다.
+- 검증 대상은 repository picker에서 선택한다. 문서 예시 repository는 `your-name/algorithm-solutions`이며, 실제 검증에서는 PAT를 발급한 GitHub 계정이 owner인 테스트 repository를 사용한다.
 - 실제 풀이 기록 branch를 오염시키지 않기 위해 `solvesync-test` 같은 별도 branch를 사용한다. 이 branch는 Options의 Create branch action으로 생성할 수 있다.
-- Domain naming migration의 현재 Sync Repository는 `zaehorang/Swift_Algorithm`이다. 이 migration의 Solution Catalog schema 변경은 일반 수동 검증 branch가 아니라 `main`에 직접 반영한다.
+- Domain naming migration의 Solution Catalog schema 변경은 공개 예시 흐름에서는 `your-name/algorithm-solutions` 같은 사용자가 선택한 Sync Repository의 검증 branch에서 확인한다. 실제 운영 repository나 기본 branch에 직접 반영하지 않는다.
 
 ## Domain Naming Migration Checks
 이번 migration phase에서는 extension 동작 검증과 별도로 문서 및 catalog 계약을 확인한다.
 
 1. `CONTEXT.md`의 표준 용어가 `docs/PRD.md`, `docs/ARCHITECTURE.md`, `docs/UI_GUIDE.md`, `docs/MANUAL_VALIDATION.md`, `docs/DEFERRED_WORK.md`, `AGENTS.md`에 반영되어 있는지 확인한다.
 2. `docs/adr/0026-domain-naming-v4-storage-runtime-and-catalog-migration.md`가 storage v4, runtime message rename, Solution Catalog v2, catalog file path 유지 결정을 포함하는지 확인한다.
-3. Solution Catalog schema 반영 step 이후 `zaehorang/Swift_Algorithm`의 `main`에서 `leetcode/.leetcode-sync/index.json`과 `programmers/.programmers-sync/index.json`이 v3 schema, `lastAcceptedSourceId`, language별 `solutionRevisionNumber`를 사용하는지 확인한다.
+3. Solution Catalog schema 반영 step 이후 사용자가 선택한 Sync Repository의 검증 branch에서 `leetcode/.leetcode-sync/index.json`과 `programmers/.programmers-sync/index.json`이 v3 schema, `lastAcceptedSourceId`, language별 `solutionRevisionNumber`를 사용하는지 확인한다.
 
 ## Build와 Load
 1. 저장소 루트에서 build를 실행한다.
@@ -44,7 +44,7 @@ npm run build
 ## GitHub Connection Flow
 1. Options page에서 PAT를 입력한다.
 2. Load repositories를 실행한다.
-3. `zaehorang/Swift_Algorithm` 또는 검증 대상 repository가 목록에 표시되는지 확인한다.
+3. `your-name/algorithm-solutions` 같은 검증 대상 repository가 목록에 표시되는지 확인한다.
 4. collaborator 또는 organization repository가 목록에 표시되지 않는지 확인한다.
 5. repository를 선택한 뒤 branch 목록이 표시되는지 확인한다.
 6. 검증 branch가 없으면 Create branch action으로 생성한다.
