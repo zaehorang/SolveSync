@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640" role="img" aria-labelledby="title desc">
-  <title id="title">SolveSync Accepted-to-GitHub sync flow</title>
-  <desc id="desc">A visual overview showing an accepted coding problem, SolveSync success toast, and an automatic GitHub commit.</desc>
+  <title id="title">SolveSync Accepted-to-GitHub 동기화 흐름</title>
+  <desc id="desc">Accepted 된 문제 풀이, SolveSync 성공 토스트, 자동 GitHub 커밋을 보여주는 시각 자료입니다.</desc>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1280" y2="640" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#f7fbff"/>
@@ -35,7 +35,7 @@
   </g>
 
   <text x="184" y="95" fill="#0f172a" font-family="Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="48" font-weight="800" letter-spacing="0">SolveSync</text>
-  <text x="184" y="132" fill="#475569" font-family="Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="24" font-weight="500" letter-spacing="0">Accepted solution sync for LeetCode, Programmers, and GitHub</text>
+  <text x="184" y="132" fill="#475569" font-family="Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="24" font-weight="500" letter-spacing="0">Accepted 풀이를 GitHub 저장소로 자동 동기화</text>
 
   <g filter="url(#shadow)">
     <rect x="78" y="188" width="500" height="352" rx="18" fill="url(#panel)" stroke="#dbe4f0"/>
@@ -62,8 +62,8 @@
     <rect x="454" y="264" width="338" height="126" rx="20" fill="#ffffff" stroke="#cbd5e1"/>
     <rect x="478" y="291" width="54" height="54" rx="14" fill="#dcfce7"/>
     <path d="M493 318l9 9 18-24" fill="none" stroke="#16a34a" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
-    <text x="552" y="314" fill="#0f172a" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="22" font-weight="780">Synced to GitHub</text>
-    <text x="552" y="342" fill="#475569" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="16" font-weight="560">Commit and file are ready</text>
+    <text x="552" y="314" fill="#0f172a" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="22" font-weight="780">GitHub에 동기화됨</text>
+    <text x="552" y="342" fill="#475569" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="16" font-weight="560">커밋과 파일 준비 완료</text>
     <rect x="552" y="360" width="90" height="1.5" rx="1" fill="#2563eb"/>
   </g>
 
@@ -87,8 +87,8 @@
     <path d="M1030 362l16 16 34-42" fill="none" stroke="#16a34a" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
 
     <rect x="860" y="448" width="282" height="42" rx="21" fill="#eff6ff"/>
-    <text x="886" y="476" fill="#1d4ed8" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="17" font-weight="760">solve: leetcode two sum in swift #1</text>
+    <text x="894" y="476" fill="#1d4ed8" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="17" font-weight="760">풀이 커밋 자동 생성</text>
   </g>
 
-  <text x="85" y="594" fill="#64748b" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="17" font-weight="560">Solve a problem normally. When the result is Accepted, SolveSync commits the solution, README, and catalog to your selected GitHub repository.</text>
+  <text x="85" y="594" fill="#64748b" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="17" font-weight="560">평소처럼 문제를 풀면 됩니다. Accepted가 감지되면 SolveSync가 풀이, README, Catalog를 선택한 GitHub 저장소에 커밋합니다.</text>
 </svg>
