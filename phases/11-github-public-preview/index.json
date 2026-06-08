@@ -29,8 +29,11 @@
     {
       "step": 3,
       "name": "public-preview-validation",
-      "status": "pending",
-      "timeout_sec": 3600
+      "status": "completed",
+      "timeout_sec": 3600,
+      "started_at": "2026-06-08T16:54:30+0900",
+      "summary": "Validated public preview docs, ignored internal workflow paths, clean staging, and passing test/typecheck/build gates.",
+      "completed_at": "2026-06-08T16:55:40+0900"
     },
     {
       "step": 4,
