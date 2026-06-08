@@ -1,0 +1,57 @@
+{
+  "project": "SolveSync",
+  "phase": "9-solution-revision-number",
+  "steps": [
+    {
+      "step": 0,
+      "name": "domain-docs",
+      "status": "completed",
+      "started_at": "2026-06-07T19:39:43+0900",
+      "summary": "Added Solution Revision Number domain docs, v3 catalog architecture contract, manual validation checks, and ADR 0027 for #n commit messages.",
+      "completed_at": "2026-06-07T19:41:17+0900"
+    },
+    {
+      "step": 1,
+      "name": "catalog-revision",
+      "status": "completed",
+      "started_at": "2026-06-07T19:41:21+0900",
+      "summary": "Implemented Solution Catalog v3 with language solutionRevisionNumber normalization and merge result revision calculation.",
+      "completed_at": "2026-06-07T19:43:29+0900"
+    },
+    {
+      "step": 2,
+      "name": "commit-message-contract",
+      "status": "completed",
+      "started_at": "2026-06-07T19:43:32+0900",
+      "summary": "Made GitHub solve commit messages require solutionRevisionNumber and append #n suffix with client and sync test coverage.",
+      "completed_at": "2026-06-07T19:45:49+0900"
+    },
+    {
+      "step": 3,
+      "name": "sync-payload-recalculation",
+      "status": "completed",
+      "started_at": "2026-06-07T19:45:52+0900",
+      "summary": "Recalculated GitHub commit files and #n messages together from the latest Solution Catalog, including conflict retry payloads.",
+      "completed_at": "2026-06-07T19:48:49+0900"
+    },
+    {
+      "step": 4,
+      "name": "retry-recalculation",
+      "status": "completed",
+      "started_at": "2026-06-07T19:48:52+0900",
+      "summary": "Kept Retry Bundle commitMessage compatibility while verifying retry commits recalculate #n messages from the latest Solution Catalog.",
+      "completed_at": "2026-06-07T19:50:55+0900"
+    },
+    {
+      "step": 5,
+      "name": "integration-validation",
+      "status": "completed",
+      "timeout_sec": 3600,
+      "started_at": "2026-06-07T19:50:57+0900",
+      "summary": "Validated Solution Revision Number integration, aligned v3 docs, and passed typecheck/test/build.",
+      "completed_at": "2026-06-07T19:52:27+0900"
+    }
+  ],
+  "created_at": "2026-06-07T19:39:43+0900",
+  "completed_at": "2026-06-07T19:52:30+0900"
+}

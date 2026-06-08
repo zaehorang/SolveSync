@@ -60,7 +60,14 @@ export interface CommitGitDataInput extends GitHubRepositoryInput {
   branchName: string;
   files: GitTreeFile[];
   message: string;
-  onConflict?: (context: CommitConflictRetryContext) => Promise<GitTreeFile[]> | GitTreeFile[];
+  onConflict?: (
+    context: CommitConflictRetryContext
+  ) => Promise<CommitGitDataPayload> | CommitGitDataPayload;
+}
+
+export interface CommitGitDataPayload {
+  files: GitTreeFile[];
+  message: string;
 }
 
 export interface CommitConflictRetryContext {
@@ -87,6 +94,7 @@ export interface BuildGitHubCommitMessageInput {
   frontendId: string;
   title: string;
   language: SupportedLanguage;
+  solutionRevisionNumber: number;
 }
 
 interface GitHubAuthContext {
@@ -261,9 +269,10 @@ export class GitHubClient {
     return this.withNormalizedErrors(async () => {
       const repository = input.repository ?? repositoryFromInput(input);
       const firstBase = await this.readBranchBaseContext(repository, input.branchName);
+      const firstPayload = toCommitGitDataPayload(input);
 
       try {
-        return await this.commitFilesOnBase(repository, input, firstBase, input.files);
+        return await this.commitFilesOnBase(repository, input, firstBase, firstPayload);
       } catch (error) {
         if (!isRefUpdateConflict(error) || input.onConflict === undefined) {
           throw error;
@@ -271,7 +280,7 @@ export class GitHubClient {
       }
 
       const latestBase = await this.readBranchBaseContext(repository, input.branchName);
-      const nextFiles = await input.onConflict({
+      const nextPayload = await input.onConflict({
         repository,
         branch: latestBase.branch,
         baseCommitSha: latestBase.baseCommitSha,
@@ -281,7 +290,7 @@ export class GitHubClient {
           this.readTextFileFromTree(repository, latestBase.tree, path)
       });
 
-      return this.commitFilesOnBase(repository, input, latestBase, nextFiles);
+      return this.commitFilesOnBase(repository, input, latestBase, nextPayload);
     });
   }
 
@@ -432,13 +441,13 @@ export class GitHubClient {
 
   private async commitFilesOnBase(
     repository: SyncRepository,
-    input: Pick<CommitGitDataInput, "branchName" | "message">,
+    input: Pick<CommitGitDataInput, "branchName">,
     base: BranchBaseContext,
-    files: GitTreeFile[]
+    payload: CommitGitDataPayload
   ): Promise<CommitGitDataResult> {
     const treeEntries: BlobTreeEntry[] = [];
 
-    for (const file of files) {
+    for (const file of payload.files) {
       const blob = await this.createBlob(repository, file.content);
       treeEntries.push({
         path: file.path,
@@ -451,7 +460,7 @@ export class GitHubClient {
     const tree = await this.createTree(repository, base.baseTreeSha, treeEntries);
     const commit = await this.createCommit(
       repository,
-      input.message,
+      payload.message,
       tree.sha,
       base.baseCommitSha
     );
@@ -470,7 +479,7 @@ export class GitHubClient {
       commitSha: commit.sha,
       commitUrl: commit.html_url ?? buildCommitUrl(repository, commit.sha),
       fileUrls: Object.fromEntries(
-        files.map((file) => [
+        payload.files.map((file) => [
           file.path,
           buildFileUrl(repository, input.branchName, file.path)
         ])
@@ -622,6 +631,13 @@ export class GitHubClient {
 
 const defaultFetch: GitHubFetch = (input, init) => globalThis.fetch(input, init);
 
+function toCommitGitDataPayload(input: Pick<CommitGitDataInput, "files" | "message">): CommitGitDataPayload {
+  return {
+    files: input.files,
+    message: input.message
+  };
+}
+
 export function createGitHubClient(options: GitHubClientOptions): GitHubClient {
   return new GitHubClient(options);
 }
@@ -629,13 +645,23 @@ export function createGitHubClient(options: GitHubClientOptions): GitHubClient {
 export function buildGitHubCommitMessage(
   input: BuildGitHubCommitMessageInput
 ): string {
+  if (!isPositiveInteger(input.solutionRevisionNumber)) {
+    throw new Error("Solution Revision Number must be a positive integer.");
+  }
+
   const codingPlatform = input.codingPlatform ?? "leetcode";
   const policy = getPlatformPolicy(codingPlatform);
 
   return `solve: ${policy.commitPlatformLabel} ${formatPlatformProblemNumber(
     codingPlatform,
     input.frontendId
-  )} ${toCommitTitle(input.title, codingPlatform)} in ${input.language}`;
+  )} ${toCommitTitle(input.title, codingPlatform)} in ${input.language} #${
+    input.solutionRevisionNumber
+  }`;
+}
+
+function isPositiveInteger(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value > 0;
 }
 
 async function githubRequest<T>(

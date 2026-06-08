@@ -1,10 +1,10 @@
 import {
   createEmptySolutionCatalog,
-  mergeSolutionCatalogEntry,
+  mergeSolutionCatalogEntryWithResult,
   parseSolutionCatalogJson
 } from "../shared/solutionCatalog";
 import { mergeReadmeManagedBlock, renderManagedReadmeTable } from "../shared/readme";
-import { buildGitTreeFiles, type GitTreeFile } from "../shared/githubTree";
+import { buildGitTreeFiles } from "../shared/githubTree";
 import { buildSolutionPath, sanitizeProgrammersFilename } from "../shared/paths";
 import { getPlatformPolicy } from "../shared/platformPolicy";
 import { mapProgrammersLanguage } from "../shared/language";
@@ -36,10 +36,13 @@ import {
   buildGitHubCommitMessage,
   type CommitConflictRetryContext,
   type CommitGitDataInput,
+  type CommitGitDataPayload,
   type CommitGitDataResult,
   type ReadTextFileInput
 } from "./client/github";
 import type { LatestAcceptedSubmissionResult } from "./client/leetcode";
+
+const UNUSED_LEGACY_RETRY_BUNDLE_COMMIT_MESSAGE = "";
 
 export type SyncBroadcast = (
   message: BackgroundToContentPopupMessage,
@@ -119,10 +122,9 @@ interface PreparedCommit {
   solutionPath: string;
   solutionReadmePath: string;
   solutionCatalogPath: string;
-  commitMessage: string;
 }
 
-interface CommitFilesBuildInput {
+interface CommitPayloadBuildInput {
   problem: ProblemMetadata;
   submission: AcceptedSubmission;
   syncDeduplicationKey: SyncDeduplicationKey;
@@ -338,10 +340,10 @@ export function createSyncOrchestrator(
       );
 
       const github = options.githubClientFactory(settings.githubPat);
-      let files: GitTreeFile[];
+      let payload: CommitGitDataPayload;
 
       try {
-        files = await buildCommitFilesFromRepository(github, prepared, now());
+        payload = await buildCommitPayloadFromRepository(github, prepared, now());
       } catch (error) {
         const normalized = normalizeError(error);
         const syncHistoryEntry = makeSyncHistoryEntry({
@@ -363,7 +365,7 @@ export function createSyncOrchestrator(
         return recordAndBroadcast(syncHistoryEntry, target);
       }
 
-      const result = await commitPreparedFiles(github, prepared, files, now());
+      const result = await commitPreparedPayload(github, prepared, payload, now());
       const syncedAt = now();
       await options.storage.markSyncDeduplicationKeyProcessed(
         prepared.syncDeduplicationKey,
@@ -607,15 +609,15 @@ export function createSyncOrchestrator(
     prepared: PreparedCommit,
     syncedAt: IsoDateString
   ): Promise<CommitGitDataResult> {
-    const files = await buildCommitFilesFromRepository(github, prepared, syncedAt);
+    const payload = await buildCommitPayloadFromRepository(github, prepared, syncedAt);
 
-    return commitPreparedFiles(github, prepared, files, syncedAt);
+    return commitPreparedPayload(github, prepared, payload, syncedAt);
   }
 
-  async function commitPreparedFiles(
+  async function commitPreparedPayload(
     github: SyncGitHubClient,
     prepared: PreparedCommit,
-    files: GitTreeFile[],
+    payload: CommitGitDataPayload,
     syncedAt: IsoDateString
   ): Promise<CommitGitDataResult> {
     return github.commitFiles({
@@ -623,24 +625,24 @@ export function createSyncOrchestrator(
       name: prepared.syncRepository.name,
       repository: prepared.syncRepository,
       branchName: prepared.syncBranch.name,
-      files,
-      message: prepared.commitMessage,
+      files: payload.files,
+      message: payload.message,
       onConflict: async (context) =>
-        buildCommitFilesFromConflict(context, prepared, syncedAt)
+        buildCommitPayloadFromConflict(context, prepared, syncedAt)
     });
   }
 
-  async function buildCommitFilesFromRepository(
+  async function buildCommitPayloadFromRepository(
     github: SyncGitHubClient,
     prepared: PreparedCommit,
     syncedAt: IsoDateString
-  ): Promise<GitTreeFile[]> {
+  ): Promise<CommitGitDataPayload> {
     const [existingSolutionCatalogText, existingReadmeText] = await Promise.all([
       readRepositoryTextFile(github, prepared, prepared.solutionCatalogPath),
       readRepositoryTextFile(github, prepared, prepared.solutionReadmePath)
     ]);
 
-    return buildCommitFiles({
+    return buildCommitPayload({
       problem: prepared.problem,
       submission: prepared.submission,
       syncDeduplicationKey: prepared.syncDeduplicationKey,
@@ -653,17 +655,17 @@ export function createSyncOrchestrator(
     });
   }
 
-  async function buildCommitFilesFromConflict(
+  async function buildCommitPayloadFromConflict(
     context: CommitConflictRetryContext,
     prepared: PreparedCommit,
     syncedAt: IsoDateString
-  ): Promise<GitTreeFile[]> {
+  ): Promise<CommitGitDataPayload> {
     const [existingSolutionCatalogText, existingReadmeText] = await Promise.all([
       context.readTextFile(prepared.solutionCatalogPath),
       context.readTextFile(prepared.solutionReadmePath)
     ]);
 
-    return buildCommitFiles({
+    return buildCommitPayload({
       problem: prepared.problem,
       submission: prepared.submission,
       syncDeduplicationKey: prepared.syncDeduplicationKey,
@@ -768,7 +770,7 @@ export function createSyncOrchestrator(
       solutionPath: prepared.solutionPath,
       solutionReadmePath: prepared.solutionReadmePath,
       solutionCatalogPath: prepared.solutionCatalogPath,
-      commitMessage: prepared.commitMessage,
+      commitMessage: UNUSED_LEGACY_RETRY_BUNDLE_COMMIT_MESSAGE,
       attempts: 0,
       createdAt,
       expiresAt: addMs(createdAt, RETRY_BUNDLE_TTL_MS),
@@ -947,13 +949,7 @@ function prepareCommit(
     syncBranch,
     solutionPath,
     solutionReadmePath: policy.solutionReadmePath,
-    solutionCatalogPath: policy.solutionCatalogPath,
-    commitMessage: buildGitHubCommitMessage({
-      codingPlatform: syncDeduplicationKey.codingPlatform,
-      frontendId: problem.frontendId,
-      title: problem.title,
-      language: syncDeduplicationKey.language
-    })
+    solutionCatalogPath: policy.solutionCatalogPath
   };
 }
 
@@ -966,8 +962,7 @@ function retryBundleToPreparedCommit(retryBundle: RetryBundle): PreparedCommit {
     syncBranch: retryBundle.syncBranch,
     solutionPath: retryBundle.solutionPath,
     solutionReadmePath: retryBundle.solutionReadmePath,
-    solutionCatalogPath: retryBundle.solutionCatalogPath,
-    commitMessage: retryBundle.commitMessage
+    solutionCatalogPath: retryBundle.solutionCatalogPath
   };
 }
 
@@ -989,13 +984,13 @@ async function readRepositoryTextFile(
   });
 }
 
-function buildCommitFiles(input: CommitFilesBuildInput): GitTreeFile[] {
+function buildCommitPayload(input: CommitPayloadBuildInput): CommitGitDataPayload {
   const baseSolutionCatalog =
     input.existingSolutionCatalogText === null ||
     input.existingSolutionCatalogText.trim().length === 0
       ? createEmptySolutionCatalog()
       : parseSolutionCatalogJson(input.existingSolutionCatalogText);
-  const nextSolutionCatalog = mergeSolutionCatalogEntry(
+  const mergeResult = mergeSolutionCatalogEntryWithResult(
     baseSolutionCatalog,
     {
       ...input.problem,
@@ -1006,6 +1001,7 @@ function buildCommitFiles(input: CommitFilesBuildInput): GitTreeFile[] {
     input.syncedAt,
     toLocalDateString(input.submission.acceptedAt)
   );
+  const nextSolutionCatalog = mergeResult.catalog;
   const readmeTable = renderManagedReadmeTable(
     nextSolutionCatalog,
     input.syncDeduplicationKey.codingPlatform
@@ -1016,14 +1012,23 @@ function buildCommitFiles(input: CommitFilesBuildInput): GitTreeFile[] {
     input.syncDeduplicationKey.codingPlatform
   );
 
-  return buildGitTreeFiles({
-    solutionPath: input.solutionPath,
-    solutionContent: input.submission.code,
-    solutionReadmePath: input.solutionReadmePath,
-    readmeContent,
-    solutionCatalogPath: input.solutionCatalogPath,
-    solutionCatalog: nextSolutionCatalog
-  });
+  return {
+    files: buildGitTreeFiles({
+      solutionPath: input.solutionPath,
+      solutionContent: input.submission.code,
+      solutionReadmePath: input.solutionReadmePath,
+      readmeContent,
+      solutionCatalogPath: input.solutionCatalogPath,
+      solutionCatalog: nextSolutionCatalog
+    }),
+    message: buildGitHubCommitMessage({
+      codingPlatform: input.syncDeduplicationKey.codingPlatform,
+      frontendId: input.problem.frontendId,
+      title: input.problem.title,
+      language: input.syncDeduplicationKey.language,
+      solutionRevisionNumber: mergeResult.solutionRevisionNumber
+    })
+  };
 }
 
 function explicitError(code: NormalizedErrorCode, message: string): NormalizedError {

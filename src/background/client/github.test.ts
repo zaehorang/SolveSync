@@ -185,13 +185,16 @@ describe("GitHub background client", () => {
     });
   });
 
-  it("retries a ref update conflict at most once with refreshed branch state", async () => {
-    const onConflict = vi.fn(() => [
-      {
-        path: "leetcode/README.md",
-        content: "# updated\n"
-      }
-    ]);
+  it("retries a ref update conflict at most once with refreshed files and message", async () => {
+    const onConflict = vi.fn(() => ({
+      files: [
+        {
+          path: "leetcode/README.md",
+          content: "# updated\n"
+        }
+      ],
+      message: "solve: leetcode 0001 two sum in swift #2"
+    }));
     const fetchImpl = mockFetch(
       jsonResponse(refResponse("refs/heads/main", "base-sha")),
       jsonResponse(commitResponse("base-sha", "base-tree-sha")),
@@ -215,7 +218,7 @@ describe("GitHub background client", () => {
         owner: "octo",
         name: "algorithms",
         branchName: "main",
-        message: "solve: leetcode 0001 two sum in swift",
+        message: "solve: leetcode 0001 two sum in swift #1",
         files: [
           {
             path: "leetcode/README.md",
@@ -232,6 +235,16 @@ describe("GitHub background client", () => {
     expect(
       requestMethods(fetchImpl).filter((method) => method === "PATCH")
     ).toHaveLength(2);
+    expect(requestBody(fetchImpl, 5)).toMatchObject({
+      message: "solve: leetcode 0001 two sum in swift #1",
+      tree: "first-tree-sha",
+      parents: ["base-sha"]
+    });
+    expect(requestBody(fetchImpl, 12)).toMatchObject({
+      message: "solve: leetcode 0001 two sum in swift #2",
+      tree: "retry-tree-sha",
+      parents: ["latest-sha"]
+    });
   });
 
   it("normalizes branch protected, rate limited, and auth failures", async () => {
@@ -256,18 +269,33 @@ describe("GitHub background client", () => {
       buildGitHubCommitMessage({
         frontendId: "1",
         title: "Two Sum",
-        language: "swift"
+        language: "swift",
+        solutionRevisionNumber: 1
       })
-    ).toBe("solve: leetcode 0001 two sum in swift");
+    ).toBe("solve: leetcode 0001 two sum in swift #1");
 
     expect(
       buildGitHubCommitMessage({
         codingPlatform: "programmers",
         frontendId: "120804",
         title: "두 수의 곱 구하기",
-        language: "swift"
+        language: "swift",
+        solutionRevisionNumber: 3
       })
-    ).toBe("solve: programmers 120804 두 수의 곱 구하기 in swift");
+    ).toBe("solve: programmers 120804 두 수의 곱 구하기 in swift #3");
+  });
+
+  it("rejects invalid Solution Revision Numbers in solve commit messages", () => {
+    for (const solutionRevisionNumber of [0, -1, 1.5, Number.NaN]) {
+      expect(() =>
+        buildGitHubCommitMessage({
+          frontendId: "1",
+          title: "Two Sum",
+          language: "swift",
+          solutionRevisionNumber
+        })
+      ).toThrow("Solution Revision Number must be a positive integer.");
+    }
   });
 });
 
