@@ -17,6 +17,11 @@ import {
   getFailureDetail,
   getSetupStatusView
 } from "./index";
+import {
+  createPopupRuntimeFixture,
+  makePopupEmptyHistoryFixture,
+  renderPopupStaticQaFixture
+} from "./fixtures/runtimeFixture";
 
 describe("popup state helpers", () => {
   it("sorts Sync History entries newest first for display", () => {
@@ -610,6 +615,103 @@ describe("popup state helpers", () => {
       label: "Auto Sync off",
       tone: "warning"
     });
+  });
+
+  it("provides a test-only Chrome runtime fixture for Popup data loading", () => {
+    const fixture = createPopupRuntimeFixture();
+    fixture.install();
+
+    try {
+      const responses: unknown[] = [];
+
+      chrome.runtime.sendMessage({ type: "settings:read" }, (response) => {
+        responses.push(response);
+      });
+      chrome.runtime.sendMessage(
+        {
+          type: "sync-history:read",
+          payload: {
+            limit: 20
+          }
+        },
+        (response) => {
+          responses.push(response);
+        }
+      );
+      chrome.runtime.sendMessage({ type: "retry-bundles:read" }, (response) => {
+        responses.push(response);
+      });
+      void chrome.runtime.openOptionsPage();
+
+      expect(fixture.sentMessages.map((message) => message.type)).toEqual([
+        "settings:read",
+        "sync-history:read",
+        "retry-bundles:read"
+      ]);
+      expect(fixture.optionPageOpenCount).toBe(1);
+      expect(responses).toHaveLength(3);
+      expect(responses).toEqual([
+        expect.objectContaining({ ok: true }),
+        expect.objectContaining({ ok: true }),
+        expect.objectContaining({ ok: true })
+      ]);
+    } finally {
+      fixture.uninstall();
+    }
+  });
+
+  it("renders meaningful static Popup QA content from the runtime fixture", () => {
+    const fixture = createPopupRuntimeFixture();
+    const html = renderPopupStaticQaFixture(
+      fixture.settings,
+      fixture.syncHistoryEntries,
+      fixture.retryBundles
+    );
+
+    expect(html).toContain("Ready to sync");
+    expect(html).toContain(
+      "solvesync-fixture/algorithm-sync-sandbox-with-a-very-long-repository-name-for-popup-qa"
+    );
+    expect(html).toContain(
+      "release/chrome-web-store-prelaunch-popup-runtime-fixture-with-long-branch-name"
+    );
+    expect(html).toContain(
+      "1368. Minimum Cost to Make at Least One Valid Path in a Grid With Extra Long Title"
+    );
+    expect(html).toContain("120804. 두 수의 곱 구하기");
+    expect(html).toContain("Swift");
+    expect(html).toContain("Python3");
+    expect(html).toContain("Commit");
+    expect(html).toContain("File");
+  });
+
+  it("renders the quiet empty Sync History fixture copy", () => {
+    const fixture = makePopupEmptyHistoryFixture();
+    const html = renderPopupStaticQaFixture(
+      fixture.settings,
+      fixture.syncHistoryEntries,
+      fixture.retryBundles
+    );
+
+    expect(html).toContain("0 syncs");
+    expect(html).toContain("Accepted submissions will appear here after sync runs.");
+    expect(html).not.toContain("history-item");
+  });
+
+  it("renders retryable failure rows and Retry all without exposing revision text", () => {
+    const fixture = createPopupRuntimeFixture();
+    const html = renderPopupStaticQaFixture(
+      fixture.settings,
+      fixture.syncHistoryEntries,
+      fixture.retryBundles
+    );
+
+    expect(html).toContain("2 failed · Could not commit the solution.");
+    expect(html).toContain("history-retry-all-button");
+    expect(html.match(/>Retry</g)?.length).toBe(2);
+    expect(html.match(/>Retry all</g)?.length).toBe(1);
+    expect(html).not.toMatch(/Solution Revision Number/i);
+    expect(html).not.toMatch(/solutionRevisionNumber/);
   });
 });
 
