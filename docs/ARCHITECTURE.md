@@ -161,6 +161,8 @@ LeetCode page 또는 Programmers page
 - content script isolated world에서 editor source 접근이 막히면 page-world bridge를 사용한다. bridge는 code string만 전달하고 token, cookie, session 값은 다루지 않는다.
 - editor code를 안정적으로 추출하지 못하면 GitHub commit을 만들지 않고 `programmers_extract_failed`로 기록한다.
 - Programmers는 공식 Accepted Source ID가 없으므로 `acceptedSourceId`를 `programmers:{lessonId}:{language}:{codeHash}` 형식의 deterministic value로 생성해 Sync Deduplication Key에 사용한다.
+- Programmers Accepted Editor Snapshot은 v1의 DOM-trusted source다. Programmers origin DOM/script가 compromise되면 committed solution source integrity가 영향을 받을 수 있으며, 이 residual risk는 ADR 0028에 따라 수용한다.
+- 이 trust boundary는 secret이나 write destination에는 적용하지 않는다. Content message에는 PAT, cookie, session token을 포함하지 않고, GitHub API 호출은 background service worker에서만 수행하며, write 대상은 사용자가 선택한 Sync Repository와 Sync Branch로 제한한다.
 
 ## GitHub 연동
 - Sync Repository는 코드 기본값이 아니라 Options에서 사용자가 선택한 값이다.

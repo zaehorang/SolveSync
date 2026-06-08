@@ -108,6 +108,12 @@ SolveSync는 LeetCode와 Programmers에서 Accepted 된 풀이를 GitHub 문제 
 - LeetCode와 Programmers 외 다른 Coding Platform 자동 sync.
 - 일반 수동 sync. v1에서 사용자가 직접 실행할 수 있는 것은 실패 항목 Retry뿐이다.
 
+## Programmers Accepted Editor Snapshot 신뢰 범위
+- LeetCode는 Accepted 제출 상세를 API로 다시 확인하지만, Programmers는 안정적인 공식 제출 상세 API를 전제로 하지 않는다.
+- v1은 Programmers에서 `정답입니다!` 감지 직후 현재 페이지의 Accepted Editor Snapshot을 solution source로 사용한다.
+- 이 결정은 Programmers origin DOM이나 script가 compromise된 경우 committed solution source가 영향을 받을 수 있는 residual risk를 가진다.
+- 이 risk는 v1에서 수용한다. 동기화 대상은 사용자가 푼 solution code이고, content message에는 PAT, cookie, session token을 포함하지 않으며, GitHub write 대상은 사용자가 선택한 Sync Repository와 Sync Branch로 제한된다.
+
 ## 성공 기준
 - LeetCode Swift Accepted 제출이 Sync Repository에 `leetcode/swift/0001_two_sum.swift` 형식 파일을 생성하거나 갱신한다.
 - LeetCode Python3 Accepted 제출이 Sync Repository에 `leetcode/python/0001_two_sum.py` 형식 파일을 생성하거나 갱신한다.
