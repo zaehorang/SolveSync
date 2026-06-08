@@ -1,8 +1,18 @@
 # SolveSync
 
-SolveSync는 GitHub Public Preview 상태의 local unpacked Chrome extension입니다. Chrome Web Store 배포판이 아니며, 사용자가 이 저장소를 직접 빌드한 뒤 Chrome Extensions에서 `dist`를 `Load unpacked`로 로드해 사용합니다.
+<p>
+  <img src="assets/brand/solvesync-icon.svg" alt="SolveSync logo" width="96" height="96">
+</p>
 
-LeetCode와 Programmers에서 Accepted 된 Swift/Python3 solution을 감지하고, 사용자가 Options에서 선택한 GitHub Sync Repository와 Sync Branch로 Solution File, Solution README, Solution Catalog를 동기화합니다.
+SolveSync는 LeetCode와 Programmers에서 Accepted 된 풀이를 사용자가 선택한 GitHub 저장소로 자동 동기화하는 local unpacked Chrome extension입니다.
+
+문제를 푼 뒤 코드를 복사하고, 파일명을 정하고, GitHub에 commit하고, README 진행표를 갱신하는 반복 작업을 줄이기 위한 도구입니다. Accepted 결과가 감지되면 SolveSync가 Solution File, Solution README, Solution Catalog를 한 번의 GitHub commit으로 반영합니다.
+
+<p>
+  <img src="assets/readme/public-preview-flow.svg" alt="Accepted result automatically synced to a selected GitHub repository" width="100%">
+</p>
+
+현재 상태는 GitHub Public Preview입니다. Chrome Web Store 배포판이 아니며, 사용자가 이 저장소를 직접 빌드한 뒤 Chrome Extensions에서 `dist`를 `Load unpacked`로 로드해 사용합니다.
 
 ## 지원 범위
 
