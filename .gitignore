@@ -14,5 +14,16 @@ dist/
 build/
 coverage/
 
+.agents/
+.codex/
+phases/
+docs/harness/
+docs/adr/0025-separate-harness-validation-and-dirty-recovery-policy.md
+scripts/execute.py
+scripts/harness/
+scripts/harness_tests/
+scripts/harness_self_test.py
+scripts/quality_gate.py
+
 phases/*/step*-output.json
 phases/*/step*-live.log
