@@ -21,7 +21,10 @@
     {
       "step": 2,
       "name": "options-extension-state-errors",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-06-08T13:16:36+0900",
+      "summary": "Mapped Options extension-local settings failures to extension_state_unavailable without changing GitHub API error paths",
+      "completed_at": "2026-06-08T13:18:50+0900"
     },
     {
       "step": 3,
