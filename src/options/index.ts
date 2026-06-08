@@ -125,6 +125,7 @@ interface OptionsElements {
   patError: HTMLParagraphElement;
   loadRepositoriesButton: HTMLButtonElement;
   repositorySearchInput: HTMLInputElement;
+  repositoryListStatus: HTMLDivElement;
   repositorySelect: HTMLSelectElement;
   repositoryStatus: HTMLParagraphElement;
   branchSelect: HTMLSelectElement;
@@ -164,7 +165,6 @@ const SETUP_STEP_STATE_LABEL_KEYS: Record<SetupFlowStepState, I18nKey> = {
 };
 
 const REPOSITORY_LIST_READY_SIZE = 6;
-const REPOSITORY_LIST_COMPACT_SIZE = 3;
 
 const DEFAULT_CONNECTION_STATUS: ConnectionStatus = {
   code: "not_tested",
@@ -1033,10 +1033,11 @@ function renderRepositorySelect(
   const listState = getRepositoryListRenderState(state, filterState);
 
   elements.repositorySelect.dataset.listState = listState;
-  elements.repositorySelect.size =
-    listState === "ready"
-      ? REPOSITORY_LIST_READY_SIZE
-      : REPOSITORY_LIST_COMPACT_SIZE;
+  elements.repositorySelect.size = REPOSITORY_LIST_READY_SIZE;
+  elements.repositorySelect.disabled = listState !== "ready";
+  elements.repositorySelect.hidden = listState !== "ready";
+  elements.repositoryListStatus.dataset.listState = listState;
+  renderRepositoryListStatus(elements.repositoryListStatus, listState, state.locale);
 
   if (listState === "ready") {
     elements.repositorySelect.replaceChildren(
@@ -1060,12 +1061,8 @@ function renderRepositorySelect(
       }
     }
   } else {
-    const option = document.createElement("option");
-    option.disabled = true;
-    option.value = "";
-    option.textContent = t(state.locale, getRepositoryListPlaceholderKey(listState));
-    elements.repositorySelect.replaceChildren(option);
-    elements.repositorySelect.selectedIndex = 0;
+    elements.repositorySelect.replaceChildren();
+    elements.repositorySelect.selectedIndex = -1;
   }
 
   const isSearchNoMatchMessage =
@@ -1085,8 +1082,8 @@ function renderRepositorySelect(
   }
 }
 
-function getRepositoryListRenderState(
-  state: OptionsRuntimeState,
+export function getRepositoryListRenderState(
+  state: Pick<OptionsRuntimeState, "loadingRepositories" | "repositories">,
   filterState: RepositoryFilterState
 ): "ready" | "loading" | "empty" | "no-matches" {
   if (state.loadingRepositories) {
@@ -1100,10 +1097,12 @@ function getRepositoryListRenderState(
   return filterState.hasMatches ? "ready" : "no-matches";
 }
 
-function getRepositoryListPlaceholderKey(
-  state: "loading" | "empty" | "no-matches"
+function getRepositoryListStatusKey(
+  state: "ready" | "loading" | "empty" | "no-matches"
 ): I18nKey {
   switch (state) {
+    case "ready":
+      return "options.field.repositoryList";
     case "loading":
       return "options.repositoryList.loading";
     case "no-matches":
@@ -1111,6 +1110,21 @@ function getRepositoryListPlaceholderKey(
     case "empty":
       return "options.repositoryList.empty";
   }
+}
+
+function renderRepositoryListStatus(
+  element: HTMLDivElement,
+  state: "ready" | "loading" | "empty" | "no-matches",
+  locale: UiLocale
+): void {
+  element.hidden = state === "ready";
+  element.textContent =
+    state === "no-matches"
+      ? `${t(locale, getRepositoryListStatusKey(state))} ${t(
+          locale,
+          "options.message.noRepositorySearchMatches"
+        )}`
+      : t(locale, getRepositoryListStatusKey(state));
 }
 
 function renderBranchSelect(
@@ -1219,6 +1233,7 @@ function collectElements(): OptionsElements {
     patError: requireElement("pat-error", HTMLParagraphElement),
     loadRepositoriesButton: requireElement("load-repositories", HTMLButtonElement),
     repositorySearchInput: requireElement("repository-search", HTMLInputElement),
+    repositoryListStatus: requireElement("repository-list-status", HTMLDivElement),
     repositorySelect: requireElement("repository-select", HTMLSelectElement),
     repositoryStatus: requireElement("repository-status", HTMLParagraphElement),
     branchSelect: requireElement("branch-select", HTMLSelectElement),

@@ -8,6 +8,7 @@ import {
   getDefaultBranchSelection,
   getOptionsExtensionStateUnavailableMessage,
   getRepositoryFilterState,
+  getRepositoryListRenderState,
   getSetupFlowStepStates,
   mapConnectionErrorCode,
   readSettings,
@@ -31,6 +32,57 @@ describe("options state helpers", () => {
 
     expect(state.visibleRepositories).toEqual([repositories[2]]);
     expect(state.hasMatches).toBe(true);
+  });
+
+  it("keeps repository non-ready states separate from selectable options", () => {
+    const html = readFileSync(new URL("./index.html", import.meta.url), "utf8");
+    const css = readFileSync(new URL("./styles.css", import.meta.url), "utf8");
+    const source = readFileSync(new URL("./index.ts", import.meta.url), "utf8");
+    const repositories = [makeRepository("octo/algorithms")];
+
+    expect(html).toContain('id="repository-list-status"');
+    expect(html).toContain('class="repository-list-status"');
+    expect(source).toContain("elements.repositorySelect.hidden = listState !== \"ready\";");
+    expect(source).toContain("elements.repositorySelect.replaceChildren();");
+    expect(source).not.toContain("document.createElement(\"option\");\n    option.disabled = true");
+    expect(css).toContain(".repository-list-status");
+    expect(css).not.toContain('select[data-list-state="empty"]');
+    expect(
+      getRepositoryListRenderState(
+        {
+          loadingRepositories: true,
+          repositories
+        },
+        getRepositoryFilterState(repositories, "")
+      )
+    ).toBe("loading");
+    expect(
+      getRepositoryListRenderState(
+        {
+          loadingRepositories: false,
+          repositories: []
+        },
+        getRepositoryFilterState([], "")
+      )
+    ).toBe("empty");
+    expect(
+      getRepositoryListRenderState(
+        {
+          loadingRepositories: false,
+          repositories
+        },
+        getRepositoryFilterState(repositories, "missing")
+      )
+    ).toBe("no-matches");
+    expect(
+      getRepositoryListRenderState(
+        {
+          loadingRepositories: false,
+          repositories
+        },
+        getRepositoryFilterState(repositories, "octo")
+      )
+    ).toBe("ready");
   });
 
   it("uses the repository default branch when no saved branch is selected", () => {

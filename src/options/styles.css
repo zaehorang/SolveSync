@@ -307,12 +307,35 @@ select[size] {
   min-height: 176px;
 }
 
-select[data-list-state="empty"],
-select[data-list-state="loading"],
-select[data-list-state="no-matches"] {
-  min-height: 92px;
+.repository-list-status {
+  border: 1px solid var(--ss-hairline);
+  border-radius: 6px;
   background: var(--ss-surface-muted);
   color: var(--ss-text-secondary);
+  padding: 10px 12px;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.repository-list-status[hidden] {
+  display: none;
+}
+
+.repository-list-status[data-list-state="loading"] {
+  border-color: var(--ss-state-progress-border);
+  background: var(--ss-state-progress-bg);
+  color: var(--ss-state-progress-fg);
+}
+
+.repository-list-status[data-list-state="no-matches"] {
+  border-color: var(--ss-warning-border);
+  background: var(--ss-warning-soft);
+  color: var(--ss-warning);
+}
+
+#repository-select:disabled {
+  min-height: 40px;
 }
 
 select:not(:disabled):has(option:checked:not(:disabled)) {
