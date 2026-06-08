@@ -38,9 +38,12 @@
     {
       "step": 4,
       "name": "github-publication",
-      "status": "pending",
+      "status": "completed",
       "max_attempts": 1,
-      "timeout_sec": 1800
+      "timeout_sec": 1800,
+      "started_at": "2026-06-08T16:55:40+0900",
+      "summary": "Published zaehorang/SolveSync publicly with required GitHub description and topics; npm test, typecheck, build, and repo visibility verification passed.",
+      "completed_at": "2026-06-08T16:56:57+0900"
     }
   ],
   "created_at": "2026-06-08T16:47:42+0900"
