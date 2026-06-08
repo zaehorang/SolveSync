@@ -2,12 +2,45 @@
   "project": "SolveSync",
   "phase": "10-ui-state-runtime-polish",
   "steps": [
-    { "step": 0, "name": "docs-scope-lock", "status": "pending" },
-    { "step": 1, "name": "shared-error-model", "status": "pending" },
-    { "step": 2, "name": "options-extension-state-errors", "status": "pending" },
-    { "step": 3, "name": "repository-picker-states", "status": "pending" },
-    { "step": 4, "name": "options-mobile-hierarchy", "status": "pending" },
-    { "step": 5, "name": "popup-runtime-fixture", "status": "pending" },
-    { "step": 6, "name": "integration-visual-qa", "status": "pending", "timeout_sec": 3600 }
-  ]
+    {
+      "step": 0,
+      "name": "docs-scope-lock",
+      "status": "completed",
+      "started_at": "2026-06-08T13:12:29+0900",
+      "summary": "Locked UI/runtime polish docs around extension state errors, repository picker states, and Solution Revision Number non-display",
+      "completed_at": "2026-06-08T13:13:17+0900"
+    },
+    {
+      "step": 1,
+      "name": "shared-error-model",
+      "status": "pending"
+    },
+    {
+      "step": 2,
+      "name": "options-extension-state-errors",
+      "status": "pending"
+    },
+    {
+      "step": 3,
+      "name": "repository-picker-states",
+      "status": "pending"
+    },
+    {
+      "step": 4,
+      "name": "options-mobile-hierarchy",
+      "status": "pending"
+    },
+    {
+      "step": 5,
+      "name": "popup-runtime-fixture",
+      "status": "pending"
+    },
+    {
+      "step": 6,
+      "name": "integration-visual-qa",
+      "status": "pending",
+      "timeout_sec": 3600
+    }
+  ],
+  "created_at": "2026-06-08T13:12:29+0900"
 }
