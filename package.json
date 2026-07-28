@@ -9,6 +9,7 @@
     "build": "npm run build:extension && npm run build:content && npm run verify:build",
     "build:extension": "vite build",
     "build:content": "vite build --config vite.content.config.ts",
+    "package:chrome": "npm run build && node scripts/package_chrome.mjs",
     "verify:build": "node scripts/verify_extension_build.mjs"
   },
   "devDependencies": {

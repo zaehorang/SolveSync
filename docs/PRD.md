@@ -145,6 +145,6 @@ TypeScript, runtime message, storage schema는 같은 용어 체계를 사용한
 - test fixture에는 실제 token, cookie, private code를 넣지 않는다.
 
 ## 릴리즈 전략
-- 현재 release: GitHub App Device Flow와 9개 언어를 포함한 LeetCode/Programmers Accepted-to-GitHub 흐름을 소규모 tester가 검증하는 local unpacked extension.
+- 현재 release: GitHub App Device Flow와 9개 언어를 포함한 LeetCode/Programmers Accepted-to-GitHub 흐름을 GitHub Releases의 ZIP으로 배포하는 public preview. 사용자는 ZIP을 풀고 Chrome Developer mode에서 local unpacked extension으로 로드한다.
 - Domain naming migration: Solution Catalog schema 변경은 사용자가 선택한 Sync Repository의 검증 branch에서 확인하며, 특정 repository를 제품 기본값으로 고정하지 않는다.
 - v2: v1 안정화 후 Chrome Web Store 패키징, 아이콘, 스크린샷, privacy policy, 권한 설명, 심사 대응을 진행한다.

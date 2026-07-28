@@ -12,7 +12,15 @@ SolveSync는 LeetCode와 Programmers에서 Accepted 된 풀이를 사용자가 �
   <img src="assets/readme/public-preview-flow.svg" alt="정답 결과가 선택한 GitHub 저장소로 자동 동기화되는 흐름" width="100%">
 </p>
 
-현재 상태는 GitHub Public Preview입니다. Chrome Web Store 배포판이 아니며, 사용자가 이 저장소를 직접 빌드한 뒤 Chrome Extensions에서 `dist`를 `Load unpacked`로 로드해 사용합니다.
+현재 상태는 GitHub Public Preview입니다. Chrome Web Store 배포판은 아니지만, [GitHub Releases](https://github.com/zaehorang/SolveSync/releases)에서 설치용 ZIP을 받을 수 있습니다.
+
+## 다른 사람도 사용할 수 있나요?
+
+네. 별도의 GitHub App을 만들거나 source를 직접 build할 필요 없이 공개 preview를 사용할 수 있습니다.
+
+- 공개 Release ZIP에는 SolveSync가 운영하는 public GitHub App의 공개 client ID와 slug만 포함됩니다. client secret은 포함되지 않습니다.
+- 각 사용자는 GitHub 로그인 후 [SolveSync Preview GitHub App](https://github.com/apps/solvesync-preview/installations/new)을 본인이 소유한 repository에 직접 설치합니다.
+- 아직 Chrome Web Store 배포판이 아니므로 Chrome의 Developer mode와 `Load unpacked`가 필요합니다.
 
 ## 지원 범위
 
@@ -30,35 +38,52 @@ SolveSync는 LeetCode와 Programmers에서 Accepted 된 풀이를 사용자가 �
 
 ## 설치
 
+필요한 환경:
+
+- Chrome
+- 로그인된 LeetCode 또는 Programmers 계정
+- 본인이 소유한 GitHub repository
+
+1. [GitHub Releases](https://github.com/zaehorang/SolveSync/releases)에서 최신 preview의 `solvesync-*.zip`을 내려받아 압축을 풉니다.
+2. Chrome에서 `chrome://extensions`를 열고 Developer mode를 켭니다.
+3. `Load unpacked`를 누르고 압축을 푼 폴더를 선택합니다. 폴더 바로 아래에 `manifest.json`이 있어야 합니다.
+4. SolveSync Options에서 `Sign in with GitHub`를 누르고 GitHub에 표시된 일회용 code를 승인합니다.
+5. `Install or configure GitHub App`을 눌러 동기화할 본인 소유 repository만 선택합니다.
+6. Options로 돌아와 Sync Repository와 Sync Branch를 선택하고 connection test를 실행합니다. Connection test는 commit을 만들지 않습니다.
+
+Chrome에서 확장 폴더를 삭제하면 로드할 수 없으므로, 압축을 푼 폴더는 계속 보관하세요.
+
+## 개발자 빌드
+
+source에서 직접 build하려면 Node.js와 npm이 필요합니다.
+
 ```bash
+git clone https://github.com/zaehorang/SolveSync.git
+cd SolveSync
 npm install
-```
-
-GitHub App 등록 후 공개 설정을 준비합니다.
-
-```bash
 cp .env.example .env.local
 ```
 
-`.env.local`의 `VITE_GITHUB_APP_CLIENT_ID`, `VITE_GITHUB_APP_SLUG`를 실제 App 값으로 바꿉니다. client secret은 필요하지 않으며 입력하면 안 됩니다.
+`.env.local`의 `VITE_GITHUB_APP_CLIENT_ID`, `VITE_GITHUB_APP_SLUG`를 사용할 GitHub App의 공개 값으로 바꿉니다. client secret은 필요하지 않으며 입력하면 안 됩니다. maintainer용 등록 절차는 [GitHub App 설정 가이드](docs/GITHUB_APP_SETUP.md)를 따릅니다.
 
 ```bash
 npm run build
 ```
 
-Chrome Extensions에서 `dist`를 `Load unpacked`
+Chrome에서 `chrome://extensions`를 열고 Developer mode를 켠 뒤, `Load unpacked`로 생성된 `dist`를 선택합니다.
 
 ## GitHub App 설정
 
-이 build를 배포하는 사람은 public GitHub App을 한 번 등록해야 합니다.
+Release ZIP 사용자는 GitHub App을 새로 등록할 필요가 없습니다. 직접 배포용 build를 만드는 maintainer만 public GitHub App을 등록합니다.
 
 - Device Flow 활성화
 - Expiring user access token 활성화
 - Repository permission: `Contents: Read and write`
 - Repository permission: `Metadata: Read`
-- 설치 대상은 tester가 소유한 repository로 제한
+- 다른 사람이 설치할 수 있도록 `Where can this GitHub App be installed?`를 `Any account`로 설정
+- 각 사용자는 실제로 동기화할 본인 소유 repository만 App 설치 대상으로 선택
 
-확장을 로드한 tester는 Options에서 `Sign in with GitHub`를 누르고 일회용 code를 승인한 뒤, `Install or configure GitHub App`으로 동기화할 repository를 선택합니다. 이후 Sync Repository와 Sync Branch를 선택하고 connection test를 실행합니다.
+확장을 로드한 사용자는 Options에서 `Sign in with GitHub`를 누르고 일회용 code를 승인한 뒤, `Install or configure GitHub App`으로 동기화할 repository를 선택합니다.
 
 GitHub App 등록과 Device Flow 공식 설명은 [GitHub의 user access token 문서](https://docs.github.com/apps/creating-github-apps/authenticating-with-a-github-app/generating-a-user-access-token-for-a-github-app)를 따르세요.
 

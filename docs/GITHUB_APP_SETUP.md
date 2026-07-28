@@ -1,18 +1,28 @@
 # GitHub App Setup
 
-SolveSync local build를 소규모 tester에게 전달하기 전에 maintainer가 수행할 외부 설정이다. Extension에는 공개 client ID와 App slug만 포함하며 client secret, private key, backend는 사용하지 않는다.
+SolveSync Release ZIP을 만들기 전에 maintainer가 수행할 외부 설정이다. Extension에는 공개 client ID와 App slug만 포함하며 client secret, private key, backend는 사용하지 않는다. Release ZIP 사용자는 별도의 GitHub App을 등록하지 않는다.
 
 ## 1. Public GitHub App 등록
 
 GitHub Settings의 Developer settings에서 새 GitHub App을 만든다.
 
-- GitHub App name: tester가 알아볼 수 있는 이름
-- Homepage URL: 프로젝트의 공개 안내 페이지
+- GitHub App name: `SolveSync Preview`
+- Description: `Connect SolveSync to repositories you choose and sync accepted LeetCode and Programmers solutions from the Chrome extension.`
+- Homepage URL: `https://github.com/zaehorang/SolveSync`
 - Callback URL: Device Flow에서는 사용하지 않음
 - Webhook: 비활성화
 - Expire user authorization tokens: 활성화
 - Device Flow: 활성화
 - Where can this GitHub App be installed?: Any account
+
+Display information:
+
+- Logo: `assets/github-app/solvesync-github-app-logo.png`
+- Badge background color: `#F8FBFF`
+
+GitHub App 이름을 변경하면 public slug가 바뀔 수 있다. 변경 후 General 화면의 public link를 확인하고 `.env.local`의 `VITE_GITHUB_APP_SLUG`를 새 slug로 갱신한 뒤 다시 build한다.
+
+현재 preview App의 public slug는 `solvesync-preview`다.
 
 Repository permissions:
 
@@ -37,7 +47,7 @@ cp .env.example .env.local
 GitHub App General page의 공개 값을 입력한다.
 
 ```dotenv
-VITE_GITHUB_APP_CLIENT_ID=Iv1.actual-public-client-id
+VITE_GITHUB_APP_CLIENT_ID=your-public-client-id
 VITE_GITHUB_APP_SLUG=actual-app-slug
 ```
 
@@ -51,11 +61,12 @@ npm run build
 
 ## 3. Tester onboarding
 
-1. Tester에게 build된 `dist`와 GitHub App install URL을 전달한다.
-2. Tester는 Options에서 `Sign in with GitHub`를 누르고 GitHub의 device page에서 일회용 code를 승인한다.
-3. `Install or configure GitHub App`에서 tester 본인이 소유한 test repository만 선택한다.
-4. Options로 돌아와 Sync Repository를 불러오고 branch를 선택하거나 명시적으로 test branch를 만든다.
-5. Connection test를 실행한다. 이 동작은 commit을 만들지 않는다.
+1. Tester는 GitHub Releases에서 최신 `solvesync-*.zip`을 내려받고 압축을 푼다.
+2. Chrome의 Developer mode에서 `Load unpacked`로 압축을 푼 폴더를 로드한다.
+3. Options에서 `Sign in with GitHub`를 누르고 GitHub의 device page에서 일회용 code를 승인한다.
+4. `Install or configure GitHub App`에서 tester 본인이 소유한 test repository만 선택한다.
+5. Options로 돌아와 Sync Repository를 불러오고 branch를 선택하거나 명시적으로 test branch를 만든다.
+6. Connection test를 실행한다. 이 동작은 commit을 만들지 않는다.
 
 Organization repository와 collaborator repository는 현재 제품 범위가 아니다.
 

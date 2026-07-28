@@ -17,12 +17,12 @@ Last checked against official Chrome Web Store docs: 2026-06-05.
 - `manifest.json`에 `icons`와 `action.default_icon`을 추가했다.
 - Vite build가 `icons/`를 `dist/icons/`로 복사하도록 설정했다.
 - 128px 아이콘은 sync tray 컨셉을 유지하고, 16/32/48px toolbar 아이콘은 작은 크기 가독성을 위해 단순화한 원본에서 생성한다.
+- `npm run package:chrome`가 build 후 `dist` 내용만 `artifacts/` 아래 ZIP으로 만들고 필수/금지 경로를 검증한다.
 
 ## 현재 부족한 것
 - Store listing용 스크린샷과 small promo tile이 없다.
 - Chrome Web Store listing 문구, 권한 설명, Privacy 탭 답변, reviewer test instructions가 없다.
 - Notion 공개 Privacy Policy가 아직 없다.
-- `package:chrome` 같은 제출 ZIP 생성 스크립트가 없다.
 - 제품 문서와 UI copy 일부가 아직 local unpacked v1 기준이다.
 - Chrome Web Store Developer 계정 상태, 2-Step Verification, publisher 정보, Trader/Non-Trader 선언이 아직 확인되지 않았다.
 
@@ -38,7 +38,7 @@ Last checked against official Chrome Web Store docs: 2026-06-05.
 - 완료: `manifest.json`에 `icons`를 추가한다.
 - 완료: `manifest.json`의 `action.default_icon`을 추가한다.
 - 완료: icon 파일은 extension ZIP 안에 포함되는 repo 경로에 둔다.
-- `package.json`에 `package:chrome` script를 추가해 `npm run build` 후 `dist`만 ZIP으로 묶는다.
+- 완료: `package.json`에 `package:chrome` script를 추가해 `npm run build` 후 `dist`만 ZIP으로 묶는다.
 - ZIP 검증 script 또는 release checklist에서 다음을 확인한다.
   - ZIP 루트에 `manifest.json`이 있다.
   - `src/`, `docs/`, `node_modules/`, `coverage/`, `.git/`, local secrets가 들어가지 않는다.
