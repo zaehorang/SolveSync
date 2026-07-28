@@ -7,7 +7,7 @@ import {
 } from "./github";
 import type { GitTreeFile } from "../../shared/githubTree";
 
-const PAT = "test-pat-placeholder";
+const ACCESS_TOKEN = "test-access-token-placeholder";
 
 describe("GitHub background client", () => {
   afterEach(() => {
@@ -55,12 +55,39 @@ describe("GitHub background client", () => {
     vi.stubGlobal("fetch", fetchImpl);
 
     const client = new GitHubClient({
-      pat: PAT,
+      credentialProvider: staticCredentialProvider(),
       apiBaseUrl: "https://api.github.test"
     });
 
     await expect(client.listRepositories()).resolves.toEqual([]);
     expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it("refreshes once after a 401 and retries with the rotated token", async () => {
+    const fetchImpl = mockFetch(
+      jsonResponse({ message: "Bad credentials" }, 401),
+      jsonResponse([])
+    );
+    const credentialProvider = {
+      getAccessToken: vi
+        .fn()
+        .mockResolvedValueOnce("expired-access")
+        .mockResolvedValueOnce("rotated-access")
+    };
+    const client = new GitHubClient({
+      credentialProvider,
+      fetchImpl
+    });
+
+    await expect(client.listRepositories()).resolves.toEqual([]);
+    expect(credentialProvider.getAccessToken).toHaveBeenNthCalledWith(1);
+    expect(credentialProvider.getAccessToken).toHaveBeenNthCalledWith(2, true);
+    expect(
+      new Headers(fetchCalls(fetchImpl)[0]?.[1]?.headers).get("Authorization")
+    ).toBe("Bearer expired-access");
+    expect(
+      new Headers(fetchCalls(fetchImpl)[1]?.[1]?.headers).get("Authorization")
+    ).toBe("Bearer rotated-access");
   });
 
   it("creates a branch from the repository default branch HEAD", async () => {
@@ -351,7 +378,10 @@ async function expectRateLimitedFailure(): Promise<void> {
 }
 
 async function expectAuthFailure(): Promise<void> {
-  const fetchImpl = mockFetch(jsonResponse({ message: "Bad credentials" }, 401));
+  const fetchImpl = mockFetch(
+    jsonResponse({ message: "Bad credentials" }, 401),
+    jsonResponse({ message: "Bad credentials" }, 401)
+  );
   const client = makeClient(fetchImpl);
 
   await expect(
@@ -367,9 +397,17 @@ async function expectAuthFailure(): Promise<void> {
 
 function makeClient(fetchImpl: GitHubFetch): GitHubClient {
   return new GitHubClient({
-    pat: PAT,
+    credentialProvider: staticCredentialProvider(),
     fetchImpl
   });
+}
+
+function staticCredentialProvider() {
+  return {
+    async getAccessToken() {
+      return ACCESS_TOKEN;
+    }
+  };
 }
 
 function makeTreeFiles(): GitTreeFile[] {

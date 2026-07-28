@@ -7,16 +7,22 @@ import {
 } from "./language";
 
 describe("LeetCode language mapping", () => {
-  it("maps Swift and Python3 to supported languages", () => {
+  it("maps platform labels to supported languages", () => {
     expect(mapLeetCodeLanguage("Swift")).toBe("swift");
     expect(mapLeetCodeLanguage("swift")).toBe("swift");
     expect(mapLeetCodeLanguage("Python3")).toBe("python3");
     expect(mapLeetCodeLanguage("Python 3")).toBe("python3");
+    expect(mapLeetCodeLanguage("JavaScript")).toBe("javascript");
+    expect(mapLeetCodeLanguage("C++")).toBe("cpp");
+    expect(mapLeetCodeLanguage("TypeScript")).toBe("typescript");
+    expect(mapLeetCodeLanguage("Kotlin")).toBe("kotlin");
+    expect(mapLeetCodeLanguage("Go")).toBe("go");
+    expect(mapLeetCodeLanguage("Rust")).toBe("rust");
   });
 
   it("returns null for unsupported languages", () => {
-    expect(mapLeetCodeLanguage("JavaScript")).toBeNull();
     expect(mapLeetCodeLanguage("Python")).toBeNull();
+    expect(mapLeetCodeLanguage("Ruby")).toBeNull();
   });
 
   it("maps Programmers raw language labels to supported languages", () => {
@@ -25,7 +31,12 @@ describe("LeetCode language mapping", () => {
     expect(mapProgrammersLanguage("Python3")).toBe("python3");
     expect(mapProgrammersLanguage("Python 3")).toBe("python3");
     expect(mapProgrammersLanguage("Python")).toBeNull();
-    expect(mapProgrammersLanguage("JavaScript")).toBeNull();
+    expect(mapProgrammersLanguage("JavaScript")).toBe("javascript");
+    expect(mapProgrammersLanguage("Java")).toBe("java");
+    expect(mapProgrammersLanguage("C++")).toBe("cpp");
+    expect(mapProgrammersLanguage("Kotlin")).toBe("kotlin");
+    expect(mapProgrammersLanguage("Go")).toBe("go");
+    expect(mapProgrammersLanguage("Rust")).toBe("rust");
   });
 
   it("builds the stable Sync Deduplication Key", () => {

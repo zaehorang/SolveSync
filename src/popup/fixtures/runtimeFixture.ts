@@ -253,7 +253,12 @@ function renderEntry(entry: HistoryItem): string {
 function makePopupFixtureSettings(): PublicSettingsState {
   return {
     version: STORAGE_SCHEMA_VERSION,
-    hasGithubPat: true,
+    isGithubConnected: true,
+    githubAccount: {
+      id: 1,
+      login: "octo",
+      avatarUrl: null
+    },
     syncRepository,
     syncBranch: {
       name: "release/chrome-web-store-prelaunch-popup-runtime-fixture-with-long-branch-name",

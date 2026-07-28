@@ -89,6 +89,18 @@ export function getConnectionStatusView(
       return view(t(locale, "status.branchCreateFailed"), detail, "error");
     case "auth_failed":
       return view(t(locale, "status.authFailed"), detail, "error");
+    case "login_required":
+      return view(t(locale, "status.githubConnectionRequired"), detail, "warning");
+    case "authorizing":
+      return view(t(locale, "status.authorizing"), detail, "neutral");
+    case "installation_required":
+      return view(t(locale, "status.installationRequired"), detail, "warning");
+    case "device_flow_expired":
+      return view(t(locale, "status.deviceFlowExpired"), detail, "warning");
+    case "device_flow_denied":
+      return view(t(locale, "status.deviceFlowDenied"), detail, "error");
+    case "token_refresh_failed":
+      return view(t(locale, "status.tokenRefreshFailed"), detail, "error");
     case "token_expired":
       return view(t(locale, "status.tokenExpired"), detail, "error");
     case "rate_limited":
@@ -110,7 +122,7 @@ export function getSetupStatusView(
     };
   }
 
-  if (!settings.hasGithubPat) {
+  if (!settings.isGithubConnected) {
     return {
       label: t(locale, "status.githubConnectionRequired"),
       detail: t(locale, "detail.githubConnectionRequired"),
@@ -169,6 +181,12 @@ export function getSetupStatusView(
     case "branch_not_found":
     case "branch_create_failed":
     case "auth_failed":
+    case "login_required":
+    case "authorizing":
+    case "installation_required":
+    case "device_flow_expired":
+    case "device_flow_denied":
+    case "token_refresh_failed":
     case "token_expired":
     case "rate_limited":
     case "network_failed": {

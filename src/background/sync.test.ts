@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { normalizeError } from "../shared/errorNormalize";
+import { STORAGE_SCHEMA_VERSION } from "../shared/storageSchema";
 import { createExtensionStorage, type StorageAreaAdapter } from "./storage";
 import type {
   SyncBranch,
@@ -144,7 +145,7 @@ describe("background sync orchestrator", () => {
       `| 1 | Two Sum | Easy | ${expectedAcceptedDate} |`
     );
     expect(committedJson(harness, "leetcode/.leetcode-sync/index.json")).toMatchObject({
-      version: 3,
+      version: 4,
       activity: {
         days: {
           [expectedAcceptedDate]: {
@@ -196,7 +197,7 @@ describe("background sync orchestrator", () => {
       `| 120804 | 두 수의 곱 구하기 | - | ${expectedAcceptedDate} |`
     );
     expect(committedJson(harness, "programmers/.programmers-sync/index.json")).toMatchObject({
-      version: 3,
+      version: 4,
       activity: {
         days: {
           [expectedAcceptedDate]: {
@@ -221,6 +222,72 @@ describe("background sync orchestrator", () => {
       ]
     });
     await expect(historyStatuses(harness.storage)).resolves.toEqual(["synced"]);
+  });
+
+  it("keeps two languages for the same Programmers problem in one README row", async () => {
+    const harness = makeHarness();
+    await harness.saveSettings();
+
+    await harness.sync.handleAcceptedDetected(makeProgrammersAcceptedDetected());
+
+    for (const file of harness.github.commits[0]?.files ?? []) {
+      harness.github.files.set(file.path, file.content);
+    }
+
+    await harness.sync.handleAcceptedDetected(
+      makeProgrammersAcceptedDetected({
+        language: "Python3",
+        code: "def solution(num1, num2):\n    return num1 * num2",
+        pageUrl:
+          "https://school.programmers.co.kr/learn/courses/30/lessons/120804?language=python3"
+      })
+    );
+
+    expect(harness.github.commits).toHaveLength(2);
+    const secondCommit = harness.github.commits[1];
+    expect(secondCommit).toMatchObject({
+      message: "solve: programmers 120804 두 수의 곱 구하기 in python3 #1"
+    });
+    expect(secondCommit?.files.map((file) => file.path)).toEqual([
+      "programmers/python/120804_두_수의_곱_구하기.py",
+      "programmers/README.md",
+      "programmers/.programmers-sync/index.json"
+    ]);
+    expect(
+      secondCommit?.files.find((file) => file.path === "programmers/README.md")
+        ?.content
+    ).toContain(
+      "[Swift](swift/120804_두_수의_곱_구하기.swift) · [Python3](python/120804_두_수의_곱_구하기.py)"
+    );
+    expect(
+      JSON.parse(
+        secondCommit?.files.find(
+          (file) => file.path === "programmers/.programmers-sync/index.json"
+        )?.content ?? "{}"
+      )
+    ).toMatchObject({
+      version: 4,
+      activity: {
+        days: {
+          [expectedAcceptedDate]: {
+            acceptedCount: 2,
+            newProblemCount: 1
+          }
+        }
+      },
+      problems: [
+        {
+          languages: {
+            swift: {
+              solutionRevisionNumber: 1
+            },
+            python3: {
+              solutionRevisionNumber: 1
+            }
+          }
+        }
+      ]
+    });
   });
 
   it("skips already processed Programmers Sync Deduplication Keys without a duplicate commit", async () => {
@@ -275,7 +342,7 @@ describe("background sync orchestrator", () => {
       message: "solve: leetcode 0001 two sum in swift #2"
     });
     expect(committedJson(harness, "leetcode/.leetcode-sync/index.json")).toMatchObject({
-      version: 3,
+      version: 4,
       problems: [
         {
           languages: {
@@ -316,7 +383,7 @@ describe("background sync orchestrator", () => {
       path: "leetcode/python/0001_two_sum.py"
     });
     expect(committedJson(harness, "leetcode/.leetcode-sync/index.json")).toMatchObject({
-      version: 3,
+      version: 4,
       problems: [
         {
           languages: {
@@ -339,7 +406,7 @@ describe("background sync orchestrator", () => {
 
     await harness.sync.handleAcceptedDetected(
       makeProgrammersAcceptedDetected({
-        language: "JavaScript"
+        language: "Ruby"
       })
     );
 
@@ -349,7 +416,7 @@ describe("background sync orchestrator", () => {
     expect(records[0]).toMatchObject({
       codingPlatform: "programmers",
       status: "unsupported_language",
-      language: "JavaScript",
+      language: "Ruby",
       supportedLanguage: null,
       problemTitle: "두 수의 곱 구하기"
     });
@@ -493,7 +560,7 @@ describe("background sync orchestrator", () => {
       message: "solve: leetcode 0001 two sum in swift #2"
     });
     expect(committedJson(harness, "leetcode/.leetcode-sync/index.json")).toMatchObject({
-      version: 3,
+      version: 4,
       problems: [
         {
           languages: {
@@ -586,10 +653,23 @@ function makeHarness(): Harness {
     sync,
     async saveSettings(update = {}) {
       await storage.saveSettings({
-        githubPat: "test-pat-placeholder",
         syncRepository: syncRepository,
         syncBranch: syncBranch,
         autoSyncEnabled: update.autoSyncEnabled ?? true
+      });
+      await storage.saveGitHubAuth({
+        version: STORAGE_SCHEMA_VERSION,
+        accessToken: "test-access-token",
+        accessTokenExpiresAt: "2026-01-01T08:00:00.000Z",
+        refreshToken: "test-refresh-token",
+        refreshTokenExpiresAt: "2026-07-01T00:00:00.000Z",
+        tokenType: "bearer",
+        account: {
+          id: 1,
+          login: "octo",
+          avatarUrl: null
+        },
+        updatedAt: "2026-01-01T00:00:00.000Z"
       });
     }
   };

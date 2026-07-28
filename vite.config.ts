@@ -9,6 +9,7 @@ const outDir = resolve(projectRoot, "dist");
 
 export default defineConfig({
   root: srcRoot,
+  envDir: projectRoot,
   publicDir: false,
   build: {
     outDir,

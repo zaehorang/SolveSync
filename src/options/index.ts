@@ -1,12 +1,9 @@
 import {
   APP_NAME,
   DEFAULT_SETTINGS_STATE,
-  STORAGE_KEYS,
-  STORAGE_SCHEMA_VERSION,
   getConnectionStatusView as getSharedConnectionStatusView,
   isUiLanguagePreference,
   normalizeError,
-  parseSettingsState,
   resolveUiLocale,
   t,
   type ConnectionStatus,
@@ -17,7 +14,7 @@ import {
   type NormalizedError,
   type NormalizedErrorCode,
   type RuntimeMessage,
-  type SettingsState,
+  type PublicSettingsState,
   type SyncBranch,
   type SyncRepository,
   type Tone,
@@ -32,18 +29,18 @@ export interface RepositoryFilterState {
   hasMatches: boolean;
 }
 
-export type SetupFlowStepId = "pat" | "repository" | "branch" | "connection";
+export type SetupFlowStepId = "auth" | "repository" | "branch" | "connection";
 export type SetupFlowStepState = "active" | "complete" | "disabled";
 
 export interface SetupFlowStateDraft {
-  githubPat: string;
+  isGithubConnected: boolean;
   syncRepository: SyncRepository | null;
   syncBranch: SyncBranch | null;
   connectionStatus: ConnectionStatus | ConnectionStatusCode;
 }
 
 export interface SettingsValidationDraft {
-  githubPat: string;
+  isGithubConnected: boolean;
   syncRepository: SyncRepository | null;
   syncBranch: SyncBranch | null;
 }
@@ -51,7 +48,7 @@ export interface SettingsValidationDraft {
 export interface SettingsValidationResult {
   isValid: boolean;
   errors: {
-    githubPat?: string;
+    githubAuth?: string;
     repository?: string;
     branch?: string;
   };
@@ -91,9 +88,26 @@ interface RuntimeFailureResponse {
 
 type RuntimeResponse<T> = RuntimeSuccessResponse<T> | RuntimeFailureResponse;
 
+interface PublicPendingGitHubAuth {
+  userCode: string;
+  verificationUri: string;
+  expiresAt: string;
+  intervalSeconds: number;
+}
+
+type GitHubAuthPollResult =
+  | { status: "pending"; pending: PublicPendingGitHubAuth }
+  | {
+      status: "connected";
+      account: NonNullable<PublicSettingsState["githubAccount"]>;
+    };
+
 interface OptionsRuntimeState {
-  githubPatInput: string;
-  patVisible: boolean;
+  isGithubConnected: boolean;
+  githubAccount: PublicSettingsState["githubAccount"];
+  pendingAuth: PublicPendingGitHubAuth | null;
+  authorizing: boolean;
+  authPollTimer: ReturnType<typeof setTimeout> | null;
   repositories: SyncRepository[];
   repositoryQuery: string;
   syncRepository: SyncRepository | null;
@@ -109,7 +123,7 @@ interface OptionsRuntimeState {
   creatingBranch: boolean;
   testingConnection: boolean;
   savingSettings: boolean;
-  patMessage: InlineMessage;
+  authMessage: InlineMessage;
   repositoryMessage: InlineMessage;
   branchMessage: InlineMessage;
   createBranchMessage: InlineMessage;
@@ -120,9 +134,14 @@ interface OptionsElements {
   form: HTMLFormElement;
   status: HTMLParagraphElement;
   setupSteps: Record<SetupFlowStepId, SetupStepElements>;
-  patInput: HTMLInputElement;
-  togglePatButton: HTMLButtonElement;
-  patError: HTMLParagraphElement;
+  authAccount: HTMLParagraphElement;
+  authStartButton: HTMLButtonElement;
+  authDisconnectButton: HTMLButtonElement;
+  authStatus: HTMLParagraphElement;
+  deviceFlow: HTMLDivElement;
+  userCode: HTMLElement;
+  openVerificationButton: HTMLButtonElement;
+  installAppButton: HTMLButtonElement;
   loadRepositoriesButton: HTMLButtonElement;
   repositorySearchInput: HTMLInputElement;
   repositoryListStatus: HTMLDivElement;
@@ -152,7 +171,7 @@ const EMPTY_MESSAGE: InlineMessage = {
 };
 
 const SETUP_FLOW_STEP_IDS: SetupFlowStepId[] = [
-  "pat",
+  "auth",
   "repository",
   "branch",
   "connection"
@@ -264,13 +283,13 @@ export function getSetupFlowStepStates(
     typeof draft.connectionStatus === "string"
       ? draft.connectionStatus
       : draft.connectionStatus.code;
-  const hasPat = draft.githubPat.trim().length > 0;
+  const hasAuth = draft.isGithubConnected;
   const hasRepository = draft.syncRepository !== null;
   const hasBranch = draft.syncBranch !== null;
 
   return {
-    pat: hasPat ? "complete" : "active",
-    repository: !hasPat ? "disabled" : hasRepository ? "complete" : "active",
+    auth: hasAuth ? "complete" : "active",
+    repository: !hasAuth ? "disabled" : hasRepository ? "complete" : "active",
     branch: !hasRepository ? "disabled" : hasBranch ? "complete" : "active",
     connection: !hasBranch
       ? "disabled"
@@ -286,8 +305,8 @@ export function validateSettingsDraft(
 ): SettingsValidationResult {
   const errors: SettingsValidationResult["errors"] = {};
 
-  if (draft.githubPat.trim().length === 0) {
-    errors.githubPat = t(locale, "validation.githubPatRequired");
+  if (!draft.isGithubConnected) {
+    errors.githubAuth = t(locale, "validation.githubLoginRequired");
   }
 
   if (draft.syncRepository === null) {
@@ -322,6 +341,14 @@ export function mapConnectionErrorCode(
       return "branch_create_failed";
     case "github_auth_failed":
       return "auth_failed";
+    case "github_login_required":
+      return "login_required";
+    case "github_device_flow_expired":
+      return "device_flow_expired";
+    case "github_device_flow_denied":
+      return "device_flow_denied";
+    case "github_token_refresh_failed":
+      return "token_refresh_failed";
     case "github_token_expired":
       return "token_expired";
     case "github_rate_limited":
@@ -351,8 +378,11 @@ export function getConnectionStatusView(
 
 function createInitialState(): OptionsRuntimeState {
   return {
-    githubPatInput: "",
-    patVisible: false,
+    isGithubConnected: false,
+    githubAccount: null,
+    pendingAuth: null,
+    authorizing: false,
+    authPollTimer: null,
     repositories: [],
     repositoryQuery: "",
     syncRepository: null,
@@ -368,7 +398,7 @@ function createInitialState(): OptionsRuntimeState {
     creatingBranch: false,
     testingConnection: false,
     savingSettings: false,
-    patMessage: EMPTY_MESSAGE,
+    authMessage: EMPTY_MESSAGE,
     repositoryMessage: EMPTY_MESSAGE,
     branchMessage: EMPTY_MESSAGE,
     createBranchMessage: EMPTY_MESSAGE,
@@ -391,7 +421,15 @@ async function initOptionsPage(): Promise<void> {
     state.saveMessage = EMPTY_MESSAGE;
     render(elements, state);
 
-    if (settings.githubPat !== null && settings.syncRepository !== null) {
+    const pendingResponse = await sendRuntimeMessage<PublicPendingGitHubAuth | null>({
+      type: "github:auth:read"
+    });
+    if (pendingResponse.ok && pendingResponse.data !== null) {
+      state.pendingAuth = pendingResponse.data;
+      scheduleAuthPoll(elements, state);
+    }
+
+    if (settings.isGithubConnected && settings.syncRepository !== null) {
       void loadBranches(elements, state, settings.syncRepository);
     }
   } catch (error) {
@@ -402,15 +440,22 @@ async function initOptionsPage(): Promise<void> {
 }
 
 function bindEvents(elements: OptionsElements, state: OptionsRuntimeState): void {
-  elements.togglePatButton.addEventListener("click", () => {
-    state.patVisible = !state.patVisible;
-    render(elements, state);
+  elements.authStartButton.addEventListener("click", () => {
+    void startGitHubAuth(elements, state);
   });
 
-  elements.patInput.addEventListener("input", () => {
-    state.githubPatInput = elements.patInput.value;
-    state.patMessage = EMPTY_MESSAGE;
-    render(elements, state);
+  elements.authDisconnectButton.addEventListener("click", () => {
+    void disconnectGitHub(elements, state);
+  });
+
+  elements.openVerificationButton.addEventListener("click", () => {
+    if (state.pendingAuth !== null) {
+      window.open(state.pendingAuth.verificationUri, "_blank", "noopener");
+    }
+  });
+
+  elements.installAppButton.addEventListener("click", () => {
+    void openGitHubAppInstallation(elements, state);
   });
 
   elements.repositorySearchInput.addEventListener("input", () => {
@@ -484,19 +529,163 @@ function bindEvents(elements: OptionsElements, state: OptionsRuntimeState): void
   });
 }
 
+async function startGitHubAuth(
+  elements: OptionsElements,
+  state: OptionsRuntimeState
+): Promise<void> {
+  state.authorizing = true;
+  state.authMessage = localizedMessage("options.auth.starting", "neutral");
+  clearAuthPoll(state);
+  render(elements, state);
+
+  try {
+    const response = await sendRuntimeMessage<PublicPendingGitHubAuth>({
+      type: "github:auth:start"
+    });
+
+    if (!response.ok) {
+      throw response.error;
+    }
+
+    state.pendingAuth = response.data;
+    state.authMessage = localizedMessage("options.auth.waiting", "neutral");
+    window.open(response.data.verificationUri, "_blank", "noopener");
+    scheduleAuthPoll(elements, state);
+  } catch (error) {
+    const normalized = normalizeError(error);
+    state.authorizing = false;
+    state.authMessage = {
+      text: normalized.userMessage,
+      tone: "error"
+    };
+  } finally {
+    render(elements, state);
+  }
+}
+
+function scheduleAuthPoll(
+  elements: OptionsElements,
+  state: OptionsRuntimeState
+): void {
+  clearAuthPoll(state);
+
+  if (state.pendingAuth === null) {
+    return;
+  }
+
+  state.authorizing = true;
+  state.authPollTimer = setTimeout(() => {
+    void pollGitHubAuth(elements, state);
+  }, state.pendingAuth.intervalSeconds * 1000);
+}
+
+async function pollGitHubAuth(
+  elements: OptionsElements,
+  state: OptionsRuntimeState
+): Promise<void> {
+  state.authPollTimer = null;
+
+  try {
+    const response = await sendRuntimeMessage<GitHubAuthPollResult>({
+      type: "github:auth:poll"
+    });
+
+    if (!response.ok) {
+      throw response.error;
+    }
+
+    if (response.data.status === "pending") {
+      state.pendingAuth = response.data.pending;
+      state.authMessage = localizedMessage("options.auth.waiting", "neutral");
+      scheduleAuthPoll(elements, state);
+      return;
+    }
+
+    state.pendingAuth = null;
+    state.authorizing = false;
+    state.isGithubConnected = true;
+    state.githubAccount = response.data.account;
+    state.authMessage = localizedMessage("options.auth.connected", "success", {
+      login: response.data.account.login
+    });
+    await loadRepositories(elements, state);
+  } catch (error) {
+    const normalized = normalizeError(error);
+    state.pendingAuth = null;
+    state.authorizing = false;
+    state.authMessage = {
+      text: normalized.userMessage,
+      tone: "error"
+    };
+  } finally {
+    render(elements, state);
+  }
+}
+
+async function disconnectGitHub(
+  elements: OptionsElements,
+  state: OptionsRuntimeState
+): Promise<void> {
+  clearAuthPoll(state);
+  const response = await sendRuntimeMessage<null>({
+    type: "github:auth:disconnect"
+  });
+
+  if (!response.ok) {
+    state.authMessage = {
+      text: response.error.userMessage,
+      tone: "error"
+    };
+    render(elements, state);
+    return;
+  }
+
+  state.isGithubConnected = false;
+  state.githubAccount = null;
+  state.pendingAuth = null;
+  state.authorizing = false;
+  state.repositories = [];
+  state.branches = [];
+  state.authMessage = localizedMessage("options.auth.disconnected", "neutral");
+  render(elements, state);
+}
+
+async function openGitHubAppInstallation(
+  elements: OptionsElements,
+  state: OptionsRuntimeState
+): Promise<void> {
+  const response = await sendRuntimeMessage<null>({
+    type: "github:installation:open"
+  });
+
+  if (!response.ok) {
+    state.authMessage = {
+      text: response.error.userMessage,
+      tone: "error"
+    };
+    render(elements, state);
+  }
+}
+
+function clearAuthPoll(state: OptionsRuntimeState): void {
+  if (state.authPollTimer !== null) {
+    clearTimeout(state.authPollTimer);
+    state.authPollTimer = null;
+  }
+}
+
 async function loadRepositories(
   elements: OptionsElements,
   state: OptionsRuntimeState
 ): Promise<void> {
-  state.githubPatInput = elements.patInput.value;
   state.repositoryQuery = elements.repositorySearchInput.value;
-  state.patMessage = EMPTY_MESSAGE;
+  state.authMessage = EMPTY_MESSAGE;
   state.repositoryMessage = EMPTY_MESSAGE;
   state.saveMessage = EMPTY_MESSAGE;
 
-  if (state.githubPatInput.trim().length === 0) {
-    state.patMessage = localizedMessage(
-      "options.message.patRequiredBeforeLoad",
+  if (!state.isGithubConnected) {
+    state.authMessage = localizedMessage(
+      "options.message.githubLoginRequiredBeforeLoad",
       "error"
     );
     render(elements, state);
@@ -507,11 +696,6 @@ async function loadRepositories(
   render(elements, state);
 
   try {
-    await saveSettings({
-      githubPat: normalizePat(state.githubPatInput),
-      uiLanguage: state.uiLanguage
-    });
-
     const response = await sendRuntimeMessage<RepositoryListResult>({
       type: "github:repositories:list",
       payload: {
@@ -540,9 +724,9 @@ async function loadRepositories(
     }
 
     if (response.data.totalCount === 0) {
-      state.connectionStatus = createConnectionStatus("no_accessible_repositories");
+      state.connectionStatus = createConnectionStatus("installation_required");
       state.repositoryMessage = localizedMessage(
-        "options.message.noOwnedRepositories",
+        "options.message.noInstalledRepositories",
         "warning"
       );
       await saveSettings({
@@ -696,11 +880,6 @@ async function createBranch(
   render(elements, state);
 
   try {
-    await saveSettings({
-      githubPat: normalizePat(state.githubPatInput),
-      uiLanguage: state.uiLanguage
-    });
-
     const response = await sendRuntimeMessage<SyncBranch>({
       type: "github:branch:create",
       payload: {
@@ -726,7 +905,6 @@ async function createBranch(
     elements.createBranchInput.value = "";
 
     await saveSettings({
-      githubPat: normalizePat(state.githubPatInput),
       syncRepository: state.syncRepository,
       syncBranch: state.syncBranch,
       autoSyncEnabled: state.autoSyncEnabled,
@@ -757,11 +935,10 @@ async function testConnection(
   elements: OptionsElements,
   state: OptionsRuntimeState
 ): Promise<void> {
-  state.githubPatInput = elements.patInput.value;
   state.autoSyncEnabled = elements.autoSyncCheckbox.checked;
 
   const validation = validateSettingsDraft({
-    githubPat: state.githubPatInput,
+    isGithubConnected: state.isGithubConnected,
     syncRepository: state.syncRepository,
     syncBranch: state.syncBranch
   }, state.locale);
@@ -779,7 +956,6 @@ async function testConnection(
 
   try {
     await saveSettings({
-      githubPat: normalizePat(state.githubPatInput),
       syncRepository: state.syncRepository,
       syncBranch: state.syncBranch,
       autoSyncEnabled: state.autoSyncEnabled,
@@ -806,7 +982,6 @@ async function testConnection(
     state.connectionStatus = createConnectionStatus("connected");
 
     await saveSettings({
-      githubPat: normalizePat(state.githubPatInput),
       syncRepository: state.syncRepository,
       syncBranch: state.syncBranch,
       autoSyncEnabled: state.autoSyncEnabled,
@@ -833,11 +1008,10 @@ async function saveSettingsFromForm(
   elements: OptionsElements,
   state: OptionsRuntimeState
 ): Promise<void> {
-  state.githubPatInput = elements.patInput.value;
   state.autoSyncEnabled = elements.autoSyncCheckbox.checked;
 
   const validation = validateSettingsDraft({
-    githubPat: state.githubPatInput,
+    isGithubConnected: state.isGithubConnected,
     syncRepository: state.syncRepository,
     syncBranch: state.syncBranch
   }, state.locale);
@@ -858,7 +1032,6 @@ async function saveSettingsFromForm(
 
   try {
     await saveSettings({
-      githubPat: normalizePat(state.githubPatInput),
       syncRepository: state.syncRepository,
       syncBranch: state.syncBranch,
       autoSyncEnabled: state.autoSyncEnabled,
@@ -883,9 +1056,10 @@ async function saveSettingsFromForm(
 
 function applySettingsToState(
   state: OptionsRuntimeState,
-  settings: SettingsState
+  settings: PublicSettingsState
 ): void {
-  state.githubPatInput = settings.githubPat ?? "";
+  state.isGithubConnected = settings.isGithubConnected;
+  state.githubAccount = settings.githubAccount;
   state.syncRepository = settings.syncRepository;
   state.syncBranch = settings.syncBranch;
   state.repositories =
@@ -900,10 +1074,10 @@ function applyValidationMessages(
   state: OptionsRuntimeState,
   validation: SettingsValidationResult
 ): void {
-  state.patMessage =
-    validation.errors.githubPat === undefined
+  state.authMessage =
+    validation.errors.githubAuth === undefined
       ? EMPTY_MESSAGE
-      : localizedMessage("validation.githubPatRequired", "error");
+      : localizedMessage("validation.githubLoginRequired", "error");
   state.repositoryMessage =
     validation.errors.repository === undefined
       ? state.repositoryMessage
@@ -925,12 +1099,7 @@ function render(elements: OptionsElements, state: OptionsRuntimeState): void {
 
   renderSetupFlow(elements.setupSteps, state);
 
-  elements.patInput.type = state.patVisible ? "text" : "password";
-  elements.patInput.value = state.githubPatInput;
-  elements.togglePatButton.textContent = state.patVisible
-    ? t(state.locale, "action.hide")
-    : t(state.locale, "action.show");
-  renderInlineMessage(elements.patError, state.patMessage, state.locale);
+  renderAuthControls(elements, state);
 
   elements.repositorySearchInput.value = state.repositoryQuery;
   elements.loadRepositoriesButton.disabled = state.loadingRepositories;
@@ -983,6 +1152,40 @@ function renderStaticText(locale: UiLocale): void {
   }
 }
 
+function renderAuthControls(
+  elements: OptionsElements,
+  state: OptionsRuntimeState
+): void {
+  elements.authAccount.textContent =
+    state.githubAccount === null
+      ? t(state.locale, "options.auth.signedOut")
+      : t(state.locale, "options.auth.signedInAs", {
+          login: state.githubAccount.login
+        });
+  elements.authStartButton.hidden = state.isGithubConnected;
+  elements.authStartButton.disabled = state.authorizing;
+  elements.authStartButton.textContent = state.authorizing
+    ? t(state.locale, "options.auth.waitingAction")
+    : t(state.locale, "action.signInGitHub");
+  elements.authDisconnectButton.hidden = !state.isGithubConnected;
+  elements.authDisconnectButton.textContent = t(
+    state.locale,
+    "action.disconnectGitHub"
+  );
+  elements.deviceFlow.hidden = state.pendingAuth === null;
+  elements.userCode.textContent = state.pendingAuth?.userCode ?? "";
+  elements.openVerificationButton.textContent = t(
+    state.locale,
+    "action.openGitHub"
+  );
+  elements.installAppButton.hidden = !state.isGithubConnected;
+  elements.installAppButton.textContent = t(
+    state.locale,
+    "action.installGitHubApp"
+  );
+  renderInlineMessage(elements.authStatus, state.authMessage, state.locale);
+}
+
 function renderLanguageControls(
   elements: OptionsElements,
   state: OptionsRuntimeState
@@ -999,7 +1202,7 @@ function renderSetupFlow(
   state: OptionsRuntimeState
 ): void {
   const stepStates = getSetupFlowStepStates({
-    githubPat: state.githubPatInput,
+    isGithubConnected: state.isGithubConnected,
     syncRepository: state.syncRepository,
     syncBranch: state.syncBranch,
     connectionStatus: state.connectionStatus
@@ -1229,9 +1432,20 @@ function collectElements(): OptionsElements {
     form: requireElement("options-form", HTMLFormElement),
     status: requireElement("options-status", HTMLParagraphElement),
     setupSteps: collectSetupSteps(),
-    patInput: requireElement("github-pat", HTMLInputElement),
-    togglePatButton: requireElement("toggle-pat", HTMLButtonElement),
-    patError: requireElement("pat-error", HTMLParagraphElement),
+    authAccount: requireElement("github-auth-account", HTMLParagraphElement),
+    authStartButton: requireElement("github-auth-start", HTMLButtonElement),
+    authDisconnectButton: requireElement(
+      "github-auth-disconnect",
+      HTMLButtonElement
+    ),
+    authStatus: requireElement("github-auth-status", HTMLParagraphElement),
+    deviceFlow: requireElement("github-device-flow", HTMLDivElement),
+    userCode: requireElement("github-user-code", HTMLElement),
+    openVerificationButton: requireElement(
+      "github-open-verification",
+      HTMLButtonElement
+    ),
+    installAppButton: requireElement("github-install-app", HTMLButtonElement),
     loadRepositoriesButton: requireElement("load-repositories", HTMLButtonElement),
     repositorySearchInput: requireElement("repository-search", HTMLInputElement),
     repositoryListStatus: requireElement("repository-list-status", HTMLDivElement),
@@ -1306,48 +1520,42 @@ function requireElement<T extends HTMLElement>(
   return element;
 }
 
-export async function readSettings(): Promise<SettingsState> {
-  try {
-    const values = await chrome.storage.local.get([STORAGE_KEYS.settings]);
-    const lastErrorMessage = getChromeRuntimeLastErrorMessage();
+export async function readSettings(): Promise<PublicSettingsState> {
+  const response = await sendRuntimeMessage<PublicSettingsState>({
+    type: "settings:read"
+  });
 
-    if (lastErrorMessage !== null) {
-      throw new Error(lastErrorMessage);
-    }
-
-    const value = values[STORAGE_KEYS.settings];
-
-    return parseSettingsState(value) ?? DEFAULT_SETTINGS_STATE;
-  } catch (error) {
-    throw normalizeOptionsExtensionStateError(error);
+  if (!response.ok) {
+    throw response.error;
   }
+
+  return response.data;
 }
 
 export async function saveSettings(
-  update: Partial<Omit<SettingsState, "version" | "updatedAt">>
-): Promise<SettingsState> {
-  const current = await readSettings();
-  const next: SettingsState = {
-    ...current,
-    ...update,
-    version: STORAGE_SCHEMA_VERSION,
-    updatedAt: new Date().toISOString()
-  };
-
-  try {
-    await chrome.storage.local.set({
-      [STORAGE_KEYS.settings]: next
-    });
-    const lastErrorMessage = getChromeRuntimeLastErrorMessage();
-
-    if (lastErrorMessage !== null) {
-      throw new Error(lastErrorMessage);
+  update: Partial<
+    Pick<
+      PublicSettingsState,
+      | "syncRepository"
+      | "syncBranch"
+      | "autoSyncEnabled"
+      | "uiLanguage"
+      | "connectionStatus"
+    >
+  >
+): Promise<PublicSettingsState> {
+  const response = await sendRuntimeMessage<PublicSettingsState>({
+    type: "settings:write",
+    payload: {
+      update
     }
-  } catch (error) {
-    throw normalizeOptionsExtensionStateError(error);
+  });
+
+  if (!response.ok) {
+    throw response.error;
   }
 
-  return next;
+  return response.data;
 }
 
 function sendRuntimeMessage<T>(message: RuntimeMessage): Promise<RuntimeResponse<T>> {
@@ -1376,15 +1584,6 @@ function sendRuntimeMessage<T>(message: RuntimeMessage): Promise<RuntimeResponse
       resolve(response);
     });
   });
-}
-
-function getChromeRuntimeLastErrorMessage(): string | null {
-  return chrome.runtime?.lastError?.message ?? null;
-}
-
-function normalizePat(value: string): string | null {
-  const trimmed = value.trim();
-  return trimmed.length === 0 ? null : trimmed;
 }
 
 function createConnectionStatus(

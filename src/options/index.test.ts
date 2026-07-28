@@ -5,7 +5,7 @@ import { getConnectionStatusView, validateSettingsDraft } from "./index";
 describe("options index owner repository copy", () => {
   it("asks users to choose a Sync Repository from owned repositories", () => {
     const validation = validateSettingsDraft({
-      githubPat: "pat",
+      isGithubConnected: true,
       syncRepository: null,
       syncBranch: null
     });
@@ -18,7 +18,7 @@ describe("options index owner repository copy", () => {
   it("labels empty repository state as no owned repositories", () => {
     expect(getConnectionStatusView("no_accessible_repositories")).toMatchObject({
       label: "No owned repositories",
-      detail: "Check that the token includes a repository owned by your account.",
+      detail: "Install the SolveSync GitHub App for at least one repository you own.",
       tone: "warning"
     });
   });
@@ -26,7 +26,7 @@ describe("options index owner repository copy", () => {
   it("can render owner repository copy in Korean", () => {
     const validation = validateSettingsDraft(
       {
-        githubPat: "pat",
+        isGithubConnected: true,
         syncRepository: null,
         syncBranch: null
       },

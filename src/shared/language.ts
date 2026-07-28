@@ -5,6 +5,7 @@ import type {
   SupportedLanguage
 } from "./types";
 import { isSupportedLanguage } from "./types";
+import { mapPlatformLanguage } from "./languageRegistry";
 
 export interface BuildSyncDeduplicationKeyInput {
   codingPlatform?: CodingPlatform;
@@ -32,25 +33,18 @@ export class UnsupportedLeetCodeLanguageError extends Error {
 }
 
 export function mapLeetCodeLanguage(raw: string): SupportedLanguage | null {
-  return mapSupportedLanguage(raw);
+  return mapPlatformLanguage("leetcode", raw);
 }
 
 export function mapProgrammersLanguage(raw: string): SupportedLanguage | null {
-  return mapSupportedLanguage(raw);
+  return mapPlatformLanguage("programmers", raw);
 }
 
 export function mapSupportedLanguage(raw: string): SupportedLanguage | null {
-  const normalized = raw.trim().toLowerCase().replace(/[\s_-]+/g, "");
-
-  if (normalized === "swift") {
-    return "swift";
-  }
-
-  if (normalized === "python3") {
-    return "python3";
-  }
-
-  return null;
+  return (
+    mapPlatformLanguage("leetcode", raw) ??
+    mapPlatformLanguage("programmers", raw)
+  );
 }
 
 export function buildSyncDeduplicationKey(

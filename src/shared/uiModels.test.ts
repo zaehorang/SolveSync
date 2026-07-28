@@ -27,7 +27,7 @@ describe("shared UI models", () => {
     });
     expect(getConnectionStatusView("ko", "no_accessible_repositories")).toMatchObject({
       label: "본인 저장소 없음",
-      detail: "Token에 본인 소유 저장소가 포함되어 있는지 확인하세요.",
+      detail: "본인 소유 저장소 하나 이상에 SolveSync GitHub App을 설치하세요.",
       tone: "warning"
     });
     expect(getConnectionStatusView("en", "auth_failed", error)).toMatchObject({
@@ -259,7 +259,12 @@ function makeProgrammersSyncHistoryEntry(
 function makePublicSettings(): PublicSettingsState {
   return {
     version: STORAGE_SCHEMA_VERSION,
-    hasGithubPat: true,
+    isGithubConnected: true,
+    githubAccount: {
+      id: 1,
+      login: "octo",
+      avatarUrl: null
+    },
     syncRepository: syncRepository,
     syncBranch: {
       name: "main",

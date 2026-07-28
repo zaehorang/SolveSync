@@ -85,6 +85,16 @@ describe("options state helpers", () => {
     ).toBe("ready");
   });
 
+  it("uses GitHub Device Flow controls without a PAT input", () => {
+    const html = readFileSync(new URL("./index.html", import.meta.url), "utf8");
+
+    expect(html).toContain('id="github-auth-start"');
+    expect(html).toContain('id="github-user-code"');
+    expect(html).toContain('id="github-install-app"');
+    expect(html).not.toContain("github-pat");
+    expect(html).not.toContain('type="password"');
+  });
+
   it("uses the repository default branch when no saved branch is selected", () => {
     const repository = makeRepository("octo/algorithms", "main");
     const branches = [
@@ -111,13 +121,13 @@ describe("options state helpers", () => {
 
     expect(
       getSetupFlowStepStates({
-        githubPat: "",
+        isGithubConnected: false,
         syncRepository: null,
         syncBranch: null,
         connectionStatus: "not_tested"
       })
     ).toEqual({
-      pat: "active",
+      auth: "active",
       repository: "disabled",
       branch: "disabled",
       connection: "disabled"
@@ -125,13 +135,13 @@ describe("options state helpers", () => {
 
     expect(
       getSetupFlowStepStates({
-        githubPat: "pat",
+        isGithubConnected: true,
         syncRepository: repository,
         syncBranch: branch,
         connectionStatus: "connected"
       })
     ).toEqual({
-      pat: "complete",
+      auth: "complete",
       repository: "complete",
       branch: "complete",
       connection: "complete"
@@ -140,14 +150,14 @@ describe("options state helpers", () => {
 
   it("validates missing required settings before save", () => {
     const validation = validateSettingsDraft({
-      githubPat: " ",
+      isGithubConnected: false,
       syncRepository: null,
       syncBranch: null
     });
 
     expect(validation.isValid).toBe(false);
     expect(validation.errors).toMatchObject({
-      githubPat: "GitHub PAT is required.",
+      githubAuth: "Sign in with GitHub first.",
       repository: "Choose a Sync Repository from the owned repository list.",
       branch: "Choose an existing Sync Branch or create one first."
     });
@@ -156,7 +166,7 @@ describe("options state helpers", () => {
   it("localizes validation messages for the selected locale", () => {
     const validation = validateSettingsDraft(
       {
-        githubPat: " ",
+        isGithubConnected: false,
         syncRepository: null,
         syncBranch: null
       },
@@ -164,7 +174,7 @@ describe("options state helpers", () => {
     );
 
     expect(validation.errors).toMatchObject({
-      githubPat: "GitHub PAT가 필요합니다.",
+      githubAuth: "먼저 GitHub로 로그인하세요.",
       repository: "본인 저장소 목록에서 Sync Repository를 선택하세요.",
       branch: "기존 Sync Branch를 선택하거나 먼저 생성하세요."
     });
@@ -194,12 +204,16 @@ describe("options state helpers", () => {
 
   it("shows extension recovery copy when initial settings read fails", async () => {
     vi.stubGlobal("chrome", {
-      runtime: {},
-      storage: {
-        local: {
-          get: vi.fn().mockRejectedValue(new Error("Storage read failed")),
-          set: vi.fn()
-        }
+      runtime: {
+        lastError: {
+          message: "Storage read failed"
+        },
+        sendMessage: vi.fn(
+          (
+            _message: unknown,
+            callback: (response: undefined) => void
+          ) => callback(undefined)
+        )
       }
     });
 
@@ -221,18 +235,22 @@ describe("options state helpers", () => {
 
   it("normalizes settings save write failures as extension-local state failures", async () => {
     vi.stubGlobal("chrome", {
-      runtime: {},
-      storage: {
-        local: {
-          get: vi.fn().mockResolvedValue({}),
-          set: vi.fn().mockRejectedValue(new Error("Storage write failed"))
-        }
+      runtime: {
+        lastError: {
+          message: "Storage write failed"
+        },
+        sendMessage: vi.fn(
+          (
+            _message: unknown,
+            callback: (response: undefined) => void
+          ) => callback(undefined)
+        )
       }
     });
 
     await expect(
       saveSettings({
-        githubPat: "pat"
+        autoSyncEnabled: true
       })
     ).rejects.toMatchObject({
       code: "extension_state_unavailable",

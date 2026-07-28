@@ -517,7 +517,7 @@ describe("popup state helpers", () => {
       fileUrl: null,
       error: makeError(
         "unsupported_language",
-        "Unsupported language. Swift and Python3 are supported."
+        "Unsupported language."
       )
     });
 
@@ -525,7 +525,7 @@ describe("popup state helpers", () => {
 
     expect(model.items[0]).toMatchObject({
       statusLabel: "Unsupported language",
-      unsupportedReason: "No commit was created. Swift and Python3 are supported.",
+      unsupportedReason: "No commit was created for this unsupported language.",
       commitUrl: null,
       fileUrl: null,
       canRetry: false
@@ -805,7 +805,12 @@ function makeError(
 function makePublicSettings(): PublicSettingsState {
   return {
     version: STORAGE_SCHEMA_VERSION,
-    hasGithubPat: true,
+    isGithubConnected: true,
+    githubAccount: {
+      id: 1,
+      login: "octo",
+      avatarUrl: null
+    },
     syncRepository: syncRepository,
     syncBranch: {
       name: "main",

@@ -17,7 +17,7 @@ import {
   toPublicSettingsState
 } from "./storageSchema";
 
-const legacyStorageVersions = [1, 2, 3] as const;
+const legacyStorageVersions = [1, 2, 3, 4] as const;
 
 describe("storage schema contracts", () => {
   it("keeps every top-level storage state versioned", () => {
@@ -33,15 +33,27 @@ describe("storage schema contracts", () => {
     expect(states.every(isVersionedStorageState)).toBe(true);
   });
 
-  it("keeps the stored PAT out of public settings", () => {
-    const publicSettings = toPublicSettingsState({
-      ...DEFAULT_SETTINGS_STATE,
-      githubPat: "redacted-local-value"
+  it("keeps stored GitHub tokens out of public settings", () => {
+    const publicSettings = toPublicSettingsState(DEFAULT_SETTINGS_STATE, {
+      version: STORAGE_SCHEMA_VERSION,
+      accessToken: "redacted-access-token",
+      accessTokenExpiresAt: "2026-01-01T08:00:00.000Z",
+      refreshToken: "redacted-refresh-token",
+      refreshTokenExpiresAt: "2026-07-01T00:00:00.000Z",
+      tokenType: "bearer",
+      account: {
+        id: 1,
+        login: "octo",
+        avatarUrl: null
+      },
+      updatedAt: "2026-01-01T00:00:00.000Z"
     });
 
-    expect(publicSettings.hasGithubPat).toBe(true);
+    expect(publicSettings.isGithubConnected).toBe(true);
+    expect(publicSettings.githubAccount?.login).toBe("octo");
     expect(publicSettings.uiLanguage).toBe("system");
-    expect("githubPat" in publicSettings).toBe(false);
+    expect("accessToken" in publicSettings).toBe(false);
+    expect("refreshToken" in publicSettings).toBe(false);
   });
 
   it("guards the settings state shape", () => {

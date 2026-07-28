@@ -8,6 +8,7 @@ import {
   STORAGE_KEYS,
   STORAGE_SCHEMA_VERSION,
   parseProcessedSyncDeduplicationKeysState,
+  parseGitHubAuthSession,
   parseRetryBundlesState,
   parseSettingsState,
   parseSyncDeduplicationKeyLocksState,
@@ -16,6 +17,7 @@ import {
   type ProcessedSyncDeduplicationKeysState,
   type RetryBundlesState,
   type SettingsState,
+  type GitHubAuthSession,
   type StorageKey,
   type SyncDeduplicationKeyLocksState,
   type SyncHistoryState
@@ -52,6 +54,9 @@ export interface ExtensionStorage {
     settings: SettingsStorageUpdate,
     now?: Date | IsoDateString | number
   ): Promise<SettingsState>;
+  getGitHubAuth(): Promise<GitHubAuthSession | null>;
+  saveGitHubAuth(session: GitHubAuthSession): Promise<GitHubAuthSession>;
+  clearGitHubAuth(): Promise<void>;
   listProcessedSyncDeduplicationKeys(): Promise<ProcessedSyncDeduplicationKeyEntry[]>;
   hasProcessedSyncDeduplicationKey(
     syncDeduplicationKey: SyncDeduplicationKey
@@ -85,12 +90,21 @@ export interface ExtensionStorage {
 
 export function createExtensionStorage(area: StorageAreaAdapter): ExtensionStorage {
   async function getSettings(): Promise<SettingsState> {
-    return readState(
-      area,
-      STORAGE_KEYS.settings,
-      DEFAULT_SETTINGS_STATE,
-      parseSettingsState
-    );
+    const values = await area.get(STORAGE_KEYS.settings);
+    const raw = values[STORAGE_KEYS.settings];
+    const parsed = parseSettingsState(raw) ?? cloneState(DEFAULT_SETTINGS_STATE);
+    const isCurrent =
+      typeof raw === "object" &&
+      raw !== null &&
+      "version" in raw &&
+      raw.version === STORAGE_SCHEMA_VERSION &&
+      !("githubPat" in raw);
+
+    if (!isCurrent && raw !== undefined) {
+      await area.set({ [STORAGE_KEYS.settings]: parsed });
+    }
+
+    return cloneState(parsed);
   }
 
   async function saveSettings(
@@ -106,6 +120,26 @@ export function createExtensionStorage(area: StorageAreaAdapter): ExtensionStora
     };
 
     return writeState(area, STORAGE_KEYS.settings, next);
+  }
+
+  async function getGitHubAuth(): Promise<GitHubAuthSession | null> {
+    const values = await area.get(STORAGE_KEYS.githubAuth);
+    const parsed = parseGitHubAuthSession(values[STORAGE_KEYS.githubAuth]);
+
+    return parsed === null ? null : cloneState(parsed);
+  }
+
+  async function saveGitHubAuth(
+    session: GitHubAuthSession
+  ): Promise<GitHubAuthSession> {
+    return writeState(area, STORAGE_KEYS.githubAuth, {
+      ...session,
+      version: STORAGE_SCHEMA_VERSION
+    });
+  }
+
+  async function clearGitHubAuth(): Promise<void> {
+    await area.remove(STORAGE_KEYS.githubAuth);
   }
 
   async function readProcessedSyncDeduplicationKeys(): Promise<ProcessedSyncDeduplicationKeysState> {
@@ -332,6 +366,9 @@ export function createExtensionStorage(area: StorageAreaAdapter): ExtensionStora
   return {
     getSettings,
     saveSettings,
+    getGitHubAuth,
+    saveGitHubAuth,
+    clearGitHubAuth,
     listProcessedSyncDeduplicationKeys,
     hasProcessedSyncDeduplicationKey,
     markSyncDeduplicationKeyProcessed,

@@ -4,7 +4,16 @@ export type IsoDateString = string;
 
 export type CodingPlatform = "leetcode" | "programmers";
 
-export type SupportedLanguage = "swift" | "python3";
+export type SupportedLanguage =
+  | "swift"
+  | "python3"
+  | "java"
+  | "cpp"
+  | "javascript"
+  | "typescript"
+  | "kotlin"
+  | "go"
+  | "rust";
 
 export type LeetCodeLanguage =
   | "Swift"
@@ -141,7 +150,17 @@ export function isSyncStatus(value: unknown): value is SyncStatus {
 }
 
 export function isSupportedLanguage(value: unknown): value is SupportedLanguage {
-  return value === "swift" || value === "python3";
+  return (
+    value === "swift" ||
+    value === "python3" ||
+    value === "java" ||
+    value === "cpp" ||
+    value === "javascript" ||
+    value === "typescript" ||
+    value === "kotlin" ||
+    value === "go" ||
+    value === "rust"
+  );
 }
 
 export function isCodingPlatform(value: unknown): value is CodingPlatform {

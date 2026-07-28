@@ -6,9 +6,10 @@ import type {
 } from "./types";
 import { isPlainRecord, isSupportedLanguage } from "./types";
 
-export const SOLUTION_CATALOG_VERSION = 3;
+export const SOLUTION_CATALOG_VERSION = 4;
 const LEGACY_SOLUTION_CATALOG_V1_VERSION = 1;
 const LEGACY_SOLUTION_CATALOG_V2_VERSION = 2;
+const LEGACY_SOLUTION_CATALOG_V3_VERSION = 3;
 
 export interface SolutionCatalogLanguageEntry {
   solutionPath: string;
@@ -242,7 +243,8 @@ function normalizeSolutionCatalog(value: unknown): SolutionCatalog | null {
   if (
     !isPlainRecord(value) ||
     (value.version !== LEGACY_SOLUTION_CATALOG_V1_VERSION &&
-      value.version !== LEGACY_SOLUTION_CATALOG_V2_VERSION)
+      value.version !== LEGACY_SOLUTION_CATALOG_V2_VERSION &&
+      value.version !== LEGACY_SOLUTION_CATALOG_V3_VERSION)
   ) {
     return null;
   }
@@ -251,7 +253,12 @@ function normalizeSolutionCatalog(value: unknown): SolutionCatalog | null {
     return null;
   }
 
-  const problems = value.problems.map(normalizeSolutionCatalogProblem);
+  const problems = value.problems.map((problem) =>
+    normalizeSolutionCatalogProblem(
+      problem,
+      value.version === LEGACY_SOLUTION_CATALOG_V3_VERSION
+    )
+  );
 
   if (problems.some((problem) => problem === null)) {
     return null;
@@ -264,12 +271,17 @@ function normalizeSolutionCatalog(value: unknown): SolutionCatalog | null {
   };
 }
 
-function normalizeSolutionCatalogProblem(value: unknown): SolutionCatalogProblem | null {
+function normalizeSolutionCatalogProblem(
+  value: unknown,
+  preserveRevision: boolean
+): SolutionCatalogProblem | null {
   if (!isPlainRecord(value)) {
     return null;
   }
 
-  const languages = normalizeSolutionCatalogLanguageMap(value.languages);
+  const languages = preserveRevision
+    ? value.languages
+    : normalizeSolutionCatalogLanguageMap(value.languages);
   const candidate = {
     ...value,
     languages

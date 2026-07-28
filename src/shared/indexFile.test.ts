@@ -25,7 +25,7 @@ const twoSumSwift = {
 describe("Solution Catalog", () => {
   it("creates an empty versioned catalog", () => {
     expect(createEmptySolutionCatalog()).toEqual({
-      version: 3,
+      version: 4,
       problems: [],
       activity: {
         days: {}
@@ -192,7 +192,7 @@ describe("Solution Catalog", () => {
     );
 
     expect(parsed).toMatchObject({
-      version: 3,
+      version: 4,
       problems: [
         {
           languages: {
@@ -207,7 +207,7 @@ describe("Solution Catalog", () => {
     expect(JSON.stringify(parsed)).not.toContain("lastSubmissionId");
   });
 
-  it("normalizes v2 lastAcceptedSourceId language entries to v3 revision 1", () => {
+  it("normalizes v2 lastAcceptedSourceId language entries to the current revision", () => {
     const parsed = parseSolutionCatalogJson(
       JSON.stringify({
         version: 2,
@@ -245,7 +245,7 @@ describe("Solution Catalog", () => {
     );
 
     expect(parsed).toMatchObject({
-      version: 3,
+      version: 4,
       problems: [
         {
           languages: {
@@ -356,7 +356,7 @@ describe("Solution Catalog", () => {
     }
   );
 
-  it("writes v3 lastAcceptedSourceId and revision without lastSubmissionId", () => {
+  it("writes current lastAcceptedSourceId and revision without lastSubmissionId", () => {
     const catalog = mergeSolutionCatalogEntry(
       createEmptySolutionCatalog(),
       twoSumSwift,
@@ -370,6 +370,6 @@ describe("Solution Catalog", () => {
     expect(serialized).toContain("lastAcceptedSourceId");
     expect(serialized).toContain("solutionRevisionNumber");
     expect(serialized).not.toContain("lastSubmissionId");
-    expect(catalog.version).toBe(3);
+    expect(catalog.version).toBe(4);
   });
 });

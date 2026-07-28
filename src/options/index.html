@@ -25,41 +25,28 @@
             </div>
 
             <div class="setup-flow">
-              <div class="setup-step" data-setup-step="pat">
+              <div class="setup-step" data-setup-step="auth">
                 <span class="setup-step-marker" aria-hidden="true">1</span>
                 <div class="setup-step-header">
                   <div class="setup-step-title-row">
-                    <h3 class="setup-step-title" data-i18n="options.setup.pat.title"></h3>
+                    <h3 class="setup-step-title" data-i18n="options.setup.auth.title"></h3>
                     <span class="setup-step-state" data-setup-step-state-label></span>
                   </div>
                 </div>
 
                 <div class="setup-step-body">
-                  <div class="field">
-                    <label for="github-pat" data-i18n="options.field.githubPat"></label>
-                    <div class="input-action-row">
-                      <input
-                        id="github-pat"
-                        type="password"
-                        autocomplete="off"
-                        spellcheck="false"
-                        data-i18n-placeholder="options.field.githubPatPlaceholder"
-                      />
-                      <button id="toggle-pat" class="button secondary" type="button"></button>
-                    </div>
-                    <p id="pat-error" class="field-message" aria-live="polite"></p>
+                  <p id="github-auth-account" class="section-copy"></p>
+                  <div class="input-action-row">
+                    <button id="github-auth-start" class="button primary" type="button"></button>
+                    <button id="github-auth-disconnect" class="button secondary" type="button"></button>
                   </div>
-
-                  <div class="checklist-block compact-checklist" aria-labelledby="pat-checklist-title">
-                    <h3 id="pat-checklist-title" data-i18n="options.patChecklist.title"></h3>
-                    <ul class="checklist compact">
-                      <li data-i18n="options.patChecklist.create"></li>
-                      <li data-i18n="options.patChecklist.target"></li>
-                      <li data-i18n="options.patChecklist.contents"></li>
-                      <li data-i18n="options.patChecklist.metadata"></li>
-                      <li data-i18n="options.patChecklist.expiration"></li>
-                    </ul>
+                  <div id="github-device-flow" class="status-box neutral" hidden>
+                    <p data-i18n="options.auth.deviceInstructions"></p>
+                    <strong id="github-user-code"></strong>
+                    <button id="github-open-verification" class="button secondary" type="button"></button>
                   </div>
+                  <p id="github-auth-status" class="field-message" aria-live="polite"></p>
+                  <button id="github-install-app" class="button secondary" type="button"></button>
                 </div>
               </div>
 
@@ -209,7 +196,7 @@
           <section class="panel" aria-labelledby="security-title">
             <h2 id="security-title" data-i18n="options.section.security.title"></h2>
             <ul class="disclosure-list">
-              <li data-i18n="options.security.patStorage"></li>
+              <li data-i18n="options.security.authStorage"></li>
               <li data-i18n="options.security.retryStorage"></li>
               <li data-i18n="options.security.retryLimit"></li>
               <li data-i18n="options.security.noBackend"></li>

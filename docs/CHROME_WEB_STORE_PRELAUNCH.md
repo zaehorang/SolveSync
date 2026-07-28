@@ -7,8 +7,8 @@ Last checked against official Chrome Web Store docs: 2026-06-05.
 ## 배포 목표
 - 첫 Chrome Web Store 제출은 Public 배포를 목표로 한다.
 - Privacy Policy는 Notion 공개 페이지 URL을 사용한다.
-- GitHub OAuth 전환은 이번 배포 전 범위에 넣지 않고, 현재 fine-grained PAT 방식으로 제출한다.
-- 실제 로그인 세션과 GitHub PAT가 필요한 검증은 사용자가 수행한다.
+- GitHub 인증은 public GitHub App Device Flow를 사용한다.
+- 실제 GitHub App 설치와 LeetCode/Programmers 로그인 세션이 필요한 검증은 사용자가 수행한다.
 
 ## 진행 완료
 - 앱 로고 방향은 `Sync Tray`로 확정했다.
@@ -61,21 +61,20 @@ Last checked against official Chrome Web Store docs: 2026-06-05.
 - 첫 문장에 single purpose를 명확히 쓴다.
 - 기능 설명은 실제 구현 범위만 포함한다.
   - LeetCode와 Programmers Accepted 제출 감지.
-  - Swift/Python3만 지원.
+  - Swift, Python3, Java, C++, JavaScript, TypeScript, Kotlin, Go, Rust 지원.
   - 사용자가 선택한 GitHub Sync Repository/Sync Branch로 commit.
   - Solution README와 Solution Catalog 갱신.
   - Retry Bundle과 Sync History 제공.
 - 제외 사항은 과장 없이 명시한다.
-  - GitHub OAuth 없음.
   - 별도 backend 없음.
   - LeetCode/Programmers 문제 설명 전문 저장 없음.
-  - Swift/Python3 외 언어는 commit하지 않음.
+  - 지원 목록 밖 언어는 commit하지 않음.
 - Category, language, mature content 여부, homepage URL, support URL 후보를 정리한다.
 
 ### 5. Privacy Policy 초안 작성
 - Notion에 붙여 넣을 Privacy Policy 원문을 작성한다.
 - 최소 포함 항목:
-  - 수집/처리하는 데이터: GitHub PAT, Sync Repository/Sync Branch 설정, Accepted solution code, problem metadata, page URL, Sync History, Retry Bundle.
+  - 수집/처리하는 데이터: GitHub App access/refresh token, Sync Repository/Sync Branch 설정, Accepted solution code, problem metadata, page URL, Sync History, Retry Bundle.
   - 사용 목적: Accepted solution을 사용자가 선택한 GitHub repository에 sync하기 위함.
   - 저장 위치: Chrome extension local storage.
   - 전송 대상: GitHub API, LeetCode GraphQL, Programmers page에서 읽은 현재 editor snapshot.
@@ -83,18 +82,19 @@ Last checked against official Chrome Web Store docs: 2026-06-05.
   - 보관 기간: Retry Bundle 최대 20개, 최대 7일, retry 성공 후 삭제.
   - 삭제 방법: extension settings 삭제, Chrome extension storage 삭제, extension 제거.
   - 공유/판매/광고 사용 없음.
-  - developer가 사용자 solution code나 PAT를 별도 backend로 받지 않음.
+  - developer가 사용자 solution code나 GitHub token을 별도 backend로 받지 않음.
   - Chrome Web Store User Data Policy와 Limited Use 요구사항 준수 문구.
 
 ### 6. Privacy 탭 답변표 작성
 - Single purpose 문장을 준비한다.
 - Permission justification을 준비한다.
-  - `storage`: PAT, settings, Sync History, Retry Bundle, deduplication state 저장.
+  - `storage`: GitHub auth session, settings, Sync History, Retry Bundle, deduplication state 저장.
   - `https://leetcode.com/*`: 로그인된 LeetCode 세션으로 Accepted Submission metadata/code 조회.
   - `https://school.programmers.co.kr/*`: Programmers lesson page에서 Accepted modal과 editor snapshot 감지.
+  - `https://github.com/*`: Device Flow token endpoint.
   - `https://api.github.com/*`: 사용자가 선택한 Sync Repository/Sync Branch에 solution commit 생성.
 - User data category 답변을 준비한다.
-  - Authentication information: GitHub PAT.
+  - Authentication information: GitHub App access/refresh token과 Device Flow state.
   - User-generated content: solution code.
   - Website content/resources: problem metadata, page URL, editor snapshot.
   - Web browsing activity: LeetCode/Programmers problem URL interaction needed for sync.
@@ -103,15 +103,15 @@ Last checked against official Chrome Web Store docs: 2026-06-05.
 
 ### 7. Reviewer Test Instructions 작성
 - reviewer가 기능을 이해할 수 있게 테스트 흐름을 작성한다.
-- reviewer가 자체 GitHub PAT와 LeetCode/Programmers 계정을 사용할 수 있음을 안내한다.
-- 별도 reviewer용 테스트 repository/PAT를 만들지 않는 경우, 그 이유와 필요한 권한을 명확히 쓴다.
+- reviewer가 GitHub Device Flow로 로그인하고 자체 LeetCode/Programmers 계정을 사용할 수 있음을 안내한다.
+- reviewer가 설치할 수 있는 GitHub App과 테스트 repository 준비 방법을 명확히 쓴다.
 - 포함할 테스트 흐름:
-  - Options에서 PAT 입력.
+  - Options에서 GitHub 로그인과 App 설치.
   - repository/branch 선택.
   - connection test.
-  - LeetCode 또는 Programmers Accepted 제출 후 GitHub commit 확인.
-  - Auto Sync off와 unsupported language 동작 확인.
-  - 실패 시 Popup에서 failure detail과 retry 확인.
+  - Programmers 같은 문제를 지원 언어 두 개로 Accepted 제출한 뒤 두 solution과 단일 README row 확인.
+  - GitHub 연결 해제와 재연결 후 repository/branch 설정 유지 확인.
+  - LeetCode 지원 언어 하나의 Accepted 제출 후 GitHub commit 확인.
 
 ### 8. 검증 자동화와 최종 점검
 - `npm run typecheck`를 통과시킨다.
@@ -153,11 +153,11 @@ Last checked against official Chrome Web Store docs: 2026-06-05.
   - 기본값: English 또는 Korean 중 하나를 primary listing으로 사용.
   - 기본 region: all regions.
 
-### 4. GitHub PAT와 테스트 저장소 준비
-- fine-grained GitHub PAT를 준비한다.
-- PAT에는 검증 대상 Sync Repository만 선택한다.
-- Contents read/write 권한을 부여한다.
-- Metadata read 권한이 활성화되어 있는지 확인한다.
+### 4. GitHub App과 테스트 저장소 준비
+- Public GitHub App에서 Device Flow와 expiring user access token을 활성화한다.
+- Contents read/write와 Metadata read 권한만 요청한다.
+- tester/reviewer가 검증 대상 Sync Repository에 App을 설치할 수 있게 한다.
+- build에 공개 client ID와 App slug가 포함되어 있는지 확인하고 client secret은 포함하지 않는다.
 - 실제 풀이 repository를 오염시키지 않도록 Store 검증용 branch를 준비한다.
 - 필요한 경우 Store reviewer instructions에 쓸 테스트 repository를 만든다.
 
@@ -165,13 +165,11 @@ Last checked against official Chrome Web Store docs: 2026-06-05.
 - Chrome에서 build된 `dist`를 load unpacked로 로드한다.
 - LeetCode 로그인 상태를 확인한다.
 - Programmers 로그인 상태를 확인한다.
-- Options에서 PAT, Sync Repository, Sync Branch를 저장한다.
+- Options에서 GitHub 로그인, App 설치, Sync Repository, Sync Branch 선택을 완료한다.
 - connection test 성공을 확인한다.
-- LeetCode Swift 또는 Python3 Accepted sync를 확인한다.
-- Programmers Swift 또는 Python3 Accepted sync를 확인한다.
-- Auto Sync off 상태에서 commit이 만들어지지 않는지 확인한다.
-- unsupported language 상태에서 commit이 만들어지지 않는지 확인한다.
-- retry 가능한 실패를 만들고 Retry 동작을 확인한다.
+- Programmers 같은 문제를 지원 언어 두 개로 sync하고 README/Catalog가 두 언어를 보존하는지 확인한다.
+- GitHub 연결 해제와 재연결 후 repository/branch 설정이 유지되는지 확인한다.
+- LeetCode 지원 언어 하나의 Accepted sync를 확인한다.
 - 확인 결과와 발견한 문제를 Codex에게 전달한다.
 
 ### 6. Chrome Web Store Dashboard 제출

@@ -88,6 +88,26 @@ export interface SettingsWriteMessage {
   };
 }
 
+export interface GitHubAuthStartMessage {
+  type: "github:auth:start";
+}
+
+export interface GitHubAuthReadMessage {
+  type: "github:auth:read";
+}
+
+export interface GitHubAuthPollMessage {
+  type: "github:auth:poll";
+}
+
+export interface GitHubAuthDisconnectMessage {
+  type: "github:auth:disconnect";
+}
+
+export interface GitHubInstallationOpenMessage {
+  type: "github:installation:open";
+}
+
 export interface RepositoryListMessage {
   type: "github:repositories:list";
   payload: {
@@ -141,6 +161,11 @@ export interface RetryBundlesReadMessage {
 export type PopupOptionsToBackgroundMessage =
   | SettingsReadMessage
   | SettingsWriteMessage
+  | GitHubAuthStartMessage
+  | GitHubAuthReadMessage
+  | GitHubAuthPollMessage
+  | GitHubAuthDisconnectMessage
+  | GitHubInstallationOpenMessage
   | RepositoryListMessage
   | BranchListMessage
   | BranchCreateMessage
@@ -184,6 +209,11 @@ export const RUNTIME_MESSAGE_TYPES = [
   "content:toast_action",
   "settings:read",
   "settings:write",
+  "github:auth:start",
+  "github:auth:read",
+  "github:auth:poll",
+  "github:auth:disconnect",
+  "github:installation:open",
   "github:repositories:list",
   "github:branches:list",
   "github:branch:create",
@@ -208,6 +238,8 @@ const FORBIDDEN_MESSAGE_SECRET_KEYS = [
   "githubPat",
   "token",
   "accessToken",
+  "refreshToken",
+  "deviceCode",
   "cookie",
   "leetcodeCookie",
   "sessionToken"

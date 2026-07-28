@@ -9,6 +9,7 @@ import {
   type StorageAreaAdapter
 } from "./storage";
 import {
+  DEFAULT_SETTINGS_STATE,
   LEGACY_STORAGE_KEYS,
   STORAGE_KEYS,
   STORAGE_SCHEMA_VERSION,
@@ -33,7 +34,6 @@ describe("background extension storage", () => {
 
     const saved = await storage.saveSettings(
       {
-        githubPat: "placeholder-value",
         autoSyncEnabled: true
       },
       "2026-01-01T00:00:00.000Z"
@@ -42,6 +42,28 @@ describe("background extension storage", () => {
     expect(saved.version).toBe(STORAGE_SCHEMA_VERSION);
     expect(saved.autoSyncEnabled).toBe(true);
     expect(saved.updatedAt).toBe("2026-01-01T00:00:00.000Z");
+  });
+
+  it("migrates legacy PAT settings without retaining the PAT value", async () => {
+    const area = createMemoryStorageArea({
+      [STORAGE_KEYS.settings]: {
+        ...DEFAULT_SETTINGS_STATE,
+        version: 4,
+        githubPat: "legacy-secret-that-must-be-removed"
+      }
+    });
+    const storage = createExtensionStorage(area);
+
+    await expect(storage.getSettings()).resolves.toMatchObject({
+      version: STORAGE_SCHEMA_VERSION,
+      connectionStatus: {
+        code: "login_required"
+      }
+    });
+    expect(JSON.stringify(area.dump())).not.toContain(
+      "legacy-secret-that-must-be-removed"
+    );
+    expect(JSON.stringify(area.dump())).not.toContain("githubPat");
   });
 
   it("checks duplicate processed Sync Deduplication Keys without adding duplicate entries", async () => {

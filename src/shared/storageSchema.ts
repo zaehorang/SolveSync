@@ -21,11 +21,12 @@ import {
   type SyncRepository
 } from "./types";
 
-export const STORAGE_SCHEMA_VERSION = 4;
-const LEGACY_STORAGE_SCHEMA_VERSIONS = [1, 2, 3] as const;
+export const STORAGE_SCHEMA_VERSION = 5;
+const LEGACY_STORAGE_SCHEMA_VERSIONS = [1, 2, 3, 4] as const;
 
 export const STORAGE_KEYS = {
   settings: "settings",
+  githubAuth: "githubAuth",
   processedSyncDeduplicationKeys: "processedSyncDeduplicationKeys",
   syncHistory: "syncHistory",
   retryBundles: "retryBundles",
@@ -50,6 +51,12 @@ export type ConnectionStatusCode =
   | "branch_created"
   | "branch_create_failed"
   | "auth_failed"
+  | "login_required"
+  | "authorizing"
+  | "installation_required"
+  | "device_flow_expired"
+  | "device_flow_denied"
+  | "token_refresh_failed"
   | "token_expired"
   | "rate_limited"
   | "network_failed";
@@ -62,7 +69,6 @@ export interface ConnectionStatus {
 
 export interface SettingsState {
   version: typeof STORAGE_SCHEMA_VERSION;
-  githubPat: string | null;
   syncRepository: SyncRepository | null;
   syncBranch: SyncBranch | null;
   autoSyncEnabled: boolean;
@@ -71,8 +77,26 @@ export interface SettingsState {
   updatedAt: IsoDateString | null;
 }
 
-export type PublicSettingsState = Omit<SettingsState, "githubPat"> & {
-  hasGithubPat: boolean;
+export interface GitHubAccountSummary {
+  id: number;
+  login: string;
+  avatarUrl: string | null;
+}
+
+export interface GitHubAuthSession {
+  version: typeof STORAGE_SCHEMA_VERSION;
+  accessToken: string;
+  accessTokenExpiresAt: IsoDateString;
+  refreshToken: string;
+  refreshTokenExpiresAt: IsoDateString;
+  tokenType: "bearer";
+  account: GitHubAccountSummary;
+  updatedAt: IsoDateString;
+}
+
+export interface PublicSettingsState extends SettingsState {
+  isGithubConnected: boolean;
+  githubAccount: GitHubAccountSummary | null;
 };
 
 export type PublicSettingsUpdate = Partial<
@@ -121,7 +145,6 @@ export interface SyncDeduplicationKeyLocksState {
 
 export const DEFAULT_SETTINGS_STATE: SettingsState = {
   version: STORAGE_SCHEMA_VERSION,
-  githubPat: null,
   syncRepository: null,
   syncBranch: null,
   autoSyncEnabled: false,
@@ -154,12 +177,14 @@ export const EMPTY_SYNC_DEDUPLICATION_KEY_LOCKS_STATE: SyncDeduplicationKeyLocks
   locks: []
 };
 
-export function toPublicSettingsState(settings: SettingsState): PublicSettingsState {
-  const { githubPat: _githubPat, ...publicSettings } = settings;
-
+export function toPublicSettingsState(
+  settings: SettingsState,
+  githubAuth: GitHubAuthSession | null = null
+): PublicSettingsState {
   return {
-    ...publicSettings,
-    hasGithubPat: settings.githubPat !== null && settings.githubPat.length > 0
+    ...settings,
+    isGithubConnected: githubAuth !== null,
+    githubAccount: githubAuth?.account ?? null
   };
 }
 
@@ -179,7 +204,6 @@ export function isSettingsState(value: unknown): value is SettingsState {
   }
 
   return (
-    (typeof value.githubPat === "string" || value.githubPat === null) &&
     (isSyncRepository(value.syncRepository) || value.syncRepository === null) &&
     (isSyncBranch(value.syncBranch) || value.syncBranch === null) &&
     typeof value.autoSyncEnabled === "boolean" &&
@@ -197,6 +221,7 @@ export function parseSettingsState(value: unknown): SettingsState | null {
   const {
     selectedRepository: legacySelectedRepository,
     selectedBranch: legacySelectedBranch,
+    githubPat: _legacyGithubPat,
     ...rest
   } = value;
   const candidate = {
@@ -207,10 +232,55 @@ export function parseSettingsState(value: unknown): SettingsState | null {
       legacySelectedRepository
     ),
     syncBranch: normalizeLegacyObjectField(value.syncBranch, legacySelectedBranch),
-    uiLanguage: normalizeUiLanguagePreference(value.uiLanguage)
+    uiLanguage: normalizeUiLanguagePreference(value.uiLanguage),
+    connectionStatus:
+      value.version === STORAGE_SCHEMA_VERSION
+        ? value.connectionStatus
+        : {
+            code: "login_required",
+            checkedAt: null,
+            error: null
+          }
   };
 
   return isSettingsState(candidate) ? candidate : null;
+}
+
+export function isGitHubAccountSummary(
+  value: unknown
+): value is GitHubAccountSummary {
+  if (!isPlainRecord(value)) {
+    return false;
+  }
+
+  return (
+    typeof value.id === "number" &&
+    Number.isInteger(value.id) &&
+    typeof value.login === "string" &&
+    (typeof value.avatarUrl === "string" || value.avatarUrl === null)
+  );
+}
+
+export function isGitHubAuthSession(value: unknown): value is GitHubAuthSession {
+  if (!isVersionedStorageState(value)) {
+    return false;
+  }
+
+  return (
+    typeof value.accessToken === "string" &&
+    value.accessToken.length > 0 &&
+    typeof value.accessTokenExpiresAt === "string" &&
+    typeof value.refreshToken === "string" &&
+    value.refreshToken.length > 0 &&
+    typeof value.refreshTokenExpiresAt === "string" &&
+    value.tokenType === "bearer" &&
+    isGitHubAccountSummary(value.account) &&
+    typeof value.updatedAt === "string"
+  );
+}
+
+export function parseGitHubAuthSession(value: unknown): GitHubAuthSession | null {
+  return isGitHubAuthSession(value) ? value : null;
 }
 
 export function isProcessedSyncDeduplicationKeyEntry(
@@ -405,6 +475,12 @@ export function isConnectionStatusCode(value: unknown): value is ConnectionStatu
     value === "branch_created" ||
     value === "branch_create_failed" ||
     value === "auth_failed" ||
+    value === "login_required" ||
+    value === "authorizing" ||
+    value === "installation_required" ||
+    value === "device_flow_expired" ||
+    value === "device_flow_denied" ||
+    value === "token_refresh_failed" ||
     value === "token_expired" ||
     value === "rate_limited" ||
     value === "network_failed"

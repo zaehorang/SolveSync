@@ -10,9 +10,9 @@ LeetCode는 DOM 감지 후 GraphQL 우선 API client로 Accepted Submission 상�
 이 확장은 별도 backend server를 운영하지 않는다. 모든 orchestration은 브라우저 extension runtime 안에서 수행한다.
 
 ## Domain Naming Contract
-표준 코드/domain 용어는 `CONTEXT.md`를 따른다. TypeScript identifier, runtime message payload, `chrome.storage.local` schema는 v4부터 `CodingPlatform`, `codingPlatform`, `SyncDeduplicationKey`, `syncDeduplicationKey`, `acceptedSourceId`, `SyncRepository`, `SyncBranch`, `syncRepository`, `syncBranch`, `SyncHistoryEntry`, `RetryBundle`, `retryBundleId`, `ProgrammersAcceptedEditorSnapshot`, `sync-history:*`, `retry-bundles:*`, `processedSyncDeduplicationKeys`, `retryBundles`, `syncDeduplicationKeyLocks`, Solution Catalog v2 `lastAcceptedSourceId`, Solution Catalog v3 `solutionRevisionNumber`를 새 계약으로 사용한다.
+표준 코드/domain 용어는 `CONTEXT.md`를 따른다. TypeScript identifier와 runtime message payload는 `CodingPlatform`, `SyncDeduplicationKey`, `acceptedSourceId`, `SyncRepository`, `SyncBranch`, `SyncHistoryEntry`, `RetryBundle`, `ProgrammersAcceptedEditorSnapshot` 계약을 사용한다. Storage v5는 settings와 GitHub auth session을 분리하고, Solution Catalog v4는 `lastAcceptedSourceId`, `solutionRevisionNumber`, 9개 supported language key를 사용한다.
 
-v4 migration은 이전 storage와 runtime payload를 backward-compatible parser로 읽되, 새 write path는 v4/domain name만 쓴다. Runtime message alias는 ingress compatibility 전용이며, 새 UI/background code는 v4 message type과 field만 emit한다. 이전 이름과 새 이름의 대응표는 `docs/adr/0026-domain-naming-v4-storage-runtime-and-catalog-migration.md`를 따른다. ADR source of truth는 `docs/adr/` 아래 파일이며 `docs/ADR.md`는 사용하지 않는다.
+이전 storage와 runtime payload는 backward-compatible parser로 읽되, 새 write path는 현재 field만 쓴다. v4 settings 안의 legacy PAT는 v5 migration 때 저장 값에서 제거하고 로그인 필요 상태로 전환한다. Runtime message alias는 ingress compatibility 전용이다. 이전 이름과 새 이름의 대응표는 `docs/adr/0026-domain-naming-v4-storage-runtime-and-catalog-migration.md`를 따른다.
 
 ## 소스 구조
 ```text
@@ -20,7 +20,7 @@ src/
 ├── background/      # sync orchestration, Coding Platform source resolver, 외부 API write
 │   └── client/      # LeetCode GraphQL, GitHub Sync Repository/Sync Branch/Git Data API 실행 코드
 ├── content/         # LeetCode/Programmers 페이지 관찰, Programmers Accepted Editor Snapshot, toast UI
-├── options/         # PAT 안내, Sync Repository/Sync Branch 선택, branch 생성, connection test UI
+├── options/         # GitHub Device Flow, App 설치, Sync Repository/Sync Branch, connection test UI
 ├── popup/           # Auto Sync 토글, Sync History, failure, Retry Bundle UI
 └── shared/          # 타입, Coding Platform policy, mapping, runtime message, Solution README/Catalog, storage schema, 순수 로직
 ```
@@ -72,13 +72,13 @@ README.md
 - 오래 유지되는 in-memory state를 source of truth로 사용하지 않는다.
 
 ### Options Page
-- GitHub PAT, Sync Repository, Sync Branch, Auto Sync 설정을 저장한다.
-- fine-grained PAT 설정 방법을 안내한다.
-- PAT로 접근 가능한 Sync Repository 목록과 선택한 Sync Repository의 Sync Branch 목록을 불러온다.
+- GitHub App Device Flow 로그인, Sync Repository, Sync Branch, Auto Sync 설정을 관리한다.
+- 일회용 user code와 verification URL을 표시하고 background에 polling을 요청한다.
+- 로그인 계정이 소유하고 GitHub App이 설치된 Sync Repository 목록과 선택한 Sync Repository의 Sync Branch 목록을 불러온다.
 - 사용자가 명시적으로 요청한 경우에만 선택한 Sync Repository의 default branch HEAD에서 새 Sync Branch를 생성한다.
 - GitHub Sync Repository, Sync Branch, Git data read API를 대상으로 connection test를 실행한다.
 - Connection test는 test commit이나 branch update 같은 write 작업을 수행하지 않는다.
-- PAT와 Retry Bundle code가 local storage에 저장된다는 사실을 명시한다.
+- GitHub access/refresh token과 Retry Bundle code가 local storage에 저장된다는 사실을 명시한다.
 
 ### Popup
 - Auto Sync toggle을 보여준다.
@@ -103,7 +103,7 @@ README.md
 v1 manifest는 최소 권한을 사용한다.
 
 - `permissions`: `storage`
-- `host_permissions`: `https://leetcode.com/*`, `https://school.programmers.co.kr/*`, `https://api.github.com/*`
+- `host_permissions`: `https://leetcode.com/*`, `https://school.programmers.co.kr/*`, `https://github.com/*`, `https://api.github.com/*`
 - content script match: `https://leetcode.com/problems/*`, `https://school.programmers.co.kr/learn/courses/*/lessons/*`
 
 Content script는 문제 페이지에서 Accepted 감지, Programmers Accepted Editor Snapshot 추출, toast 렌더링만 담당한다. LeetCode와 GitHub API 호출은 background service worker에서 수행한다.
@@ -162,11 +162,15 @@ LeetCode page 또는 Programmers page
 - editor code를 안정적으로 추출하지 못하면 GitHub commit을 만들지 않고 `programmers_extract_failed`로 기록한다.
 - Programmers는 공식 Accepted Source ID가 없으므로 `acceptedSourceId`를 `programmers:{lessonId}:{language}:{codeHash}` 형식의 deterministic value로 생성해 Sync Deduplication Key에 사용한다.
 - Programmers Accepted Editor Snapshot은 v1의 DOM-trusted source다. Programmers origin DOM/script가 compromise되면 committed solution source integrity가 영향을 받을 수 있으며, 이 residual risk는 ADR 0028에 따라 수용한다.
-- 이 trust boundary는 secret이나 write destination에는 적용하지 않는다. Content message에는 PAT, cookie, session token을 포함하지 않고, GitHub API 호출은 background service worker에서만 수행하며, write 대상은 사용자가 선택한 Sync Repository와 Sync Branch로 제한한다.
+- 이 trust boundary는 secret이나 write destination에는 적용하지 않는다. Content message에는 GitHub access/refresh token, cookie, session token을 포함하지 않고, GitHub API 호출은 background service worker에서만 수행하며, write 대상은 사용자가 선택한 Sync Repository와 Sync Branch로 제한한다.
 
 ## GitHub 연동
 - Sync Repository는 코드 기본값이 아니라 Options에서 사용자가 선택한 값이다.
-- Options는 PAT로 접근 가능한 Sync Repository 목록을 pagination을 고려해 불러오고, 접근 가능한 Sync Repository가 없으면 no accessible repositories 상태를 보여준다.
+- Public GitHub App은 Device Flow를 활성화하고 expiring user access token을 사용한다. Extension에는 공개 client ID와 App slug만 build-time 환경 변수로 포함하며 client secret은 사용하지 않는다.
+- Device code는 `chrome.storage.session`에 저장하고 Options에는 user code, verification URL, 만료 시각, polling interval만 반환한다.
+- 발급된 access token과 refresh token은 `chrome.storage.local`의 별도 `githubAuth` state에 저장한다. access token 만료 5분 전에는 refresh하며, API 401이면 강제 refresh 후 요청을 한 번만 재시도한다.
+- 동시 refresh 요청은 single-flight promise로 하나만 수행한다. refresh 실패나 refresh token 만료 시 auth state를 삭제하고 재로그인을 요구한다.
+- Options는 GitHub App user token으로 본인 owner repository 목록을 pagination해 불러온다. App 설치 범위 밖 repository는 GitHub가 token 권한에서 제외한다. 목록이 비면 App installation required 상태를 보여준다.
 - Sync Branch picker는 선택한 Sync Repository의 branch 목록을 불러오고, 기본 선택값은 repository default branch다.
 - 존재하지 않는 Sync Branch는 자동 생성하지 않는다. 사용자가 Create branch action을 실행한 경우에만 repository default branch HEAD에서 branch ref를 생성한다.
 - Empty repository처럼 default branch HEAD가 없으면 branch 생성은 실패 상태로 처리한다.
@@ -216,6 +220,20 @@ programmers/python/120804_두_수의_곱_구하기.py
 
 Sync Repository는 Coding Platform 폴더를 먼저 두고 그 내부를 언어별로 나눈다.
 
+공통 language registry가 display name, Coding Platform별 alias, folder, extension을 한 곳에서 관리한다.
+
+| Key | Display | Folder | Extension |
+| --- | --- | --- | --- |
+| `swift` | Swift | `swift` | `.swift` |
+| `python3` | Python3 | `python` | `.py` |
+| `java` | Java | `java` | `.java` |
+| `cpp` | C++ | `cpp` | `.cpp` |
+| `javascript` | JavaScript | `javascript` | `.js` |
+| `typescript` | TypeScript | `typescript` | `.ts` |
+| `kotlin` | Kotlin | `kotlin` | `.kt` |
+| `go` | Go | `go` | `.go` |
+| `rust` | Rust | `rust` | `.rs` |
+
 생성된 Swift 풀이 파일은 `swift/SwiftAlgorithm` 아래에 저장하지 않는다. 이 규칙은 기본 검증 저장소의 Xcode build source 충돌을 피하기 위해 시작됐지만, v1에서는 모든 Sync Repository에 같은 path convention을 적용한다.
 
 ## Missing Path Policy
@@ -230,7 +248,7 @@ Sync Repository는 Coding Platform 폴더를 먼저 두고 그 내부를 언어�
 
 v1은 Solution README를 항상 갱신한다. README 갱신을 끄는 설정이나 mode는 제공하지 않는다.
 
-Solution Catalog는 v3 schema를 사용한다. 실제 파일 경로는 호환성을 위해 유지한다.
+Solution Catalog는 v4 schema를 사용한다. v1-v3 catalog는 읽을 때 v4로 normalize하며 실제 파일 경로는 호환성을 위해 유지한다.
 - LeetCode: `leetcode/.leetcode-sync/index.json`
 - Programmers: `programmers/.programmers-sync/index.json`
 
@@ -253,20 +271,21 @@ README 생성 규칙:
 - Coding Platform marker 사이 내용만 교체한다.
   - LeetCode: `<!-- LEETCODE_TABLE_START -->`, `<!-- LEETCODE_TABLE_END -->`
   - Programmers: `<!-- PROGRAMMERS_TABLE_START -->`, `<!-- PROGRAMMERS_TABLE_END -->`
-- number, title, difficulty, solved date, Swift, Python 컬럼을 생성한다.
+- number, title, difficulty, solved date, 단일 Languages 컬럼을 생성한다.
 - row는 numeric problem id 오름차순으로 정렬한다.
 - Solved cell은 Solution Catalog의 problem-level first accepted date를 표시한다.
-- Swift와 Python cell은 해당 solution path가 있을 때 Solution README 기준 상대 link를 건다.
+- Languages cell은 존재하는 solution path를 registry 순서로 나열하고 Solution README 기준 상대 link를 건다.
 
 ## Storage Model
 `chrome.storage.local`을 사용한다.
 
-모든 top-level value는 `version` field를 포함한다. 이 naming migration은 storage schema v4로 올라가며, 기존 state를 임의 삭제하지 않고 malformed state만 해당 key의 empty fallback으로 복구한다.
+모든 top-level persistent value는 `version` field를 포함한다. 현재 storage schema는 v5이며 malformed state만 해당 key의 empty fallback으로 복구한다.
 
-v4 settings payload는 `syncRepository`, `syncBranch`, Auto Sync, connection status를 저장한다. Legacy v1-v3 settings parser는 migration 중 old field를 읽을 수 있지만, 새 write path는 v4 field만 쓴다.
+v5 settings payload는 `syncRepository`, `syncBranch`, Auto Sync, UI language, connection status를 저장한다. Legacy v1-v4 settings parser는 old field를 읽고 PAT를 버린 뒤 현재 shape로 즉시 다시 저장한다.
 
 Keys:
-- `settings`: version, PAT, Sync Repository owner/name, Sync Branch, Auto Sync, connection status.
+- `settings`: version, Sync Repository owner/name, Sync Branch, Auto Sync, UI language, connection status.
+- `githubAuth`: version, access token/expiry, refresh token/expiry, token type, 최소 GitHub account summary. Public settings 변환에서 token field를 절대 복사하지 않는다.
 - `processedSyncDeduplicationKeys`: version, 처리된 Sync Deduplication Key 목록.
 - `syncHistory`: version, Sync History의 최근 20개 `SyncHistoryEntry` 항목.
 - `retryBundles`: version, GitHub commit retry가 가능한 Retry Bundle 목록.
@@ -290,14 +309,14 @@ Keys:
 
 Message categories:
 - content to background: Accepted detected, toast action.
-- popup/options to background: settings read/write, repository list, branch list, branch create, connection test, retry.
+- popup/options to background: settings read/write, GitHub auth start/read/poll/disconnect, App install page open, repository list, branch list, branch create, connection test, retry.
 - background to content/popup: sync status, Sync History update.
 
 `content:accepted-detected`는 `codingPlatform` discriminated union이다. LeetCode payload는 `codingPlatform`, `titleSlug`, `pageUrl`, `detectedAt`을 포함한다. Programmers payload는 `codingPlatform`, `courseId`, `lessonId`, `problemTitle`, `language`, `code`, `pageUrl`, `detectedAt`을 포함한다.
 
-v4 runtime message type은 namespaced kebab-case를 사용한다. Sync History와 Retry Bundle message의 정확한 old/new type string은 Domain Naming Contract의 legacy 대응 표를 따른다.
+Runtime message type은 namespaced kebab-case를 사용한다. Sync History와 Retry Bundle message의 정확한 old/new type string은 Domain Naming Contract의 legacy 대응 표를 따른다.
 
-Message payload에는 실제 PAT, LeetCode/Programmers cookie, session token을 포함하지 않는다. PAT는 storage에서 background가 직접 읽는다.
+Content/popup/options로 나가는 message payload에는 GitHub access token, refresh token, device code, LeetCode/Programmers cookie나 session token을 포함하지 않는다. GitHub auth secret은 background가 storage에서 직접 읽는다.
 
 ## Error Model
 모든 실패는 안정적인 error code로 normalize한다.
@@ -308,6 +327,10 @@ Message payload에는 실제 PAT, LeetCode/Programmers cookie, session token을 
 - `leetcode_fetch_failed`
 - `programmers_extract_failed`
 - `github_auth_failed`
+- `github_login_required`
+- `github_device_flow_expired`
+- `github_device_flow_denied`
+- `github_token_refresh_failed`
 - `github_token_expired`
 - `github_no_accessible_repos`
 - `github_repo_not_found`
@@ -324,23 +347,13 @@ Message payload에는 실제 PAT, LeetCode/Programmers cookie, session token을 
 
 Toast는 짧은 메시지만 보여준다. Popup은 상세 메시지와 retry 가능 여부를 보여준다.
 
-## 테스트 가능한 단위
-Vitest로 다음을 검증한다.
-- language mapping
-- filename과 path 생성
-- Solution Catalog merge와 update
-- README marker replacement
-- README가 없는 경우의 생성 동작
-- Coding Platform policy
-- storage migration
-- Programmers URL/title/language/code extraction
-- Programmers Accepted detector와 false positive 방지
-- GitHub tree payload 생성
-- repository picker state와 empty repository list 처리
-- branch picker와 branch 생성 처리
-- duplicate key 처리
-- in-flight key lock 처리
-- stale in-flight lock TTL 정리
-- Retry Bundle cap과 TTL 정리
-- error normalization
-- typed runtime message handling
+## 테스트 전략
+일반 테스트는 Vitest와 in-memory adapter만 사용한다. 실제 GitHub, LeetCode, Programmers 네트워크나 사용자 secret에 의존하지 않는다.
+
+- language/path, Solution Catalog, Solution README, storage, error 같은 pure logic은 빠른 단위 테스트로 검증한다.
+- sync orchestration은 외부 API를 mock하고 최종 commit payload를 검증한다.
+- GitHub 인증 변경의 대표 happy path는 연결 해제 후 auth만 삭제되고 repository/branch 설정이 재연결 뒤에도 유지되는지 확인한다.
+- 다중 언어의 대표 happy path는 Programmers 같은 문제의 Swift와 Python3가 각각 solution file로 저장되고 하나의 README row와 Catalog problem entry에 함께 남는지 확인한다.
+- 실제 Device Flow 승인, GitHub App 설치, Coding Platform Accepted 제출은 `docs/MANUAL_VALIDATION.md`의 최소 release smoke로 확인한다.
+
+모든 지원 언어와 실패 조합을 실제 계정이나 브라우저 E2E로 반복하지 않는다. 실제 GitHub repository를 자동 테스트 대상이나 코드 기본값으로 고정하지 않으며, read-only GitHub smoke script도 기본 test suite에 두지 않는다.

@@ -16,7 +16,7 @@ const ERROR_DESCRIPTORS = {
     retryable: false
   },
   unsupported_language: {
-    userMessage: "Unsupported language. Swift and Python3 are supported.",
+    userMessage: "This language is not supported.",
     retryable: false
   },
   leetcode_auth_required: {
@@ -33,6 +33,22 @@ const ERROR_DESCRIPTORS = {
   },
   github_auth_failed: {
     userMessage: "GitHub authentication failed.",
+    retryable: false
+  },
+  github_login_required: {
+    userMessage: "GitHub login required.",
+    retryable: false
+  },
+  github_device_flow_expired: {
+    userMessage: "GitHub login code expired.",
+    retryable: false
+  },
+  github_device_flow_denied: {
+    userMessage: "GitHub login was denied.",
+    retryable: false
+  },
+  github_token_refresh_failed: {
+    userMessage: "GitHub login expired. Sign in again.",
     retryable: false
   },
   github_token_expired: {

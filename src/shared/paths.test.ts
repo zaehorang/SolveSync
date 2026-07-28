@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { buildSolutionPath } from "./paths";
+import { SUPPORTED_LANGUAGE_KEYS } from "./languageRegistry";
 
 const problem = {
   problemId: "1",
@@ -30,6 +31,26 @@ describe("solution path generation", () => {
     expect(buildSolutionPath("leetcode", problem, "python3")).toBe(
       "leetcode/python/0001_two_sum.py"
     );
+  });
+
+  it("builds stable folders and extensions for every supported language", () => {
+    const expected = {
+      swift: "leetcode/swift/0001_two_sum.swift",
+      python3: "leetcode/python/0001_two_sum.py",
+      java: "leetcode/java/0001_two_sum.java",
+      cpp: "leetcode/cpp/0001_two_sum.cpp",
+      javascript: "leetcode/javascript/0001_two_sum.js",
+      typescript: "leetcode/typescript/0001_two_sum.ts",
+      kotlin: "leetcode/kotlin/0001_two_sum.kt",
+      go: "leetcode/go/0001_two_sum.go",
+      rust: "leetcode/rust/0001_two_sum.rs"
+    } as const;
+
+    for (const language of SUPPORTED_LANGUAGE_KEYS) {
+      expect(buildSolutionPath("leetcode", problem, language)).toBe(
+        expected[language]
+      );
+    }
   });
 
   it("builds Programmers paths while preserving Korean title text", () => {

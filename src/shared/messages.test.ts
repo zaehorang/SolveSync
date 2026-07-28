@@ -29,6 +29,11 @@ describe("runtime message contracts", () => {
         "content:toast_action",
         "settings:read",
         "settings:write",
+        "github:auth:start",
+        "github:auth:read",
+        "github:auth:poll",
+        "github:auth:disconnect",
+        "github:installation:open",
         "github:repositories:list",
         "github:branches:list",
         "github:branch:create",
@@ -170,5 +175,15 @@ describe("runtime message contracts", () => {
 
     expect(hasForbiddenMessageSecretKey(unsafeMessage)).toBe(true);
     expect(isRuntimeMessage(unsafeMessage)).toBe(false);
+    expect(
+      hasForbiddenMessageSecretKey({
+        type: "github:auth:poll",
+        payload: {
+          accessToken: "redacted",
+          refreshToken: "redacted",
+          deviceCode: "redacted"
+        }
+      })
+    ).toBe(true);
   });
 });

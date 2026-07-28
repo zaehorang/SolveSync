@@ -2,8 +2,13 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createExtensionStorage, type StorageAreaAdapter } from "./storage";
 import { registerBackgroundRuntime } from "./runtime";
+import {
+  createGitHubAuthManager,
+  createPendingGitHubAuthStorage
+} from "./auth";
 import type { SyncOrchestrator } from "./sync";
 import type { RetryBundle, SyncHistoryEntry } from "../shared/types";
+import { STORAGE_SCHEMA_VERSION } from "../shared/storageSchema";
 
 describe("background runtime", () => {
   afterEach(() => {
@@ -30,7 +35,127 @@ describe("background runtime", () => {
     expect(response).toMatchObject({
       ok: true,
       data: {
-        hasGithubPat: false
+        isGithubConnected: false,
+        githubAccount: null
+      }
+    });
+  });
+
+  it("keeps repository settings when GitHub is disconnected and reconnected", async () => {
+    const chromeMock = installChromeRuntimeMock();
+    const storage = createExtensionStorage(createMemoryStorageArea());
+    const orchestrator = makeOrchestrator();
+    const repository = {
+      owner: "octo",
+      name: "algorithms",
+      fullName: "octo/algorithms",
+      defaultBranch: "main",
+      private: true,
+      htmlUrl: "https://github.com/octo/algorithms"
+    };
+    const branch = {
+      name: "main",
+      sha: "branch-sha",
+      protected: false
+    };
+    const authFetch = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({
+          device_code: "device-code",
+          user_code: "ABCD-1234",
+          verification_uri: "https://github.com/login/device",
+          expires_in: 900,
+          interval: 5
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          access_token: "new-access-token",
+          expires_in: 28_800,
+          refresh_token: "new-refresh-token",
+          refresh_token_expires_in: 15_552_000,
+          token_type: "bearer"
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          id: 2,
+          login: "octo-reconnected",
+          avatar_url: null
+        })
+      );
+    const authManager = createGitHubAuthManager({
+      clientId: "client-id",
+      storage,
+      pendingStorage: createPendingGitHubAuthStorage(
+        createMemoryStorageArea()
+      ),
+      fetchImpl: authFetch,
+      now: () => new Date("2026-01-01T00:00:00.000Z")
+    });
+
+    await storage.saveSettings({
+      syncRepository: repository,
+      syncBranch: branch,
+      autoSyncEnabled: true
+    });
+    await storage.saveGitHubAuth({
+      version: STORAGE_SCHEMA_VERSION,
+      accessToken: "old-access-token",
+      accessTokenExpiresAt: "2026-01-01T08:00:00.000Z",
+      refreshToken: "old-refresh-token",
+      refreshTokenExpiresAt: "2026-07-01T00:00:00.000Z",
+      tokenType: "bearer",
+      account: {
+        id: 1,
+        login: "octo",
+        avatarUrl: null
+      },
+      updatedAt: "2026-01-01T00:00:00.000Z"
+    });
+
+    registerBackgroundRuntime({
+      storage,
+      orchestrator,
+      authManager,
+      githubClientFactory: () => {
+        throw new Error("GitHub client should not be created.");
+      }
+    });
+
+    await dispatchMessage(chromeMock.listener, {
+      type: "github:auth:disconnect"
+    });
+    expect(await dispatchMessage(chromeMock.listener, {
+      type: "settings:read"
+    })).toMatchObject({
+      ok: true,
+      data: {
+        isGithubConnected: false,
+        syncRepository: repository,
+        syncBranch: branch
+      }
+    });
+
+    await dispatchMessage(chromeMock.listener, {
+      type: "github:auth:start"
+    });
+    await dispatchMessage(chromeMock.listener, {
+      type: "github:auth:poll"
+    });
+
+    expect(await dispatchMessage(chromeMock.listener, {
+      type: "settings:read"
+    })).toMatchObject({
+      ok: true,
+      data: {
+        isGithubConnected: true,
+        githubAccount: {
+          login: "octo-reconnected"
+        },
+        syncRepository: repository,
+        syncBranch: branch
       }
     });
   });
@@ -271,6 +396,9 @@ function installChromeRuntimeMock(): ChromeRuntimeMock {
     tabs: {
       sendMessage: vi.fn(),
       create: vi.fn()
+    },
+    storage: {
+      session: createMemoryStorageArea()
     }
   };
 
@@ -440,6 +568,15 @@ function createMemoryStorageArea(seed: Record<string, unknown> = {}): StorageAre
       }
     }
   };
+}
+
+function jsonResponse(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      "Content-Type": "application/json"
+    }
+  });
 }
 
 function cloneRecord(value: Record<string, unknown>): Record<string, unknown> {

@@ -13,8 +13,9 @@ SolveSync 보안 문제는 GitHub Issue 또는 maintainer contact 경로로 제�
 
 Issue, screenshot, logs, sample payload에 다음 값을 포함하지 마세요.
 
-- GitHub PAT
-- token
+- GitHub access token
+- GitHub refresh token
+- Device Flow device code
 - cookie
 - LeetCode/Programmers session 값
 - private repository URL
@@ -34,14 +35,14 @@ Issue, screenshot, logs, sample payload에 다음 값을 포함하지 마세요.
 지원하지 않는 내용:
 
 - 개인 GitHub 계정 설정 대행
-- PAT 값 검토
+- GitHub token 값 검토
 - private repository, LeetCode session, Programmers session 문제의 대리 디버깅
 - 실제 token, cookie, session 값을 사용한 분석
 
 ## Security Notes
 
 - SolveSync는 별도 backend server를 운영하지 않습니다.
-- PAT와 Retry Bundle code는 Chrome extension local storage에 저장될 수 있습니다.
+- GitHub access/refresh token과 Retry Bundle code는 Chrome extension local storage에 저장될 수 있습니다. Device Flow pending state는 session storage에 저장됩니다.
 - GitHub write는 사용자가 선택한 Sync Repository와 Sync Branch로 제한됩니다.
 - Content script는 GitHub API를 직접 호출하지 않습니다.
 - LeetCode/Programmers 문제 설명 전문은 저장하지 않습니다.

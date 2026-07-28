@@ -65,7 +65,7 @@ export interface SyncGitHubClient {
   readTextFile?(input: ReadTextFileInput): Promise<string | null>;
 }
 
-export type GitHubClientFactory = (pat: string) => SyncGitHubClient;
+export type GitHubClientFactory = () => SyncGitHubClient;
 
 export type SyncClock = () => IsoDateString;
 export type SyncIdFactory = (prefix: "record" | "retry") => string;
@@ -189,12 +189,13 @@ export function createSyncOrchestrator(
     target?: SyncBroadcastTarget
   ): Promise<AcceptedSyncOutcome> {
     const settings = await options.storage.getSettings();
+    const githubAuth = await options.storage.getGitHubAuth();
     const initialTimestamp = now();
     const initialTitleSlug = getInitialTitleSlug(payload);
     await options.storage.pruneRetryBundles(initialTimestamp);
     await options.storage.pruneSyncDeduplicationKeyLocks(initialTimestamp);
 
-    if (!hasRequiredSetup(settings)) {
+    if (!hasRequiredSetup(settings, githubAuth !== null)) {
       const syncHistoryEntry = makeSyncHistoryEntry({
         status: "setup_required",
         codingPlatform: payload.codingPlatform,
@@ -339,7 +340,7 @@ export function createSyncOrchestrator(
         target
       );
 
-      const github = options.githubClientFactory(settings.githubPat);
+      const github = options.githubClientFactory();
       let payload: CommitGitDataPayload;
 
       try {
@@ -507,10 +508,10 @@ export function createSyncOrchestrator(
     }
 
     try {
-      const settings = await options.storage.getSettings();
+      const githubAuth = await options.storage.getGitHubAuth();
 
-      if (settings.githubPat === null || settings.githubPat.trim().length === 0) {
-        throw explicitError("github_auth_failed", "GitHub PAT is required.");
+      if (githubAuth === null) {
+        throw explicitError("github_login_required", "GitHub login is required.");
       }
 
       await broadcastStatus(
@@ -533,7 +534,7 @@ export function createSyncOrchestrator(
         target
       );
 
-      const github = options.githubClientFactory(settings.githubPat);
+      const github = options.githubClientFactory();
       const result = await commitPrepared(
         github,
         retryBundleToPreparedCommit(retryBundle),
@@ -915,17 +916,14 @@ function getInitialLanguage(payload: AcceptedDetectedPayload): string {
 }
 
 function hasRequiredSetup(settings: {
-  githubPat: string | null;
   syncRepository: SyncRepository | null;
   syncBranch: SyncBranch | null;
-}): settings is {
-  githubPat: string;
+}, isGithubConnected: boolean): settings is {
   syncRepository: SyncRepository;
   syncBranch: SyncBranch;
 } {
   return (
-    settings.githubPat !== null &&
-    settings.githubPat.trim().length > 0 &&
+    isGithubConnected &&
     settings.syncRepository !== null &&
     settings.syncBranch !== null
   );

@@ -1,4 +1,8 @@
 import type { CodingPlatform, SupportedLanguage } from "./types";
+import {
+  LANGUAGE_REGISTRY,
+  SUPPORTED_LANGUAGE_KEYS
+} from "./languageRegistry";
 
 export interface LanguagePathPolicy {
   folder: string;
@@ -21,20 +25,29 @@ export interface PlatformPolicy {
   commitPlatformLabel: string;
 }
 
+function buildLanguagePathPolicies(
+  rootFolder: string
+): Record<SupportedLanguage, LanguagePathPolicy> {
+  return Object.fromEntries(
+    SUPPORTED_LANGUAGE_KEYS.map((language) => {
+      const definition = LANGUAGE_REGISTRY[language];
+
+      return [
+        language,
+        {
+          folder: `${rootFolder}/${definition.folder}`,
+          extension: definition.extension
+        }
+      ];
+    })
+  ) as Record<SupportedLanguage, LanguagePathPolicy>;
+}
+
 export const PLATFORM_POLICIES = {
   leetcode: {
     codingPlatform: "leetcode",
     rootFolder: "leetcode",
-    languages: {
-      swift: {
-        folder: "leetcode/swift",
-        extension: "swift"
-      },
-      python3: {
-        folder: "leetcode/python",
-        extension: "py"
-      }
-    },
+    languages: buildLanguagePathPolicies("leetcode"),
     solutionReadmePath: "leetcode/README.md",
     solutionCatalogPath: "leetcode/.leetcode-sync/index.json",
     readmeMarkers: {
@@ -47,16 +60,7 @@ export const PLATFORM_POLICIES = {
   programmers: {
     codingPlatform: "programmers",
     rootFolder: "programmers",
-    languages: {
-      swift: {
-        folder: "programmers/swift",
-        extension: "swift"
-      },
-      python3: {
-        folder: "programmers/python",
-        extension: "py"
-      }
-    },
+    languages: buildLanguagePathPolicies("programmers"),
     solutionReadmePath: "programmers/README.md",
     solutionCatalogPath: "programmers/.programmers-sync/index.json",
     readmeMarkers: {

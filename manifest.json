@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "SolveSync",
   "version": "0.1.0",
-  "description": "Sync accepted LeetCode Swift and Python3 submissions to a selected GitHub repository.",
+  "description": "Sync supported Accepted LeetCode and Programmers solutions to a selected GitHub repository.",
   "icons": {
     "16": "icons/icon-16.png",
     "32": "icons/icon-32.png",
@@ -13,6 +13,7 @@
   "host_permissions": [
     "https://leetcode.com/*",
     "https://school.programmers.co.kr/*",
+    "https://github.com/*",
     "https://api.github.com/*"
   ],
   "background": {

@@ -36,7 +36,7 @@ Language preference:
 Implementation rules:
 - 사용자에게 보이는 문자열은 i18n key 기반으로 관리한다.
 - Options, Popup, Toast 안에 영어와 한국어 hard-coded 문구가 섞여 있으면 안 된다.
-- GitHub, LeetCode, Programmers, PAT, Auto Sync, Swift, Python3 같은 제품/Coding Platform 용어는 번역하지 않아도 된다.
+- GitHub, LeetCode, Programmers, Auto Sync와 programming language 이름은 번역하지 않아도 된다.
 - `document.documentElement.lang`은 실제 표시 locale에 맞춰 `en` 또는 `ko`로 설정한다.
 
 ## Options Page
@@ -48,35 +48,30 @@ Implementation rules:
 - 좁은 viewport에서는 section이 위에서 아래로 자연스럽게 쌓여야 한다.
 - marketing hero나 큰 홍보 영역을 만들지 않는다.
 - v1은 Manifest `options_page` 기반 full-page Options를 사용한다.
-- PAT, repository/branch 선택, branch 생성, connection test 같은 긴 설정 작업은 Popup이 아니라 Options에서 수행한다.
-- 첫 설정 흐름은 `GitHub PAT → Load repositories → Sync Repository → Sync Branch → Create branch → Connection test → Save` 순서로 보여준다.
+- Device Flow 로그인, GitHub App 설치, repository/branch 선택, branch 생성, connection test 같은 긴 설정 작업은 Popup이 아니라 Options에서 수행한다.
+- 첫 설정 흐름은 `Sign in with GitHub → GitHub 승인/App 설치 → Load repositories → Sync Repository → Sync Branch → Create branch → Connection test → Save` 순서로 보여준다.
 - embedded options(`options_ui`)나 side panel 전환은 별도 제품 결정 없이는 하지 않는다.
 
 필수 section:
-- GitHub Connection: PAT, repository loading, branch loading, branch create, connection test.
+- GitHub Connection: Device Flow login/disconnect, App install/configure, repository loading, branch loading, branch create, connection test.
 - General: Auto Sync, Language.
-- Security: PAT와 Retry Bundle disclosure.
+- Security: GitHub session token과 Retry Bundle disclosure.
 - About: 제품 이름, local unpacked v1 성격, backend 없음 안내.
 - Save controls.
 
 필수 field:
-- GitHub PAT input. 기본은 masked display다.
-- Sync Repository picker. 설정이 없으면 비어 있고, PAT 입력 후 접근 가능한 본인 owner repository 목록에서 선택한다.
+- GitHub sign-in 상태, `Sign in with GitHub`, `Disconnect GitHub` action.
+- Device Flow 진행 중에는 일회용 user code, verification URL open action, 대기 상태를 보여준다. device code와 token은 표시하지 않는다.
+- GitHub App install/configure action. 사용자 action 없이 GitHub 탭을 자동으로 열지 않는다.
+- Sync Repository picker. 설정이 없으면 비어 있고, 로그인 계정이 소유하며 App이 설치된 repository 목록에서 선택한다.
 - Sync Branch picker. Sync Repository 선택 전에는 disabled 상태이며, Sync Repository 선택 후 branch 목록에서 선택한다. 기본 선택값은 repository default branch다.
 - Auto Sync switch.
 - Language segmented control.
 
-PAT checklist는 다음 내용을 포함해야 한다.
-- Fine-grained personal access token을 생성한다.
-- Sync Repository만 선택한다.
-- Contents read/write 권한을 부여한다.
-- Metadata는 GitHub가 제공하는 read-only 기본 권한을 사용한다.
-- 사용자가 감당할 수 있는 만료일을 설정한다.
-
 Sync Repository picker:
-- PAT 입력 후 Load repositories action을 제공한다.
-- 목록은 입력된 PAT로 접근 가능한 본인 owner repository만 보여준다.
-- 목록이 비어 있으면 token에 본인 owner repository가 포함되어 있는지 확인하라는 상태를 보여준다.
+- 로그인 후 Load repositories action을 제공한다.
+- 목록은 로그인 계정이 소유하고 SolveSync GitHub App access가 허용된 repository만 보여준다.
+- 목록이 비어 있으면 GitHub App을 본인 repository에 설치하거나 access 범위를 설정하라는 상태와 action을 보여준다.
 - 목록이 길 수 있으므로 검색 가능한 UI를 제공한다.
 - repository를 자동 선택하지 않는다.
 - Empty, loading, no-match 상태는 선택된 repository처럼 보이면 안 되며 실제 repository option과 시각적으로 구분한다.
@@ -89,7 +84,7 @@ Sync Branch picker:
 - branch 생성 실패 시 원인과 다음 행동을 보여준다.
 
 Security disclosure에는 다음 사용자 고지를 표시한다.
-- PAT는 Chrome extension local storage에 저장된다.
+- GitHub access token과 refresh token은 Chrome extension local storage에 저장된다.
 - 실패 Retry Bundle은 Accepted solution code를 local storage에 임시 저장할 수 있다.
 - Retry Bundle은 최대 20개, 최대 7일 보관하고 retry 성공 후 삭제한다.
 - v1 확장은 별도 backend server를 운영하지 않는다.
@@ -106,6 +101,11 @@ Connection test 상태:
 - Branch created.
 - Branch create failed.
 - Auth failed.
+- Login required.
+- Authorizing.
+- App installation required.
+- Device Flow expired/denied.
+- Token refresh failed.
 - Token expired.
 - Rate limited.
 - Network failed.
@@ -182,7 +182,7 @@ State behavior:
 - Syncing: 문제명과 언어를 보여주고 spinner 또는 thin progress indicator를 표시한다. action은 제공하지 않는다.
 - Retrying: retry 대상 문제명과 언어를 보여주고 진행 중 indicator를 표시한다.
 - Synced: `Synced to GitHub` title, problem detail, `Commit`, `File`, `Dismiss` action을 제공한다. 짧은 시간 뒤 auto dismiss한다.
-- Unsupported language: Swift와 Python3만 sync된다는 이유를 짧게 보여주고 auto dismiss한다.
+- Unsupported language: 현재 제출 언어를 지원하지 않아 commit이 생성되지 않았다는 이유를 짧게 보여주고 auto dismiss한다.
 - Failed: 짧은 실패 원인, 가능한 경우 `Retry`, 설정 문제 복구를 위한 `Open Options` action을 제공한다. Auto dismiss 하지 않는다.
 
 Toast rules:
@@ -242,7 +242,6 @@ Icon buttons:
 Inputs:
 - 모든 input에는 보이는 label을 둔다.
 - validation message는 관련 field 근처에 표시한다.
-- PAT input은 show/hide toggle을 지원한다.
 
 Segmented controls:
 - Language selection은 `System`, `English`, `한국어` segmented control을 사용한다.

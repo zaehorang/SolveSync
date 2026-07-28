@@ -6,6 +6,10 @@ import {
 } from "./solutionCatalog";
 import { getPlatformPolicy, type PlatformPolicy } from "./platformPolicy";
 import type { CodingPlatform } from "./types";
+import {
+  getLanguageDefinition,
+  SUPPORTED_LANGUAGE_KEYS
+} from "./languageRegistry";
 
 export const README_TABLE_START_MARKER = "<!-- LEETCODE_TABLE_START -->";
 export const README_TABLE_END_MARKER = "<!-- LEETCODE_TABLE_END -->";
@@ -23,8 +27,8 @@ export function renderManagedReadmeTable(
     .map((problem) => renderProblemRow(problem, policy));
 
   return [
-    "| # | Title | Difficulty | Solved | Swift | Python |",
-    "| ---: | --- | --- | --- | --- | --- |",
+    "| # | Title | Difficulty | Solved | Languages |",
+    "| ---: | --- | --- | --- | --- |",
     ...rows
   ].join("\n");
 }
@@ -71,21 +75,32 @@ function renderProblemRow(
   problem: SolutionCatalogProblem,
   policy: PlatformPolicy
 ): string {
-  const swiftPath = problem.languages.swift?.solutionPath ?? null;
-  const pythonPath = problem.languages.python3?.solutionPath ?? null;
-
   return [
     renderProblemNumber(problem.frontendId),
     escapeMarkdownTableCell(problem.title),
     escapeMarkdownTableCell(problem.difficulty),
     escapeMarkdownTableCell(problem.firstAcceptedDate),
-    renderSolutionLink("Swift", swiftPath, policy),
-    renderSolutionLink("Python", pythonPath, policy)
+    renderLanguageLinks(problem, policy)
   ]
     .map((cell) => ` ${cell} `)
     .join("|")
     .replace(/^/u, "|")
     .replace(/$/u, "|");
+}
+
+function renderLanguageLinks(
+  problem: SolutionCatalogProblem,
+  policy: PlatformPolicy
+): string {
+  const links = SUPPORTED_LANGUAGE_KEYS.flatMap((language) => {
+    const path = problem.languages[language]?.solutionPath;
+
+    return path === undefined
+      ? []
+      : [renderSolutionLink(getLanguageDefinition(language).displayName, path, policy)];
+  });
+
+  return links.length === 0 ? "-" : links.join(" · ");
 }
 
 function renderProblemNumber(frontendId: string): string {

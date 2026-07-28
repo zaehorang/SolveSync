@@ -17,8 +17,12 @@ const PAGE_SIZE = 100;
 
 export type GitHubFetch = typeof fetch;
 
+export interface GitHubCredentialProvider {
+  getAccessToken(forceRefresh?: boolean): Promise<string>;
+}
+
 export interface GitHubClientOptions {
-  pat: string;
+  credentialProvider: GitHubCredentialProvider;
   fetchImpl?: GitHubFetch;
   apiBaseUrl?: string;
 }
@@ -98,7 +102,7 @@ export interface BuildGitHubCommitMessageInput {
 }
 
 interface GitHubAuthContext {
-  pat: string;
+  credentialProvider: GitHubCredentialProvider;
   fetchImpl: GitHubFetch;
   apiBaseUrl: string;
 }
@@ -196,7 +200,7 @@ export class GitHubClient {
 
   constructor(options: GitHubClientOptions) {
     this.auth = {
-      pat: options.pat,
+      credentialProvider: options.credentialProvider,
       fetchImpl: options.fetchImpl ?? defaultFetch,
       apiBaseUrl: options.apiBaseUrl ?? GITHUB_API_BASE_URL
     };
@@ -669,19 +673,12 @@ async function githubRequest<T>(
   path: string,
   init: RequestInit = {}
 ): Promise<{ data: T; response: Response }> {
-  if (auth.pat.trim().length === 0) {
-    throw explicitNormalizedError("github_auth_failed", "GitHub PAT is required.");
-  }
+  const firstToken = await auth.credentialProvider.getAccessToken();
+  let response = await sendGitHubRequest(auth, path, init, firstToken);
 
-  let response: Response;
-
-  try {
-    response = await auth.fetchImpl(buildApiUrl(auth.apiBaseUrl, path), {
-      ...init,
-      headers: buildHeaders(auth.pat, init)
-    });
-  } catch (error) {
-    throw normalizeError(error);
+  if (response.status === 401) {
+    const refreshedToken = await auth.credentialProvider.getAccessToken(true);
+    response = await sendGitHubRequest(auth, path, init, refreshedToken);
   }
 
   const text = await response.text();
@@ -708,10 +705,26 @@ async function githubRequest<T>(
   };
 }
 
-function buildHeaders(pat: string, init: RequestInit): Headers {
+async function sendGitHubRequest(
+  auth: GitHubAuthContext,
+  path: string,
+  init: RequestInit,
+  accessToken: string
+): Promise<Response> {
+  try {
+    return await auth.fetchImpl(buildApiUrl(auth.apiBaseUrl, path), {
+      ...init,
+      headers: buildHeaders(accessToken, init)
+    });
+  } catch (error) {
+    throw normalizeError(error);
+  }
+}
+
+function buildHeaders(accessToken: string, init: RequestInit): Headers {
   const headers = new Headers(init.headers);
   headers.set("Accept", "application/vnd.github+json");
-  headers.set("Authorization", `Bearer ${pat}`);
+  headers.set("Authorization", `Bearer ${accessToken}`);
   headers.set("X-GitHub-Api-Version", GITHUB_API_VERSION);
 
   if (init.body !== undefined && !headers.has("Content-Type")) {

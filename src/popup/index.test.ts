@@ -41,7 +41,12 @@ describe("popup index owner repository copy", () => {
 function makePublicSettings(): PublicSettingsState {
   return {
     version: STORAGE_SCHEMA_VERSION,
-    hasGithubPat: true,
+    isGithubConnected: true,
+    githubAccount: {
+      id: 1,
+      login: "octo",
+      avatarUrl: null
+    },
     syncRepository: {
       owner: "octo",
       name: "algorithms",

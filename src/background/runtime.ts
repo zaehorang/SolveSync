@@ -9,8 +9,17 @@ import {
 import { toPublicSettingsState, type ConnectionStatusCode } from "../shared/storageSchema";
 import type { NormalizedError, NormalizedErrorCode } from "../shared/errors";
 import type { SyncRepository, RetryBundle, RetryBundleSummary } from "../shared/types";
+import {
+  GITHUB_APP_CLIENT_ID,
+  getGitHubAppInstallationUrl
+} from "../shared/githubAppConfig";
 import { createDefaultExtensionStorage, type ExtensionStorage } from "./storage";
 import { createGitHubClient, type GitHubClient } from "./client/github";
+import {
+  createGitHubAuthManager,
+  createPendingGitHubAuthStorage,
+  type GitHubAuthManager
+} from "./auth";
 import { createLeetCodeClient } from "./client/leetcode";
 import {
   createSyncOrchestrator,
@@ -36,15 +45,24 @@ export type RuntimeResponse<T = unknown> =
 export interface BackgroundRuntimeOptions {
   storage?: ExtensionStorage;
   orchestrator?: SyncOrchestrator;
-  githubClientFactory?: (pat: string) => GitHubClient;
+  authManager?: GitHubAuthManager;
+  githubClientFactory?: () => GitHubClient;
   broadcast?: SyncBroadcast;
 }
 
 export function registerBackgroundRuntime(options: BackgroundRuntimeOptions = {}): void {
   const storage = options.storage ?? createDefaultExtensionStorage();
   const broadcast = options.broadcast ?? createChromeBroadcast();
+  const authManager =
+    options.authManager ??
+    createGitHubAuthManager({
+      clientId: GITHUB_APP_CLIENT_ID,
+      storage,
+      pendingStorage: createPendingGitHubAuthStorage(chrome.storage.session)
+    });
   const githubClientFactory =
-    options.githubClientFactory ?? ((pat: string) => createGitHubClient({ pat }));
+    options.githubClientFactory ??
+    (() => createGitHubClient({ credentialProvider: authManager }));
   const orchestrator =
     options.orchestrator ??
     createSyncOrchestrator({
@@ -65,7 +83,8 @@ export function registerBackgroundRuntime(options: BackgroundRuntimeOptions = {}
     void handleRuntimeMessage(message, sender, {
       storage,
       orchestrator,
-      githubClientFactory
+      githubClientFactory,
+      authManager
     })
       .then((response) => sendResponse(response))
       .catch((error) => sendResponse(failure(normalizeError(error))));
@@ -80,7 +99,8 @@ async function handleRuntimeMessage(
   context: {
     storage: ExtensionStorage;
     orchestrator: SyncOrchestrator;
-    githubClientFactory: (pat: string) => GitHubClient;
+    githubClientFactory: () => GitHubClient;
+    authManager: GitHubAuthManager;
   }
 ): Promise<RuntimeResponse> {
   switch (message.type) {
@@ -103,17 +123,46 @@ async function handleRuntimeMessage(
 
     case "settings:read": {
       const settings = await context.storage.getSettings();
-      return success(toPublicSettingsState(settings));
+      const githubAuth = await context.storage.getGitHubAuth();
+      return success(toPublicSettingsState(settings, githubAuth));
     }
 
     case "settings:write": {
       const settings = await context.storage.saveSettings(message.payload.update);
-      return success(toPublicSettingsState(settings));
+      const githubAuth = await context.storage.getGitHubAuth();
+      return success(toPublicSettingsState(settings, githubAuth));
+    }
+
+    case "github:auth:start":
+      return success(await context.authManager.start());
+
+    case "github:auth:read":
+      return success(await context.authManager.readPending());
+
+    case "github:auth:poll":
+      return success(await context.authManager.poll());
+
+    case "github:auth:disconnect":
+      await context.authManager.disconnect();
+      return success(null);
+
+    case "github:installation:open": {
+      const installationUrl = getGitHubAppInstallationUrl();
+
+      if (installationUrl === null) {
+        throw explicitError(
+          "github_auth_failed",
+          "GitHub App slug is not configured."
+        );
+      }
+
+      await chrome.tabs.create({ url: installationUrl });
+      return success(null);
     }
 
     case "github:repositories:list":
       return success(
-        await withGitHubClient(context, async (client) => {
+        await withGitHubClient(context.githubClientFactory, async (client) => {
           const repositories = await client.listRepositories();
           const filtered = filterRepositories(repositories, message.payload.query);
           const page = Math.max(1, message.payload.page);
@@ -132,7 +181,7 @@ async function handleRuntimeMessage(
 
     case "github:branches:list":
       return success(
-        await withGitHubClient(context, (client) =>
+        await withGitHubClient(context.githubClientFactory, (client) =>
           client.listBranches({
             owner: message.payload.repository.owner,
             name: message.payload.repository.name
@@ -142,7 +191,7 @@ async function handleRuntimeMessage(
 
     case "github:branch:create":
       return success(
-        await withGitHubClient(context, async (client) => {
+        await withGitHubClient(context.githubClientFactory, async (client) => {
           try {
             const branch = await client.createBranch({
               owner: message.payload.repository.owner,
@@ -168,7 +217,7 @@ async function handleRuntimeMessage(
 
     case "github:connection:test":
       return success(
-        await withGitHubClient(context, async (client) => {
+        await withGitHubClient(context.githubClientFactory, async (client) => {
           try {
             const result = await client.testConnection({
               owner: message.payload.repository.owner,
@@ -215,19 +264,10 @@ async function handleRuntimeMessage(
 }
 
 async function withGitHubClient<T>(
-  context: {
-    storage: ExtensionStorage;
-    githubClientFactory: (pat: string) => GitHubClient;
-  },
+  githubClientFactory: () => GitHubClient,
   operation: (client: GitHubClient) => Promise<T>
 ): Promise<T> {
-  const settings = await context.storage.getSettings();
-
-  if (settings.githubPat === null || settings.githubPat.trim().length === 0) {
-    throw explicitError("github_auth_failed", "GitHub PAT is required.");
-  }
-
-  return operation(context.githubClientFactory(settings.githubPat));
+  return operation(githubClientFactory());
 }
 
 async function handleToastAction(
@@ -373,6 +413,14 @@ function toConnectionStatusCode(code: NormalizedErrorCode): ConnectionStatusCode
       return "branch_create_failed";
     case "github_auth_failed":
       return "auth_failed";
+    case "github_login_required":
+      return "login_required";
+    case "github_device_flow_expired":
+      return "device_flow_expired";
+    case "github_device_flow_denied":
+      return "device_flow_denied";
+    case "github_token_refresh_failed":
+      return "token_refresh_failed";
     case "github_token_expired":
       return "token_expired";
     case "github_rate_limited":

@@ -13,7 +13,9 @@ describe("shared domain type guards", () => {
   it("guards supported language values", () => {
     expect(isSupportedLanguage("swift")).toBe(true);
     expect(isSupportedLanguage("python3")).toBe(true);
-    expect(isSupportedLanguage("javascript")).toBe(false);
+    expect(isSupportedLanguage("javascript")).toBe(true);
+    expect(isSupportedLanguage("rust")).toBe(true);
+    expect(isSupportedLanguage("ruby")).toBe(false);
   });
 
   it("guards supported platform values", () => {

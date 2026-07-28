@@ -133,7 +133,7 @@ describe("LeetCode background client", () => {
     });
   });
 
-  it("represents unsupported accepted languages as not syncable", async () => {
+  it("represents newly supported accepted languages as syncable", async () => {
     const fetchImpl = mockFetch(
       graphQLResponse({
         questionSubmissionList: {
@@ -168,10 +168,15 @@ describe("LeetCode background client", () => {
     const result = await fetchLatestAcceptedSubmission("two-sum", { fetchImpl });
 
     expect(result).toMatchObject({
-      supportedLanguage: null,
+      supportedLanguage: "java",
       submittedAt: "2026-01-01T00:00:00.000Z",
-      syncable: false,
-      syncDeduplicationKey: null,
+      syncable: true,
+      syncDeduplicationKey: {
+        acceptedSourceId: "987654321",
+        codingPlatform: "leetcode",
+        language: "java",
+        titleSlug: "two-sum"
+      },
       submission: {
         language: "Java"
       }

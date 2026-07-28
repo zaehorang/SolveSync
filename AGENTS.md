@@ -16,7 +16,7 @@ SolveSync는 LeetCode와 Programmers에서 Accepted 된 풀이를 사용자가 �
 - `src/content`: 문제 페이지 관찰, Accepted 감지, Programmers Accepted Editor Snapshot, toast, background messaging.
 - `src/background`: sync orchestration, source resolver, storage, Retry Bundle, Sync History.
 - `src/background/client`: LeetCode와 GitHub API client. API 변경 영향은 여기서 막는다.
-- `src/options`: PAT, Sync Repository/Sync Branch 선택, branch 생성, Auto Sync, connection test UI.
+- `src/options`: GitHub Device Flow/App 설치, Sync Repository/Sync Branch 선택, branch 생성, Auto Sync, connection test UI.
 - `src/popup`: Auto Sync toggle, 최근 Sync History, 실패 상세, retry UI.
 - `src/shared`: 타입, Coding Platform policy, message union, language/path mapping, Solution README/Catalog, storage schema, error normalization.
 
@@ -31,7 +31,7 @@ SolveSync는 LeetCode와 Programmers에서 Accepted 된 풀이를 사용자가 �
 - `content_scripts` bundle은 classic script로 실행된다. content entry build 결과에 static ESM `import`가 남지 않게 한다.
 
 ## Don't
-- GitHub PAT, LeetCode/Programmers cookie, session token, 실제 사용자 secret을 source, fixture, docs 예시에 넣지 않는다.
+- GitHub access/refresh token, Device Flow device code, legacy PAT, LeetCode/Programmers cookie, session token, 실제 사용자 secret을 source, fixture, docs 예시에 넣지 않는다.
 - LeetCode/Programmers 문제 설명 전문을 저장하지 않는다.
 - content script에서 GitHub API를 직접 호출하지 않는다. 외부 write는 background service worker를 통해 수행한다.
 - 대상 GitHub repository나 branch를 코드 기본값으로 고정하지 않는다.

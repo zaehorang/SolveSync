@@ -50,13 +50,41 @@ describe("README managed block", () => {
   it("renders rows sorted by numeric problem id", () => {
     const table = renderManagedReadmeTable(solutionCatalog);
 
-    expect(table).toContain("| # | Title | Difficulty | Solved | Swift | Python |");
+    expect(table).toContain("| # | Title | Difficulty | Solved | Languages |");
     expect(table.indexOf("| 1 | Two Sum")).toBeLessThan(
       table.indexOf("| 2 | Add Two Numbers")
     );
     expect(table).toContain("| 1 | Two Sum | Easy | 2026-05-27 |");
     expect(table).toContain("[Swift](swift/0001_two_sum.swift)");
-    expect(table).toContain("[Python](python/0002_add_two_numbers.py)");
+    expect(table).toContain("[Python3](python/0002_add_two_numbers.py)");
+  });
+
+  it("renders every solution for one problem in a single Languages cell", () => {
+    const javaCatalog = mergeSolutionCatalogEntry(
+      solutionCatalog,
+      {
+        problemId: "1",
+        frontendId: "1",
+        title: "Two Sum",
+        titleSlug: "two-sum",
+        difficulty: "Easy",
+        url: "https://leetcode.com/problems/two-sum/",
+        acceptedSourceId: "101",
+        language: "java"
+      },
+      "leetcode/java/0001_two_sum.java",
+      "2026-05-28T04:05:00.000Z",
+      "2026-05-28"
+    );
+    const table = renderManagedReadmeTable(javaCatalog);
+    const twoSumRow = table
+      .split("\n")
+      .find((line) => line.includes("| 1 | Two Sum"));
+
+    expect(twoSumRow).toContain(
+      "[Swift](swift/0001_two_sum.swift) · [Java](java/0001_two_sum.java)"
+    );
+    expect(twoSumRow?.split("|")).toHaveLength(7);
   });
 
   it("replaces only the existing managed marker block", () => {
