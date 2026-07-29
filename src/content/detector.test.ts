@@ -1,7 +1,6 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import {
-  createDebouncedCallback,
   extractProgrammersRouteFromPathname,
   extractTitleSlugFromPathname,
   isAcceptedResultText,
@@ -10,10 +9,6 @@ import {
 } from "./detector";
 
 describe("LeetCode content detector", () => {
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
   it("extracts the title slug from LeetCode problem paths", () => {
     expect(extractTitleSlugFromPathname("/problems/two-sum/")).toBe("two-sum");
     expect(extractTitleSlugFromPathname("/problems/valid-parentheses/submissions/")).toBe(
@@ -33,10 +28,19 @@ describe("LeetCode content detector", () => {
   });
 
   it("detects Accepted text in mutation candidates", () => {
-    const mutation = {
+    const mutation = mutationRecord({
       target: textNode("Pending"),
       addedNodes: [textNode("Accepted")]
-    } as unknown as MutationRecord;
+    });
+
+    expect(mutationListHasAccepted([mutation])).toBe(true);
+  });
+
+  it("detects an exact Accepted status inside one new wrapper element", () => {
+    const mutation = mutationRecord({
+      target: elementNode([]),
+      addedNodes: [elementNode([textNode("Accepted")], { tagName: "span" })]
+    });
 
     expect(mutationListHasAccepted([mutation])).toBe(true);
   });
@@ -145,19 +149,102 @@ describe("LeetCode content detector", () => {
     expect(mutationListHasAccepted([mutation])).toBe(false);
   });
 
-  it("debounces repeated accepted detections", () => {
-    vi.useFakeTimers();
-    const callback = vi.fn();
-    const debounced = createDebouncedCallback(callback, 200);
+  it("ignores stale Accepted text in a childList target", () => {
+    const mutation = mutationRecord({
+      target: elementNode([
+        elementNode([textNode("Accepted")]),
+        elementNode([textNode("Runtime")])
+      ]),
+      addedNodes: [elementNode([textNode("Wrong Answer")])]
+    });
 
-    debounced();
-    debounced();
-    debounced();
-    vi.advanceTimersByTime(199);
-    expect(callback).not.toHaveBeenCalled();
+    expect(mutationListHasAccepted([mutation])).toBe(false);
+  });
 
-    vi.advanceTimersByTime(1);
-    expect(callback).toHaveBeenCalledTimes(1);
+  it("detects only a non-Accepted to Accepted character data transition", () => {
+    expect(
+      mutationListHasAccepted([
+        mutationRecord({
+          type: "characterData",
+          target: textNode("Accepted"),
+          oldValue: "Judging"
+        })
+      ])
+    ).toBe(true);
+    expect(
+      mutationListHasAccepted([
+        mutationRecord({
+          type: "characterData",
+          target: textNode("Accepted"),
+          oldValue: "Accepted"
+        })
+      ])
+    ).toBe(false);
+    expect(
+      mutationListHasAccepted([
+        mutationRecord({
+          type: "characterData",
+          target: textNode("Accepted"),
+          oldValue: null
+        })
+      ])
+    ).toBe(false);
+  });
+
+  it("combines split text only inside one childList mutation", () => {
+    const oneMutation = mutationRecord({
+      target: elementNode([]),
+      addedNodes: [
+        textNode("Accepted"),
+        textNode(" 116 / 116 "),
+        textNode("testcases passed")
+      ]
+    });
+    const splitAcrossMutations = [
+      mutationRecord({
+        target: elementNode([]),
+        addedNodes: [textNode("Accepted 116 /")]
+      }),
+      mutationRecord({
+        target: elementNode([]),
+        addedNodes: [textNode("116 testcases passed")]
+      })
+    ];
+
+    expect(mutationListHasAccepted([oneMutation])).toBe(true);
+    expect(mutationListHasAccepted(splitAcrossMutations)).toBe(false);
+  });
+
+  it("ignores hidden Accepted nodes and hidden ancestors", () => {
+    const hidden = mutationRecord({
+      target: elementNode([]),
+      addedNodes: [
+        elementNode([textNode("Accepted")], {
+          attrs: { hidden: "" }
+        })
+      ]
+    });
+    const ariaHiddenAncestor = mutationRecord({
+      target: elementNode([]),
+      addedNodes: [
+        elementNode([elementNode([textNode("Accepted")])], {
+          attrs: { "aria-hidden": "true" }
+        })
+      ]
+    });
+
+    expect(mutationListHasAccepted([hidden])).toBe(false);
+    expect(mutationListHasAccepted([ariaHiddenAncestor])).toBe(false);
+  });
+
+  it("ignores removed Accepted nodes and unrelated additions", () => {
+    const mutation = mutationRecord({
+      target: elementNode([]),
+      addedNodes: [elementNode([textNode("SolveSync synced")])],
+      removedNodes: [elementNode([textNode("Accepted")])]
+    });
+
+    expect(mutationListHasAccepted([mutation])).toBe(false);
   });
 });
 
@@ -204,6 +291,27 @@ describe("Programmers content detector", () => {
     expect(mutationListHasAccepted([passed], "programmers")).toBe(false);
     expect(mutationListHasAccepted([summary], "programmers")).toBe(false);
   });
+
+  it("does not reuse a stale accepted modal when code execution adds 통과", () => {
+    const mutation = mutationRecord({
+      target: elementNode([
+        elementNode([textNode("정답입니다!")]),
+        elementNode([textNode("실행 결과")])
+      ]),
+      addedNodes: [elementNode([textNode("통과")])]
+    });
+
+    expect(mutationListHasAccepted([mutation], "programmers")).toBe(false);
+  });
+
+  it("detects a Korean Accepted phrase split across new sibling nodes", () => {
+    const mutation = mutationRecord({
+      target: elementNode([]),
+      addedNodes: [textNode("정답입니다"), textNode("!")]
+    });
+
+    expect(mutationListHasAccepted([mutation], "programmers")).toBe(true);
+  });
 });
 
 interface TestCandidateNode {
@@ -211,6 +319,7 @@ interface TestCandidateNode {
   textContent: string | null;
   childNodes?: TestCandidateNode[];
   getAttribute?(name: string): string | null;
+  parentElement?: TestCandidateNode | null;
   nodeName?: string;
   tagName?: string;
 }
@@ -218,7 +327,8 @@ interface TestCandidateNode {
 function textNode(textContent: string): TestCandidateNode {
   return {
     nodeType: 3,
-    textContent
+    textContent,
+    parentElement: null
   };
 }
 
@@ -232,18 +342,24 @@ function elementNode(
 ): TestCandidateNode {
   const tagName = options.tagName ?? "div";
   const attrs = options.attrs ?? {};
-
-  return {
+  const node: TestCandidateNode = {
     nodeType: 1,
     textContent:
       options.textContent ?? childNodes.map((child) => child.textContent ?? "").join(""),
     childNodes,
+    parentElement: null,
     nodeName: tagName.toUpperCase(),
     tagName: tagName.toUpperCase(),
     getAttribute(name: string) {
       return attrs[name] ?? null;
     }
   };
+
+  for (const child of childNodes) {
+    child.parentElement = node;
+  }
+
+  return node;
 }
 
 function nestedElement(depth: number, childNodes: TestCandidateNode[]): TestCandidateNode {
@@ -257,8 +373,17 @@ function nestedElement(depth: number, childNodes: TestCandidateNode[]): TestCand
 }
 
 function mutationRecord(input: {
+  type?: "childList" | "characterData";
   target: TestCandidateNode;
-  addedNodes: TestCandidateNode[];
+  addedNodes?: TestCandidateNode[];
+  removedNodes?: TestCandidateNode[];
+  oldValue?: string | null;
 }): MutationRecord {
-  return input as unknown as MutationRecord;
+  return {
+    type: input.type ?? "childList",
+    target: input.target,
+    addedNodes: input.addedNodes ?? [],
+    removedNodes: input.removedNodes ?? [],
+    oldValue: input.oldValue ?? null
+  } as unknown as MutationRecord;
 }

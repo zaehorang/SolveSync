@@ -79,7 +79,21 @@ Connection test는 commit을 만들지 않아야 한다. Branch는 사용자의 
 3. Popup Sync History에서 Commit과 File link를 확인한다.
 4. test branch에서 solution file, `leetcode/README.md`, `leetcode/.leetcode-sync/index.json`이 같은 commit에 포함됐는지 확인한다.
 
-## 7. 최소 보안 확인
+## 7. Fresh Accepted Transition 회귀
+
+LeetCode와 Programmers에서 각각 실행한다.
+
+1. 실제 Accepted 제출을 한 번 만들고 test branch HEAD와 Sync History 항목을 기록한다.
+2. editor를 구별 가능한 새 코드로 바꾼 뒤 제출/채점이 아닌 Run만 실행한다.
+3. Syncing toast, 새 Sync History 항목과 GitHub commit이 생기지 않는지 확인한다.
+4. Wrong Answer가 되도록 제출하고 동일하게 sync message나 commit이 생기지 않는지 확인한다.
+5. 실제 Accepted가 되도록 다시 제출하고 새 Solution Revision commit이 정확히 하나만 생기는지 확인한다.
+6. GitHub Solution File이 Run 또는 Wrong Answer 코드가 아니라 실제 Accepted된 코드와 일치하는지 확인한다.
+7. SPA navigation으로 다른 문제로 이동해 Accepted를 만들고, 현재 문제 identifier와 path만 사용되는지 확인한다.
+
+Programmers에서는 첫 Accepted 표시 직후 editor를 바꾸더라도 첫 commit이 Accepted가 관찰된 시점의 code를 유지하는지 추가로 확인한다. LeetCode에서는 Run과 Wrong Answer 뒤 불필요한 source 조회 오류 toast가 나타나지 않는지 확인한다.
+
+## 8. 최소 보안 확인
 
 - Options, Popup, toast에 access token, refresh token, device code가 표시되지 않는다.
 - LeetCode와 Programmers 문제 설명 전문이 local storage나 GitHub commit에 저장되지 않는다.

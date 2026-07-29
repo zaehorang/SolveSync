@@ -51,6 +51,9 @@ TypeScript, runtime message, storage schema는 같은 용어 체계를 사용한
 ### Auto Sync on 문제 풀이
 - 사용자는 LeetCode 또는 Programmers에서 지원 언어로 문제를 푼다.
 - 사용자는 평소처럼 제출한다.
+- 확장은 이번 DOM mutation에서 새로 나타난 fresh Accepted transition만 sync 후보로 사용한다.
+- 코드 실행, Wrong Answer, modal 닫기나 unrelated UI mutation에서 이전 Accepted 문구가 다시 관찰되어도 message나 commit을 만들지 않는다.
+- Programmers의 route와 Accepted Editor Snapshot은 fresh Accepted가 관찰된 시점에 함께 확정하며, 전달 대기 중 editor가 바뀌어도 다시 읽지 않는다.
 - 결과가 Accepted가 아니면 확장은 아무 commit도 만들지 않는다.
 - 결과가 Accepted면 확장은 `Syncing to GitHub...` toast를 보여준다.
 - 확장은 제출 코드, 문제 메타데이터, Sync Deduplication Key를 Coding Platform별 방식으로 확정한다.
@@ -124,6 +127,9 @@ TypeScript, runtime message, storage schema는 같은 용어 체계를 사용한
 - `leetcode/README.md`와 `leetcode/.leetcode-sync/index.json`이 solution file과 같은 commit에 포함된다.
 - `programmers/README.md`와 `programmers/.programmers-sync/index.json`이 solution file과 같은 commit에 포함된다.
 - 같은 Sync Deduplication Key가 반복 감지되어도 중복 commit이 생기지 않는다.
+- stale Accepted DOM 이후의 Run, Wrong Answer와 unrelated UI mutation은 sync message나 commit을 만들지 않는다.
+- 동일 Accepted render burst는 정확히 한 번만 전달되고, 실제 두 번째 Accepted는 정확히 한 번 새 Solution Revision commit을 만든다.
+- SPA 이동 후 Accepted event는 최초 로딩 route가 아니라 현재 문제의 identifier, URL과 Programmers snapshot을 사용한다.
 - 같은 문제/언어의 새 Accepted 제출은 기존 solution file을 최신 풀이로 갱신한다.
 - commit message는 같은 Coding Platform, 문제, 언어의 Solution Revision Number를 `#n` suffix로 포함한다.
 - GitHub commit 실패는 성공 처리되지 않고 retry 가능한 실패로 남는다.
