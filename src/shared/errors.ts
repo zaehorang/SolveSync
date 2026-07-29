@@ -22,6 +22,9 @@ export const NORMALIZED_ERROR_CODES = [
   "github_conflict_failed",
   "malformed_index",
   "network_failed",
+  "invalid_message",
+  "payload_too_large",
+  "storage_quota_exceeded",
   "extension_state_unavailable"
 ] as const;
 

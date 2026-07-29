@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { normalizeError } from "../shared/errorNormalize";
+import { MAX_ACCEPTED_CODE_BYTES } from "../shared/acceptedSourceLimits";
 import { STORAGE_SCHEMA_VERSION } from "../shared/storageSchema";
 import { createExtensionStorage, type StorageAreaAdapter } from "./storage";
 import type {
@@ -445,6 +446,135 @@ describe("background sync orchestrator", () => {
     });
   });
 
+  it("records oversized Programmers code without GitHub or Retry work", async () => {
+    const harness = makeHarness();
+    await harness.saveSettings();
+
+    await harness.sync.handleAcceptedDetected(
+      makeProgrammersAcceptedDetected({
+        code: "a".repeat(MAX_ACCEPTED_CODE_BYTES + 1)
+      })
+    );
+
+    expect(harness.github.commits).toHaveLength(0);
+    await expect(harness.storage.listRetryBundles()).resolves.toHaveLength(0);
+    const records = await harness.storage.listSyncHistoryEntries();
+    expect(records[0]).toMatchObject({
+      codingPlatform: "programmers",
+      status: "failed",
+      retryBundleId: null,
+      error: {
+        code: "payload_too_large",
+        retryable: false
+      }
+    });
+  });
+
+  it("accepts LeetCode code at exactly 256 KiB", async () => {
+    const harness = makeHarness();
+    await harness.saveSettings();
+    harness.leetcode.fetchProblemMetadata.mockResolvedValue(problem);
+    harness.leetcode.fetchLatestAcceptedSubmission.mockResolvedValue(
+      syncableAcceptedSubmission({
+        code: "a".repeat(MAX_ACCEPTED_CODE_BYTES)
+      })
+    );
+
+    await harness.sync.handleAcceptedDetected(makeAcceptedDetected());
+
+    expect(harness.github.commits).toHaveLength(1);
+    await expect(historyStatuses(harness.storage)).resolves.toEqual(["synced"]);
+  });
+
+  it("records oversized LeetCode code without GitHub or Retry work", async () => {
+    const harness = makeHarness();
+    await harness.saveSettings();
+    harness.leetcode.fetchProblemMetadata.mockResolvedValue(problem);
+    harness.leetcode.fetchLatestAcceptedSubmission.mockResolvedValue(
+      syncableAcceptedSubmission({
+        code: "a".repeat(MAX_ACCEPTED_CODE_BYTES + 1)
+      })
+    );
+
+    await harness.sync.handleAcceptedDetected(makeAcceptedDetected());
+
+    expect(harness.github.commits).toHaveLength(0);
+    await expect(harness.storage.listRetryBundles()).resolves.toHaveLength(0);
+    const records = await harness.storage.listSyncHistoryEntries();
+    expect(records[0]).toMatchObject({
+      codingPlatform: "leetcode",
+      status: "failed",
+      retryBundleId: null,
+      error: {
+        code: "payload_too_large",
+        retryable: false
+      }
+    });
+  });
+
+  it("rejects oversized LeetCode source metadata before GitHub work", async () => {
+    const invalidSources = [
+      {
+        problem: {
+          ...problem,
+          title: "🙂".repeat(301)
+        },
+        submission: syncableAcceptedSubmission()
+      },
+      {
+        problem: {
+          ...problem,
+          problemId: "1".repeat(129)
+        },
+        submission: syncableAcceptedSubmission()
+      },
+      {
+        problem: {
+          ...problem,
+          frontendId: "1".repeat(129)
+        },
+        submission: syncableAcceptedSubmission()
+      },
+      {
+        problem: {
+          ...problem,
+          url: `https://leetcode.com/${"a".repeat(2_048)}`
+        },
+        submission: syncableAcceptedSubmission()
+      },
+      {
+        problem,
+        submission: syncableAcceptedSubmission({
+          language: "L".repeat(65)
+        })
+      }
+    ];
+
+    for (const source of invalidSources) {
+      const harness = makeHarness();
+      await harness.saveSettings();
+      harness.leetcode.fetchProblemMetadata.mockResolvedValue(source.problem);
+      harness.leetcode.fetchLatestAcceptedSubmission.mockResolvedValue(
+        source.submission
+      );
+
+      await harness.sync.handleAcceptedDetected(makeAcceptedDetected());
+
+      expect(harness.github.commits).toHaveLength(0);
+      await expect(harness.storage.listRetryBundles()).resolves.toHaveLength(0);
+      const records = await harness.storage.listSyncHistoryEntries();
+      expect(records[0]).toMatchObject({
+        codingPlatform: "leetcode",
+        status: "failed",
+        retryBundleId: null,
+        error: {
+          code: "invalid_message",
+          retryable: false
+        }
+      });
+    }
+  });
+
   it("does not store Retry Bundles when Programmers Solution Catalog cannot be parsed", async () => {
     const harness = makeHarness();
     await harness.saveSettings();
@@ -491,6 +621,33 @@ describe("background sync orchestrator", () => {
     expect(records[0]).toMatchObject({
       status: "failed",
       retryBundleId: bundles[0]?.id
+    });
+  });
+
+  it("does not store Retry Bundles for non-retryable GitHub commit failures", async () => {
+    const harness = makeHarness();
+    await harness.saveSettings();
+    harness.github.commitError = normalizeError({
+      code: "github_branch_protected",
+      message: "branch protected"
+    });
+    harness.leetcode.fetchProblemMetadata.mockResolvedValue(problem);
+    harness.leetcode.fetchLatestAcceptedSubmission.mockResolvedValue(
+      syncableAcceptedSubmission()
+    );
+
+    await harness.sync.handleAcceptedDetected(makeAcceptedDetected());
+
+    expect(await harness.storage.hasProcessedSyncDeduplicationKey(syncDeduplicationKey)).toBe(false);
+    await expect(harness.storage.listRetryBundles()).resolves.toHaveLength(0);
+    const records = await harness.storage.listSyncHistoryEntries();
+    expect(records[0]).toMatchObject({
+      status: "failed",
+      retryBundleId: null,
+      error: {
+        code: "github_branch_protected",
+        retryable: false
+      }
     });
   });
 

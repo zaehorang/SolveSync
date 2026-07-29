@@ -123,11 +123,17 @@ interface OptionsRuntimeState {
   creatingBranch: boolean;
   testingConnection: boolean;
   savingSettings: boolean;
+  deletingRetryData: boolean;
+  deletingAllData: boolean;
+  retryDeleteConfirmationVisible: boolean;
+  allDeleteConfirmationVisible: boolean;
   authMessage: InlineMessage;
   repositoryMessage: InlineMessage;
   branchMessage: InlineMessage;
   createBranchMessage: InlineMessage;
   saveMessage: InlineMessage;
+  retryDeleteMessage: InlineMessage;
+  allDeleteMessage: InlineMessage;
 }
 
 interface OptionsElements {
@@ -158,6 +164,16 @@ interface OptionsElements {
   connectionStatusBox: HTMLDivElement;
   saveButton: HTMLButtonElement;
   saveStatus: HTMLParagraphElement;
+  deleteRetryDataButton: HTMLButtonElement;
+  retryDeleteConfirmation: HTMLDivElement;
+  confirmDeleteRetryDataButton: HTMLButtonElement;
+  cancelDeleteRetryDataButton: HTMLButtonElement;
+  retryDeleteStatus: HTMLParagraphElement;
+  deleteAllDataButton: HTMLButtonElement;
+  allDeleteConfirmation: HTMLDivElement;
+  confirmDeleteAllDataButton: HTMLButtonElement;
+  cancelDeleteAllDataButton: HTMLButtonElement;
+  allDeleteStatus: HTMLParagraphElement;
 }
 
 interface SetupStepElements {
@@ -356,6 +372,9 @@ export function mapConnectionErrorCode(
     case "network_failed":
       return "network_failed";
     case "extension_state_unavailable":
+    case "invalid_message":
+    case "payload_too_large":
+    case "storage_quota_exceeded":
       return "not_tested";
     case "setup_required":
     case "auto_sync_disabled":
@@ -398,11 +417,17 @@ function createInitialState(): OptionsRuntimeState {
     creatingBranch: false,
     testingConnection: false,
     savingSettings: false,
+    deletingRetryData: false,
+    deletingAllData: false,
+    retryDeleteConfirmationVisible: false,
+    allDeleteConfirmationVisible: false,
     authMessage: EMPTY_MESSAGE,
     repositoryMessage: EMPTY_MESSAGE,
     branchMessage: EMPTY_MESSAGE,
     createBranchMessage: EMPTY_MESSAGE,
-    saveMessage: EMPTY_MESSAGE
+    saveMessage: EMPTY_MESSAGE,
+    retryDeleteMessage: EMPTY_MESSAGE,
+    allDeleteMessage: EMPTY_MESSAGE
   };
 }
 
@@ -456,6 +481,38 @@ function bindEvents(elements: OptionsElements, state: OptionsRuntimeState): void
 
   elements.installAppButton.addEventListener("click", () => {
     void openGitHubAppInstallation(elements, state);
+  });
+
+  elements.deleteRetryDataButton.addEventListener("click", () => {
+    state.retryDeleteConfirmationVisible = true;
+    state.allDeleteConfirmationVisible = false;
+    state.retryDeleteMessage = EMPTY_MESSAGE;
+    render(elements, state);
+  });
+
+  elements.cancelDeleteRetryDataButton.addEventListener("click", () => {
+    state.retryDeleteConfirmationVisible = false;
+    render(elements, state);
+  });
+
+  elements.confirmDeleteRetryDataButton.addEventListener("click", () => {
+    void deleteRetryData(elements, state);
+  });
+
+  elements.deleteAllDataButton.addEventListener("click", () => {
+    state.allDeleteConfirmationVisible = true;
+    state.retryDeleteConfirmationVisible = false;
+    state.allDeleteMessage = EMPTY_MESSAGE;
+    render(elements, state);
+  });
+
+  elements.cancelDeleteAllDataButton.addEventListener("click", () => {
+    state.allDeleteConfirmationVisible = false;
+    render(elements, state);
+  });
+
+  elements.confirmDeleteAllDataButton.addEventListener("click", () => {
+    void deleteAllLocalData(elements, state);
   });
 
   elements.repositorySearchInput.addEventListener("input", () => {
@@ -648,6 +705,86 @@ async function disconnectGitHub(
   state.branches = [];
   state.authMessage = localizedMessage("options.auth.disconnected", "neutral");
   render(elements, state);
+}
+
+async function deleteRetryData(
+  elements: OptionsElements,
+  state: OptionsRuntimeState
+): Promise<void> {
+  state.deletingRetryData = true;
+  state.retryDeleteMessage = EMPTY_MESSAGE;
+  render(elements, state);
+
+  try {
+    const response = await sendRuntimeMessage<{ deletedCount: number }>({
+      type: "storage:retry-bundles:clear"
+    });
+
+    if (!response.ok) {
+      throw response.error;
+    }
+
+    state.retryDeleteConfirmationVisible = false;
+    state.retryDeleteMessage = localizedMessage(
+      "options.data.retry.deleted",
+      "success",
+      {
+        count: response.data.deletedCount
+      }
+    );
+  } catch (error) {
+    const normalized = normalizeError(error);
+    state.retryDeleteMessage = {
+      text: normalized.userMessage,
+      tone: "error"
+    };
+  } finally {
+    state.deletingRetryData = false;
+    render(elements, state);
+  }
+}
+
+async function deleteAllLocalData(
+  elements: OptionsElements,
+  state: OptionsRuntimeState
+): Promise<void> {
+  clearAuthPoll(state);
+  state.deletingAllData = true;
+  state.allDeleteMessage = EMPTY_MESSAGE;
+  render(elements, state);
+
+  try {
+    const response = await sendRuntimeMessage<{ cleared: true }>({
+      type: "storage:clear-all"
+    });
+
+    if (!response.ok) {
+      throw response.error;
+    }
+
+    const settings = await readSettings();
+    applySettingsToState(state, settings);
+    state.pendingAuth = null;
+    state.authorizing = false;
+    state.repositories = [];
+    state.branches = [];
+    state.retryDeleteConfirmationVisible = false;
+    state.allDeleteConfirmationVisible = false;
+    state.retryDeleteMessage = EMPTY_MESSAGE;
+    state.allDeleteMessage = localizedMessage(
+      "options.data.all.deleted",
+      "success"
+    );
+  } catch (error) {
+    const normalized = normalizeError(error);
+    state.allDeleteMessage = {
+      text: normalized.userMessage,
+      tone: "error"
+    };
+  } finally {
+    state.deletingAllData = false;
+    render(elements, state);
+  }
 }
 
 async function openGitHubAppInstallation(
@@ -1130,6 +1267,30 @@ function render(elements: OptionsElements, state: OptionsRuntimeState): void {
     ? t(state.locale, "action.saving")
     : t(state.locale, "action.save");
   renderInlineMessage(elements.saveStatus, state.saveMessage, state.locale);
+
+  const dataActionInProgress =
+    state.deletingRetryData || state.deletingAllData;
+  elements.deleteRetryDataButton.disabled = dataActionInProgress;
+  elements.retryDeleteConfirmation.hidden =
+    !state.retryDeleteConfirmationVisible;
+  elements.confirmDeleteRetryDataButton.disabled = dataActionInProgress;
+  elements.cancelDeleteRetryDataButton.disabled = dataActionInProgress;
+  renderInlineMessage(
+    elements.retryDeleteStatus,
+    state.retryDeleteMessage,
+    state.locale
+  );
+
+  elements.deleteAllDataButton.disabled = dataActionInProgress;
+  elements.allDeleteConfirmation.hidden =
+    !state.allDeleteConfirmationVisible;
+  elements.confirmDeleteAllDataButton.disabled = dataActionInProgress;
+  elements.cancelDeleteAllDataButton.disabled = dataActionInProgress;
+  renderInlineMessage(
+    elements.allDeleteStatus,
+    state.allDeleteMessage,
+    state.locale
+  );
 }
 
 function renderStaticText(locale: UiLocale): void {
@@ -1461,7 +1622,44 @@ function collectElements(): OptionsElements {
     testConnectionButton: requireElement("test-connection", HTMLButtonElement),
     connectionStatusBox: requireElement("connection-status", HTMLDivElement),
     saveButton: requireElement("save-settings", HTMLButtonElement),
-    saveStatus: requireElement("save-status", HTMLParagraphElement)
+    saveStatus: requireElement("save-status", HTMLParagraphElement),
+    deleteRetryDataButton: requireElement(
+      "delete-retry-data",
+      HTMLButtonElement
+    ),
+    retryDeleteConfirmation: requireElement(
+      "delete-retry-confirmation",
+      HTMLDivElement
+    ),
+    confirmDeleteRetryDataButton: requireElement(
+      "confirm-delete-retry-data",
+      HTMLButtonElement
+    ),
+    cancelDeleteRetryDataButton: requireElement(
+      "cancel-delete-retry-data",
+      HTMLButtonElement
+    ),
+    retryDeleteStatus: requireElement(
+      "delete-retry-status",
+      HTMLParagraphElement
+    ),
+    deleteAllDataButton: requireElement("delete-all-data", HTMLButtonElement),
+    allDeleteConfirmation: requireElement(
+      "delete-all-confirmation",
+      HTMLDivElement
+    ),
+    confirmDeleteAllDataButton: requireElement(
+      "confirm-delete-all-data",
+      HTMLButtonElement
+    ),
+    cancelDeleteAllDataButton: requireElement(
+      "cancel-delete-all-data",
+      HTMLButtonElement
+    ),
+    allDeleteStatus: requireElement(
+      "delete-all-status",
+      HTMLParagraphElement
+    )
   };
 }
 

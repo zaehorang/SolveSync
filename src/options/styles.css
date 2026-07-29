@@ -385,9 +385,78 @@ select option:disabled {
   color: var(--ss-text-primary);
 }
 
+.button.danger,
+.button.danger-outline {
+  border-color: var(--ss-error);
+}
+
+.button.danger {
+  background: var(--ss-error);
+  color: #ffffff;
+}
+
+.button.danger-outline {
+  background: var(--ss-error-soft);
+  color: var(--ss-error);
+}
+
 .button:disabled {
   cursor: not-allowed;
   opacity: 0.58;
+}
+
+.data-action {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px 16px;
+  align-items: start;
+  border-top: 1px solid var(--ss-hairline);
+  padding-top: 16px;
+  margin-top: 16px;
+}
+
+.data-action:first-of-type {
+  border-top: 0;
+  padding-top: 0;
+  margin-top: 0;
+}
+
+.data-action.destructive {
+  border-top-color: var(--ss-error-border);
+}
+
+.inline-confirmation,
+.data-action > .field-message {
+  grid-column: 1 / -1;
+}
+
+.inline-confirmation {
+  border: 1px solid var(--ss-warning-border);
+  border-radius: 6px;
+  background: var(--ss-warning-soft);
+  color: var(--ss-warning);
+  padding: 12px;
+}
+
+.inline-confirmation.danger-zone {
+  border-color: var(--ss-error-border);
+  background: var(--ss-error-soft);
+  color: var(--ss-error);
+}
+
+.inline-confirmation[hidden] {
+  display: none;
+}
+
+.inline-confirmation p {
+  margin-bottom: 10px;
+  line-height: 1.45;
+}
+
+.confirmation-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .switch-row {

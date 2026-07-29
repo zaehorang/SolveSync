@@ -37,6 +37,20 @@ describe("error normalization", () => {
     expect(normalizeError(new MalformedSolutionCatalogError("bad catalog")).code).toBe(
       "malformed_index"
     );
+    expect(normalizeError({ code: "payload_too_large" })).toMatchObject({
+      code: "payload_too_large",
+      retryable: false
+    });
+  });
+
+  it("normalizes Chrome storage quota failures with a deletion recovery action", () => {
+    expect(
+      normalizeError(new Error("QUOTA_BYTES quota exceeded"))
+    ).toMatchObject({
+      code: "storage_quota_exceeded",
+      retryable: false,
+      userMessage: expect.stringContaining("Delete Retry Data")
+    });
   });
 
   it("keeps unknown generic errors on the GitHub commit fallback", () => {

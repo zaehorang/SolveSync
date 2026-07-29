@@ -17,7 +17,7 @@ LeetCode는 DOM 감지 후 GraphQL 우선 API client로 Accepted Submission 상�
 ## 소스 구조
 ```text
 src/
-├── background/      # sync orchestration, Coding Platform source resolver, 외부 API write
+├── background/      # sync orchestration, source resolver, storage lifecycle, 외부 API write
 │   └── client/      # LeetCode GraphQL, GitHub Sync Repository/Sync Branch/Git Data API 실행 코드
 ├── content/         # LeetCode/Programmers 페이지 관찰, Programmers Accepted Editor Snapshot, toast UI
 ├── options/         # GitHub Device Flow, App 설치, Sync Repository/Sync Branch, connection test UI
@@ -55,19 +55,24 @@ README.md
 - Programmers는 `정답입니다!` 모달을 Accepted 1차 신호로 사용한다. `통과` 단독 문구는 code 실행 결과와 섞일 수 있으므로 Accepted 신호로 사용하지 않는다.
 - Programmers는 Accepted 감지 직후 현재 editor code, language, title을 Accepted Editor Snapshot으로 추출하고 `ProgrammersAcceptedEditorSnapshot`으로 전달한다.
 - 같은 DOM 변화가 반복될 수 있으므로 짧은 debounce를 적용한다.
-- background service worker로 `content:accepted-detected` 메시지를 보낸다.
+- background service worker로 `content:accepted_detected` 메시지를 보낸다.
+- 전체 settings를 읽지 않고 `ui:locale:read`로 Toast locale preference만 요청한다.
 - 문제 페이지 안에 toast feedback을 렌더링한다.
-- GitHub API를 호출하지 않고 sync 상태의 owner도 아니다.
+- GitHub API와 `chrome.storage.local`을 직접 호출하지 않고 sync 상태의 owner도 아니다.
 
 ### Background Service Worker
 - sync state machine의 owner다.
 - runtime listener는 service worker top-level에서 등록한다.
+- service worker 시작 시 `chrome.storage.local` access level을 `TRUSTED_CONTEXTS`로 제한하고, storage를 사용하는 message handler와 maintenance는 초기화 완료를 기다린다.
+- runtime message의 extension ID, sender URL, 실제 surface, payload schema와 Accepted page route를 검증한다.
 - settings와 Auto Sync 상태를 읽는다.
 - Coding Platform별 source resolver로 problem metadata, Accepted Submission 또는 Accepted Editor Snapshot, Sync Deduplication Key를 확정한다.
+- Accepted code와 metadata의 크기·형식 제한을 GitHub client나 Retry storage보다 먼저 적용한다.
 - 같은 Sync Deduplication Key에 대한 storage 기반 in-flight lock을 적용한다.
 - 중복 제출 감지를 적용한다.
 - GitHub commit payload를 만든다.
 - Sync History와 Retry Bundle을 갱신한다.
+- service worker/Chrome lifecycle과 `chrome.alarms`를 사용해 만료 Retry Bundle을 정리한다.
 - content script와 popup에 상태 메시지를 보낸다.
 - 오래 유지되는 in-memory state를 source of truth로 사용하지 않는다.
 
@@ -79,6 +84,7 @@ README.md
 - GitHub Sync Repository, Sync Branch, Git data read API를 대상으로 connection test를 실행한다.
 - Connection test는 test commit이나 branch update 같은 write 작업을 수행하지 않는다.
 - GitHub access/refresh token과 Retry Bundle code가 local storage에 저장된다는 사실을 명시한다.
+- Retry Bundle만 삭제하는 action과 pending Device Flow를 포함한 모든 local data를 삭제하는 action을 제공한다.
 
 ### Popup
 - Auto Sync toggle을 보여준다.
@@ -90,6 +96,7 @@ README.md
 ### Shared Modules
 - 공통 TypeScript 타입을 정의한다.
 - runtime message union을 정의한다.
+- Accepted source code·metadata limit과 runtime payload validator를 정의한다.
 - versioned storage schema를 정의한다.
 - LeetCode/Programmers 언어를 공통 supported language와 대상 path extension으로 매핑한다.
 - Coding Platform policy로 root folder, Solution README path, Solution Catalog path, marker, commit message prefix를 제공한다.
@@ -100,26 +107,30 @@ README.md
 - 외부 API error를 사용자 메시지와 debug 메시지로 normalize한다.
 
 ## Manifest와 권한
-v1 manifest는 최소 권한을 사용한다.
+v1 manifest는 Chrome 102 이상과 최소 권한을 사용한다.
 
-- `permissions`: `storage`
+- `permissions`: `storage`, `alarms`
 - `host_permissions`: `https://leetcode.com/*`, `https://school.programmers.co.kr/*`, `https://github.com/*`, `https://api.github.com/*`
 - content script match: `https://leetcode.com/problems/*`, `https://school.programmers.co.kr/learn/courses/*/lessons/*`
 
-Content script는 문제 페이지에서 Accepted 감지, Programmers Accepted Editor Snapshot 추출, toast 렌더링만 담당한다. LeetCode와 GitHub API 호출은 background service worker에서 수행한다.
+`alarms`는 만료 Retry Bundle을 하루 주기로 정리하는 데만 사용한다. Content script는 문제 페이지에서 Accepted 감지, Programmers Accepted Editor Snapshot 추출, toast 렌더링만 담당한다. LeetCode와 GitHub API 호출은 background service worker에서 수행한다.
 
 ## MV3 Service Worker 제약
 - Background service worker는 언제든 suspend될 수 있으므로 진행 상태를 memory에만 두면 안 된다.
 - settings, in-flight lock, processed Sync Deduplication Key, Sync History, Retry Bundle은 `chrome.storage.local`에 저장하고 재시작 후 복구 가능해야 한다.
 - service worker wake-up 후 storage를 다시 읽어 현재 요청을 판단한다.
 - 중복 방지는 memory cache가 아니라 storage에 저장된 processed Sync Deduplication Key와 in-flight Sync Deduplication Key를 기준으로 한다.
+- 만료 Retry Bundle cleanup은 service worker boot, install/update, Chrome startup과 `retry-bundle-prune` alarm에서 복구 가능해야 한다.
+- Alarm이 유실되었으면 다음 service worker boot에서 같은 이름과 하루 주기로 다시 생성한다.
 
 ## 데이터 흐름
 ```text
 LeetCode page 또는 Programmers page
 → content script가 Accepted 감지
+→ background가 sender surface, page route와 payload shape 검증
 → background가 settings와 Auto Sync 확인
 → background가 Coding Platform source resolver로 problem/source/Sync Deduplication Key 확정
+→ background가 Accepted source code와 metadata 제한 검증
 → background가 Sync Deduplication Key lock 획득
 → background가 solution path, Solution Catalog 갱신, Solution README 갱신, Solution Revision Number 기반 commit message 생성
 → background가 GitHub Git Data API로 commit 생성
@@ -132,6 +143,8 @@ LeetCode page 또는 Programmers page
 - LeetCode 전용 adapter는 URL parsing, Accepted detector, GraphQL metadata/Accepted Submission 조회를 담당한다.
 - Programmers 전용 adapter는 URL parsing, `정답입니다!` detector, Accepted Editor Snapshot 추출을 담당한다.
 - Coding Platform policy는 root path, Solution README path, Solution Catalog path, marker, initial Solution README title, commit message prefix를 제공한다.
+- 공통 Accepted source policy는 code UTF-8 262,144 bytes, title 300 Unicode code points, platform ID/title slug 128자, language 64자, URL 2,048자를 상한으로 사용한다.
+- 공백뿐이거나 제한을 초과한 source는 GitHub 요청과 Retry Bundle 생성 전 non-retryable 실패로 기록한다.
 - background orchestration은 DOM selector나 사이트별 결과 문구를 알면 안 된다.
 - content Coding Platform adapter는 GitHub commit 방법을 알면 안 된다.
 
@@ -277,7 +290,11 @@ README 생성 규칙:
 - Languages cell은 존재하는 solution path를 registry 순서로 나열하고 Solution README 기준 상대 link를 건다.
 
 ## Storage Model
-`chrome.storage.local`을 사용한다.
+Persistent state는 `chrome.storage.local`, 진행 중 Device Flow state는 `chrome.storage.session`을 사용한다.
+
+Background service worker는 시작할 때 `chrome.storage.local.setAccessLevel({ accessLevel: "TRUSTED_CONTEXTS" })`을 실행한다. Runtime listener는 top-level에서 즉시 등록하되 storage를 읽거나 쓰는 handler는 access-level 초기화 Promise를 먼저 기다린다. Content에는 storage object 대신 필요한 최소 DTO만 runtime message로 반환한다.
+
+Storage와 runtime trust boundary의 결정 배경은 `docs/adr/0031-trusted-storage-and-sender-scoped-runtime-ingress.md`를 따른다.
 
 모든 top-level persistent value는 `version` field를 포함한다. 현재 storage schema는 v5이며 malformed state만 해당 key의 empty fallback으로 복구한다.
 
@@ -291,6 +308,11 @@ Keys:
 - `retryBundles`: version, GitHub commit retry가 가능한 Retry Bundle 목록.
 - `syncDeduplicationKeyLocks`: version, 현재 처리 중인 Sync Deduplication Key lock 목록. 각 lock은 생성 시각을 저장하고 10분 TTL을 가진다.
 
+Data deletion:
+- `storage:retry-bundles:clear`는 Retry Bundle을 삭제하고 Sync History의 `retryBundleId`를 `null`로 정리한 뒤 삭제 개수를 반환한다.
+- `storage:clear-all`은 pending Device Flow를 먼저 지우고 모든 `chrome.storage.local` key를 삭제한다. Storage access level과 Chrome alarm은 storage data가 아니므로 유지된다.
+- 두 작업은 idempotent하며 GitHub authorization, App installation과 기존 GitHub commit은 변경하지 않는다.
+
 ## 동시성과 Retry Lifecycle
 - Sync Deduplication Key는 `codingPlatform`, `acceptedSourceId`, problem identifier, language 조합이다.
 - 새 sync 시작 전 10분이 지난 stale in-flight lock을 정리한다.
@@ -298,23 +320,30 @@ Keys:
 - 같은 Sync Deduplication Key가 이미 in-flight이면 새 요청은 중복으로 처리하지 않고 현재 상태를 반환한다.
 - GitHub commit 성공 후에만 processed Sync Deduplication Key를 기록한다.
 - GitHub commit 단계 실패는 processed로 기록하지 않는다.
-- GitHub commit 단계까지 필요한 데이터가 준비된 실패만 Retry Bundle로 저장한다.
+- GitHub commit 단계까지 필요한 데이터가 준비되고 normalized error가 retryable인 실패만 Retry Bundle로 저장한다.
 - Retry Bundle은 solution code가 포함될 수 있으며 최대 20개까지 보관하고 7일이 지난 bundle은 정리한다.
+- 만료 정리는 기존 sync/retry 접근과 함께 service worker boot, install/update, Chrome startup, 하루 주기 `retry-bundle-prune` alarm에서 실행한다.
 - sync 성공 또는 실패가 terminal 상태로 기록되면 in-flight lock을 삭제한다.
 - Retry Bundle retry는 최신 Sync Branch의 Solution Catalog를 다시 읽어 files와 commit message를 재계산한다.
 - Retry 성공 후에는 Retry Bundle을 삭제하고 Sync History를 성공 상태로 갱신한다.
 
+Cleanup과 사용자 삭제 경계의 결정 배경은 `docs/adr/0032-alarm-backed-retry-retention-and-explicit-local-deletion.md`를 따른다.
+
 ## Runtime Messaging
-모든 runtime message는 `src/shared`의 discriminated union 타입을 통과해야 한다.
+모든 runtime message는 `src/shared`의 discriminated union과 message별 runtime validator를 통과해야 한다. `sender.id`는 현재 extension ID와 같아야 하며, `sender.url` 또는 `sender.tab.url`로 실제 surface를 분류한다. Payload의 `surface` field는 권한 근거로 신뢰하지 않는다.
 
-Message categories:
-- content to background: Accepted detected, toast action.
-- popup/options to background: settings read/write, GitHub auth start/read/poll/disconnect, App install page open, repository list, branch list, branch create, connection test, retry.
-- background to content/popup: sync status, Sync History update.
+Surface별 ingress:
 
-`content:accepted-detected`는 `codingPlatform` discriminated union이다. LeetCode payload는 `codingPlatform`, `titleSlug`, `pageUrl`, `detectedAt`을 포함한다. Programmers payload는 `codingPlatform`, `courseId`, `lessonId`, `problemTitle`, `language`, `code`, `pageUrl`, `detectedAt`을 포함한다.
+| Surface | 허용 범위 |
+| --- | --- |
+| Content | `scaffold:ready`, `content:accepted_detected`, `content:toast_action`, `ui:locale:read` |
+| Popup | `scaffold:ready`, `settings:read`, Auto Sync 단일 field의 `settings:write`, `sync-history:read`, `retry-bundles:read`, `sync:retry` |
+| Options | `scaffold:ready`, settings read/write, GitHub auth/App/repository/branch/connection, 두 storage clear message |
+| Background | `sync:status`, `sync-history:updated` broadcast |
 
-Runtime message type은 namespaced kebab-case를 사용한다. Sync History와 Retry Bundle message의 정확한 old/new type string은 Domain Naming Contract의 legacy 대응 표를 따른다.
+`content:accepted_detected`는 `codingPlatform` discriminated union이다. LeetCode payload는 `codingPlatform`, `titleSlug`, `pageUrl`, `detectedAt`을 포함한다. Programmers payload는 `codingPlatform`, `courseId`, `lessonId`, `problemTitle`, `language`, `code`, `pageUrl`, `detectedAt`을 포함한다. Sender tab URL과 payload page URL의 origin과 Coding Platform route parameter가 일치해야 한다.
+
+Legacy runtime alias는 ingress compatibility 전용이다. 새 write path와 내부 호출은 현재 message type만 사용한다.
 
 Content/popup/options로 나가는 message payload에는 GitHub access token, refresh token, device code, LeetCode/Programmers cookie나 session token을 포함하지 않는다. GitHub auth secret은 background가 storage에서 직접 읽는다.
 
@@ -343,17 +372,44 @@ Content/popup/options로 나가는 message payload에는 GitHub access token, re
 - `github_conflict_failed`
 - `malformed_index`
 - `network_failed`
+- `invalid_message`
+- `payload_too_large`
+- `storage_quota_exceeded`
 - `extension_state_unavailable`
 
-Toast는 짧은 메시지만 보여준다. Popup은 상세 메시지와 retry 가능 여부를 보여준다.
+`invalid_message`, `payload_too_large`, `storage_quota_exceeded`는 retryable이 아니다. Storage quota 오류는 Options의 Retry Data 또는 전체 local data 삭제를 recovery action으로 안내한다. Toast는 짧은 메시지만 보여준다. Popup은 상세 메시지와 retry 가능 여부를 보여준다.
+
+## Build와 Distribution
+
+Source build와 release build는 Node.js 22.12.0, npm 10.9.0을 기준으로 한다. `package.json`, lockfile, `.nvmrc`와 CI가 같은 toolchain을 사용한다.
+
+Version contract:
+- Preview package/tag: `MAJOR.MINOR.PATCH-preview.N`, `vMAJOR.MINOR.PATCH-preview.N`.
+- Preview manifest: numeric `MAJOR.MINOR.PATCH.N`, human-readable `version_name`은 package version과 같다.
+- Stable package/manifest: `MAJOR.MINOR.PATCH`. `0.1.0-preview.N` 이후 첫 stable은 Chrome update version이 역행하지 않도록 `0.1.1` 이상이다.
+
+`npm run package:chrome`는 production build를 검증하고 `artifacts/SolveSync-v{package-version}.zip`을 만든다. ZIP은 manifest가 참조하는 compiled asset, icons, `LICENSE`, `THIRD_PARTY_NOTICES.txt`만 root-relative path로 포함한다. File order, timestamp와 metadata를 고정하고 같은 source/toolchain으로 두 번 만든 ZIP byte가 같아야 한다.
+
+GitHub Actions:
+- Pull request와 `main` push는 dependency audit, typecheck, tests와 deterministic package를 검증한다.
+- Package와 manifest version이 일치하는 `v*` tag만 release build를 진행한다.
+- Release job은 public GitHub App client ID/slug를 repository Actions Variables에서 주입한다.
+- Release 결과는 checksum과 provenance attestation을 포함한 draft prerelease로 생성한다.
+- GitHub Actions는 full commit SHA로 pin하고 job별 최소 permissions를 사용한다.
+
+Preview release 공급망 결정은 `docs/adr/0033-reproducible-github-preview-release-pipeline.md`를 따른다.
 
 ## 테스트 전략
 일반 테스트는 Vitest와 in-memory adapter만 사용한다. 실제 GitHub, LeetCode, Programmers 네트워크나 사용자 secret에 의존하지 않는다.
 
 - language/path, Solution Catalog, Solution README, storage, error 같은 pure logic은 빠른 단위 테스트로 검증한다.
 - sync orchestration은 외부 API를 mock하고 최종 commit payload를 검증한다.
+- runtime tests는 sender ID/surface allowlist, payload schema, URL-route 일치와 storage access initialization 순서를 검증한다.
+- Accepted source tests는 UTF-8 262,144-byte 경계값, Unicode title, metadata 제한과 GitHub/Retry 미호출을 검증한다.
+- storage tests는 alarm cleanup, Retry Data 삭제, 전체 local data 삭제와 stale history retry reference 정리를 검증한다.
 - GitHub 인증 변경의 대표 happy path는 연결 해제 후 auth만 삭제되고 repository/branch 설정이 재연결 뒤에도 유지되는지 확인한다.
 - 다중 언어의 대표 happy path는 Programmers 같은 문제의 Swift와 Python3가 각각 solution file로 저장되고 하나의 README row와 Catalog problem entry에 함께 남는지 확인한다.
 - 실제 Device Flow 승인, GitHub App 설치, Coding Platform Accepted 제출은 `docs/MANUAL_VALIDATION.md`의 최소 release smoke로 확인한다.
+- CI는 pinned Node/npm에서 dependency audit, typecheck, tests, production build, content classic-script 검증과 deterministic ZIP 이중 생성을 실행한다.
 
 모든 지원 언어와 실패 조합을 실제 계정이나 브라우저 E2E로 반복하지 않는다. 실제 GitHub repository를 자동 테스트 대상이나 코드 기본값으로 고정하지 않으며, read-only GitHub smoke script도 기본 test suite에 두지 않는다.

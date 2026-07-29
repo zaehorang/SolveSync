@@ -123,7 +123,13 @@ function renderSolutionLink(
 }
 
 function escapeMarkdownTableCell(value: string): string {
-  return value.replace(/\\/g, "\\\\").replace(/\|/g, "\\|").replace(/\n/g, " ");
+  return value
+    .replace(/\\/g, "\\\\")
+    .replace(/\r?\n|\r/g, " ")
+    .replace(/\|/g, "\\|")
+    .replace(/([!`*_[\]])/g, "\\$1")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
 }
 
 function encodeMarkdownLinkDestination(path: string): string {

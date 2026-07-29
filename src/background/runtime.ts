@@ -3,10 +3,17 @@ import {
   RETRY_BUNDLES_READ_TYPE,
   SYNC_HISTORY_READ_TYPE,
   SYNC_HISTORY_UPDATED_TYPE,
+  isRuntimeMessagePayloadTooLarge,
   normalizeRuntimeMessage,
-  type RuntimeMessage
+  type AcceptedDetectedPayload,
+  type RuntimeMessage,
+  type RuntimeMessageType
 } from "../shared/messages";
-import { toPublicSettingsState, type ConnectionStatusCode } from "../shared/storageSchema";
+import {
+  toPublicSettingsState,
+  type ConnectionStatusCode,
+  type PublicSettingsUpdate
+} from "../shared/storageSchema";
 import type { NormalizedError, NormalizedErrorCode } from "../shared/errors";
 import type { SyncRepository, RetryBundle, RetryBundleSummary } from "../shared/types";
 import {
@@ -48,6 +55,7 @@ export interface BackgroundRuntimeOptions {
   authManager?: GitHubAuthManager;
   githubClientFactory?: () => GitHubClient;
   broadcast?: SyncBroadcast;
+  ready?: Promise<void>;
 }
 
 export function registerBackgroundRuntime(options: BackgroundRuntimeOptions = {}): void {
@@ -71,21 +79,36 @@ export function registerBackgroundRuntime(options: BackgroundRuntimeOptions = {}
       githubClientFactory,
       broadcast
     });
+  const ready = options.ready ?? Promise.resolve();
 
   chrome.runtime.onMessage.addListener((rawMessage, sender, sendResponse) => {
-    const message = normalizeRuntimeMessage(rawMessage);
+    void ready
+      .then(async () => {
+        const message = normalizeRuntimeMessage(rawMessage);
 
-    if (message === null) {
-      sendResponse(failure(explicitError("github_commit_failed", "Invalid runtime message.")));
-      return false;
-    }
+        if (message === null) {
+          const code = isRuntimeMessagePayloadTooLarge(rawMessage)
+            ? "payload_too_large"
+            : "invalid_message";
+          return failure(explicitError(code, "Invalid runtime message."));
+        }
 
-    void handleRuntimeMessage(message, sender, {
-      storage,
-      orchestrator,
-      githubClientFactory,
-      authManager
-    })
+        if (!isMessageAllowedFromSender(message, sender)) {
+          return failure(
+            explicitError(
+              "invalid_message",
+              "Runtime message is not allowed from this sender."
+            )
+          );
+        }
+
+        return handleRuntimeMessage(message, sender, {
+          storage,
+          orchestrator,
+          githubClientFactory,
+          authManager
+        });
+      })
       .then((response) => sendResponse(response))
       .catch((error) => sendResponse(failure(normalizeError(error))));
 
@@ -125,6 +148,13 @@ async function handleRuntimeMessage(
       const settings = await context.storage.getSettings();
       const githubAuth = await context.storage.getGitHubAuth();
       return success(toPublicSettingsState(settings, githubAuth));
+    }
+
+    case "ui:locale:read": {
+      const settings = await context.storage.getSettings();
+      return success({
+        uiLanguage: settings.uiLanguage
+      });
     }
 
     case "settings:write": {
@@ -257,9 +287,210 @@ async function handleRuntimeMessage(
       return success(state.bundles.map(toRetryBundleSummary));
     }
 
+    case "storage:retry-bundles:clear":
+      return success({
+        deletedCount: await context.storage.clearRetryBundles()
+      });
+
+    case "storage:clear-all":
+      await context.authManager.disconnect();
+      await context.storage.clearAllLocalData();
+      return success({ cleared: true });
+
     case "sync:status":
     case SYNC_HISTORY_UPDATED_TYPE:
       return success(null);
+  }
+}
+
+type RuntimeSenderSurface = "content" | "options" | "popup" | "background" | "unknown";
+
+const ALLOWED_SENDER_SURFACES: Record<
+  RuntimeMessageType,
+  readonly RuntimeSenderSurface[]
+> = {
+  "scaffold:ready": ["content", "options", "popup", "background"],
+  "content:accepted_detected": ["content"],
+  "content:toast_action": ["content"],
+  "settings:read": ["options", "popup"],
+  "ui:locale:read": ["content"],
+  "settings:write": ["options", "popup"],
+  "github:auth:start": ["options"],
+  "github:auth:read": ["options"],
+  "github:auth:poll": ["options"],
+  "github:auth:disconnect": ["options"],
+  "github:installation:open": ["options"],
+  "github:repositories:list": ["options"],
+  "github:branches:list": ["options"],
+  "github:branch:create": ["options"],
+  "github:connection:test": ["options"],
+  "sync:retry": ["popup"],
+  [SYNC_HISTORY_READ_TYPE]: ["popup"],
+  [RETRY_BUNDLES_READ_TYPE]: ["popup"],
+  "storage:retry-bundles:clear": ["options"],
+  "storage:clear-all": ["options"],
+  "sync:status": ["background"],
+  [SYNC_HISTORY_UPDATED_TYPE]: ["background"]
+};
+
+function isMessageAllowedFromSender(
+  message: RuntimeMessage,
+  sender: chrome.runtime.MessageSender
+): boolean {
+  if (sender.id !== chrome.runtime.id) {
+    return false;
+  }
+
+  const surface = classifyRuntimeSender(sender);
+
+  if (!ALLOWED_SENDER_SURFACES[message.type].includes(surface)) {
+    return false;
+  }
+
+  if (message.type === "scaffold:ready" && message.surface !== surface) {
+    return false;
+  }
+
+  if (
+    message.type === "settings:write" &&
+    surface === "popup" &&
+    !isPopupSettingsUpdate(message.payload.update)
+  ) {
+    return false;
+  }
+
+  return message.type !== "content:accepted_detected" ||
+    isAcceptedPayloadConsistentWithSender(message.payload, sender);
+}
+
+function isPopupSettingsUpdate(update: PublicSettingsUpdate): boolean {
+  return (
+    Object.keys(update).length === 1 &&
+    typeof update.autoSyncEnabled === "boolean"
+  );
+}
+
+function classifyRuntimeSender(
+  sender: chrome.runtime.MessageSender
+): RuntimeSenderSurface {
+  const senderUrl = sender.url ?? sender.tab?.url;
+
+  if (senderUrl === undefined) {
+    return "unknown";
+  }
+
+  try {
+    const url = new URL(senderUrl);
+    if (url.protocol === "chrome-extension:") {
+      if (url.pathname.endsWith("/options/index.html")) {
+        return "options";
+      }
+
+      if (url.pathname.endsWith("/popup/index.html")) {
+        return "popup";
+      }
+
+      if (url.pathname.endsWith("/background/index.js")) {
+        return "background";
+      }
+    }
+  } catch {
+    return "unknown";
+  }
+
+  return sender.tab !== undefined && isSupportedContentUrl(senderUrl)
+    ? "content"
+    : "unknown";
+}
+
+function isAcceptedPayloadConsistentWithSender(
+  payload: AcceptedDetectedPayload,
+  sender: chrome.runtime.MessageSender
+): boolean {
+  const senderUrl = parseUrl(sender.url ?? sender.tab?.url);
+  const pageUrl = parseUrl(payload.pageUrl);
+
+  if (senderUrl === null || pageUrl === null || senderUrl.origin !== pageUrl.origin) {
+    return false;
+  }
+
+  if (payload.codingPlatform === "leetcode") {
+    return (
+      senderUrl.hostname === "leetcode.com" &&
+      pageUrl.hostname === "leetcode.com" &&
+      readLeetCodeTitleSlug(senderUrl.pathname) === payload.titleSlug &&
+      readLeetCodeTitleSlug(pageUrl.pathname) === payload.titleSlug
+    );
+  }
+
+  const senderRoute = readProgrammersRoute(senderUrl);
+  const pageRoute = readProgrammersRoute(pageUrl);
+
+  return (
+    senderRoute !== null &&
+    pageRoute !== null &&
+    senderRoute.courseId === payload.courseId &&
+    senderRoute.lessonId === payload.lessonId &&
+    pageRoute.courseId === payload.courseId &&
+    pageRoute.lessonId === payload.lessonId
+  );
+}
+
+function isSupportedContentUrl(value: string | undefined): boolean {
+  const url = parseUrl(value);
+
+  return (
+    url !== null &&
+    ((url.hostname === "leetcode.com" && readLeetCodeTitleSlug(url.pathname) !== null) ||
+      (url.hostname === "school.programmers.co.kr" &&
+        readProgrammersRoute(url) !== null))
+  );
+}
+
+function readLeetCodeTitleSlug(pathname: string): string | null {
+  const match = pathname.match(/^\/problems\/([^/?#]+)/u);
+  return match?.[1] === undefined ? null : safeDecodeURIComponent(match[1]);
+}
+
+function readProgrammersRoute(
+  url: URL
+): { courseId: string; lessonId: string } | null {
+  if (url.hostname !== "school.programmers.co.kr") {
+    return null;
+  }
+
+  const match = url.pathname.match(
+    /^\/learn\/courses\/([^/?#]+)\/lessons\/([^/?#]+)/u
+  );
+
+  if (match?.[1] === undefined || match[2] === undefined) {
+    return null;
+  }
+
+  return {
+    courseId: safeDecodeURIComponent(match[1]),
+    lessonId: safeDecodeURIComponent(match[2])
+  };
+}
+
+function parseUrl(value: string | undefined): URL | null {
+  if (value === undefined) {
+    return null;
+  }
+
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" ? url : null;
+  } catch {
+    return null;
+  }
+}
+
+function safeDecodeURIComponent(value: string): string {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return "";
   }
 }
 

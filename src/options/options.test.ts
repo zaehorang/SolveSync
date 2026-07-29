@@ -95,6 +95,20 @@ describe("options state helpers", () => {
     expect(html).not.toContain('type="password"');
   });
 
+  it("requires inline confirmation before deleting retry or all local data", () => {
+    const html = readFileSync(new URL("./index.html", import.meta.url), "utf8");
+    const source = readFileSync(new URL("./index.ts", import.meta.url), "utf8");
+
+    expect(html).toContain('id="delete-retry-data"');
+    expect(html).toContain('id="delete-retry-confirmation"');
+    expect(html).toContain('id="confirm-delete-retry-data"');
+    expect(html).toContain('id="delete-all-data"');
+    expect(html).toContain('id="delete-all-confirmation"');
+    expect(html).toContain('id="confirm-delete-all-data"');
+    expect(source).toContain('type: "storage:retry-bundles:clear"');
+    expect(source).toContain('type: "storage:clear-all"');
+  });
+
   it("uses the repository default branch when no saved branch is selected", () => {
     const repository = makeRepository("octo/algorithms", "main");
     const branches = [

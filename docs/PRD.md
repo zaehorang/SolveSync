@@ -44,7 +44,7 @@ TypeScript, runtime message, storage schema는 같은 용어 체계를 사용한
 - 원하는 Sync Branch가 없으면 사용자는 명시적인 Create branch action으로 repository default branch HEAD에서 새 branch를 만들 수 있다.
 - Options는 필수 입력값 누락과 명백히 잘못된 Sync Repository/Sync Branch 상태를 저장 전에 표시한다.
 - 사용자는 connection test를 실행한다.
-- 확장은 선택한 Sync Repository와 Sync Branch로 sync할 수 있는지 확인한다. Connection test는 test commit을 만들지 않는다.
+- 확장은 선택한 Sync Repository와 Sync Branch의 repository, branch, Git data read access를 확인한다. Connection test는 test commit이나 branch update를 만들지 않으며 branch protection 또는 실제 write 가능성을 보장하지 않는다.
 - 사용자는 connection test 성공 여부와 무관하게 설정을 저장할 수 있다.
 - 테스트가 실패하면 Options는 login required, authorization pending/denied/expired, App installation required, token refresh failed, repository not found, branch not found, branch create failed, rate limited, network failed 중 가장 가까운 복구 가능한 상태를 보여준다.
 
@@ -83,9 +83,17 @@ TypeScript, runtime message, storage schema는 같은 용어 체계를 사용한
 - 확장은 사용자가 이유를 알 수 있도록 `Auto Sync is off` 상태를 보여줄 수 있다.
 - v1은 일반 수동 sync action을 제공하지 않는다. Popup의 Retry는 retry 가능한 실패 항목에만 제공된다.
 
+### 로컬 데이터 관리
+- 사용자는 Options에서 Retry Data만 삭제할 수 있다.
+- Retry Data를 삭제하면 Retry Bundle과 Sync History의 retry action은 제거되지만 Sync History 자체, GitHub auth와 설정은 유지된다.
+- 사용자는 Options에서 모든 SolveSync local data를 삭제할 수 있다.
+- 전체 삭제는 GitHub auth, 진행 중 Device Flow, 설정, Sync History, Retry Bundle, lock과 processed Sync Deduplication Key를 현재 Chrome profile에서 제거한다.
+- 두 삭제 action은 실행 전에 범위와 비가역성을 보여주는 inline confirmation을 요구한다.
+- Local data 삭제나 extension 제거는 GitHub App 설치, authorization 또는 이미 생성된 GitHub commit을 자동으로 제거하지 않는다.
+
 ## MVP 기능
 - Local unpacked Chrome extension.
-- GitHub App Device Flow 로그인, App 설치, repository picker, branch picker, branch 생성, Auto Sync, connection test를 설정하는 Options 페이지.
+- GitHub App Device Flow 로그인, App 설치, repository picker, branch picker, branch 생성, Auto Sync, connection test와 local data 삭제를 제공하는 Options 페이지.
 - Auto Sync 토글, 최근 20개 기록, 실패 상세, retry를 제공하는 Popup.
 - LeetCode와 Programmers Accepted 감지와 toast feedback을 담당하는 content script.
 - LeetCode Accepted 제출의 문제 메타데이터와 solution code 조회.
@@ -130,6 +138,8 @@ TypeScript, runtime message, storage schema는 같은 용어 체계를 사용한
 - Sync Repository 폴더가 없어도 sync가 실패하지 않는다.
 - Sync Repository는 코드 기본값이 아니라 Options에서 선택한 repository여야 한다.
 - 존재하지 않는 Sync Branch는 자동 생성되지 않고, 사용자가 명시적으로 Create branch를 실행한 경우에만 생성된다.
+- 제한을 초과하거나 유효하지 않은 Accepted source는 GitHub 요청과 Retry Bundle 생성 전에 non-retryable 실패로 기록된다.
+- Retry Data 삭제 후 Sync History는 남되 retry action은 제거되고, 전체 local data 삭제 후 Options는 초기 설정 상태를 보여준다.
 - 일반적인 실패는 DevTools 없이 Popup에서 원인과 다음 행동을 이해할 수 있다.
 - Chrome unpacked extension에서 GitHub Device Flow와 App 설치, repository/branch 선택, Programmers 동일 문제 다중 언어 sync, GitHub 재연결 후 설정 보존, LeetCode 대표 Accepted sync happy path를 수동 검증할 수 있다.
 
@@ -137,9 +147,16 @@ TypeScript, runtime message, storage schema는 같은 용어 체계를 사용한
 - GitHub App client ID와 slug는 공개 build-time 설정이며 client secret은 사용하거나 저장하지 않는다.
 - Device Flow의 pending device code는 `chrome.storage.session`에만 저장한다.
 - GitHub access token과 refresh token은 `chrome.storage.local`의 별도 auth state에 저장하고 public settings/runtime 응답에는 포함하지 않는다.
+- `chrome.storage.local`은 content script가 직접 읽을 수 없도록 trusted extension context로 제한한다.
+- Runtime ingress는 extension ID, 실제 sender surface, message별 payload shape와 Coding Platform page URL을 검증한다.
+- Content script는 전체 public settings가 아니라 UI locale preference만 background를 통해 읽는다.
 - access token은 만료 5분 전 또는 GitHub API 401 응답 시 refresh token으로 한 번 갱신한다. refresh 실패나 refresh token 만료 시 auth state를 삭제하고 재로그인을 요구한다.
 - 확장은 GitHub session token과 Retry Bundle code가 local storage에 저장된다는 사실을 UI에서 명시해야 한다.
-- Retry Bundle은 최대 20개, 최대 7일 보관하고 retry 성공 후 삭제한다.
+- Retry Bundle은 retry 가능한 실패에만 만들고 최대 20개, 생성 후 최대 7일 보관하며 retry 성공 후 삭제한다.
+- 만료 Retry Bundle은 service worker/Chrome 시작, install/update, 관련 storage 접근과 하루 주기 cleanup에서 제거한다.
+- Accepted solution code는 UTF-8 기준 최대 262,144 bytes다. 공백뿐인 code와 제한 초과 code는 GitHub 요청이나 Retry Bundle 생성 전에 거부한다.
+- Accepted source metadata는 title 300 Unicode code points, platform ID/title slug 128자, language 64자, URL 2,048자를 넘지 않는다.
+- 사용자는 Retry Data와 모든 SolveSync local data를 Options에서 명시적으로 삭제할 수 있어야 한다.
 - solution code는 의도한 sync 흐름에서 설정된 Sync Repository로만 전송된다.
 - LeetCode와 Programmers 문제 설명 전문은 저장하지 않는다.
 - test fixture에는 실제 token, cookie, private code를 넣지 않는다.

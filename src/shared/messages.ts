@@ -1,12 +1,34 @@
-import type { NormalizedError } from "./errors";
+import { isNormalizedError, type NormalizedError } from "./errors";
 import type {
   RetryBundleSummary,
   SyncHistoryEntry,
   SyncStatus
 } from "./types";
 import type { SyncRepository } from "./types";
-import { isPlainRecord } from "./types";
-import type { PublicSettingsUpdate, SyncHistoryState } from "./storageSchema";
+import {
+  isPlainRecord,
+  isSyncBranch,
+  isSyncHistoryEntry,
+  isSyncRepository,
+  isSyncStatus
+} from "./types";
+import {
+  isConnectionStatus,
+  parseSyncHistoryState,
+  type PublicSettingsUpdate,
+  type SyncHistoryState
+} from "./storageSchema";
+import type { UiLanguagePreference } from "./i18n";
+import {
+  MAX_ACCEPTED_CODE_BYTES,
+  MAX_ACCEPTED_LANGUAGE_LENGTH,
+  MAX_ACCEPTED_PLATFORM_ID_LENGTH,
+  MAX_ACCEPTED_TITLE_SLUG_LENGTH,
+  acceptedCodeByteLength,
+  isAcceptedHttpsUrlWithinLimit,
+  isAcceptedTextWithinLimit,
+  isAcceptedTitleWithinLimit
+} from "./acceptedSourceLimits";
 
 export type ExtensionSurface = "background" | "content" | "options" | "popup";
 
@@ -75,7 +97,18 @@ export interface ToastActionMessage {
   };
 }
 
-export type ContentToBackgroundMessage = AcceptedDetectedMessage | ToastActionMessage;
+export interface UiLocaleReadMessage {
+  type: "ui:locale:read";
+}
+
+export interface UiLocaleReadResponse {
+  uiLanguage: UiLanguagePreference;
+}
+
+export type ContentToBackgroundMessage =
+  | AcceptedDetectedMessage
+  | ToastActionMessage
+  | UiLocaleReadMessage;
 
 export interface SettingsReadMessage {
   type: "settings:read";
@@ -158,6 +191,14 @@ export interface RetryBundlesReadMessage {
   type: typeof RETRY_BUNDLES_READ_TYPE;
 }
 
+export interface StorageRetryBundlesClearMessage {
+  type: "storage:retry-bundles:clear";
+}
+
+export interface StorageClearAllMessage {
+  type: "storage:clear-all";
+}
+
 export type PopupOptionsToBackgroundMessage =
   | SettingsReadMessage
   | SettingsWriteMessage
@@ -172,7 +213,9 @@ export type PopupOptionsToBackgroundMessage =
   | ConnectionTestMessage
   | RetrySyncMessage
   | SyncHistoryReadMessage
-  | RetryBundlesReadMessage;
+  | RetryBundlesReadMessage
+  | StorageRetryBundlesClearMessage
+  | StorageClearAllMessage;
 
 export type RetryBundlesReadResponse = RetryBundleSummary[];
 export type SyncHistoryReadResponse = SyncHistoryEntry[];
@@ -208,6 +251,7 @@ export const RUNTIME_MESSAGE_TYPES = [
   "content:accepted_detected",
   "content:toast_action",
   "settings:read",
+  "ui:locale:read",
   "settings:write",
   "github:auth:start",
   "github:auth:read",
@@ -221,6 +265,8 @@ export const RUNTIME_MESSAGE_TYPES = [
   "sync:retry",
   SYNC_HISTORY_READ_TYPE,
   RETRY_BUNDLES_READ_TYPE,
+  "storage:retry-bundles:clear",
+  "storage:clear-all",
   "sync:status",
   SYNC_HISTORY_UPDATED_TYPE
 ] as const satisfies readonly RuntimeMessage["type"][];
@@ -249,6 +295,22 @@ export function isRuntimeMessage(value: unknown): value is RuntimeMessage {
   return normalizeRuntimeMessage(value) !== null;
 }
 
+export function isRuntimeMessagePayloadTooLarge(raw: unknown): boolean {
+  if (
+    !isPlainRecord(raw) ||
+    raw.type !== "content:accepted_detected" ||
+    !isPlainRecord(raw.payload)
+  ) {
+    return false;
+  }
+
+  return (
+    raw.payload.codingPlatform === "programmers" &&
+    typeof raw.payload.code === "string" &&
+    acceptedCodeByteLength(raw.payload.code) > MAX_ACCEPTED_CODE_BYTES
+  );
+}
+
 export function normalizeRuntimeMessage(raw: unknown): RuntimeMessage | null {
   if (!isPlainRecord(raw) || typeof raw.type !== "string") {
     return null;
@@ -262,21 +324,27 @@ export function normalizeRuntimeMessage(raw: unknown): RuntimeMessage | null {
     return normalizeRetrySyncMessage(raw);
   }
 
+  if (raw.type === "scaffold:ready") {
+    return normalizeScaffoldReadyMessage(raw);
+  }
+
   if (raw.type === "content:toast_action") {
     return normalizeToastActionMessage(raw);
   }
 
   if (raw.type === LEGACY_HISTORY_READ_TYPE) {
-    return {
+    return normalizeSyncHistoryReadMessage({
       ...raw,
       type: SYNC_HISTORY_READ_TYPE
-    } as SyncHistoryReadMessage;
+    });
   }
 
   if (raw.type === LEGACY_RETRY_PAYLOADS_READ_TYPE) {
-    return {
-      type: RETRY_BUNDLES_READ_TYPE
-    };
+    return hasOnlyKeys(raw, ["type"])
+      ? {
+          type: RETRY_BUNDLES_READ_TYPE
+        }
+      : null;
   }
 
   if (raw.type === LEGACY_HISTORY_UPDATED_TYPE) {
@@ -287,6 +355,34 @@ export function normalizeRuntimeMessage(raw: unknown): RuntimeMessage | null {
     return normalizeSyncHistoryUpdatedMessage(raw, "syncHistory");
   }
 
+  if (raw.type === "content:accepted_detected") {
+    return normalizeAcceptedDetectedMessage(raw);
+  }
+
+  if (raw.type === "settings:write") {
+    return normalizeSettingsWriteMessage(raw);
+  }
+
+  if (raw.type === "github:repositories:list") {
+    return normalizeRepositoryListMessage(raw);
+  }
+
+  if (raw.type === "github:branches:list") {
+    return normalizeBranchListMessage(raw);
+  }
+
+  if (raw.type === "github:branch:create") {
+    return normalizeBranchCreateMessage(raw);
+  }
+
+  if (raw.type === "github:connection:test") {
+    return normalizeConnectionTestMessage(raw);
+  }
+
+  if (raw.type === SYNC_HISTORY_READ_TYPE) {
+    return normalizeSyncHistoryReadMessage(raw);
+  }
+
   if (raw.type === "sync:status") {
     return normalizeSyncStatusMessage(raw);
   }
@@ -295,13 +391,241 @@ export function normalizeRuntimeMessage(raw: unknown): RuntimeMessage | null {
     return null;
   }
 
-  return raw as unknown as RuntimeMessage;
+  return hasOnlyKeys(raw, ["type"]) ? (raw as unknown as RuntimeMessage) : null;
+}
+
+const MAX_RUNTIME_ID_LENGTH = 256;
+
+function normalizeScaffoldReadyMessage(
+  raw: Record<string, unknown>
+): ScaffoldReadyMessage | null {
+  return hasOnlyKeys(raw, ["type", "surface"]) &&
+    (raw.surface === "background" ||
+      raw.surface === "content" ||
+      raw.surface === "options" ||
+      raw.surface === "popup")
+    ? (raw as unknown as ScaffoldReadyMessage)
+    : null;
+}
+
+function normalizeAcceptedDetectedMessage(
+  raw: Record<string, unknown>
+): AcceptedDetectedMessage | null {
+  const payload = raw.payload;
+
+  if (!hasOnlyKeys(raw, ["type", "payload"]) || !isPlainRecord(payload)) {
+    return null;
+  }
+
+  if (payload.codingPlatform === "leetcode") {
+    if (
+      !hasOnlyKeys(payload, ["codingPlatform", "titleSlug", "pageUrl", "detectedAt"]) ||
+      !isAcceptedTextWithinLimit(
+        payload.titleSlug,
+        MAX_ACCEPTED_TITLE_SLUG_LENGTH
+      ) ||
+      !isAcceptedHttpsUrlWithinLimit(payload.pageUrl) ||
+      !isIsoDateString(payload.detectedAt)
+    ) {
+      return null;
+    }
+
+    return raw as unknown as AcceptedDetectedMessage;
+  }
+
+  if (payload.codingPlatform !== "programmers") {
+    return null;
+  }
+
+  if (
+    !hasOnlyKeys(payload, [
+      "codingPlatform",
+      "courseId",
+      "lessonId",
+      "problemTitle",
+      "language",
+      "code",
+      "pageUrl",
+      "detectedAt"
+    ]) ||
+    !isAcceptedTextWithinLimit(
+      payload.courseId,
+      MAX_ACCEPTED_PLATFORM_ID_LENGTH
+    ) ||
+    !isAcceptedTextWithinLimit(
+      payload.lessonId,
+      MAX_ACCEPTED_PLATFORM_ID_LENGTH
+    ) ||
+    !isAcceptedTitleWithinLimit(payload.problemTitle) ||
+    !isAcceptedTextWithinLimit(
+      payload.language,
+      MAX_ACCEPTED_LANGUAGE_LENGTH
+    ) ||
+    typeof payload.code !== "string" ||
+    payload.code.length === 0 ||
+    !isAcceptedHttpsUrlWithinLimit(payload.pageUrl) ||
+    !isIsoDateString(payload.detectedAt)
+  ) {
+    return null;
+  }
+
+  return raw as unknown as AcceptedDetectedMessage;
+}
+
+function normalizeSettingsWriteMessage(
+  raw: Record<string, unknown>
+): SettingsWriteMessage | null {
+  const payload = raw.payload;
+
+  if (
+    !hasOnlyKeys(raw, ["type", "payload"]) ||
+    !isPlainRecord(payload) ||
+    !hasOnlyKeys(payload, ["update"]) ||
+    !isPlainRecord(payload.update)
+  ) {
+    return null;
+  }
+
+  const update = payload.update;
+  if (
+    Object.keys(update).length === 0 ||
+    !hasOnlyKeys(update, [
+      "syncRepository",
+      "syncBranch",
+      "autoSyncEnabled",
+      "uiLanguage",
+      "connectionStatus"
+    ]) ||
+    (update.syncRepository !== undefined &&
+      update.syncRepository !== null &&
+      !isSyncRepository(update.syncRepository)) ||
+    (update.syncBranch !== undefined &&
+      update.syncBranch !== null &&
+      !isSyncBranch(update.syncBranch)) ||
+    (update.autoSyncEnabled !== undefined &&
+      typeof update.autoSyncEnabled !== "boolean") ||
+    (update.uiLanguage !== undefined &&
+      update.uiLanguage !== "system" &&
+      update.uiLanguage !== "en" &&
+      update.uiLanguage !== "ko") ||
+    (update.connectionStatus !== undefined &&
+      !isConnectionStatus(update.connectionStatus))
+  ) {
+    return null;
+  }
+
+  return raw as unknown as SettingsWriteMessage;
+}
+
+function normalizeRepositoryListMessage(
+  raw: Record<string, unknown>
+): RepositoryListMessage | null {
+  const payload = raw.payload;
+
+  if (
+    !hasOnlyKeys(raw, ["type", "payload"]) ||
+    !isPlainRecord(payload) ||
+    !hasOnlyKeys(payload, ["query", "page", "perPage"]) ||
+    !(
+      payload.query === null ||
+      (typeof payload.query === "string" && payload.query.length <= 256)
+    ) ||
+    !isIntegerInRange(payload.page, 1, 10_000) ||
+    !isIntegerInRange(payload.perPage, 1, 100)
+  ) {
+    return null;
+  }
+
+  return raw as unknown as RepositoryListMessage;
+}
+
+function normalizeBranchListMessage(
+  raw: Record<string, unknown>
+): BranchListMessage | null {
+  return normalizeRepositoryPayloadMessage(raw, ["repository"]) as BranchListMessage | null;
+}
+
+function normalizeBranchCreateMessage(
+  raw: Record<string, unknown>
+): BranchCreateMessage | null {
+  const normalized = normalizeRepositoryPayloadMessage(raw, [
+    "repository",
+    "branchName"
+  ]);
+
+  if (
+    normalized === null ||
+    !isPlainRecord(normalized.payload) ||
+    !isValidBranchName(normalized.payload.branchName)
+  ) {
+    return null;
+  }
+
+  return raw as unknown as BranchCreateMessage;
+}
+
+function normalizeConnectionTestMessage(
+  raw: Record<string, unknown>
+): ConnectionTestMessage | null {
+  const normalized = normalizeRepositoryPayloadMessage(raw, [
+    "repository",
+    "branchName"
+  ]);
+
+  if (
+    normalized === null ||
+    !isPlainRecord(normalized.payload) ||
+    !isValidBranchName(normalized.payload.branchName)
+  ) {
+    return null;
+  }
+
+  return raw as unknown as ConnectionTestMessage;
+}
+
+function normalizeRepositoryPayloadMessage(
+  raw: Record<string, unknown>,
+  payloadKeys: readonly string[]
+): Record<string, unknown> | null {
+  const payload = raw.payload;
+
+  if (
+    !hasOnlyKeys(raw, ["type", "payload"]) ||
+    !isPlainRecord(payload) ||
+    !hasOnlyKeys(payload, payloadKeys) ||
+    !isSyncRepository(payload.repository)
+  ) {
+    return null;
+  }
+
+  return raw;
+}
+
+function normalizeSyncHistoryReadMessage(
+  raw: Record<string, unknown>
+): SyncHistoryReadMessage | null {
+  const payload = raw.payload;
+
+  if (
+    !hasOnlyKeys(raw, ["type", "payload"]) ||
+    !isPlainRecord(payload) ||
+    !hasOnlyKeys(payload, ["limit"]) ||
+    !isIntegerInRange(payload.limit, 0, 100)
+  ) {
+    return null;
+  }
+
+  return raw as unknown as SyncHistoryReadMessage;
 }
 
 function normalizeRetrySyncMessage(raw: Record<string, unknown>): RetrySyncMessage | null {
   const payload = raw.payload;
 
-  if (!isPlainRecord(payload)) {
+  if (
+    !hasOnlyKeys(raw, ["type", "payload"]) ||
+    !isPlainRecord(payload) ||
+    !hasOnlyKeys(payload, ["retryBundleId", "retryPayloadId"])
+  ) {
     return null;
   }
 
@@ -310,7 +634,7 @@ function normalizeRetrySyncMessage(raw: Record<string, unknown>): RetrySyncMessa
       ? payload.retryBundleId
       : payload.retryPayloadId;
 
-  if (typeof retryBundleId !== "string") {
+  if (!isBoundedNonEmptyString(retryBundleId, MAX_RUNTIME_ID_LENGTH)) {
     return null;
   }
 
@@ -327,7 +651,16 @@ function normalizeToastActionMessage(
 ): ToastActionMessage | null {
   const payload = raw.payload;
 
-  if (!isPlainRecord(payload)) {
+  if (
+    !hasOnlyKeys(raw, ["type", "payload"]) ||
+    !isPlainRecord(payload) ||
+    !hasOnlyKeys(payload, [
+      "action",
+      "syncHistoryEntryId",
+      "recordId",
+      "retryBundleId"
+    ])
+  ) {
     return null;
   }
 
@@ -342,13 +675,34 @@ function normalizeToastActionMessage(
       : payload.recordId;
   const retryBundleId = payload.retryBundleId;
 
+  if (
+    (payload.syncHistoryEntryId !== undefined &&
+      payload.syncHistoryEntryId !== null &&
+      !isBoundedNonEmptyString(
+        payload.syncHistoryEntryId,
+        MAX_RUNTIME_ID_LENGTH
+      )) ||
+    (payload.recordId !== undefined &&
+      payload.recordId !== null &&
+      !isBoundedNonEmptyString(payload.recordId, MAX_RUNTIME_ID_LENGTH)) ||
+    (syncHistoryEntryId !== undefined &&
+      syncHistoryEntryId !== null &&
+      !isBoundedNonEmptyString(syncHistoryEntryId, MAX_RUNTIME_ID_LENGTH)) ||
+    (retryBundleId !== undefined &&
+      retryBundleId !== null &&
+      !isBoundedNonEmptyString(retryBundleId, MAX_RUNTIME_ID_LENGTH))
+  ) {
+    return null;
+  }
+
   return {
     type: "content:toast_action",
     payload: {
       action,
       syncHistoryEntryId:
-        typeof syncHistoryEntryId === "string" ? syncHistoryEntryId : null,
-      retryBundleId: typeof retryBundleId === "string" ? retryBundleId : null
+        syncHistoryEntryId === undefined ? null : syncHistoryEntryId,
+      retryBundleId:
+        retryBundleId === undefined ? null : retryBundleId
     }
   };
 }
@@ -369,20 +723,33 @@ function normalizeSyncStatusMessage(
 ): SyncStatusMessage | null {
   const payload = raw.payload;
 
-  if (!isPlainRecord(payload)) {
+  if (
+    !hasOnlyKeys(raw, ["type", "payload"]) ||
+    !isPlainRecord(payload) ||
+    !hasOnlyKeys(payload, ["status", "syncHistoryEntry", "record", "error"])
+  ) {
     return null;
   }
 
   const syncHistoryEntry =
     payload.syncHistoryEntry === undefined ? payload.record : payload.syncHistoryEntry;
 
+  if (
+    !isSyncStatus(payload.status) ||
+    !(syncHistoryEntry === null || isSyncHistoryEntry(syncHistoryEntry)) ||
+    !(payload.error === null || isNormalizedError(payload.error))
+  ) {
+    return null;
+  }
+
   return {
     type: "sync:status",
     payload: {
-      ...payload,
-      syncHistoryEntry
+      status: payload.status,
+      syncHistoryEntry,
+      error: payload.error
     }
-  } as SyncStatusMessage;
+  };
 }
 
 function normalizeSyncHistoryUpdatedMessage(
@@ -391,7 +758,11 @@ function normalizeSyncHistoryUpdatedMessage(
 ): SyncHistoryUpdatedMessage | null {
   const payload = raw.payload;
 
-  if (!isPlainRecord(payload)) {
+  if (
+    !hasOnlyKeys(raw, ["type", "payload"]) ||
+    !isPlainRecord(payload) ||
+    !hasOnlyKeys(payload, ["syncHistory", "history"])
+  ) {
     return null;
   }
 
@@ -400,17 +771,50 @@ function normalizeSyncHistoryUpdatedMessage(
       ? payload.syncHistory ?? payload.history
       : payload.history ?? payload.syncHistory;
 
-  if (syncHistory === undefined) {
+  const parsedSyncHistory = parseSyncHistoryState(syncHistory);
+  if (parsedSyncHistory === null) {
     return null;
   }
 
   return {
     type: SYNC_HISTORY_UPDATED_TYPE,
     payload: {
-      syncHistory: syncHistory as SyncHistoryState
+      syncHistory: parsedSyncHistory
     }
   };
 }
+
+function hasOnlyKeys(
+  value: Record<string, unknown>,
+  allowedKeys: readonly string[]
+): boolean {
+  return Object.keys(value).every((key) => allowedKeys.includes(key));
+}
+
+function isBoundedNonEmptyString(value: unknown, maxLength: number): value is string {
+  return typeof value === "string" && value.trim().length > 0 && value.length <= maxLength;
+}
+
+function isIsoDateString(value: unknown): value is string {
+  return typeof value === "string" && Number.isFinite(Date.parse(value));
+}
+
+function isIntegerInRange(value: unknown, min: number, max: number): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value >= min && value <= max;
+}
+
+function isValidBranchName(value: unknown): value is string {
+  return (
+    isBoundedNonEmptyString(value, 255) &&
+    !/[\u0000-\u0020\u007f~^:?*[\]\\]/u.test(value) &&
+    !value.startsWith("/") &&
+    !value.endsWith("/") &&
+    !value.endsWith(".") &&
+    !value.includes("..") &&
+    !value.includes("@{")
+  );
+}
+
 
 export function hasForbiddenMessageSecretKey(value: unknown): boolean {
   return hasForbiddenMessageSecretKeyInternal(value, new WeakSet<object>());

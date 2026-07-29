@@ -29,6 +29,17 @@ import type {
 } from "../shared/messages";
 import { SYNC_HISTORY_UPDATED_TYPE } from "../shared/messages";
 import {
+  MAX_ACCEPTED_CODE_BYTES,
+  MAX_ACCEPTED_LANGUAGE_LENGTH,
+  MAX_ACCEPTED_PLATFORM_ID_LENGTH,
+  MAX_ACCEPTED_TITLE_SLUG_LENGTH,
+  acceptedCodeByteLength,
+  isAcceptedCodeWithinLimit,
+  isAcceptedHttpsUrlWithinLimit,
+  isAcceptedTextWithinLimit,
+  isAcceptedTitleWithinLimit
+} from "../shared/acceptedSourceLimits";
+import {
   RETRY_BUNDLE_TTL_MS,
   type ExtensionStorage
 } from "./storage";
@@ -398,8 +409,13 @@ export function createSyncOrchestrator(
       return recordAndBroadcast(syncHistoryEntry, target);
     } catch (error) {
       const normalized = normalizeError(error);
-      const retryBundle = makeRetryBundle(prepared, normalized, now());
-      await options.storage.saveRetryBundle(retryBundle, retryBundle.createdAt);
+      const retryBundle = normalized.retryable
+        ? makeRetryBundle(prepared, normalized, now())
+        : null;
+
+      if (retryBundle !== null) {
+        await options.storage.saveRetryBundle(retryBundle, retryBundle.createdAt);
+      }
 
       const syncHistoryEntry = makeSyncHistoryEntry({
         status: "failed",
@@ -414,8 +430,8 @@ export function createSyncOrchestrator(
         syncBranchName: prepared.syncBranch.name,
         solutionPath: prepared.solutionPath,
         error: normalized,
-        retryBundleId: retryBundle.id,
-        timestamp: retryBundle.createdAt
+        retryBundleId: retryBundle?.id ?? null,
+        timestamp: retryBundle?.createdAt ?? now()
       });
 
       return recordAndBroadcast(syncHistoryEntry, target);
@@ -439,6 +455,35 @@ export function createSyncOrchestrator(
       options.leetcode.fetchProblemMetadata(titleSlug),
       options.leetcode.fetchLatestAcceptedSubmission(titleSlug)
     ]);
+    const validationError = validateLeetCodeSource(problem, accepted.submission);
+
+    if (validationError !== null) {
+      return {
+        kind: "extract_failed",
+        titleSlug: isAcceptedTextWithinLimit(
+          problem.titleSlug,
+          MAX_ACCEPTED_TITLE_SLUG_LENGTH
+        )
+          ? problem.titleSlug
+          : titleSlug,
+        problemTitle: isAcceptedTitleWithinLimit(problem.title)
+          ? problem.title
+          : null,
+        problemFrontendId: isAcceptedTextWithinLimit(
+          problem.frontendId,
+          MAX_ACCEPTED_PLATFORM_ID_LENGTH
+        )
+          ? problem.frontendId
+          : null,
+        language: isAcceptedTextWithinLimit(
+          accepted.submission.language,
+          MAX_ACCEPTED_LANGUAGE_LENGTH
+        )
+          ? accepted.submission.language
+          : "",
+        error: validationError
+      };
+    }
 
     if (!accepted.syncable) {
       return {
@@ -816,6 +861,53 @@ function resolveProgrammersSource(
     };
   }
 
+  if (!isAcceptedCodeWithinLimit(code)) {
+    return {
+      kind: "extract_failed",
+      titleSlug,
+      problemTitle: title,
+      problemFrontendId: lessonId,
+      language,
+      error: explicitError(
+        "payload_too_large",
+        "Programmers accepted solution exceeds the 256 KiB limit."
+      )
+    };
+  }
+
+  if (
+    !isAcceptedTextWithinLimit(
+      payload.courseId,
+      MAX_ACCEPTED_PLATFORM_ID_LENGTH
+    ) ||
+    !isAcceptedTextWithinLimit(lessonId, MAX_ACCEPTED_PLATFORM_ID_LENGTH) ||
+    !isAcceptedTitleWithinLimit(title) ||
+    !isAcceptedTextWithinLimit(language, MAX_ACCEPTED_LANGUAGE_LENGTH) ||
+    !isAcceptedHttpsUrlWithinLimit(payload.pageUrl)
+  ) {
+    return {
+      kind: "extract_failed",
+      titleSlug,
+      problemTitle: isAcceptedTitleWithinLimit(title) ? title : null,
+      problemFrontendId: isAcceptedTextWithinLimit(
+        lessonId,
+        MAX_ACCEPTED_PLATFORM_ID_LENGTH
+      )
+        ? lessonId
+        : null,
+      language: isAcceptedTextWithinLimit(
+        language,
+        MAX_ACCEPTED_LANGUAGE_LENGTH
+      )
+        ? language
+        : "",
+      error: explicitError(
+        "invalid_message",
+        "Programmers accepted source metadata exceeds the supported limits."
+      )
+    };
+  }
+
   const supportedLanguage = mapProgrammersLanguage(language);
   const codeHash = buildShortCodeHash(code);
   const acceptedSourceId =
@@ -857,6 +949,58 @@ function resolveProgrammersSource(
       language: supportedLanguage
     }
   };
+}
+
+function validateLeetCodeSource(
+  problem: ProblemMetadata,
+  submission: AcceptedSubmission
+): NormalizedError | null {
+  if (
+    typeof submission.code === "string" &&
+    acceptedCodeByteLength(submission.code) > MAX_ACCEPTED_CODE_BYTES
+  ) {
+    return explicitError(
+      "payload_too_large",
+      "LeetCode accepted solution exceeds the 256 KiB limit."
+    );
+  }
+
+  if (
+    !isAcceptedCodeWithinLimit(submission.code) ||
+    !isAcceptedTextWithinLimit(
+      problem.problemId,
+      MAX_ACCEPTED_PLATFORM_ID_LENGTH
+    ) ||
+    !isAcceptedTextWithinLimit(
+      problem.frontendId,
+      MAX_ACCEPTED_PLATFORM_ID_LENGTH
+    ) ||
+    !isAcceptedTitleWithinLimit(problem.title) ||
+    !isAcceptedTextWithinLimit(
+      problem.titleSlug,
+      MAX_ACCEPTED_TITLE_SLUG_LENGTH
+    ) ||
+    !isAcceptedHttpsUrlWithinLimit(problem.url) ||
+    !isAcceptedTextWithinLimit(
+      submission.acceptedSourceId,
+      MAX_ACCEPTED_PLATFORM_ID_LENGTH
+    ) ||
+    !isAcceptedTextWithinLimit(
+      submission.titleSlug,
+      MAX_ACCEPTED_TITLE_SLUG_LENGTH
+    ) ||
+    !isAcceptedTextWithinLimit(
+      submission.language,
+      MAX_ACCEPTED_LANGUAGE_LENGTH
+    )
+  ) {
+    return explicitError(
+      "invalid_message",
+      "LeetCode accepted source metadata exceeds the supported limits."
+    );
+  }
+
+  return null;
 }
 
 function buildProgrammersAcceptedSourceId(

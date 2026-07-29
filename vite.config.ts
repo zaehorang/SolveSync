@@ -42,6 +42,11 @@ export default defineConfig({
           resolve(projectRoot, "manifest.json"),
           resolve(outDir, "manifest.json")
         );
+        copyFileSync(resolve(projectRoot, "LICENSE"), resolve(outDir, "LICENSE"));
+        copyFileSync(
+          resolve(projectRoot, "THIRD_PARTY_NOTICES.txt"),
+          resolve(outDir, "THIRD_PARTY_NOTICES.txt")
+        );
         cpSync(resolve(projectRoot, "icons"), resolve(outDir, "icons"), {
           recursive: true
         });

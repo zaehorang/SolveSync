@@ -10,11 +10,18 @@ describe("background entry", () => {
 
   it("registers service worker lifecycle and runtime listeners at module top level", async () => {
     const onInstalledAddListener = vi.fn();
+    const onStartupAddListener = vi.fn();
     const onMessageAddListener = vi.fn();
+    const onAlarmAddListener = vi.fn();
+    const createAlarm = vi.fn().mockResolvedValue(undefined);
+    const setAccessLevel = vi.fn().mockResolvedValue(undefined);
     vi.stubGlobal("chrome", {
       runtime: {
         onInstalled: {
           addListener: onInstalledAddListener
+        },
+        onStartup: {
+          addListener: onStartupAddListener
         },
         onMessage: {
           addListener: onMessageAddListener
@@ -24,7 +31,17 @@ describe("background entry", () => {
         lastError: undefined
       },
       storage: {
-        local: createMemoryStorageArea()
+        local: {
+          ...createMemoryStorageArea(),
+          setAccessLevel
+        },
+        session: createMemoryStorageArea()
+      },
+      alarms: {
+        create: createAlarm,
+        onAlarm: {
+          addListener: onAlarmAddListener
+        }
       },
       tabs: {
         sendMessage: vi.fn(),
@@ -34,8 +51,18 @@ describe("background entry", () => {
 
     await import("./index");
 
-    expect(onInstalledAddListener).toHaveBeenCalledTimes(1);
+    expect(onInstalledAddListener).toHaveBeenCalledTimes(2);
+    expect(onStartupAddListener).toHaveBeenCalledTimes(1);
+    expect(onAlarmAddListener).toHaveBeenCalledTimes(1);
     expect(onMessageAddListener).toHaveBeenCalledTimes(1);
+    expect(setAccessLevel).toHaveBeenCalledWith({
+      accessLevel: "TRUSTED_CONTEXTS"
+    });
+    await vi.waitFor(() =>
+      expect(createAlarm).toHaveBeenCalledWith("retry-bundle-prune", {
+        periodInMinutes: 1440
+      })
+    );
   });
 });
 

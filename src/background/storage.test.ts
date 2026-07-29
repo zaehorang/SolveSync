@@ -183,6 +183,47 @@ describe("background extension storage", () => {
     );
   });
 
+  it("clears retry bundles and removes stale retry references from history", async () => {
+    const area = createMemoryStorageArea();
+    const storage = createExtensionStorage(area);
+    const retryBundle = makeRetryBundle(
+      "retry-clear",
+      "2026-01-01T00:00:00.000Z"
+    );
+    const historyEntry = {
+      ...makeSyncHistoryEntry(1),
+      status: "failed" as const,
+      retryBundleId: retryBundle.id
+    };
+
+    await storage.saveRetryBundle(retryBundle);
+    await storage.appendSyncHistoryEntry(historyEntry);
+
+    await expect(storage.clearRetryBundles()).resolves.toBe(1);
+    await expect(storage.listRetryBundles()).resolves.toEqual([]);
+    await expect(storage.listSyncHistoryEntries()).resolves.toEqual([
+      {
+        ...historyEntry,
+        retryBundleId: null
+      }
+    ]);
+  });
+
+  it("clears every local storage key, including unknown future keys", async () => {
+    const area = createMemoryStorageArea({
+      unrelatedFutureKey: {
+        shouldBeDeleted: true
+      }
+    });
+    const storage = createExtensionStorage(area);
+
+    await storage.saveSettings({ autoSyncEnabled: true });
+    await storage.clearAllLocalData();
+
+    expect(area.dump()).toEqual({});
+    await expect(storage.getSettings()).resolves.toEqual(DEFAULT_SETTINGS_STATE);
+  });
+
   it("acquires and releases Sync Deduplication Key locks", async () => {
     const storage = createExtensionStorage(createMemoryStorageArea());
     const syncDeduplicationKey = makeSyncDeduplicationKey("source-1");
@@ -265,6 +306,9 @@ function createMemoryStorageArea(seed: Record<string, unknown> = {}): MemoryStor
       for (const key of keysToRemove) {
         delete data[key];
       }
+    },
+    async clear() {
+      data = {};
     },
     dump() {
       return cloneRecord(data);

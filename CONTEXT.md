@@ -1,6 +1,8 @@
 # SolveSync
 
-SolveSync는 LeetCode와 Programmers에서 Accepted 된 풀이를 사용자가 선택한 GitHub 저장소로 동기화하는 개인용 Chrome extension이다. 이 컨텍스트는 문제 풀이 제출, 동기화 대상, GitHub 반영 결과를 다루는 언어를 정의한다.
+SolveSync는 LeetCode와 Programmers에서 Accepted 된 풀이를 사용자가 선택한 GitHub 저장소로 동기화하는 개인용 Chrome extension이다. 이 파일은 문제 풀이 제출, 동기화 대상, GitHub 반영 결과를 다루는 표준 언어를 정의한다.
+
+현재 제품 단계, 시스템 경계와 문서 지도는 [Project Context](docs/PROJECT_CONTEXT.md)를 먼저 확인한다. 제품 요구사항과 구현 세부 규칙은 각각 [PRD](docs/PRD.md)와 [Architecture](docs/ARCHITECTURE.md)를 따른다.
 
 ## 언어
 

@@ -6,10 +6,12 @@ import {
   SYNC_HISTORY_READ_TYPE,
   SYNC_HISTORY_UPDATED_TYPE,
   hasForbiddenMessageSecretKey,
+  isRuntimeMessagePayloadTooLarge,
   isRuntimeMessage,
   normalizeRuntimeMessage,
   type RuntimeMessage
 } from "./messages";
+import { STORAGE_SCHEMA_VERSION } from "./storageSchema";
 
 describe("runtime message contracts", () => {
   it("keeps scaffold messages valid for existing entry points", () => {
@@ -28,6 +30,7 @@ describe("runtime message contracts", () => {
         "content:accepted_detected",
         "content:toast_action",
         "settings:read",
+        "ui:locale:read",
         "settings:write",
         "github:auth:start",
         "github:auth:read",
@@ -41,6 +44,8 @@ describe("runtime message contracts", () => {
         "sync:retry",
         SYNC_HISTORY_READ_TYPE,
         RETRY_BUNDLES_READ_TYPE,
+        "storage:retry-bundles:clear",
+        "storage:clear-all",
         "sync:status",
         SYNC_HISTORY_UPDATED_TYPE
       ])
@@ -95,7 +100,7 @@ describe("runtime message contracts", () => {
       type: SYNC_HISTORY_UPDATED_TYPE,
       payload: {
         syncHistory: {
-          version: 4,
+          version: STORAGE_SCHEMA_VERSION,
           entries: []
         }
       }
@@ -128,6 +133,82 @@ describe("runtime message contracts", () => {
 
     expect(isRuntimeMessage(leetcodeMessage)).toBe(true);
     expect(isRuntimeMessage(programmersMessage)).toBe(true);
+  });
+
+  it("enforces Accepted metadata limits and detects oversized UTF-8 code", () => {
+    const makeProgrammersMessage = (overrides: Record<string, unknown> = {}) => ({
+      type: "content:accepted_detected",
+      payload: {
+        codingPlatform: "programmers",
+        courseId: "30",
+        lessonId: "120804",
+        problemTitle: "🙂".repeat(300),
+        language: "Swift",
+        code: "🙂".repeat(65_536),
+        pageUrl: "https://school.programmers.co.kr/learn/courses/30/lessons/120804",
+        detectedAt: "2026-01-01T00:00:00.000Z",
+        ...overrides
+      }
+    });
+
+    expect(isRuntimeMessage(makeProgrammersMessage())).toBe(true);
+    expect(
+      isRuntimeMessage(
+        makeProgrammersMessage({
+          problemTitle: "🙂".repeat(301)
+        })
+      )
+    ).toBe(false);
+    const oversizedCodeMessage = makeProgrammersMessage({
+      code: `${"🙂".repeat(65_536)}a`
+    });
+    expect(isRuntimeMessage(oversizedCodeMessage)).toBe(true);
+    expect(isRuntimeMessagePayloadTooLarge(oversizedCodeMessage)).toBe(true);
+    expect(
+      isRuntimeMessage(
+        makeProgrammersMessage({
+          pageUrl: `https://school.programmers.co.kr/${"a".repeat(2_048)}`
+        })
+      )
+    ).toBe(false);
+  });
+
+  it("rejects malformed message-specific payloads", () => {
+    expect(
+      isRuntimeMessage({
+        type: "settings:write",
+        payload: {
+          update: {
+            autoSyncEnabled: "yes"
+          }
+        }
+      })
+    ).toBe(false);
+    expect(
+      isRuntimeMessage({
+        type: "github:branch:create",
+        payload: {
+          repository: {
+            owner: "octo",
+            name: "algorithms",
+            fullName: "octo/algorithms",
+            defaultBranch: "main",
+            private: false,
+            htmlUrl: "https://github.com/octo/algorithms"
+          },
+          branchName: "../invalid"
+        }
+      })
+    ).toBe(false);
+    expect(
+      isRuntimeMessage({
+        type: "content:toast_action",
+        payload: {
+          action: "retry",
+          retryBundleId: 123
+        }
+      })
+    ).toBe(false);
   });
 
   it("accepts typed content toast retry actions without exposing retry bundle code", () => {

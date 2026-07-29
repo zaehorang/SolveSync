@@ -205,6 +205,77 @@
             </ul>
           </section>
 
+          <section class="panel" aria-labelledby="data-title">
+            <div class="section-heading">
+              <div>
+                <h2 id="data-title" data-i18n="options.section.data.title"></h2>
+                <p class="section-copy" data-i18n="options.section.data.copy"></p>
+              </div>
+            </div>
+
+            <div class="data-action">
+              <div>
+                <strong data-i18n="options.data.retry.title"></strong>
+                <p class="section-copy" data-i18n="options.data.retry.copy"></p>
+              </div>
+              <button
+                id="delete-retry-data"
+                class="button secondary"
+                type="button"
+                data-i18n="action.deleteRetryData"
+              ></button>
+              <div id="delete-retry-confirmation" class="inline-confirmation" hidden>
+                <p data-i18n="options.data.retry.confirm"></p>
+                <div class="confirmation-actions">
+                  <button
+                    id="confirm-delete-retry-data"
+                    class="button danger"
+                    type="button"
+                    data-i18n="action.confirmDelete"
+                  ></button>
+                  <button
+                    id="cancel-delete-retry-data"
+                    class="button secondary"
+                    type="button"
+                    data-i18n="action.cancel"
+                  ></button>
+                </div>
+              </div>
+              <p id="delete-retry-status" class="field-message" aria-live="polite"></p>
+            </div>
+
+            <div class="data-action destructive">
+              <div>
+                <strong data-i18n="options.data.all.title"></strong>
+                <p class="section-copy" data-i18n="options.data.all.copy"></p>
+              </div>
+              <button
+                id="delete-all-data"
+                class="button danger-outline"
+                type="button"
+                data-i18n="action.deleteAllData"
+              ></button>
+              <div id="delete-all-confirmation" class="inline-confirmation danger-zone" hidden>
+                <p data-i18n="options.data.all.confirm"></p>
+                <div class="confirmation-actions">
+                  <button
+                    id="confirm-delete-all-data"
+                    class="button danger"
+                    type="button"
+                    data-i18n="action.confirmDelete"
+                  ></button>
+                  <button
+                    id="cancel-delete-all-data"
+                    class="button secondary"
+                    type="button"
+                    data-i18n="action.cancel"
+                  ></button>
+                </div>
+              </div>
+              <p id="delete-all-status" class="field-message" aria-live="polite"></p>
+            </div>
+          </section>
+
           <section class="panel" aria-labelledby="about-title">
             <h2 id="about-title" data-i18n="options.section.about.title"></h2>
             <p class="section-copy" data-i18n="options.about.product"></p>

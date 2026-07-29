@@ -5,6 +5,8 @@
 SolveSync는 LeetCode와 Programmers에서 Accepted 된 풀이를 사용자가 선택한 GitHub 저장소로 동기화하는 local unpacked Chrome extension이다.
 
 ## Source of Truth
+- 현재 제품 단계와 전체 문서 지도는 `docs/PROJECT_CONTEXT.md`로 파악하되, 상세 정책은 아래 source of truth를 따른다.
+- 표준 제품/domain 용어는 `CONTEXT.md`를 따른다.
 - 제품 범위, 사용자 흐름, 성공 기준은 `docs/PRD.md`를 따른다.
 - 설계 결정과 tradeoff는 `docs/adr/`의 ADR 파일을 따른다.
 - 런타임 구조, 데이터 흐름, storage, messaging, error model은 `docs/ARCHITECTURE.md`를 따른다.
@@ -14,11 +16,11 @@ SolveSync는 LeetCode와 Programmers에서 Accepted 된 풀이를 사용자가 �
 
 ## Project Map
 - `src/content`: 문제 페이지 관찰, Accepted 감지, Programmers Accepted Editor Snapshot, toast, background messaging.
-- `src/background`: sync orchestration, source resolver, storage, Retry Bundle, Sync History.
+- `src/background`: sync orchestration, source resolver, trusted storage, Retry Bundle/Sync History, cleanup alarm.
 - `src/background/client`: LeetCode와 GitHub API client. API 변경 영향은 여기서 막는다.
-- `src/options`: GitHub Device Flow/App 설치, Sync Repository/Sync Branch 선택, branch 생성, Auto Sync, connection test UI.
+- `src/options`: GitHub Device Flow/App 설치, Sync Repository/Sync Branch 선택, branch 생성, Auto Sync, connection test, local data 삭제 UI.
 - `src/popup`: Auto Sync toggle, 최근 Sync History, 실패 상세, retry UI.
-- `src/shared`: 타입, Coding Platform policy, message union, language/path mapping, Solution README/Catalog, storage schema, error normalization.
+- `src/shared`: 타입, Coding Platform policy, message validation, Accepted source limit, language/path mapping, Solution README/Catalog, storage schema, error normalization.
 
 ## Do
 - 변경 전에 관련 `docs/` 문서를 먼저 읽고, docs와 구현이 어긋나면 사용자에게 명확히 알린다.
@@ -56,9 +58,10 @@ SolveSync는 LeetCode와 Programmers에서 Accepted 된 풀이를 사용자가 �
 npm run typecheck
 npm test
 npm run build
+npm run package:chrome
 ```
 
-변경 범위가 작으면 관련 Vitest 파일을 먼저 실행해도 된다. 최종 build는 content IIFE bundle 검증까지 포함한다.
+변경 범위가 작으면 관련 Vitest 파일을 먼저 실행해도 된다. 최종 build는 content IIFE bundle 검증까지 포함한다. Release packaging에 영향을 주는 변경은 deterministic ZIP과 필수 배포 파일까지 `package:chrome`으로 확인한다.
 
 ## Change Checklist
 - 제품 동작이나 scope 변경: `docs/PRD.md` 확인.

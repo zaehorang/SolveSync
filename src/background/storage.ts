@@ -38,6 +38,7 @@ export interface StorageAreaAdapter {
   get(keys?: string | string[] | Record<string, unknown> | null): Promise<Record<string, unknown>>;
   set(items: Record<string, unknown>): Promise<void>;
   remove(keys: string | string[]): Promise<void>;
+  clear?(): Promise<void>;
 }
 
 export interface MarkSyncDeduplicationKeyProcessedDetails {
@@ -76,6 +77,8 @@ export interface ExtensionStorage {
   getRetryBundle(id: string): Promise<RetryBundle | null>;
   removeRetryBundle(id: string): Promise<RetryBundlesState>;
   pruneRetryBundles(now: Date | IsoDateString | number): Promise<RetryBundlesState>;
+  clearRetryBundles(): Promise<number>;
+  clearAllLocalData(): Promise<void>;
   acquireSyncDeduplicationKeyLock(
     syncDeduplicationKey: SyncDeduplicationKey,
     now: Date | IsoDateString | number
@@ -284,6 +287,47 @@ export function createExtensionStorage(area: StorageAreaAdapter): ExtensionStora
     return writeState(area, STORAGE_KEYS.retryBundles, next);
   }
 
+  async function clearRetryBundles(): Promise<number> {
+    const retryBundles = await readRetryBundles();
+    const history = await readSyncHistory();
+    const sanitizedEntries = history.entries.map((entry) =>
+      entry.retryBundleId === null
+        ? entry
+        : {
+            ...entry,
+            retryBundleId: null
+          }
+    );
+
+    await area.remove([
+      STORAGE_KEYS.retryBundles,
+      LEGACY_STORAGE_KEYS.retryPayloads
+    ]);
+
+    if (sanitizedEntries.some((entry, index) => entry !== history.entries[index])) {
+      await writeState(area, STORAGE_KEYS.syncHistory, {
+        version: STORAGE_SCHEMA_VERSION,
+        entries: sanitizedEntries
+      });
+    }
+
+    return retryBundles.bundles.length;
+  }
+
+  async function clearAllLocalData(): Promise<void> {
+    if (area.clear !== undefined) {
+      await area.clear();
+      return;
+    }
+
+    const values = await area.get(null);
+    const keys = Object.keys(values);
+
+    if (keys.length > 0) {
+      await area.remove(keys);
+    }
+  }
+
   async function readSyncDeduplicationKeyLocks(): Promise<SyncDeduplicationKeyLocksState> {
     return readState(
       area,
@@ -379,6 +423,8 @@ export function createExtensionStorage(area: StorageAreaAdapter): ExtensionStora
     getRetryBundle,
     removeRetryBundle,
     pruneRetryBundles,
+    clearRetryBundles,
+    clearAllLocalData,
     acquireSyncDeduplicationKeyLock,
     releaseSyncDeduplicationKeyLock,
     pruneSyncDeduplicationKeyLocks

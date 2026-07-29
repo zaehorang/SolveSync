@@ -87,6 +87,34 @@ describe("README managed block", () => {
     expect(twoSumRow?.split("|")).toHaveLength(7);
   });
 
+  it("renders external metadata as plain table text without links or HTML", () => {
+    const hostileCatalog = mergeSolutionCatalogEntry(
+      createEmptySolutionCatalog(),
+      {
+        problemId: "hostile",
+        frontendId: "1|2",
+        title: "[click](https://evil.example) <img src=x> `code` *bold*\nnext",
+        titleSlug: "hostile",
+        difficulty: "_Hard_",
+        url: "https://leetcode.com/problems/hostile/",
+        acceptedSourceId: "hostile-1",
+        language: "swift"
+      },
+      "leetcode/swift/0001_hostile.swift",
+      "2026-05-27T04:00:00.000Z",
+      "2026-05-27"
+    );
+
+    const table = renderManagedReadmeTable(hostileCatalog);
+
+    expect(table).toContain("\\[click\\](https://evil.example)");
+    expect(table).toContain("&lt;img src=x&gt;");
+    expect(table).toContain("\\`code\\`");
+    expect(table).toContain("\\*bold\\* next");
+    expect(table).toContain("\\_Hard\\_");
+    expect(table).not.toContain("<img");
+  });
+
   it("replaces only the existing managed marker block", () => {
     const table = renderManagedReadmeTable(solutionCatalog);
     const merged = mergeReadmeManagedBlock(

@@ -5,8 +5,8 @@ import {
   isUiLanguagePreference,
   resolveUiLocale,
   type AcceptedDetectedMessage,
-  type PublicSettingsState,
-  type RuntimeMessage
+  type RuntimeMessage,
+  type UiLocaleReadResponse
 } from "../shared";
 import type { SyncStatusMessage } from "../shared/messages";
 import {
@@ -108,7 +108,7 @@ export function resolveContentPage(url: URL): ContentPageContext {
 }
 
 export function resolveContentToastLocale(
-  settings: Pick<PublicSettingsState, "uiLanguage"> | null,
+  settings: UiLocaleReadResponse | null,
   browserLanguage: string | null | undefined
 ): "en" | "ko" {
   return resolveUiLocale(settings?.uiLanguage ?? DEFAULT_UI_LANGUAGE, browserLanguage);
@@ -354,8 +354,8 @@ function sendRuntimeMessage(message: RuntimeMessage): void {
 
 async function readContentToastLocale(): Promise<"en" | "ko"> {
   try {
-    const response = await sendRuntimeMessageWithResponse<PublicSettingsState>({
-      type: "settings:read"
+    const response = await sendRuntimeMessageWithResponse<UiLocaleReadResponse>({
+      type: "ui:locale:read"
     });
 
     if (response.ok && isUiLanguagePreference(response.data.uiLanguage)) {

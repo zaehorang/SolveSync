@@ -2,6 +2,8 @@
 
 > **Description**: SolveSync를 Chrome Web Store에 Public으로 제출하기 전에 준비해야 할 작업을 Codex와 사용자 역할로 나눈 실행 문서다.
 
+> **Status**: 향후 v2 검토용 계획 문서다. 현재 Public Preview의 배포 게이트가 아니며, 현 배포 방식은 `docs/PRD.md`와 ADR 0010에 정의된 GitHub Release 기반 unpacked 설치다. Chrome Web Store 준비는 ADR 0010을 대체하는 새 결정이 승인된 뒤 시작한다.
+
 Last checked against official Chrome Web Store docs: 2026-06-05.
 
 ## 배포 목표
@@ -23,7 +25,7 @@ Last checked against official Chrome Web Store docs: 2026-06-05.
 - Store listing용 스크린샷과 small promo tile이 없다.
 - Chrome Web Store listing 문구, 권한 설명, Privacy 탭 답변, reviewer test instructions가 없다.
 - Notion 공개 Privacy Policy가 아직 없다.
-- 제품 문서와 UI copy 일부가 아직 local unpacked v1 기준이다.
+- 제품 문서와 UI copy는 현재 GitHub Release 기반 unpacked Public Preview를 기준으로 하므로, Store 전환 결정 시 갱신해야 한다.
 - Chrome Web Store Developer 계정 상태, 2-Step Verification, publisher 정보, Trader/Non-Trader 선언이 아직 확인되지 않았다.
 
 ## Codex가 할 일

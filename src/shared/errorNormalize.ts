@@ -99,6 +99,18 @@ const ERROR_DESCRIPTORS = {
     userMessage: "Network request failed.",
     retryable: true
   },
+  invalid_message: {
+    userMessage: "The extension received invalid data. Reload the page and try again.",
+    retryable: false
+  },
+  payload_too_large: {
+    userMessage: "The Accepted solution is too large to sync.",
+    retryable: false
+  },
+  storage_quota_exceeded: {
+    userMessage: "Extension storage is full. Delete Retry Data or all local data in Options.",
+    retryable: false
+  },
   extension_state_unavailable: {
     userMessage: "Could not read extension settings. Reload the extension or reopen Options.",
     retryable: false
@@ -121,6 +133,14 @@ export function normalizeError(error: unknown): NormalizedError {
   const status = getHttpStatus(error);
   const debugMessage = getDebugMessage(error);
   const searchableMessage = debugMessage?.toLowerCase() ?? "";
+
+  if (
+    searchableMessage.includes("quota_bytes") ||
+    searchableMessage.includes("quota exceeded") ||
+    searchableMessage.includes("storage quota")
+  ) {
+    return buildNormalizedError("storage_quota_exceeded", debugMessage);
+  }
 
   if (status === 401) {
     return buildNormalizedError(

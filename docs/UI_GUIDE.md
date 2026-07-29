@@ -40,7 +40,7 @@ Implementation rules:
 - `document.documentElement.lang`은 실제 표시 locale에 맞춰 `en` 또는 `ko`로 설정한다.
 
 ## Options Page
-목적: 첫 설정과 GitHub 연결 관리.
+목적: 첫 설정, GitHub 연결과 local data 관리.
 
 구조:
 - 전체 화면은 큰 Liquid Glass shell 안에 compact settings layout으로 구성한다.
@@ -56,6 +56,7 @@ Implementation rules:
 - GitHub Connection: Device Flow login/disconnect, App install/configure, repository loading, branch loading, branch create, connection test.
 - General: Auto Sync, Language.
 - Security: GitHub session token과 Retry Bundle disclosure.
+- Local Data: Retry Data와 전체 SolveSync local data 삭제.
 - About: 제품 이름, local unpacked v1 성격, backend 없음 안내.
 - Save controls.
 
@@ -67,6 +68,7 @@ Implementation rules:
 - Sync Branch picker. Sync Repository 선택 전에는 disabled 상태이며, Sync Repository 선택 후 branch 목록에서 선택한다. 기본 선택값은 repository default branch다.
 - Auto Sync switch.
 - Language segmented control.
+- `Delete Retry Data`, `Delete all local data` action과 각각의 inline confirmation.
 
 Sync Repository picker:
 - 로그인 후 Load repositories action을 제공한다.
@@ -86,10 +88,20 @@ Sync Branch picker:
 Security disclosure에는 다음 사용자 고지를 표시한다.
 - GitHub access token과 refresh token은 Chrome extension local storage에 저장된다.
 - 실패 Retry Bundle은 Accepted solution code를 local storage에 임시 저장할 수 있다.
-- Retry Bundle은 최대 20개, 최대 7일 보관하고 retry 성공 후 삭제한다.
+- Retry Bundle은 최대 20개, 생성 후 최대 7일 보관하고 retry 성공 또는 cleanup 시 삭제한다.
 - v1 확장은 별도 backend server를 운영하지 않는다.
 - Solution code는 설정된 GitHub sync commit을 위해서만 GitHub로 전송된다.
 - LeetCode/Programmers 문제 설명 전문은 저장하지 않는다.
+
+Local Data section:
+- `Delete Retry Data`는 Retry Bundle을 삭제한다. Sync History는 남지만 해당 retry action은 제거된다고 설명한다.
+- `Delete all local data`는 GitHub auth, pending sign-in, 설정, Sync History, Retry Bundle, lock과 processed state를 삭제한다고 설명한다.
+- GitHub App 설치와 기존 GitHub commit은 두 action의 대상이 아니라고 명시한다.
+- 첫 action click은 삭제를 실행하지 않고 같은 section 안의 confirmation을 연다.
+- Confirmation에는 정확한 삭제 범위, 비가역성, `Delete`, `Cancel` action을 표시한다.
+- 한 번에 하나의 confirmation만 열고, 처리 중에는 관련 destructive action을 disable한다.
+- 성공 시 삭제 개수 또는 초기화 완료 상태를 `aria-live` 영역에 표시하고, 실패 시 normalized error와 recovery action을 보여준다.
+- 전체 삭제 성공 후 Options는 연결되지 않은 기본 설정 상태로 다시 렌더링한다.
 
 Connection test 상태:
 - Not tested.
@@ -109,6 +121,8 @@ Connection test 상태:
 - Token expired.
 - Rate limited.
 - Network failed.
+
+Connection test 설명은 read access만 확인하고 commit을 만들지 않는다는 점을 명시한다. `Connected`는 branch protection이나 실제 write 성공을 보장하는 표현으로 사용하지 않는다.
 
 ## Popup Page
 목적: 빠른 제어와 운영 상태 확인.
@@ -232,6 +246,7 @@ Material rules:
 Buttons:
 - Save, Connection Test, Retry는 primary button을 사용한다.
 - Options navigation과 link성 action은 secondary button을 사용한다.
+- 비가역적인 전체 local data 삭제 confirmation은 danger button을 사용한다. Confirmation을 여는 첫 action은 danger-outline처럼 한 단계 낮은 강조를 사용할 수 있다.
 - 비동기 작업 중인 button은 disable한다.
 - button label은 popup width 안에서 잘리지 않아야 한다.
 
@@ -276,6 +291,8 @@ Links:
 - Popup content는 일반적인 extension popup width에서 horizontal scroll 없이 보여야 한다.
 - Popup sizing 검증은 실제 Chrome toolbar popup에서 수행한다. `file://`, localhost, 일반 browser viewport만으로 완료하지 않는다.
 - 한국어와 영어 모두 가장 긴 버튼/상태 문구가 잘리지 않아야 한다.
+- Destructive action은 keyboard로 confirmation을 열고 취소할 수 있어야 하며, confirmation의 범위와 결과는 색상에 의존하지 않고 text로 전달한다.
+- `hidden` confirmation은 accessibility tree와 tab order에서도 제외되어야 한다.
 - Motion은 절제한다. Syncing spinner/progress animation은 과하지 않아야 하며 reduced motion 환경에서 의미가 사라지면 안 된다.
 
 ## 금지 패턴

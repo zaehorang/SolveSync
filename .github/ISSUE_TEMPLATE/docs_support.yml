@@ -1,0 +1,67 @@
+name: Docs or support question
+description: 설치·설정 질문 또는 공개 문서의 누락과 오류를 민감 정보 없이 문의합니다.
+title: "[Docs/Support] "
+labels:
+  - documentation
+body:
+  - type: markdown
+    attributes:
+      value: |
+        먼저 [문제 해결 가이드](https://github.com/zaehorang/SolveSync/blob/main/docs/TROUBLESHOOTING.md)를 확인해 주세요.
+
+        **GitHub access/refresh token, Device Flow device code, cookie, session 값, private repository URL, private solution code를 절대 포함하지 마세요.**
+
+        보안 취약점은 공개 Issue 대신 [Private Vulnerability Reporting](https://github.com/zaehorang/SolveSync/security/advisories/new)을 사용하세요.
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: 문의 종류
+      options:
+        - Release ZIP 설치 또는 업데이트
+        - GitHub 로그인 또는 App 설치
+        - Repository 또는 Branch 설정
+        - LeetCode 또는 Programmers sync 사용법
+        - 데이터 삭제 또는 권한 회수
+        - 공개 문서의 누락 또는 오류
+        - 기타 지원 질문
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: SolveSync version
+      description: 해당하는 경우 GitHub Release 이름 또는 chrome://extensions에 표시된 version을 적어 주세요.
+      placeholder: v0.1.0-preview.2
+
+  - type: input
+    id: environment
+    attributes:
+      label: 실행 환경
+      description: 동작 관련 질문이면 Chrome version과 OS를 적어 주세요.
+      placeholder: Chrome stable, macOS
+
+  - type: textarea
+    id: question
+    attributes:
+      label: 질문 또는 문서 문제
+      description: 알고 싶은 내용이나 부정확한 문서 위치를 구체적으로 적어 주세요.
+    validations:
+      required: true
+
+  - type: textarea
+    id: attempted
+    attributes:
+      label: 이미 확인한 내용
+      description: 문제 해결 가이드에서 확인한 절차와 민감 정보를 제거한 결과를 적어 주세요.
+
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: 민감 정보 확인
+      options:
+        - label: token, device code, cookie, session 값, private repository URL, private solution code를 포함하지 않았습니다.
+          required: true
+        - label: 보안 취약점이므로 비공개 제보가 필요한 내용이 아닙니다.
+          required: true

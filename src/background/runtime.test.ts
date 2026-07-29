@@ -4,7 +4,8 @@ import { createExtensionStorage, type StorageAreaAdapter } from "./storage";
 import { registerBackgroundRuntime } from "./runtime";
 import {
   createGitHubAuthManager,
-  createPendingGitHubAuthStorage
+  createPendingGitHubAuthStorage,
+  type GitHubAuthManager
 } from "./auth";
 import type { SyncOrchestrator } from "./sync";
 import type { RetryBundle, SyncHistoryEntry } from "../shared/types";
@@ -185,8 +186,11 @@ describe("background runtime", () => {
         }
       },
       {
+        id: "test",
+        url: "https://leetcode.com/problems/two-sum/",
         tab: {
-          id: 123
+          id: 123,
+          url: "https://leetcode.com/problems/two-sum/"
         } as chrome.tabs.Tab
       }
     );
@@ -206,8 +210,11 @@ describe("background runtime", () => {
         }
       },
       {
+        id: "test",
+        url: "https://school.programmers.co.kr/learn/courses/30/lessons/120804",
         tab: {
-          id: 456
+          id: 456,
+          url: "https://school.programmers.co.kr/learn/courses/30/lessons/120804"
         } as chrome.tabs.Tab
       }
     );
@@ -263,8 +270,11 @@ describe("background runtime", () => {
         }
       },
       {
+        id: "test",
+        url: "https://leetcode.com/problems/two-sum/",
         tab: {
-          id: 789
+          id: 789,
+          url: "https://leetcode.com/problems/two-sum/"
         } as chrome.tabs.Tab
       }
     );
@@ -368,6 +378,269 @@ describe("background runtime", () => {
       ]
     });
   });
+
+  it("waits for storage access hardening before handling messages", async () => {
+    const chromeMock = installChromeRuntimeMock();
+    const storage = createExtensionStorage(createMemoryStorageArea());
+    const getSettings = vi.spyOn(storage, "getSettings");
+    const readyControl: { release?: () => void } = {};
+    const ready = new Promise<void>((resolve) => {
+      readyControl.release = resolve;
+    });
+
+    registerBackgroundRuntime({
+      storage,
+      orchestrator: makeOrchestrator(),
+      ready,
+      githubClientFactory: () => {
+        throw new Error("GitHub client should not be created.");
+      }
+    });
+
+    const responsePromise = dispatchMessage(chromeMock.listener, {
+      type: "settings:read"
+    });
+    await Promise.resolve();
+    expect(getSettings).not.toHaveBeenCalled();
+
+    readyControl.release?.();
+    await expect(responsePromise).resolves.toMatchObject({ ok: true });
+    expect(getSettings).toHaveBeenCalledTimes(1);
+  });
+
+  it("exposes only locale settings to supported content pages", async () => {
+    const chromeMock = installChromeRuntimeMock();
+    const storage = createExtensionStorage(createMemoryStorageArea());
+    await storage.saveSettings({
+      uiLanguage: "ko",
+      autoSyncEnabled: true
+    });
+
+    registerBackgroundRuntime({
+      storage,
+      orchestrator: makeOrchestrator(),
+      githubClientFactory: () => {
+        throw new Error("GitHub client should not be created.");
+      }
+    });
+
+    await expect(
+      dispatchMessage(
+        chromeMock.listener,
+        { type: "settings:read" },
+        contentSender("https://leetcode.com/problems/two-sum/")
+      )
+    ).resolves.toMatchObject({
+      ok: false,
+      error: {
+        code: "invalid_message"
+      }
+    });
+    await expect(
+      dispatchMessage(chromeMock.listener, { type: "ui:locale:read" })
+    ).resolves.toEqual({
+      ok: true,
+      data: {
+        uiLanguage: "ko"
+      }
+    });
+  });
+
+  it("rejects privileged messages from the wrong surface and mismatched pages", async () => {
+    const chromeMock = installChromeRuntimeMock();
+    const storage = createExtensionStorage(createMemoryStorageArea());
+    const orchestrator = makeOrchestrator();
+
+    registerBackgroundRuntime({
+      storage,
+      orchestrator,
+      githubClientFactory: () => {
+        throw new Error("GitHub client should not be created.");
+      }
+    });
+
+    const acceptedMessage = {
+      type: "content:accepted_detected",
+      payload: {
+        codingPlatform: "leetcode",
+        titleSlug: "two-sum",
+        pageUrl: "https://leetcode.com/problems/two-sum/",
+        detectedAt: "2026-01-01T00:00:00.000Z"
+      }
+    };
+
+    await expect(
+      dispatchMessage(
+        chromeMock.listener,
+        acceptedMessage,
+        extensionSender("options")
+      )
+    ).resolves.toMatchObject({ ok: false });
+    await expect(
+      dispatchMessage(
+        chromeMock.listener,
+        acceptedMessage,
+        contentSender("https://leetcode.com/problems/three-sum/")
+      )
+    ).resolves.toMatchObject({ ok: false });
+    expect(orchestrator.handleAcceptedDetected).not.toHaveBeenCalled();
+  });
+
+  it("limits popup settings writes to the Auto Sync toggle", async () => {
+    const chromeMock = installChromeRuntimeMock();
+    const storage = createExtensionStorage(createMemoryStorageArea());
+
+    registerBackgroundRuntime({
+      storage,
+      orchestrator: makeOrchestrator(),
+      githubClientFactory: () => {
+        throw new Error("GitHub client should not be created.");
+      }
+    });
+
+    await expect(
+      dispatchMessage(
+        chromeMock.listener,
+        {
+          type: "settings:write",
+          payload: {
+            update: {
+              uiLanguage: "ko"
+            }
+          }
+        },
+        extensionSender("popup")
+      )
+    ).resolves.toMatchObject({ ok: false });
+    await expect(
+      dispatchMessage(
+        chromeMock.listener,
+        {
+          type: "settings:write",
+          payload: {
+            update: {
+              autoSyncEnabled: true
+            }
+          }
+        },
+        extensionSender("popup")
+      )
+    ).resolves.toMatchObject({
+      ok: true,
+      data: {
+        autoSyncEnabled: true
+      }
+    });
+  });
+
+  it("validates extension identity and scaffold surface claims", async () => {
+    const chromeMock = installChromeRuntimeMock();
+
+    registerBackgroundRuntime({
+      storage: createExtensionStorage(createMemoryStorageArea()),
+      orchestrator: makeOrchestrator(),
+      githubClientFactory: () => {
+        throw new Error("GitHub client should not be created.");
+      }
+    });
+
+    await expect(
+      dispatchMessage(
+        chromeMock.listener,
+        {
+          type: "scaffold:ready",
+          surface: "popup"
+        },
+        extensionSender("options")
+      )
+    ).resolves.toMatchObject({ ok: false });
+    await expect(
+      dispatchMessage(
+        chromeMock.listener,
+        {
+          type: "settings:read"
+        },
+        {
+          ...extensionSender("options"),
+          id: "another-extension"
+        }
+      )
+    ).resolves.toMatchObject({ ok: false });
+  });
+
+  it("disconnects GitHub including pending auth before clearing all local data", async () => {
+    const chromeMock = installChromeRuntimeMock();
+    const storage = createExtensionStorage(createMemoryStorageArea());
+    const clearAllLocalData = vi.spyOn(storage, "clearAllLocalData");
+    const authManager = makeAuthManager();
+
+    registerBackgroundRuntime({
+      storage,
+      orchestrator: makeOrchestrator(),
+      authManager,
+      githubClientFactory: () => {
+        throw new Error("GitHub client should not be created.");
+      }
+    });
+
+    await expect(
+      dispatchMessage(chromeMock.listener, {
+        type: "storage:clear-all"
+      })
+    ).resolves.toEqual({
+      ok: true,
+      data: {
+        cleared: true
+      }
+    });
+    expect(authManager.disconnect).toHaveBeenCalledTimes(1);
+    expect(clearAllLocalData).toHaveBeenCalledTimes(1);
+    expect(
+      vi.mocked(authManager.disconnect).mock.invocationCallOrder[0] ??
+        Number.POSITIVE_INFINITY
+    ).toBeLessThan(
+      clearAllLocalData.mock.invocationCallOrder[0] ?? Number.POSITIVE_INFINITY
+    );
+  });
+
+  it("routes oversized Accepted code to orchestration for durable failure history", async () => {
+    const chromeMock = installChromeRuntimeMock();
+    const storage = createExtensionStorage(createMemoryStorageArea());
+    const orchestrator = makeOrchestrator();
+
+    registerBackgroundRuntime({
+      storage,
+      orchestrator,
+      githubClientFactory: () => {
+        throw new Error("GitHub client should not be created.");
+      }
+    });
+
+    const response = await dispatchMessage(chromeMock.listener, {
+      type: "content:accepted_detected",
+      payload: {
+        codingPlatform: "programmers",
+        courseId: "30",
+        lessonId: "120804",
+        problemTitle: "두 수의 곱 구하기",
+        language: "Swift",
+        code: "a".repeat(256 * 1024 + 1),
+        pageUrl: "https://school.programmers.co.kr/learn/courses/30/lessons/120804",
+        detectedAt: "2026-01-01T00:00:00.000Z"
+      }
+    });
+
+    expect(response).toMatchObject({ ok: true });
+    expect(orchestrator.handleAcceptedDetected).toHaveBeenCalledWith(
+      expect.objectContaining({
+        codingPlatform: "programmers",
+        code: expect.any(String)
+      }),
+      {
+        tabId: 1
+      }
+    );
+  });
 });
 
 interface ChromeRuntimeMock {
@@ -384,6 +657,7 @@ function installChromeRuntimeMock(): ChromeRuntimeMock {
   let listener: MessageListener | null = null;
   const chromeMock = {
     runtime: {
+      id: "test",
       onMessage: {
         addListener: vi.fn((callback: MessageListener) => {
           listener = callback;
@@ -430,6 +704,16 @@ function makeOrchestrator(): SyncOrchestrator {
     handleAcceptedDetected: vi.fn(async () => duplicateOutcome),
     handleRetry: vi.fn(async () => duplicateOutcome)
   };
+}
+
+function makeAuthManager(): GitHubAuthManager {
+  return {
+    start: vi.fn(),
+    readPending: vi.fn(),
+    poll: vi.fn(),
+    disconnect: vi.fn(async () => undefined),
+    getAccessToken: vi.fn()
+  } as unknown as GitHubAuthManager;
 }
 
 function makeRetryBundle(id: string): RetryBundle {
@@ -521,11 +805,86 @@ function makeSyncHistoryEntry(overrides: Partial<SyncHistoryEntry> = {}): SyncHi
 async function dispatchMessage(
   listener: MessageListener,
   message: unknown,
-  sender: chrome.runtime.MessageSender = {}
+  sender: chrome.runtime.MessageSender = defaultSenderForMessage(message)
 ): Promise<unknown> {
   return new Promise((resolve) => {
     listener(message, sender, resolve);
   });
+}
+
+function defaultSenderForMessage(message: unknown): chrome.runtime.MessageSender {
+  if (isMessageWithType(message, "content:accepted_detected")) {
+    const pageUrl =
+      typeof message.payload === "object" &&
+      message.payload !== null &&
+      "pageUrl" in message.payload &&
+      typeof message.payload.pageUrl === "string"
+        ? message.payload.pageUrl
+        : "https://leetcode.com/problems/two-sum/";
+
+    return contentSender(pageUrl);
+  }
+
+  if (
+    isMessageWithType(message, "content:toast_action") ||
+    isMessageWithType(message, "ui:locale:read")
+  ) {
+    return contentSender("https://leetcode.com/problems/two-sum/");
+  }
+
+  if (
+    isMessageWithType(message, "sync:retry") ||
+    isMessageWithType(message, "sync-history:read") ||
+    isMessageWithType(message, "history:read") ||
+    isMessageWithType(message, "retry-bundles:read") ||
+    isMessageWithType(message, "retry-payloads:read")
+  ) {
+    return extensionSender("popup");
+  }
+
+  return extensionSender("options");
+}
+
+function isMessageWithType(
+  message: unknown,
+  type: string
+): message is { type: string; payload?: Record<string, unknown> } {
+  return (
+    typeof message === "object" &&
+    message !== null &&
+    "type" in message &&
+    message.type === type
+  );
+}
+
+function contentSender(url: string): chrome.runtime.MessageSender {
+  return {
+    id: "test",
+    url,
+    tab: {
+      id: 1,
+      url
+    } as chrome.tabs.Tab
+  };
+}
+
+function extensionSender(
+  surface: "options" | "popup"
+): chrome.runtime.MessageSender {
+  const url = `chrome-extension://test/${surface}/index.html`;
+
+  return {
+    id: "test",
+    url,
+    ...(surface === "options"
+      ? {
+          tab: {
+            id: 2,
+            url
+          } as chrome.tabs.Tab
+        }
+      : {})
+  };
 }
 
 function createMemoryStorageArea(seed: Record<string, unknown> = {}): StorageAreaAdapter {

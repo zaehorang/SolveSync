@@ -1,0 +1,91 @@
+name: Bug report
+description: SolveSync의 재현 가능한 bug를 민감 정보 없이 보고합니다.
+title: "[Bug] "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        작성 전에 [문제 해결 가이드](https://github.com/zaehorang/SolveSync/blob/main/docs/TROUBLESHOOTING.md)를 확인해 주세요.
+
+        **GitHub access/refresh token, Device Flow device code, cookie, session 값, private repository URL, private solution code를 절대 포함하지 마세요.**
+
+        보안 취약점은 공개 Issue 대신 [Private Vulnerability Reporting](https://github.com/zaehorang/SolveSync/security/advisories/new)을 사용하세요.
+
+  - type: input
+    id: version
+    attributes:
+      label: SolveSync version
+      description: GitHub Release 이름 또는 chrome://extensions에 표시된 version을 적어 주세요.
+      placeholder: v0.1.0-preview.1
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: 실행 환경
+      description: Chrome version과 OS를 적어 주세요.
+      placeholder: Chrome 138, macOS 15
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: 영향 영역
+      options:
+        - 설치 또는 업데이트
+        - GitHub 로그인 또는 App 설치
+        - Repository 또는 Branch 설정
+        - LeetCode sync
+        - Programmers sync
+        - Popup, Sync History 또는 Retry
+        - 문서
+        - 기타
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: 재현 단계
+      description: private repository 이름이나 private solution code 없이 최소 단계만 적어 주세요.
+      placeholder: |
+        1. Options에서 ...
+        2. ...
+        3. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: 예상 동작
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: 실제 동작
+      description: 표시된 error code와 민감 정보를 제거한 메시지를 포함할 수 있습니다.
+    validations:
+      required: true
+
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: 안전한 추가 정보
+      description: 민감 정보를 제거한 screenshot 또는 public 정보만 첨부해 주세요.
+
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: 민감 정보 확인
+      options:
+        - label: token, device code, cookie, session 값, private repository URL, private solution code를 포함하지 않았습니다.
+          required: true
+        - label: 보안 취약점이므로 비공개 제보가 필요한 내용이 아닙니다.
+          required: true
