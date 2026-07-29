@@ -47,15 +47,20 @@ README.md
 - `https://leetcode.com/problems/*`와 `https://school.programmers.co.kr/learn/courses/*/lessons/*`에서 실행된다.
 - Manifest `content_scripts`는 classic script로 실행되므로 content entry는 별도 IIFE bundle인 `dist/content/index.js`로 빌드한다.
 - Content bundle에는 static ESM `import`가 남으면 안 되며 `npm run build`의 build verification이 이를 검사한다.
-- 현재 URL에서 LeetCode `titleSlug` 또는 Programmers `courseId`/`lessonId`를 추출한다.
-- `MutationObserver`로 Accepted 결과 변화를 감지한다.
-- Accepted 감지는 mutation으로 전달된 변경 subtree 안에서 제한된 leaf text 후보만 검사한다.
+- Accepted 후보마다 현재 URL에서 LeetCode `titleSlug` 또는 Programmers `courseId`/`lessonId`를 다시 추출한다.
+- Content detection controller가 `MutationObserver`, route lifecycle, coalescing과 message emission을 소유한다. Content entry는 controller 시작과 toast wiring만 담당한다.
+- Accepted 감지는 현재 DOM에 Accepted 문구가 존재하는지가 아니라 이번 mutation에서 visible Accepted 상태가 새로 나타났는지를 기준으로 한다.
+- `childList` mutation은 동일 record의 `addedNodes`만 bounded traversal하고 `mutation.target`이나 `removedNodes`는 재탐색하지 않는다.
+- `characterData` mutation은 `characterDataOldValue: true`로 받은 이전 text와 현재 target text를 비교해 non-Accepted에서 Accepted로 바뀐 경우만 인정한다.
+- 같은 Accepted 문구의 text 조합은 동일 mutation의 새 node 안에서만 허용하며, `hidden` 또는 `aria-hidden="true"`인 후보와 그 하위 node는 제외한다.
 - Coding Platform DOM class selector나 결과 panel 전체 `textContent`에 의존하지 않는다.
 - LeetCode는 `Accepted 116 / 116 testcases passed` 같은 짧은 결과 문구를 우선 감지하고, generic page copy는 제외한다.
 - Programmers는 `정답입니다!` 모달을 Accepted 1차 신호로 사용한다. `통과` 단독 문구는 code 실행 결과와 섞일 수 있으므로 Accepted 신호로 사용하지 않는다.
-- Programmers는 Accepted 감지 직후 현재 editor code, language, title을 Accepted Editor Snapshot으로 추출하고 `ProgrammersAcceptedEditorSnapshot`으로 전달한다.
-- 같은 DOM 변화가 반복될 수 있으므로 짧은 debounce를 적용한다.
-- background service worker로 `content:accepted-detected` 메시지를 보낸다.
+- Programmers는 fresh Accepted 감지 직후 현재 route, editor code, language, title을 한 번 읽어 immutable `ProgrammersAcceptedEditorSnapshot`으로 만든다. 지연 callback에서 DOM을 다시 읽지 않는다.
+- 동일 render burst는 첫 Accepted event와 snapshot을 보존하는 fixed-window coalescer로 최대 한 번만 전달한다.
+- route key가 바뀌면 이전 route의 pending Accepted event와 coalescing state를 폐기한 뒤 현재 batch를 새 route 기준으로 판정한다. 전달 직전에도 route key를 다시 확인한다.
+- Fresh transition, immutable snapshot과 route lifecycle 결정은 ADR 0034를 따른다.
+- background service worker로 `content:accepted_detected` 메시지를 보낸다.
 - 문제 페이지 안에 toast feedback을 렌더링한다.
 - GitHub API를 호출하지 않고 sync 상태의 owner도 아니다.
 
@@ -117,7 +122,11 @@ Content script는 문제 페이지에서 Accepted 감지, Programmers Accepted E
 ## 데이터 흐름
 ```text
 LeetCode page 또는 Programmers page
-→ content script가 Accepted 감지
+→ content detection controller가 fresh Accepted transition 감지
+→ 현재 route 확정
+→ Programmers는 Accepted 시점의 immutable Accepted Editor Snapshot 캡처
+→ first-event fixed-window coalescing
+→ content script가 `content:accepted_detected` 전달
 → background가 settings와 Auto Sync 확인
 → background가 Coding Platform source resolver로 problem/source/Sync Deduplication Key 확정
 → background가 Sync Deduplication Key lock 획득
@@ -129,6 +138,7 @@ LeetCode page 또는 Programmers page
 
 ## Coding Platform 공통/전용 경계
 - 공통 sync orchestration은 setup, Auto Sync, duplicate, in-flight lock, GitHub commit, retry, Sync History를 처리한다.
+- Content detection controller는 observer, 현재 route lifecycle, first-event coalescing과 message emission을 담당한다.
 - LeetCode 전용 adapter는 URL parsing, Accepted detector, GraphQL metadata/Accepted Submission 조회를 담당한다.
 - Programmers 전용 adapter는 URL parsing, `정답입니다!` detector, Accepted Editor Snapshot 추출을 담당한다.
 - Coding Platform policy는 root path, Solution README path, Solution Catalog path, marker, initial Solution README title, commit message prefix를 제공한다.
@@ -137,8 +147,9 @@ LeetCode page 또는 Programmers page
 
 ## LeetCode 연동
 - DOM은 Accepted 이벤트 감지에만 사용한다.
-- DOM 감지는 `MutationObserver`가 전달한 `target`과 `addedNodes` 범위를 벗어나지 않는다.
+- `childList` DOM 감지는 동일 mutation의 `addedNodes`만 검사한다. `characterData`는 target text의 non-Accepted → Accepted 전환만 검사한다.
 - 결과 panel은 코드, runtime, 추천 문제 텍스트가 섞일 수 있으므로 큰 container의 전체 텍스트 대신 bounded leaf traversal을 사용한다.
+- 이전 Accepted DOM이 남은 상태의 Run, Wrong Answer, modal close와 unrelated mutation은 GraphQL source 조회를 시작하지 않는다.
 - Accepted Submission code와 problem metadata는 현재 브라우저 로그인 세션을 사용해 LeetCode GraphQL API를 우선 호출해 가져온다.
 - LeetCode client 모듈은 GraphQL query와 API response parsing을 중앙화해야 한다.
 - Background는 content script가 보낸 `titleSlug`를 기준으로 최신 Accepted Submission detail을 조회한다.
@@ -154,7 +165,7 @@ LeetCode page 또는 Programmers page
 - URL은 `/learn/courses/{courseId}/lessons/{lessonId}` 형태를 기준으로 parsing한다.
 - problem id와 frontend id는 lesson id를 사용한다.
 - difficulty가 없으면 `-`로 저장하고 README에도 `-`로 표시한다.
-- language와 code는 현재 문제 페이지의 Accepted Editor Snapshot에서 추출하고 `ProgrammersAcceptedEditorSnapshot`으로 표현한다.
+- route, language, title과 code는 fresh Accepted transition이 관찰된 시점에 한 번 추출하고 immutable `ProgrammersAcceptedEditorSnapshot`으로 표현한다. coalescing 중 editor가 바뀌어도 snapshot은 바뀌지 않는다.
 - 2026-05-27 실제 Chrome 검증 기준으로 Programmers editor는 CodeMirror 계열로 렌더링되고, 현재 code source는 `textarea#code.value`에서 읽을 수 있다. `window.monaco` model은 없었다.
 - code 추출은 `textarea#code.value`를 1차 source로 사용한다. `.cm-line` 같은 렌더된 editor line DOM은 화면에 보이는 줄만 반영될 수 있으므로 source of truth로 사용하지 않고 진단용 fallback 후보로만 둔다.
 - `textarea#code`가 없거나 `value`가 비어 있으면 code 추출 실패로 처리한다.
@@ -312,9 +323,9 @@ Message categories:
 - popup/options to background: settings read/write, GitHub auth start/read/poll/disconnect, App install page open, repository list, branch list, branch create, connection test, retry.
 - background to content/popup: sync status, Sync History update.
 
-`content:accepted-detected`는 `codingPlatform` discriminated union이다. LeetCode payload는 `codingPlatform`, `titleSlug`, `pageUrl`, `detectedAt`을 포함한다. Programmers payload는 `codingPlatform`, `courseId`, `lessonId`, `problemTitle`, `language`, `code`, `pageUrl`, `detectedAt`을 포함한다.
+`content:accepted_detected`는 `codingPlatform` discriminated union이다. LeetCode payload는 `codingPlatform`, `titleSlug`, `pageUrl`, `detectedAt`을 포함한다. Programmers payload는 `codingPlatform`, `courseId`, `lessonId`, `problemTitle`, `language`, `code`, `pageUrl`, `detectedAt`을 포함한다. `detectedAt`, `pageUrl`과 route field는 같은 fresh Accepted event에서 확정한다.
 
-Runtime message type은 namespaced kebab-case를 사용한다. Sync History와 Retry Bundle message의 정확한 old/new type string은 Domain Naming Contract의 legacy 대응 표를 따른다.
+Runtime message type은 `surface:action_name` 형태의 stable namespaced identifier를 사용한다. Sync History와 Retry Bundle message의 정확한 old/new type string은 Domain Naming Contract의 legacy 대응 표를 따른다.
 
 Content/popup/options로 나가는 message payload에는 GitHub access token, refresh token, device code, LeetCode/Programmers cookie나 session token을 포함하지 않는다. GitHub auth secret은 background가 storage에서 직접 읽는다.
 
@@ -354,6 +365,7 @@ Toast는 짧은 메시지만 보여준다. Popup은 상세 메시지와 retry �
 - sync orchestration은 외부 API를 mock하고 최종 commit payload를 검증한다.
 - GitHub 인증 변경의 대표 happy path는 연결 해제 후 auth만 삭제되고 repository/branch 설정이 재연결 뒤에도 유지되는지 확인한다.
 - 다중 언어의 대표 happy path는 Programmers 같은 문제의 Swift와 Python3가 각각 solution file로 저장되고 하나의 README row와 Catalog problem entry에 함께 남는지 확인한다.
+- Content detection은 stale Accepted target과 새 Run/Wrong Answer/modal close/toast mutation, characterData 전환, 새 Accepted subtree, hidden candidate, 동일 render burst, first snapshot 보존과 SPA route reset을 순수 단위 테스트로 검증한다.
 - 실제 Device Flow 승인, GitHub App 설치, Coding Platform Accepted 제출은 `docs/MANUAL_VALIDATION.md`의 최소 release smoke로 확인한다.
 
 모든 지원 언어와 실패 조합을 실제 계정이나 브라우저 E2E로 반복하지 않는다. 실제 GitHub repository를 자동 테스트 대상이나 코드 기본값으로 고정하지 않으며, read-only GitHub smoke script도 기본 test suite에 두지 않는다.

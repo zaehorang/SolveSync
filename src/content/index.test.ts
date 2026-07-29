@@ -1,13 +1,14 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   createAcceptedDetectedMessage,
   createProgrammersAcceptedDetectedMessage,
   extractProgrammersAcceptedEditorSnapshot,
   extractProgrammersEditorCode,
-  resolveContentToastLocale,
-  resolveContentPage
-} from "./index";
+  resolveContentPage,
+  startAcceptedDetectionController
+} from "./acceptedDetectionController";
+import { resolveContentToastLocale } from "./index";
 
 describe("content runtime wiring helpers", () => {
   it("resolves LeetCode and Programmers content page contexts", () => {
@@ -152,6 +153,144 @@ describe("content runtime wiring helpers", () => {
   });
 });
 
+describe("accepted detection controller", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("captures the first Programmers snapshot immediately and keeps a fixed window", () => {
+    vi.useFakeTimers();
+    const codeEditor = element({ value: "accepted code\n" });
+    const documentRef = makeDetectionDocument({
+      "textarea#code": codeEditor,
+      'meta[property="og:title"]': element({
+        content: "코딩테스트 연습 - 두 수의 곱 구하기 | 프로그래머스"
+      }),
+      'select[name="language"]': element({
+        value: "swift",
+        selectedOption: element({ textContent: "Swift" })
+      })
+    });
+    const sentMessages: unknown[] = [];
+    const observer = createFakeObserver();
+
+    startAcceptedDetectionController({
+      documentRef,
+      getCurrentUrl: () =>
+        "https://school.programmers.co.kr/learn/courses/30/lessons/120804",
+      sendAcceptedMessage: (message) => sentMessages.push(message),
+      createObserver: observer.factory,
+      now: () => "2026-01-01T00:00:00.000Z"
+    });
+
+    expect(observer.observe).toHaveBeenCalledWith(documentRef.body, {
+      childList: true,
+      characterData: true,
+      characterDataOldValue: true,
+      subtree: true
+    });
+
+    observer.emit([acceptedChildListMutation("정답입니다!")]);
+    codeEditor.value = "edited but not accepted\n";
+    vi.advanceTimersByTime(500);
+    observer.emit([acceptedChildListMutation("정답입니다!")]);
+    vi.advanceTimersByTime(199);
+    expect(sentMessages).toHaveLength(0);
+
+    vi.advanceTimersByTime(1);
+    expect(sentMessages).toHaveLength(1);
+    expect(sentMessages[0]).toMatchObject({
+      payload: {
+        lessonId: "120804",
+        code: "accepted code\n",
+        detectedAt: "2026-01-01T00:00:00.000Z"
+      }
+    });
+  });
+
+  it("emits one event per real Accepted window and ignores later non-Accepted UI changes", () => {
+    vi.useFakeTimers();
+    const documentRef = makeDetectionDocument({});
+    const sentMessages: unknown[] = [];
+    const observer = createFakeObserver();
+
+    startAcceptedDetectionController({
+      documentRef,
+      getCurrentUrl: () => "https://leetcode.com/problems/two-sum/",
+      sendAcceptedMessage: (message) => sentMessages.push(message),
+      createObserver: observer.factory,
+      now: () => "2026-01-01T00:00:00.000Z"
+    });
+
+    observer.emit([acceptedChildListMutation("Accepted")]);
+    vi.advanceTimersByTime(700);
+    observer.emit([
+      childListMutation(
+        mutationElement([mutationTextNode("Accepted")]),
+        [mutationTextNode("Wrong Answer")]
+      )
+    ]);
+    vi.advanceTimersByTime(700);
+    expect(sentMessages).toHaveLength(1);
+
+    observer.emit([acceptedChildListMutation("Accepted")]);
+    vi.advanceTimersByTime(700);
+    expect(sentMessages).toHaveLength(2);
+  });
+
+  it("cancels pending work on SPA route changes and uses the new route next time", () => {
+    vi.useFakeTimers();
+    let pageUrl = "https://leetcode.com/problems/two-sum/";
+    const documentRef = makeDetectionDocument({});
+    const sentMessages: unknown[] = [];
+    const observer = createFakeObserver();
+
+    startAcceptedDetectionController({
+      documentRef,
+      getCurrentUrl: () => pageUrl,
+      sendAcceptedMessage: (message) => sentMessages.push(message),
+      createObserver: observer.factory,
+      now: () => "2026-01-01T00:00:00.000Z"
+    });
+
+    observer.emit([acceptedChildListMutation("Accepted")]);
+    pageUrl = "https://leetcode.com/problems/valid-parentheses/";
+    observer.emit([acceptedChildListMutation("Accepted")]);
+    vi.advanceTimersByTime(700);
+    expect(sentMessages).toEqual([
+      {
+        type: "content:accepted_detected",
+        payload: {
+          codingPlatform: "leetcode",
+          titleSlug: "valid-parentheses",
+          pageUrl,
+          detectedAt: "2026-01-01T00:00:00.000Z"
+        }
+      }
+    ]);
+  });
+
+  it("discards a pending event if the route changes without another mutation", () => {
+    vi.useFakeTimers();
+    let pageUrl = "https://leetcode.com/problems/two-sum/";
+    const observer = createFakeObserver();
+    const sendAcceptedMessage = vi.fn();
+
+    startAcceptedDetectionController({
+      documentRef: makeDetectionDocument({}),
+      getCurrentUrl: () => pageUrl,
+      sendAcceptedMessage,
+      createObserver: observer.factory
+    });
+
+    observer.emit([acceptedChildListMutation("Accepted")]);
+    pageUrl = "https://leetcode.com/problems/valid-parentheses/";
+    vi.advanceTimersByTime(700);
+
+    expect(sendAcceptedMessage).not.toHaveBeenCalled();
+  });
+});
+
 interface FakeElement {
   textContent: string | null;
   value?: string;
@@ -199,4 +338,97 @@ function makeDocument(
       return (nodes[selector] ?? null) as Element | null;
     }
   } as unknown as Pick<Document, "querySelector" | "title">;
+}
+
+function makeDetectionDocument(
+  nodes: Record<string, FakeElement | null>
+): Pick<Document, "body" | "documentElement" | "querySelector" | "title"> {
+  const root = element({ textContent: "" }) as unknown as HTMLElement;
+
+  return {
+    ...makeDocument(nodes),
+    body: root,
+    documentElement: root
+  } as Pick<Document, "body" | "documentElement" | "querySelector" | "title">;
+}
+
+function createFakeObserver(): {
+  factory: (
+    callback: MutationCallback
+  ) => Pick<MutationObserver, "observe" | "disconnect">;
+  observe: ReturnType<typeof vi.fn>;
+  emit(mutations: MutationRecord[]): void;
+} {
+  let callback: MutationCallback | null = null;
+  const observe = vi.fn();
+
+  return {
+    factory(nextCallback) {
+      callback = nextCallback;
+
+      return {
+        observe,
+        disconnect: vi.fn()
+      };
+    },
+    observe,
+    emit(mutations) {
+      if (callback === null) {
+        throw new Error("Observer callback was not registered");
+      }
+
+      callback(mutations, {} as MutationObserver);
+    }
+  };
+}
+
+function acceptedChildListMutation(textContent: string): MutationRecord {
+  return childListMutation(mutationElement([]), [mutationTextNode(textContent)]);
+}
+
+function childListMutation(
+  target: FakeMutationNode,
+  addedNodes: FakeMutationNode[]
+): MutationRecord {
+  return {
+    type: "childList",
+    target,
+    addedNodes,
+    removedNodes: [],
+    oldValue: null
+  } as unknown as MutationRecord;
+}
+
+interface FakeMutationNode {
+  nodeType: number;
+  textContent: string | null;
+  childNodes?: FakeMutationNode[];
+  parentElement?: FakeMutationNode | null;
+  getAttribute?(name: string): string | null;
+  tagName?: string;
+}
+
+function mutationTextNode(textContent: string): FakeMutationNode {
+  return {
+    nodeType: 3,
+    textContent,
+    parentElement: null
+  };
+}
+
+function mutationElement(childNodes: FakeMutationNode[]): FakeMutationNode {
+  const node: FakeMutationNode = {
+    nodeType: 1,
+    textContent: childNodes.map((child) => child.textContent ?? "").join(""),
+    childNodes,
+    parentElement: null,
+    tagName: "DIV",
+    getAttribute: () => null
+  };
+
+  for (const child of childNodes) {
+    child.parentElement = node;
+  }
+
+  return node;
 }

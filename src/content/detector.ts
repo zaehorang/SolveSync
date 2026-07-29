@@ -16,7 +16,7 @@ const IGNORED_ELEMENT_NAMES = new Set(["script", "style", "noscript"]);
 
 export type AcceptedDetectionPlatform = "leetcode" | "programmers";
 
-export interface DebounceScheduler {
+export interface TimeoutScheduler {
   setTimeout(callback: () => void, delayMs: number): ReturnType<typeof setTimeout>;
   clearTimeout(timer: ReturnType<typeof setTimeout>): void;
 }
@@ -26,6 +26,7 @@ interface TextCandidateNode {
   textContent: string | null;
   childNodes?: Iterable<TextCandidateNode>;
   getAttribute?(name: string): string | null;
+  parentElement?: TextCandidateNode | null;
   nodeName?: string;
   tagName?: string;
 }
@@ -97,39 +98,68 @@ export function mutationListHasAccepted(
   platform: AcceptedDetectionPlatform = "leetcode"
 ): boolean {
   return mutations.some((mutation) => {
-    if (nodeHasAcceptedText(toCandidateNode(mutation.target), platform)) {
-      return true;
+    if (mutation.type === "childList") {
+      return addedNodesHaveAcceptedText(
+        Array.from(mutation.addedNodes, toCandidateNode),
+        platform
+      );
     }
 
-    return Array.from(mutation.addedNodes).some((node) =>
-      nodeHasAcceptedText(toCandidateNode(node), platform)
-    );
+    if (mutation.type === "characterData") {
+      return characterDataMutationHasAccepted(mutation, platform);
+    }
+
+    return false;
   });
 }
 
-export function createDebouncedCallback(
-  callback: () => void,
-  delayMs: number,
-  scheduler: DebounceScheduler = defaultScheduler
-): () => void {
-  let timer: ReturnType<typeof setTimeout> | null = null;
+function characterDataMutationHasAccepted(
+  mutation: MutationRecord,
+  platform: AcceptedDetectionPlatform
+): boolean {
+  if (mutation.oldValue === null || textHasAccepted(mutation.oldValue, platform)) {
+    return false;
+  }
 
-  return () => {
-    if (timer !== null) {
-      scheduler.clearTimeout(timer);
+  return nodeHasAcceptedText(toCandidateNode(mutation.target), platform);
+}
+
+function addedNodesHaveAcceptedText(
+  nodes: readonly TextCandidateNode[],
+  platform: AcceptedDetectionPlatform
+): boolean {
+  if (nodes.some((node) => nodeHasAcceptedText(node, platform))) {
+    return true;
+  }
+
+  const candidates: TextCandidate[] = [];
+  const leafTexts: string[] = [];
+
+  for (const node of nodes) {
+    if (isHiddenFromDetection(node)) {
+      continue;
     }
 
-    timer = scheduler.setTimeout(() => {
-      timer = null;
-      callback();
-    }, delayMs);
-  };
+    appendLeafTexts(leafTexts, collectLeafTexts(node, 0, candidates));
+
+    if (candidates.length >= MAX_TEXT_CANDIDATES) {
+      break;
+    }
+  }
+
+  addJoinedLeafCandidates(candidates, leafTexts);
+
+  return candidates.some((candidate) => isAcceptedTextCandidate(candidate, platform));
 }
 
 function nodeHasAcceptedText(
   node: TextCandidateNode,
   platform: AcceptedDetectionPlatform
 ): boolean {
+  if (isHiddenFromDetection(node)) {
+    return false;
+  }
+
   return collectCandidateTexts(node).some((candidate) =>
     isAcceptedTextCandidate(candidate, platform)
   );
@@ -137,7 +167,11 @@ function nodeHasAcceptedText(
 
 function collectCandidateTexts(node: TextCandidateNode): TextCandidate[] {
   const candidates: TextCandidate[] = [];
-  collectLeafTexts(node, 0, candidates);
+  const leafTexts = collectLeafTexts(node, 0, candidates);
+
+  if (leafTexts.length === 1) {
+    addTextCandidate(candidates, leafTexts[0] ?? "", true);
+  }
 
   return candidates;
 }
@@ -161,7 +195,7 @@ function collectLeafTexts(
     return [];
   }
 
-  if (isIgnoredElement(node)) {
+  if (isIgnoredElement(node) || isHiddenElement(node)) {
     return [];
   }
 
@@ -176,23 +210,29 @@ function collectLeafTexts(
 
   for (const child of node.childNodes ?? []) {
     const childLeafTexts = collectLeafTexts(child, depth + 1, candidates);
-    for (const text of childLeafTexts) {
-      if (leafTexts.length <= MAX_JOINED_LEAF_TEXTS) {
-        leafTexts.push(text);
-      }
-    }
+    appendLeafTexts(leafTexts, childLeafTexts);
 
     if (candidates.length >= MAX_TEXT_CANDIDATES) {
       break;
     }
   }
 
-  addJoinedLeafCandidate(candidates, leafTexts);
+  addJoinedLeafCandidates(candidates, leafTexts);
 
   return leafTexts;
 }
 
-function addJoinedLeafCandidate(
+function appendLeafTexts(target: string[], source: readonly string[]): void {
+  for (const text of source) {
+    if (target.length >= MAX_JOINED_LEAF_TEXTS) {
+      return;
+    }
+
+    target.push(text);
+  }
+}
+
+function addJoinedLeafCandidates(
   candidates: TextCandidate[],
   leafTexts: readonly string[]
 ): void {
@@ -205,6 +245,7 @@ function addJoinedLeafCandidate(
   }
 
   addTextCandidate(candidates, leafTexts.join(" "), false);
+  addTextCandidate(candidates, leafTexts.join(""), false);
 }
 
 function addTextCandidate(
@@ -252,6 +293,24 @@ function isAcceptedTextCandidate(
   );
 }
 
+function textHasAccepted(
+  text: string,
+  platform: AcceptedDetectionPlatform
+): boolean {
+  const normalized = normalizeCandidateText(text);
+
+  return (
+    normalized.length > 0 &&
+    isAcceptedTextCandidate(
+      {
+        text: normalized,
+        allowExactAcceptedFallback: true
+      },
+      platform
+    )
+  );
+}
+
 function isResultTextCandidate(text: string): boolean {
   return (
     text.length > 0 &&
@@ -271,11 +330,37 @@ function isIgnoredElement(node: TextCandidateNode): boolean {
   return IGNORED_ELEMENT_NAMES.has(elementName);
 }
 
+function isHiddenFromDetection(node: TextCandidateNode): boolean {
+  let current: TextCandidateNode | null | undefined = node;
+
+  while (current !== null && current !== undefined) {
+    if (current.nodeType === ELEMENT_NODE && isHiddenElement(current)) {
+      return true;
+    }
+
+    current = current.parentElement;
+  }
+
+  return false;
+}
+
+function isHiddenElement(node: TextCandidateNode): boolean {
+  const hiddenAttribute = node.getAttribute?.("hidden");
+  const ariaHidden = normalizeCandidateText(
+    node.getAttribute?.("aria-hidden") ?? ""
+  ).toLowerCase();
+
+  return (
+    (hiddenAttribute !== null && hiddenAttribute !== undefined) ||
+    ariaHidden === "true"
+  );
+}
+
 function toCandidateNode(node: Node): TextCandidateNode {
   return node as unknown as TextCandidateNode;
 }
 
-const defaultScheduler: DebounceScheduler = {
+export const defaultTimeoutScheduler: TimeoutScheduler = {
   setTimeout(callback, delayMs) {
     return setTimeout(callback, delayMs);
   },
