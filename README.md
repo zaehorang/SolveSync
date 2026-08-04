@@ -53,6 +53,18 @@ SolveSync는 LeetCode와 Programmers에서 Accepted 된 풀이를 사용자가 �
 
 Chrome에서 확장 폴더를 삭제하면 로드할 수 없으므로, 압축을 푼 폴더는 계속 보관하세요.
 
+### GitHub App 쓰기 권한 오류
+
+동기화 실패 상세에 `POST .../git/blobs: Resource not accessible by integration`이 표시되면 GitHub 로그인 문제가 아니라, 설치된 GitHub App에 `Contents: Read and write` 권한이 적용되지 않은 상태입니다.
+
+GitHub의 `Settings → Applications → Installed GitHub Apps → SolveSync Preview → Configure`에서 다음을 확인하세요.
+
+1. 대기 중인 권한 변경 요청이 있으면 승인합니다.
+2. Repository access에 동기화할 repository가 포함되어 있는지 확인합니다.
+3. 계속 실패하면 SolveSync Preview App을 제거한 뒤 해당 repository를 선택해 다시 설치하고, SolveSync Options에서 다시 로그인합니다.
+
+GitHub App의 repository 권한을 나중에 추가하거나 확장하면 기존 설치에는 자동으로 적용되지 않으며, 설치 소유자의 별도 승인이 필요합니다. 자세한 내용은 [GitHub의 권한 변경 승인 안내](https://docs.github.com/apps/using-github-apps/approving-updated-permissions-for-a-github-app)를 참고하세요.
+
 ## 개발자 빌드
 
 source에서 직접 build하려면 Node.js와 npm이 필요합니다.

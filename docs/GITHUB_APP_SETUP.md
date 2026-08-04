@@ -32,6 +32,18 @@ Repository permissions:
 
 Private key를 생성할 필요가 없다. Client secret도 extension 설정이나 source에 넣지 않는다.
 
+### 기존 설치의 권한 변경 승인
+
+GitHub App의 repository permission을 추가하거나 접근 수준을 높여도 기존 installation에는 즉시 적용되지 않는다. 각 installation 소유자가 GitHub의 `Settings → Applications → Installed GitHub Apps → SolveSync Preview → Configure`에서 대기 중인 권한 변경을 승인해야 한다. 확장에서 Device Flow 로그인을 다시 진행하는 것만으로는 installation permission이 갱신되지 않는다.
+
+승인 후에도 `POST .../git/blobs: Resource not accessible by integration`이 발생하면 다음을 확인한다.
+
+1. 설치된 App의 권한에 `Contents: Read and write`가 표시되는지 확인한다.
+2. Repository access에 실제 Sync Repository가 포함되어 있는지 확인한다.
+3. 설정이 모두 맞아도 실패하면 기존 installation을 제거하고 대상 repository를 선택해 다시 설치한 뒤, 확장에서 다시 로그인한다.
+
+권한을 변경한 Release는 기존 tester의 승인 완료 여부와 새 tester의 신규 설치 흐름을 모두 검증한다. 자세한 동작은 [GitHub의 권한 변경 승인 안내](https://docs.github.com/apps/using-github-apps/approving-updated-permissions-for-a-github-app)를 따른다.
+
 공식 문서:
 
 - [GitHub App 생성](https://docs.github.com/apps/creating-github-apps/registering-a-github-app/registering-a-github-app)
