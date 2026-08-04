@@ -288,6 +288,7 @@ describe("Programmers content detector", () => {
     expect(isProgrammersAcceptedResultText("통과")).toBe(false);
     expect(isProgrammersAcceptedResultText("채점 결과")).toBe(false);
     expect(isProgrammersAcceptedResultText("합계: 100.0 / 100.0")).toBe(false);
+    expect(isProgrammersAcceptedResultText("결과: 정답입니다!")).toBe(false);
     expect(mutationListHasAccepted([passed], "programmers")).toBe(false);
     expect(mutationListHasAccepted([summary], "programmers")).toBe(false);
   });

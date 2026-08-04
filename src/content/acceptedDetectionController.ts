@@ -9,8 +9,7 @@ import {
 } from "./detector";
 import {
   createProgrammersAcceptedPresentationTracker,
-  PROGRAMMERS_PRESENTATION_ATTRIBUTE_FILTER,
-  type ProgrammersAcceptedPresentationTracker
+  PROGRAMMERS_PRESENTATION_ATTRIBUTE_FILTER
 } from "./programmersAcceptedPresentation";
 
 const ACCEPTED_COALESCING_WINDOW_MS = 700;
@@ -53,7 +52,6 @@ export interface AcceptedDetectionControllerOptions {
   now?(): string;
   scheduler?: TimeoutScheduler;
   coalescingWindowMs?: number;
-  programmersPresentationTracker?: ProgrammersAcceptedPresentationTracker;
 }
 
 export function startAcceptedDetectionController(
@@ -62,16 +60,16 @@ export function startAcceptedDetectionController(
   const scheduler = options.scheduler ?? defaultTimeoutScheduler;
   const coalescingWindowMs =
     options.coalescingWindowMs ?? ACCEPTED_COALESCING_WINDOW_MS;
-  let currentRouteKey = routeKeyForUrl(options.getCurrentUrl());
+  let currentPage = resolveContentPageSafely(options.getCurrentUrl());
+  let currentRouteKey = createContentRouteKey(currentPage);
+  const documentRoot = options.documentRef.body ?? options.documentRef.documentElement;
   const programmersPresentationTracker =
-    options.programmersPresentationTracker ??
     createProgrammersAcceptedPresentationTracker();
   let pendingEvent: {
     routeKey: string;
     message: AcceptedDetectedMessage;
   } | null = null;
   let pendingTimer: ReturnType<typeof setTimeout> | null = null;
-  let observedProgrammersPresentationRoot: Element | null = null;
 
   const clearPendingEvent = (): void => {
     if (pendingTimer !== null) {
@@ -92,48 +90,6 @@ export function startAcceptedDetectionController(
     }
 
     options.sendAcceptedMessage(event.message);
-  };
-
-  let presentationObserver: AcceptedMutationObserver | null = null;
-
-  const bindProgrammersPresentationObserver = (): void => {
-    const nextRoot = programmersPresentationTracker.getRoot();
-
-    if (nextRoot === observedProgrammersPresentationRoot) {
-      return;
-    }
-
-    presentationObserver?.disconnect();
-    observedProgrammersPresentationRoot = nextRoot;
-
-    if (nextRoot !== null) {
-      presentationObserver?.observe(nextRoot, {
-        attributes: true,
-        attributeOldValue: true,
-        attributeFilter: [...PROGRAMMERS_PRESENTATION_ATTRIBUTE_FILTER]
-      });
-    }
-  };
-
-  const preparePage = (
-    page: ContentPageContext,
-    nextRouteKey: string
-  ): boolean => {
-    if (nextRouteKey === currentRouteKey) {
-      return false;
-    }
-
-    currentRouteKey = nextRouteKey;
-    clearPendingEvent();
-
-    if (page.platform === "programmers") {
-      programmersPresentationTracker.reset(options.documentRef);
-      bindProgrammersPresentationObserver();
-    } else {
-      observedProgrammersPresentationRoot = null;
-      presentationObserver?.disconnect();
-    }
-    return true;
   };
 
   const queueAcceptedEvent = (
@@ -158,43 +114,49 @@ export function startAcceptedDetectionController(
     pendingTimer = scheduler.setTimeout(flushPendingEvent, coalescingWindowMs);
   };
 
-  presentationObserver = options.createObserver((mutations) => {
-    const pageUrl = options.getCurrentUrl();
-    const page = resolveContentPageSafely(pageUrl);
-    const nextRouteKey = createContentRouteKey(page);
+  const observeTargets = (presentationRoot: Element | null): void => {
+    observer.disconnect();
+    observer.observe(documentRoot, {
+      childList: true,
+      characterData: true,
+      characterDataOldValue: true,
+      subtree: true
+    });
 
-    preparePage(page, nextRouteKey);
-
-    if (page.platform !== "programmers") {
-      return;
+    if (presentationRoot !== null) {
+      observer.observe(presentationRoot, {
+        attributes: true,
+        attributeFilter: [...PROGRAMMERS_PRESENTATION_ATTRIBUTE_FILTER]
+      });
     }
-
-    const transition = programmersPresentationTracker.handleMutations(mutations);
-
-    if (transition === "becameAcceptedVisible") {
-      queueAcceptedEvent(page, pageUrl, nextRouteKey);
-    }
-  });
-
-  const initialPage = resolveContentPageSafely(options.getCurrentUrl());
-
-  if (initialPage.platform === "programmers") {
-    programmersPresentationTracker.reset(options.documentRef);
-    bindProgrammersPresentationObserver();
-  }
+  };
 
   const observer = options.createObserver((mutations) => {
     const pageUrl = options.getCurrentUrl();
     const page = resolveContentPageSafely(pageUrl);
     const nextRouteKey = createContentRouteKey(page);
+    const previousPage = currentPage;
+    const routeChanged = nextRouteKey !== currentRouteKey;
 
-    const routeChanged = preparePage(page, nextRouteKey);
+    if (routeChanged) {
+      currentPage = page;
+      currentRouteKey = nextRouteKey;
+      clearPendingEvent();
+    }
 
     if (page.platform === "unsupported") {
+      if (routeChanged && previousPage.platform === "programmers") {
+        observeTargets(null);
+      }
+
       return;
     }
 
     if (page.platform === "leetcode") {
+      if (routeChanged && previousPage.platform === "programmers") {
+        observeTargets(null);
+      }
+
       if (mutationListHasAccepted(mutations, page.platform)) {
         queueAcceptedEvent(page, pageUrl, nextRouteKey);
       }
@@ -202,39 +164,38 @@ export function startAcceptedDetectionController(
       return;
     }
 
-    const stateBeforeRefresh = programmersPresentationTracker.getState();
-    const rootChanged = programmersPresentationTracker.refreshRoot(options.documentRef);
-
-    if (rootChanged) {
-      bindProgrammersPresentationObserver();
+    if (routeChanged && previousPage.platform !== "programmers") {
+      observeTargets(programmersPresentationTracker.reset(options.documentRef));
+      return;
     }
 
-    const hasFreshAcceptedText = mutationListHasAccepted(mutations, page.platform);
-    const acceptedWasAlreadyVisible =
-      !routeChanged && !rootChanged && stateBeforeRefresh === "acceptedVisible";
+    const reconciliation = programmersPresentationTracker.reconcile(
+      options.documentRef,
+      mutations,
+      {
+        freshAcceptedText: mutationListHasAccepted(mutations, page.platform),
+        routeChanged
+      }
+    );
 
-    if (hasFreshAcceptedText && !acceptedWasAlreadyVisible) {
+    if (reconciliation.rootChanged) {
+      observeTargets(reconciliation.root);
+    }
+
+    if (reconciliation.becameAcceptedVisible) {
       queueAcceptedEvent(page, pageUrl, nextRouteKey);
     }
-
-    if (hasFreshAcceptedText) {
-      programmersPresentationTracker.synchronizeCurrentState();
-    } else if (programmersPresentationTracker.mutationsTouchPresentation(mutations)) {
-      programmersPresentationTracker.rearmIfInactive();
-    }
   });
 
-  observer.observe(options.documentRef.body ?? options.documentRef.documentElement, {
-    childList: true,
-    characterData: true,
-    characterDataOldValue: true,
-    subtree: true
-  });
+  observeTargets(
+    currentPage.platform === "programmers"
+      ? programmersPresentationTracker.reset(options.documentRef)
+      : null
+  );
 
   return () => {
     clearPendingEvent();
     observer.disconnect();
-    presentationObserver?.disconnect();
   };
 }
 

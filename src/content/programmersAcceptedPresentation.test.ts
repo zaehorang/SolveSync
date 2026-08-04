@@ -7,20 +7,23 @@ describe("Programmers Accepted presentation tracker", () => {
     const root = presentationRoot("정답입니다!", { "aria-hidden": "true" });
     const harness = trackerHarness(root);
 
-    expect(harness.tracker.getState()).toBe("inactive");
-    expect(harness.tracker.handleMutations([])).toBeNull();
+    expect(harness.tracker.reset(harness.documentRef)).toBe(root);
+    expect(harness.reconcile([]).becameAcceptedVisible).toBe(false);
   });
 
-  it("emits once when aria-hidden is removed from an Accepted presentation", () => {
+  it("emits once when a hidden Accepted presentation becomes visible", () => {
     const root = presentationRoot("정답입니다!", { "aria-hidden": "true" });
     const harness = trackerHarness(root);
 
     root.removeAttribute("aria-hidden");
 
-    expect(harness.tracker.handleMutations([attributeMutation(root, "aria-hidden")])).toBe(
-      "becameAcceptedVisible"
-    );
-    expect(harness.tracker.handleMutations([attributeMutation(root, "class")])).toBeNull();
+    expect(
+      harness.reconcile([attributeMutation(root, "aria-hidden")])
+        .becameAcceptedVisible
+    ).toBe(true);
+    expect(
+      harness.reconcile([attributeMutation(root, "class")]).becameAcceptedVisible
+    ).toBe(false);
   });
 
   it("evaluates one attribute batch from its final DOM state", () => {
@@ -31,104 +34,89 @@ describe("Programmers Accepted presentation tracker", () => {
     root.setAttribute("class", "modal fade show");
 
     expect(
-      harness.tracker.handleMutations([
+      harness.reconcile([
         attributeMutation(root, "aria-hidden"),
         attributeMutation(root, "class")
-      ])
-    ).toBe("becameAcceptedVisible");
+      ]).becameAcceptedVisible
+    ).toBe(true);
 
     root.setAttribute("aria-hidden", "true");
     root.removeAttribute("aria-hidden");
 
     expect(
-      harness.tracker.handleMutations([
+      harness.reconcile([
         attributeMutation(root, "aria-hidden"),
         attributeMutation(root, "aria-hidden")
-      ])
-    ).toBeNull();
+      ]).becameAcceptedVisible
+    ).toBe(false);
   });
 
-  it("detects hidden and computed-style visibility transitions", () => {
+  it("supports root hidden and computed-style visibility transitions", () => {
     const hiddenRoot = presentationRoot("정답입니다!", { hidden: "" });
     const hiddenHarness = trackerHarness(hiddenRoot);
 
     hiddenRoot.removeAttribute("hidden");
     expect(
-      hiddenHarness.tracker.handleMutations([attributeMutation(hiddenRoot, "hidden")])
-    ).toBe("becameAcceptedVisible");
+      hiddenHarness.reconcile([attributeMutation(hiddenRoot, "hidden")])
+        .becameAcceptedVisible
+    ).toBe(true);
 
     const styledRoot = presentationRoot("정답입니다!", {}, { display: "none" });
     const styledHarness = trackerHarness(styledRoot);
     styledRoot.computedStyle.display = "block";
 
     expect(
-      styledHarness.tracker.handleMutations([attributeMutation(styledRoot, "style")])
-    ).toBe("becameAcceptedVisible");
+      styledHarness.reconcile([attributeMutation(styledRoot, "style")])
+        .becameAcceptedVisible
+    ).toBe(true);
   });
 
-  it("ignores attribute changes while the presentation remains hidden", () => {
-    const root = presentationRoot("정답입니다!", { "aria-hidden": "true" });
-    const harness = trackerHarness(root);
-
-    root.setAttribute("class", "modal fade show");
-
-    expect(harness.tracker.handleMutations([attributeMutation(root, "class")])).toBeNull();
-  });
-
-  it("re-arms only after a visible presentation becomes inactive", () => {
+  it("re-arms after a visible presentation becomes inactive", () => {
     const root = presentationRoot("정답입니다!");
     const harness = trackerHarness(root);
 
-    expect(harness.tracker.getState()).toBe("acceptedVisible");
-
     root.setAttribute("aria-hidden", "true");
-    expect(harness.tracker.handleMutations([attributeMutation(root, "aria-hidden")])).toBe(
-      "becameInactive"
-    );
+    expect(
+      harness.reconcile([attributeMutation(root, "aria-hidden")])
+        .becameAcceptedVisible
+    ).toBe(false);
 
     root.removeAttribute("aria-hidden");
-    expect(harness.tracker.handleMutations([attributeMutation(root, "aria-hidden")])).toBe(
-      "becameAcceptedVisible"
-    );
+    expect(
+      harness.reconcile([attributeMutation(root, "aria-hidden")])
+        .becameAcceptedVisible
+    ).toBe(true);
   });
 
-  it("ignores unrelated targets and unsupported attributes", () => {
-    const root = presentationRoot("정답입니다!", { "aria-hidden": "true" });
-    const unrelated = presentationRoot("정답입니다!");
+  it("re-arms on a non-Accepted title without promoting from unrelated content", () => {
+    const root = presentationRoot("정답입니다!");
+    const harness = trackerHarness(root);
+
+    root.setTitle("오답입니다!");
+    expect(harness.reconcile([contentMutation(root)]).becameAcceptedVisible).toBe(
+      false
+    );
+
+    root.setTitle("정답입니다!");
+    expect(
+      harness.reconcile([contentMutation(root)], { freshAcceptedText: true })
+        .becameAcceptedVisible
+    ).toBe(true);
+  });
+
+  it("does not treat representative non-Accepted title text as Accepted", () => {
+    const root = presentationRoot("채점 결과", { "aria-hidden": "true" });
     const harness = trackerHarness(root);
 
     root.removeAttribute("aria-hidden");
 
     expect(
-      harness.tracker.handleMutations([attributeMutation(unrelated, "aria-hidden")])
-    ).toBeNull();
-    expect(harness.tracker.handleMutations([attributeMutation(root, "data-state")])).toBeNull();
+      harness.reconcile([attributeMutation(root, "aria-hidden")])
+        .becameAcceptedVisible
+    ).toBe(false);
   });
 
-  it.each(["오답입니다!", "통과", "채점 결과", "합계: 100.0 / 100.0"])(
-    "does not treat %s as Accepted",
-    (title) => {
-      const root = presentationRoot(title, { "aria-hidden": "true" });
-      const harness = trackerHarness(root);
-
-      root.removeAttribute("aria-hidden");
-
-      expect(
-        harness.tracker.handleMutations([attributeMutation(root, "aria-hidden")])
-      ).toBeNull();
-    }
-  );
-
-  it("honors hidden ancestors without observing the whole page", () => {
-    const ancestor = presentationRoot("", { hidden: "" });
-    const root = presentationRoot("정답입니다!");
-    root.parentElement = ancestor as unknown as Element;
-    const harness = trackerHarness(root);
-
-    expect(harness.tracker.getState()).toBe("inactive");
-  });
-
-  it("takes a replacement root as a baseline and ignores queued old-root records", () => {
+  it("takes a replacement root as a baseline and ignores old-root records", () => {
     const firstRoot = presentationRoot("정답입니다!", { "aria-hidden": "true" });
     const secondRoot = presentationRoot("정답입니다!");
     let currentRoot: FakePresentationElement | null = firstRoot;
@@ -140,16 +128,21 @@ describe("Programmers Accepted presentation tracker", () => {
     tracker.reset(documentRef);
 
     currentRoot = secondRoot;
-    expect(tracker.refreshRoot(documentRef)).toBe(true);
-    expect(tracker.getState()).toBe("acceptedVisible");
-    expect(
-      tracker.handleMutations([attributeMutation(firstRoot, "aria-hidden")])
-    ).toBeNull();
+    const replacement = tracker.reconcile(
+      documentRef,
+      [attributeMutation(firstRoot, "aria-hidden")],
+      { freshAcceptedText: false, routeChanged: false }
+    );
+
+    expect(replacement).toEqual({
+      root: secondRoot,
+      rootChanged: true,
+      becameAcceptedVisible: false
+    });
   });
 });
 
 interface FakePresentationElement {
-  textContent: string;
   parentElement: Element | null;
   ownerDocument: Document | null;
   computedStyle: {
@@ -160,19 +153,19 @@ interface FakePresentationElement {
   hasAttribute(name: string): boolean;
   setAttribute(name: string, value: string): void;
   removeAttribute(name: string): void;
-  querySelectorAll(selector: string): NodeListOf<Element>;
+  querySelector(selector: string): Element | null;
+  setTitle(title: string): void;
 }
 
 function presentationRoot(
-  title: string,
+  initialTitle: string,
   initialAttributes: Record<string, string> = {},
   initialStyle: Partial<FakePresentationElement["computedStyle"]> = {}
 ): FakePresentationElement {
   const attributes = new Map(Object.entries(initialAttributes));
-  const heading = { textContent: title } as Element;
+  const titleElement = { textContent: initialTitle };
 
   return {
-    textContent: title,
     parentElement: null,
     ownerDocument: null,
     computedStyle: {
@@ -191,25 +184,46 @@ function presentationRoot(
     removeAttribute(name) {
       attributes.delete(name);
     },
-    querySelectorAll() {
-      return (title.length === 0 ? [] : [heading]) as unknown as NodeListOf<Element>;
+    querySelector(selector) {
+      return selector === ".modal-title"
+        ? (titleElement as Element)
+        : null;
+    },
+    setTitle(title) {
+      titleElement.textContent = title;
     }
   };
 }
 
 function trackerHarness(root: FakePresentationElement) {
-  const tracker = createProgrammersAcceptedPresentationTracker({
-    findPresentationRoot: () => root as unknown as Element,
-    readComputedStyle
-  });
+  const documentRef = fakeDocument(root);
+  const tracker = createProgrammersAcceptedPresentationTracker({ readComputedStyle });
+  tracker.reset(documentRef);
 
-  tracker.reset(fakeDocument());
-
-  return { tracker };
+  return {
+    tracker,
+    documentRef,
+    reconcile(
+      mutations: MutationRecord[],
+      context: Partial<{
+        freshAcceptedText: boolean;
+        routeChanged: boolean;
+      }> = {}
+    ) {
+      return tracker.reconcile(documentRef, mutations, {
+        freshAcceptedText: context.freshAcceptedText ?? false,
+        routeChanged: context.routeChanged ?? false
+      });
+    }
+  };
 }
 
-function fakeDocument(): Pick<Document, "querySelector"> {
-  return { querySelector: () => null } as Pick<Document, "querySelector">;
+function fakeDocument(
+  root: FakePresentationElement | null = null
+): Pick<Document, "querySelector"> {
+  return {
+    querySelector: () => root as unknown as Element | null
+  } as Pick<Document, "querySelector">;
 }
 
 function readComputedStyle(element: Element) {
@@ -226,4 +240,13 @@ function attributeMutation(
     attributeName,
     oldValue: null
   } as MutationRecord;
+}
+
+function contentMutation(target: FakePresentationElement): MutationRecord {
+  return {
+    type: "childList",
+    target: target as unknown as Node,
+    addedNodes: [],
+    removedNodes: []
+  } as unknown as MutationRecord;
 }

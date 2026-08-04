@@ -1,9 +1,7 @@
 import { isProgrammersAcceptedResultText } from "./detector";
 
 const PRESENTATION_ROOT_SELECTOR = "#modal-dialog";
-const PRESENTATION_HEADING_SELECTOR =
-  ".modal-title, [role=\"heading\"], h1, h2, h3, h4, h5, h6";
-const MAX_PRESENTATION_HEADINGS = 24;
+const PRESENTATION_TITLE_SELECTOR = ".modal-title";
 
 export const PROGRAMMERS_PRESENTATION_ATTRIBUTE_FILTER = [
   "aria-hidden",
@@ -12,13 +10,7 @@ export const PROGRAMMERS_PRESENTATION_ATTRIBUTE_FILTER = [
   "style"
 ] as const;
 
-export type ProgrammersAcceptedPresentationState =
-  | "inactive"
-  | "acceptedVisible";
-
-export type ProgrammersAcceptedPresentationTransition =
-  | "becameAcceptedVisible"
-  | "becameInactive";
+type ProgrammersAcceptedPresentationState = "inactive" | "acceptedVisible";
 
 interface PresentationStyle {
   display: string;
@@ -32,17 +24,24 @@ export interface ProgrammersAcceptedPresentationTrackerOptions {
   readComputedStyle?(element: Element): PresentationStyle;
 }
 
+interface ProgrammersAcceptedPresentationContext {
+  freshAcceptedText: boolean;
+  routeChanged: boolean;
+}
+
+interface ProgrammersAcceptedPresentationReconciliation {
+  root: Element | null;
+  rootChanged: boolean;
+  becameAcceptedVisible: boolean;
+}
+
 export interface ProgrammersAcceptedPresentationTracker {
-  reset(documentRef: Pick<Document, "querySelector">): void;
-  refreshRoot(documentRef: Pick<Document, "querySelector">): boolean;
-  handleMutations(
-    mutations: readonly MutationRecord[]
-  ): ProgrammersAcceptedPresentationTransition | null;
-  synchronizeCurrentState(): void;
-  rearmIfInactive(): void;
-  mutationsTouchPresentation(mutations: readonly MutationRecord[]): boolean;
-  getRoot(): Element | null;
-  getState(): ProgrammersAcceptedPresentationState;
+  reset(documentRef: Pick<Document, "querySelector">): Element | null;
+  reconcile(
+    documentRef: Pick<Document, "querySelector">,
+    mutations: readonly MutationRecord[],
+    context: ProgrammersAcceptedPresentationContext
+  ): ProgrammersAcceptedPresentationReconciliation;
 }
 
 export function createProgrammersAcceptedPresentationTracker(
@@ -56,86 +55,93 @@ export function createProgrammersAcceptedPresentationTracker(
 
   const readState = (): ProgrammersAcceptedPresentationState =>
     root !== null &&
-    hasExactAcceptedHeading(root) &&
+    hasExactAcceptedTitle(root) &&
     isPresentationVisible(root, readComputedStyle)
       ? "acceptedVisible"
       : "inactive";
 
-  const setRoot = (nextRoot: Element | null): boolean => {
-    if (nextRoot === root) {
-      return false;
-    }
-
-    root = nextRoot;
-    state = readState();
-    return true;
-  };
-
   return {
     reset(documentRef) {
-      root = null;
-      state = "inactive";
-      setRoot(findPresentationRoot(documentRef));
-    },
-
-    refreshRoot(documentRef) {
-      return setRoot(findPresentationRoot(documentRef));
-    },
-
-    handleMutations(mutations) {
-      if (
-        root === null ||
-        !mutations.some(
-          (mutation) =>
-            mutation.type === "attributes" &&
-            mutation.target === root &&
-            isPresentationAttribute(mutation.attributeName)
-        )
-      ) {
-        return null;
-      }
-
-      const nextState = readState();
-
-      if (nextState === state) {
-        return null;
-      }
-
-      const previousState = state;
-      state = nextState;
-
-      return previousState === "inactive"
-        ? "becameAcceptedVisible"
-        : "becameInactive";
-    },
-
-    synchronizeCurrentState() {
+      root = findPresentationRoot(documentRef);
       state = readState();
-    },
-
-    rearmIfInactive() {
-      if (readState() === "inactive") {
-        state = "inactive";
-      }
-    },
-
-    mutationsTouchPresentation(mutations) {
-      const currentRoot = root;
-
-      return (
-        currentRoot !== null &&
-        mutations.some((mutation) =>
-          isNodeWithinRoot(mutation.target, currentRoot)
-        )
-      );
-    },
-
-    getRoot() {
       return root;
     },
 
-    getState() {
-      return state;
+    reconcile(documentRef, mutations, context) {
+      const nextRoot = findPresentationRoot(documentRef);
+
+      if (nextRoot !== root) {
+        root = nextRoot;
+        state = readState();
+
+        return {
+          root,
+          rootChanged: true,
+          becameAcceptedVisible: false
+        };
+      }
+
+      if (root === null) {
+        return {
+          root,
+          rootChanged: false,
+          becameAcceptedVisible: false
+        };
+      }
+
+      const currentRoot = root;
+
+      const hasPresentationAttributeMutation = mutations.some(
+        (mutation) =>
+          mutation.type === "attributes" &&
+          mutation.target === currentRoot &&
+          isPresentationAttribute(mutation.attributeName)
+      );
+
+      if (
+        context.routeChanged &&
+        !context.freshAcceptedText &&
+        !hasPresentationAttributeMutation
+      ) {
+        state = readState();
+
+        return {
+          root,
+          rootChanged: false,
+          becameAcceptedVisible: false
+        };
+      }
+
+      if (context.routeChanged && context.freshAcceptedText) {
+        state = "inactive";
+      }
+
+      if (context.freshAcceptedText || hasPresentationAttributeMutation) {
+        const previousState = state;
+        state = readState();
+
+        return {
+          root,
+          rootChanged: false,
+          becameAcceptedVisible:
+            previousState === "inactive" && state === "acceptedVisible"
+        };
+      }
+
+      if (
+        mutations.some((mutation) =>
+          isNodeWithinRoot(mutation.target, currentRoot)
+        ) &&
+        readState() === "inactive"
+      ) {
+        state = "inactive";
+      }
+
+      return {
+        root,
+        rootChanged: false,
+        becameAcceptedVisible: false
+      };
     }
   };
 }
@@ -146,25 +152,12 @@ function findDefaultProgrammersPresentationRoot(
   return documentRef.querySelector(PRESENTATION_ROOT_SELECTOR);
 }
 
-function hasExactAcceptedHeading(root: Element): boolean {
-  const headings = root.querySelectorAll(PRESENTATION_HEADING_SELECTOR);
-  let inspected = 0;
-
-  for (const heading of headings) {
-    if (inspected >= MAX_PRESENTATION_HEADINGS) {
-      break;
-    }
-
-    inspected += 1;
-
-    if (isProgrammersAcceptedResultText(heading.textContent ?? "")) {
-      return true;
-    }
-  }
+function hasExactAcceptedTitle(root: Element): boolean {
+  const title = root.querySelector(PRESENTATION_TITLE_SELECTOR);
 
   return (
-    headings.length === 0 &&
-    isProgrammersAcceptedResultText(root.textContent ?? "")
+    title !== null &&
+    isProgrammersAcceptedResultText(title.textContent ?? "")
   );
 }
 
@@ -172,29 +165,19 @@ function isPresentationVisible(
   root: Element,
   readComputedStyle: (element: Element) => PresentationStyle
 ): boolean {
-  let current: Element | null = root;
-
-  while (current !== null) {
-    if (
-      current.hasAttribute("hidden") ||
-      normalize(current.getAttribute("aria-hidden") ?? "").toLowerCase() === "true"
-    ) {
-      return false;
-    }
-
-    const style = readComputedStyle(current);
-
-    if (
-      normalize(style.display).toLowerCase() === "none" ||
-      normalize(style.visibility).toLowerCase() === "hidden"
-    ) {
-      return false;
-    }
-
-    current = current.parentElement;
+  if (
+    root.hasAttribute("hidden") ||
+    normalize(root.getAttribute("aria-hidden") ?? "").toLowerCase() === "true"
+  ) {
+    return false;
   }
 
-  return true;
+  const style = readComputedStyle(root);
+
+  return (
+    normalize(style.display).toLowerCase() !== "none" &&
+    normalize(style.visibility).toLowerCase() !== "hidden"
+  );
 }
 
 function readDefaultComputedStyle(element: Element): PresentationStyle {

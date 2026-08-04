@@ -47,7 +47,7 @@ README.md
 - Content bundle에는 static ESM `import`가 남으면 안 되며 `npm run build`의 build verification이 이를 검사한다.
 - Content detection controller가 `MutationObserver`, route lifecycle, coalescing과 message emission을 소유한다. Content entry는 controller 시작과 toast wiring만 담당한다.
 - Accepted 감지는 현재 DOM에 Accepted 상태가 존재하는지가 아니라, Coding Platform adapter가 이번 mutation에서 fresh visible Accepted transition을 확정했는지를 기준으로 한다.
-- Text signal 탐색은 ADR 0022에 따라 mutation 범위 안에서 bounded traversal한다. 플랫폼별 presentation state가 필요하면 adapter가 등록한 presentation root의 visibility attribute만 별도로 관찰한다.
+- Text signal 탐색은 ADR 0022에 따라 mutation 범위 안에서 bounded traversal한다. 플랫폼별 presentation state가 필요하면 같은 observer에 adapter가 등록한 presentation root를 추가 target으로 등록하고 그 root의 visibility attribute만 관찰한다.
 - Fresh signal마다 현재 URL을 다시 parsing해 route-bound immutable Accepted event를 즉시 만든다. Event에 DOM source snapshot이 필요하면 이 시점에 한 번만 캡처하고 지연 callback에서 DOM을 다시 읽지 않는다.
 - 동일 render burst는 첫 event와 snapshot을 보존하는 fixed-window coalescer로 최대 한 번만 전달한다.
 - Route key가 바뀌면 이전 route의 pending event와 coalescing state를 폐기한 뒤 현재 batch를 새 route 기준으로 판정한다. 전달 직전에도 route key를 다시 확인한다.
