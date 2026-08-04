@@ -12,6 +12,16 @@ SolveSync는 LeetCode와 Programmers에서 Accepted 된 풀이를 사용자가 �
 - 수동 검증 절차는 `docs/MANUAL_VALIDATION.md`를 따른다.
 - 이 파일과 `docs/`가 충돌하면 먼저 관련 `docs/`를 확인하고, 실제 정책 변경이 필요하면 해당 문서를 source of truth로 수정한다.
 
+## Git Workflow
+- 구현이나 문서 변경을 시작하기 전에 `git status --short --branch`와 현재 branch를 확인한다.
+- `main`에서는 직접 작업하거나 commit하지 않는다. 현재 `main`을 base로 `fix/`, `feat/`, `docs/`, `test/`, `refactor/` 같은 목적별 work branch를 만든 뒤 변경한다.
+- `main`과 `origin/main`이 어긋나 있으면 그대로 진행하지 말고 base 상태를 먼저 정리한다. 사용자 변경이 섞여 있으면 되돌리지 말고 현재 작업과의 관계를 확인한다.
+- 이미 `main`에 현재 작업의 미커밋 변경이 있다면 버리지 않는다. 작업 범위가 명확하면 새 work branch로 함께 가져가고, 다른 작업과 섞여 있으면 사용자에게 확인한다.
+- 변경 전달은 work branch에서 검증한 뒤 Pull Request를 통해 수행한다. `main`으로 직접 push하거나 직접 merge하는 흐름을 사용하지 않는다.
+- 관련 GitHub Issue가 있으면 PR body에 `Fixes #<number>` 또는 적절한 issue link를 포함한다.
+- commit, push, PR 생성처럼 저장소나 GitHub 상태를 바꾸는 게시 단계는 사용자가 해당 작업에서 요청하거나 승인한 범위에서 수행한다.
+- 이 section의 development work branch와 제품이 사용자의 Sync Repository에 만드는 Sync Branch는 서로 다른 개념이다. 제품의 Sync Branch 자동 생성 금지 규칙은 그대로 유지한다.
+
 ## Project Map
 - `src/content`: 문제 페이지 관찰, Accepted 감지, Programmers Accepted Editor Snapshot, toast, background messaging.
 - `src/background`: sync orchestration, source resolver, storage, Retry Bundle, Sync History.
