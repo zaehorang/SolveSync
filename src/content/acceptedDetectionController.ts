@@ -7,6 +7,11 @@ import {
   type ProgrammersRoute,
   type TimeoutScheduler
 } from "./detector";
+import {
+  createProgrammersAcceptedPresentationTracker,
+  PROGRAMMERS_PRESENTATION_ATTRIBUTE_FILTER,
+  type ProgrammersAcceptedPresentationTracker
+} from "./programmersAcceptedPresentation";
 
 const ACCEPTED_COALESCING_WINDOW_MS = 700;
 
@@ -48,6 +53,7 @@ export interface AcceptedDetectionControllerOptions {
   now?(): string;
   scheduler?: TimeoutScheduler;
   coalescingWindowMs?: number;
+  programmersPresentationTracker?: ProgrammersAcceptedPresentationTracker;
 }
 
 export function startAcceptedDetectionController(
@@ -57,11 +63,15 @@ export function startAcceptedDetectionController(
   const coalescingWindowMs =
     options.coalescingWindowMs ?? ACCEPTED_COALESCING_WINDOW_MS;
   let currentRouteKey = routeKeyForUrl(options.getCurrentUrl());
+  const programmersPresentationTracker =
+    options.programmersPresentationTracker ??
+    createProgrammersAcceptedPresentationTracker();
   let pendingEvent: {
     routeKey: string;
     message: AcceptedDetectedMessage;
   } | null = null;
   let pendingTimer: ReturnType<typeof setTimeout> | null = null;
+  let observedProgrammersPresentationRoot: Element | null = null;
 
   const clearPendingEvent = (): void => {
     if (pendingTimer !== null) {
@@ -84,27 +94,60 @@ export function startAcceptedDetectionController(
     options.sendAcceptedMessage(event.message);
   };
 
-  const observer = options.createObserver((mutations) => {
-    const pageUrl = options.getCurrentUrl();
-    const page = resolveContentPageSafely(pageUrl);
-    const nextRouteKey = createContentRouteKey(page);
+  let presentationObserver: AcceptedMutationObserver | null = null;
 
-    if (nextRouteKey !== currentRouteKey) {
-      currentRouteKey = nextRouteKey;
-      clearPendingEvent();
+  const bindProgrammersPresentationObserver = (): void => {
+    const nextRoot = programmersPresentationTracker.getRoot();
+
+    if (nextRoot === observedProgrammersPresentationRoot) {
+      return;
     }
 
-    if (
-      page.platform === "unsupported" ||
-      !mutationListHasAccepted(mutations, page.platform) ||
-      pendingEvent !== null
-    ) {
+    presentationObserver?.disconnect();
+    observedProgrammersPresentationRoot = nextRoot;
+
+    if (nextRoot !== null) {
+      presentationObserver?.observe(nextRoot, {
+        attributes: true,
+        attributeOldValue: true,
+        attributeFilter: [...PROGRAMMERS_PRESENTATION_ATTRIBUTE_FILTER]
+      });
+    }
+  };
+
+  const preparePage = (
+    page: ContentPageContext,
+    nextRouteKey: string
+  ): boolean => {
+    if (nextRouteKey === currentRouteKey) {
+      return false;
+    }
+
+    currentRouteKey = nextRouteKey;
+    clearPendingEvent();
+
+    if (page.platform === "programmers") {
+      programmersPresentationTracker.reset(options.documentRef);
+      bindProgrammersPresentationObserver();
+    } else {
+      observedProgrammersPresentationRoot = null;
+      presentationObserver?.disconnect();
+    }
+    return true;
+  };
+
+  const queueAcceptedEvent = (
+    page: Exclude<ContentPageContext, { platform: "unsupported" }>,
+    pageUrl: string,
+    routeKey: string
+  ): void => {
+    if (pendingEvent !== null) {
       return;
     }
 
     const detectedAt = options.now?.() ?? new Date().toISOString();
     pendingEvent = {
-      routeKey: nextRouteKey,
+      routeKey,
       message: createAcceptedMessageForPage(
         options.documentRef,
         page,
@@ -113,6 +156,72 @@ export function startAcceptedDetectionController(
       )
     };
     pendingTimer = scheduler.setTimeout(flushPendingEvent, coalescingWindowMs);
+  };
+
+  presentationObserver = options.createObserver((mutations) => {
+    const pageUrl = options.getCurrentUrl();
+    const page = resolveContentPageSafely(pageUrl);
+    const nextRouteKey = createContentRouteKey(page);
+
+    preparePage(page, nextRouteKey);
+
+    if (page.platform !== "programmers") {
+      return;
+    }
+
+    const transition = programmersPresentationTracker.handleMutations(mutations);
+
+    if (transition === "becameAcceptedVisible") {
+      queueAcceptedEvent(page, pageUrl, nextRouteKey);
+    }
+  });
+
+  const initialPage = resolveContentPageSafely(options.getCurrentUrl());
+
+  if (initialPage.platform === "programmers") {
+    programmersPresentationTracker.reset(options.documentRef);
+    bindProgrammersPresentationObserver();
+  }
+
+  const observer = options.createObserver((mutations) => {
+    const pageUrl = options.getCurrentUrl();
+    const page = resolveContentPageSafely(pageUrl);
+    const nextRouteKey = createContentRouteKey(page);
+
+    const routeChanged = preparePage(page, nextRouteKey);
+
+    if (page.platform === "unsupported") {
+      return;
+    }
+
+    if (page.platform === "leetcode") {
+      if (mutationListHasAccepted(mutations, page.platform)) {
+        queueAcceptedEvent(page, pageUrl, nextRouteKey);
+      }
+
+      return;
+    }
+
+    const stateBeforeRefresh = programmersPresentationTracker.getState();
+    const rootChanged = programmersPresentationTracker.refreshRoot(options.documentRef);
+
+    if (rootChanged) {
+      bindProgrammersPresentationObserver();
+    }
+
+    const hasFreshAcceptedText = mutationListHasAccepted(mutations, page.platform);
+    const acceptedWasAlreadyVisible =
+      !routeChanged && !rootChanged && stateBeforeRefresh === "acceptedVisible";
+
+    if (hasFreshAcceptedText && !acceptedWasAlreadyVisible) {
+      queueAcceptedEvent(page, pageUrl, nextRouteKey);
+    }
+
+    if (hasFreshAcceptedText) {
+      programmersPresentationTracker.synchronizeCurrentState();
+    } else if (programmersPresentationTracker.mutationsTouchPresentation(mutations)) {
+      programmersPresentationTracker.rearmIfInactive();
+    }
   });
 
   observer.observe(options.documentRef.body ?? options.documentRef.documentElement, {
@@ -125,6 +234,7 @@ export function startAcceptedDetectionController(
   return () => {
     clearPendingEvent();
     observer.disconnect();
+    presentationObserver?.disconnect();
   };
 }
 

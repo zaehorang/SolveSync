@@ -208,6 +208,302 @@ describe("accepted detection controller", () => {
     });
   });
 
+  it("detects a reused hidden Programmers modal when it becomes visible exactly once", () => {
+    vi.useFakeTimers();
+    const codeEditor = element({ value: "first accepted code\n" });
+    const modal = programmersModal("정답입니다!", { "aria-hidden": "true" });
+    const documentRef = makeDetectionDocument({
+      "#modal-dialog": modal,
+      "textarea#code": codeEditor,
+      'meta[property="og:title"]': element({
+        content: "코딩테스트 연습 - 두 수의 곱 구하기 | 프로그래머스"
+      }),
+      'select[name="language"]': element({
+        value: "swift",
+        selectedOption: element({ textContent: "Swift" })
+      })
+    });
+    const sentMessages: unknown[] = [];
+    const observer = createFakeObserver();
+
+    startAcceptedDetectionController({
+      documentRef,
+      getCurrentUrl: () =>
+        "https://school.programmers.co.kr/learn/courses/30/lessons/120804",
+      sendAcceptedMessage: (message) => sentMessages.push(message),
+      createObserver: observer.factory,
+      now: () => "2026-01-01T00:00:00.000Z"
+    });
+
+    expect(observer.observe).toHaveBeenCalledWith(modal, {
+      attributes: true,
+      attributeOldValue: true,
+      attributeFilter: ["aria-hidden", "hidden", "class", "style"]
+    });
+
+    modal.removeAttribute("aria-hidden");
+    observer.emitPresentation([attributeMutation(modal, "aria-hidden")]);
+    codeEditor.value = "edited after Accepted\n";
+    observer.emitPresentation([attributeMutation(modal, "class")]);
+    vi.advanceTimersByTime(700);
+
+    expect(sentMessages).toHaveLength(1);
+    expect(sentMessages[0]).toMatchObject({
+      payload: {
+        code: "first accepted code\n"
+      }
+    });
+  });
+
+  it("coalesces text and visibility signals for one Programmers presentation episode", () => {
+    vi.useFakeTimers();
+    const modal = programmersModal("정답입니다!", { "aria-hidden": "true" });
+    const documentRef = makeDetectionDocument({
+      "#modal-dialog": modal,
+      "textarea#code": element({ value: "accepted code\n" }),
+      'meta[property="og:title"]': element({
+        content: "코딩테스트 연습 - 두 수의 곱 구하기 | 프로그래머스"
+      }),
+      'select[name="language"]': element({
+        value: "python3",
+        selectedOption: element({ textContent: "Python3" })
+      })
+    });
+    const sentMessages: unknown[] = [];
+    const observer = createFakeObserver();
+
+    startAcceptedDetectionController({
+      documentRef,
+      getCurrentUrl: () =>
+        "https://school.programmers.co.kr/learn/courses/30/lessons/120804",
+      sendAcceptedMessage: (message) => sentMessages.push(message),
+      createObserver: observer.factory
+    });
+
+    modal.removeAttribute("aria-hidden");
+    observer.emit([acceptedChildListMutation("정답입니다!")]);
+    observer.emitPresentation([attributeMutation(modal, "aria-hidden")]);
+    vi.advanceTimersByTime(700);
+
+    observer.emit([acceptedChildListMutation("정답입니다!")]);
+    vi.advanceTimersByTime(700);
+
+    expect(sentMessages).toHaveLength(1);
+  });
+
+  it("does not let an earlier root-content callback consume a visibility transition", () => {
+    vi.useFakeTimers();
+    const modal = programmersModal("정답입니다!", { "aria-hidden": "true" });
+    const documentRef = makeDetectionDocument({
+      "#modal-dialog": modal,
+      "textarea#code": element({ value: "accepted code\n" }),
+      'meta[property="og:title"]': element({
+        content: "코딩테스트 연습 - 두 수의 곱 구하기 | 프로그래머스"
+      }),
+      'select[name="language"]': element({
+        value: "python3",
+        selectedOption: element({ textContent: "Python3" })
+      })
+    });
+    const sentMessages: unknown[] = [];
+    const observer = createFakeObserver();
+
+    startAcceptedDetectionController({
+      documentRef,
+      getCurrentUrl: () =>
+        "https://school.programmers.co.kr/learn/courses/30/lessons/120804",
+      sendAcceptedMessage: (message) => sentMessages.push(message),
+      createObserver: observer.factory
+    });
+
+    modal.removeAttribute("aria-hidden");
+    observer.emit([
+      childListMutation(
+        modal as unknown as FakeMutationNode,
+        [mutationTextNode("실행 결과")]
+      )
+    ]);
+    observer.emitPresentation([attributeMutation(modal, "aria-hidden")]);
+    vi.advanceTimersByTime(700);
+
+    expect(sentMessages).toHaveLength(1);
+  });
+
+  it("re-arms after close and ignores a visible Wrong Answer before a second Accepted", () => {
+    vi.useFakeTimers();
+    const codeEditor = element({ value: "first accepted code\n" });
+    const modal = programmersModal("정답입니다!", { "aria-hidden": "true" });
+    const documentRef = makeDetectionDocument({
+      "#modal-dialog": modal,
+      "textarea#code": codeEditor,
+      'meta[property="og:title"]': element({
+        content: "코딩테스트 연습 - 두 수의 곱 구하기 | 프로그래머스"
+      }),
+      'select[name="language"]': element({
+        value: "swift",
+        selectedOption: element({ textContent: "Swift" })
+      })
+    });
+    const sentMessages: unknown[] = [];
+    const observer = createFakeObserver();
+
+    startAcceptedDetectionController({
+      documentRef,
+      getCurrentUrl: () =>
+        "https://school.programmers.co.kr/learn/courses/30/lessons/120804",
+      sendAcceptedMessage: (message) => sentMessages.push(message),
+      createObserver: observer.factory
+    });
+
+    modal.removeAttribute("aria-hidden");
+    observer.emitPresentation([attributeMutation(modal, "aria-hidden")]);
+    vi.advanceTimersByTime(700);
+
+    modal.setAttribute("aria-hidden", "true");
+    observer.emitPresentation([attributeMutation(modal, "aria-hidden")]);
+    modal.setTitle("오답입니다!");
+    modal.removeAttribute("aria-hidden");
+    observer.emitPresentation([attributeMutation(modal, "aria-hidden")]);
+    vi.advanceTimersByTime(700);
+    expect(sentMessages).toHaveLength(1);
+
+    modal.setAttribute("aria-hidden", "true");
+    observer.emitPresentation([attributeMutation(modal, "aria-hidden")]);
+    modal.setTitle("정답입니다!");
+    codeEditor.value = "second accepted code\n";
+    modal.removeAttribute("aria-hidden");
+    observer.emitPresentation([attributeMutation(modal, "aria-hidden")]);
+    vi.advanceTimersByTime(700);
+
+    expect(sentMessages).toHaveLength(2);
+    expect(sentMessages[1]).toMatchObject({
+      payload: {
+        code: "second accepted code\n"
+      }
+    });
+  });
+
+  it("detects a visible non-Accepted to Accepted title transition", () => {
+    vi.useFakeTimers();
+    const modal = programmersModal("오답입니다!");
+    const documentRef = makeDetectionDocument({
+      "#modal-dialog": modal,
+      "textarea#code": element({ value: "accepted title-transition code\n" }),
+      'meta[property="og:title"]': element({
+        content: "코딩테스트 연습 - 두 수의 곱 구하기 | 프로그래머스"
+      }),
+      'select[name="language"]': element({
+        value: "python3",
+        selectedOption: element({ textContent: "Python3" })
+      })
+    });
+    const sentMessages: unknown[] = [];
+    const observer = createFakeObserver();
+
+    startAcceptedDetectionController({
+      documentRef,
+      getCurrentUrl: () =>
+        "https://school.programmers.co.kr/learn/courses/30/lessons/120804",
+      sendAcceptedMessage: (message) => sentMessages.push(message),
+      createObserver: observer.factory
+    });
+
+    modal.setTitle("정답입니다!");
+    observer.emit([
+      programmersCharacterDataMutation(modal, "정답입니다!", "오답입니다!")
+    ]);
+    observer.emitPresentation([attributeMutation(modal, "class")]);
+    vi.advanceTimersByTime(700);
+
+    expect(sentMessages).toHaveLength(1);
+  });
+
+  it("re-arms when a visible Accepted title changes to Wrong Answer", () => {
+    vi.useFakeTimers();
+    const modal = programmersModal("정답입니다!", { "aria-hidden": "true" });
+    const documentRef = makeDetectionDocument({
+      "#modal-dialog": modal,
+      "textarea#code": element({ value: "accepted code\n" }),
+      'meta[property="og:title"]': element({
+        content: "코딩테스트 연습 - 두 수의 곱 구하기 | 프로그래머스"
+      }),
+      'select[name="language"]': element({
+        value: "python3",
+        selectedOption: element({ textContent: "Python3" })
+      })
+    });
+    const sentMessages: unknown[] = [];
+    const observer = createFakeObserver();
+
+    startAcceptedDetectionController({
+      documentRef,
+      getCurrentUrl: () =>
+        "https://school.programmers.co.kr/learn/courses/30/lessons/120804",
+      sendAcceptedMessage: (message) => sentMessages.push(message),
+      createObserver: observer.factory
+    });
+
+    modal.removeAttribute("aria-hidden");
+    observer.emitPresentation([attributeMutation(modal, "aria-hidden")]);
+    vi.advanceTimersByTime(700);
+
+    modal.setTitle("오답입니다!");
+    observer.emit([
+      programmersCharacterDataMutation(modal, "오답입니다!", "정답입니다!")
+    ]);
+    modal.setTitle("정답입니다!");
+    observer.emit([
+      programmersCharacterDataMutation(modal, "정답입니다!", "오답입니다!")
+    ]);
+    vi.advanceTimersByTime(700);
+
+    expect(sentMessages).toHaveLength(2);
+  });
+
+  it("cancels a Programmers pending event on SPA route change and snapshots the new route", () => {
+    vi.useFakeTimers();
+    let pageUrl =
+      "https://school.programmers.co.kr/learn/courses/30/lessons/120804";
+    const codeEditor = element({ value: "first route code\n" });
+    const modal = programmersModal("정답입니다!", { "aria-hidden": "true" });
+    const documentRef = makeDetectionDocument({
+      "#modal-dialog": modal,
+      "textarea#code": codeEditor,
+      'meta[property="og:title"]': element({
+        content: "코딩테스트 연습 - route title | 프로그래머스"
+      }),
+      'select[name="language"]': element({
+        value: "swift",
+        selectedOption: element({ textContent: "Swift" })
+      })
+    });
+    const sentMessages: unknown[] = [];
+    const observer = createFakeObserver();
+
+    startAcceptedDetectionController({
+      documentRef,
+      getCurrentUrl: () => pageUrl,
+      sendAcceptedMessage: (message) => sentMessages.push(message),
+      createObserver: observer.factory
+    });
+
+    modal.removeAttribute("aria-hidden");
+    observer.emitPresentation([attributeMutation(modal, "aria-hidden")]);
+    pageUrl = "https://school.programmers.co.kr/learn/courses/30/lessons/120820";
+    codeEditor.value = "second route code\n";
+    observer.emit([acceptedChildListMutation("정답입니다!")]);
+    vi.advanceTimersByTime(700);
+
+    expect(sentMessages).toHaveLength(1);
+    expect(sentMessages[0]).toMatchObject({
+      payload: {
+        lessonId: "120820",
+        pageUrl,
+        code: "second route code\n"
+      }
+    });
+  });
+
   it("emits one event per real Accepted window and ignores later non-Accepted UI changes", () => {
     vi.useFakeTimers();
     const documentRef = makeDetectionDocument({});
@@ -301,6 +597,16 @@ interface FakeElement {
   getAttribute(name: string): string | null;
 }
 
+interface FakeProgrammersModal extends FakeElement {
+  parentElement: Element | null;
+  ownerDocument: Document | null;
+  hasAttribute(name: string): boolean;
+  setAttribute(name: string, value: string): void;
+  removeAttribute(name: string): void;
+  querySelectorAll(selector: string): NodeListOf<Element>;
+  setTitle(title: string): void;
+}
+
 function element(input: {
   textContent?: string | null;
   value?: string;
@@ -324,6 +630,43 @@ function element(input: {
           },
     getAttribute(name: string) {
       return attrs[name] ?? null;
+    }
+  };
+}
+
+function programmersModal(
+  initialTitle: string,
+  initialAttributes: Record<string, string> = {}
+): FakeProgrammersModal {
+  const attributes = new Map(Object.entries(initialAttributes));
+  let title = initialTitle;
+
+  return {
+    get textContent() {
+      return title;
+    },
+    set textContent(value: string | null) {
+      title = value ?? "";
+    },
+    parentElement: null,
+    ownerDocument: null,
+    getAttribute(name) {
+      return attributes.get(name) ?? null;
+    },
+    hasAttribute(name) {
+      return attributes.has(name);
+    },
+    setAttribute(name, value) {
+      attributes.set(name, value);
+    },
+    removeAttribute(name) {
+      attributes.delete(name);
+    },
+    querySelectorAll() {
+      return [{ textContent: title }] as unknown as NodeListOf<Element>;
+    },
+    setTitle(nextTitle) {
+      title = nextTitle;
     }
   };
 }
@@ -358,13 +701,14 @@ function createFakeObserver(): {
   ) => Pick<MutationObserver, "observe" | "disconnect">;
   observe: ReturnType<typeof vi.fn>;
   emit(mutations: MutationRecord[]): void;
+  emitPresentation(mutations: MutationRecord[]): void;
 } {
-  let callback: MutationCallback | null = null;
+  const callbacks: MutationCallback[] = [];
   const observe = vi.fn();
 
   return {
     factory(nextCallback) {
-      callback = nextCallback;
+      callbacks.push(nextCallback);
 
       return {
         observe,
@@ -373,13 +717,53 @@ function createFakeObserver(): {
     },
     observe,
     emit(mutations) {
-      if (callback === null) {
+      const callback = callbacks.at(-1);
+
+      if (callback === undefined) {
         throw new Error("Observer callback was not registered");
+      }
+
+      callback(mutations, {} as MutationObserver);
+    },
+    emitPresentation(mutations) {
+      const callback = callbacks[0];
+
+      if (callback === undefined) {
+        throw new Error("Presentation observer callback was not registered");
       }
 
       callback(mutations, {} as MutationObserver);
     }
   };
+}
+
+function attributeMutation(
+  target: FakeProgrammersModal,
+  attributeName: string
+): MutationRecord {
+  return {
+    type: "attributes",
+    target: target as unknown as Node,
+    attributeName,
+    oldValue: null
+  } as MutationRecord;
+}
+
+function programmersCharacterDataMutation(
+  modal: FakeProgrammersModal,
+  textContent: string,
+  oldValue: string
+): MutationRecord {
+  const target = mutationTextNode(textContent);
+  target.parentElement = modal as unknown as FakeMutationNode;
+
+  return {
+    type: "characterData",
+    target: target as unknown as Node,
+    addedNodes: [],
+    removedNodes: [],
+    oldValue
+  } as unknown as MutationRecord;
 }
 
 function acceptedChildListMutation(textContent: string): MutationRecord {
