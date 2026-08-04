@@ -7,6 +7,10 @@ import {
   type ProgrammersRoute,
   type TimeoutScheduler
 } from "./detector";
+import {
+  createProgrammersAcceptedPresentationTracker,
+  PROGRAMMERS_PRESENTATION_ATTRIBUTE_FILTER
+} from "./programmersAcceptedPresentation";
 
 const ACCEPTED_COALESCING_WINDOW_MS = 700;
 
@@ -56,7 +60,11 @@ export function startAcceptedDetectionController(
   const scheduler = options.scheduler ?? defaultTimeoutScheduler;
   const coalescingWindowMs =
     options.coalescingWindowMs ?? ACCEPTED_COALESCING_WINDOW_MS;
-  let currentRouteKey = routeKeyForUrl(options.getCurrentUrl());
+  let currentPage = resolveContentPageSafely(options.getCurrentUrl());
+  let currentRouteKey = createContentRouteKey(currentPage);
+  const documentRoot = options.documentRef.body ?? options.documentRef.documentElement;
+  const programmersPresentationTracker =
+    createProgrammersAcceptedPresentationTracker();
   let pendingEvent: {
     routeKey: string;
     message: AcceptedDetectedMessage;
@@ -84,27 +92,18 @@ export function startAcceptedDetectionController(
     options.sendAcceptedMessage(event.message);
   };
 
-  const observer = options.createObserver((mutations) => {
-    const pageUrl = options.getCurrentUrl();
-    const page = resolveContentPageSafely(pageUrl);
-    const nextRouteKey = createContentRouteKey(page);
-
-    if (nextRouteKey !== currentRouteKey) {
-      currentRouteKey = nextRouteKey;
-      clearPendingEvent();
-    }
-
-    if (
-      page.platform === "unsupported" ||
-      !mutationListHasAccepted(mutations, page.platform) ||
-      pendingEvent !== null
-    ) {
+  const queueAcceptedEvent = (
+    page: Exclude<ContentPageContext, { platform: "unsupported" }>,
+    pageUrl: string,
+    routeKey: string
+  ): void => {
+    if (pendingEvent !== null) {
       return;
     }
 
     const detectedAt = options.now?.() ?? new Date().toISOString();
     pendingEvent = {
-      routeKey: nextRouteKey,
+      routeKey,
       message: createAcceptedMessageForPage(
         options.documentRef,
         page,
@@ -113,14 +112,86 @@ export function startAcceptedDetectionController(
       )
     };
     pendingTimer = scheduler.setTimeout(flushPendingEvent, coalescingWindowMs);
+  };
+
+  const observeTargets = (presentationRoot: Element | null): void => {
+    observer.disconnect();
+    observer.observe(documentRoot, {
+      childList: true,
+      characterData: true,
+      characterDataOldValue: true,
+      subtree: true
+    });
+
+    if (presentationRoot !== null) {
+      observer.observe(presentationRoot, {
+        attributes: true,
+        attributeFilter: [...PROGRAMMERS_PRESENTATION_ATTRIBUTE_FILTER]
+      });
+    }
+  };
+
+  const observer = options.createObserver((mutations) => {
+    const pageUrl = options.getCurrentUrl();
+    const page = resolveContentPageSafely(pageUrl);
+    const nextRouteKey = createContentRouteKey(page);
+    const previousPage = currentPage;
+    const routeChanged = nextRouteKey !== currentRouteKey;
+
+    if (routeChanged) {
+      currentPage = page;
+      currentRouteKey = nextRouteKey;
+      clearPendingEvent();
+    }
+
+    if (page.platform === "unsupported") {
+      if (routeChanged && previousPage.platform === "programmers") {
+        observeTargets(null);
+      }
+
+      return;
+    }
+
+    if (page.platform === "leetcode") {
+      if (routeChanged && previousPage.platform === "programmers") {
+        observeTargets(null);
+      }
+
+      if (mutationListHasAccepted(mutations, page.platform)) {
+        queueAcceptedEvent(page, pageUrl, nextRouteKey);
+      }
+
+      return;
+    }
+
+    if (routeChanged && previousPage.platform !== "programmers") {
+      observeTargets(programmersPresentationTracker.reset(options.documentRef));
+      return;
+    }
+
+    const reconciliation = programmersPresentationTracker.reconcile(
+      options.documentRef,
+      mutations,
+      {
+        freshAcceptedText: mutationListHasAccepted(mutations, page.platform),
+        routeChanged
+      }
+    );
+
+    if (reconciliation.rootChanged) {
+      observeTargets(reconciliation.root);
+    }
+
+    if (reconciliation.becameAcceptedVisible) {
+      queueAcceptedEvent(page, pageUrl, nextRouteKey);
+    }
   });
 
-  observer.observe(options.documentRef.body ?? options.documentRef.documentElement, {
-    childList: true,
-    characterData: true,
-    characterDataOldValue: true,
-    subtree: true
-  });
+  observeTargets(
+    currentPage.platform === "programmers"
+      ? programmersPresentationTracker.reset(options.documentRef)
+      : null
+  );
 
   return () => {
     clearPendingEvent();

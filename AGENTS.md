@@ -10,7 +10,18 @@ SolveSync는 LeetCode와 Programmers에서 Accepted 된 풀이를 사용자가 �
 - 런타임 구조, 데이터 흐름, storage, messaging, error model은 `docs/ARCHITECTURE.md`를 따른다.
 - Options, Popup, Toast UI와 문구/접근성 규칙은 `docs/UI_GUIDE.md`를 따른다.
 - 수동 검증 절차는 `docs/MANUAL_VALIDATION.md`를 따른다.
+- `docs/investigations/`는 source of truth가 아니다. 아직 재현되지 않은 증상, 원인 가설과 재현 시 수집할 근거만 기록한다.
 - 이 파일과 `docs/`가 충돌하면 먼저 관련 `docs/`를 확인하고, 실제 정책 변경이 필요하면 해당 문서를 source of truth로 수정한다.
+
+## Git Workflow
+- 구현이나 문서 변경을 시작하기 전에 `git status --short --branch`와 현재 branch를 확인한다.
+- `main`에서는 직접 작업하거나 commit하지 않는다. 현재 `main`을 base로 `fix/`, `feat/`, `docs/`, `test/`, `refactor/` 같은 목적별 work branch를 만든 뒤 변경한다.
+- `main`과 `origin/main`이 어긋나 있으면 그대로 진행하지 말고 base 상태를 먼저 정리한다. 사용자 변경이 섞여 있으면 되돌리지 말고 현재 작업과의 관계를 확인한다.
+- 이미 `main`에 현재 작업의 미커밋 변경이 있다면 버리지 않는다. 작업 범위가 명확하면 새 work branch로 함께 가져가고, 다른 작업과 섞여 있으면 사용자에게 확인한다.
+- 변경 전달은 work branch에서 검증한 뒤 Pull Request를 통해 수행한다. `main`으로 직접 push하거나 직접 merge하는 흐름을 사용하지 않는다.
+- 관련 GitHub Issue가 있으면 PR body에 `Fixes #<number>` 또는 적절한 issue link를 포함한다.
+- commit, push, PR 생성처럼 저장소나 GitHub 상태를 바꾸는 게시 단계는 사용자가 해당 작업에서 요청하거나 승인한 범위에서 수행한다.
+- 이 section의 development work branch와 제품이 사용자의 Sync Repository에 만드는 Sync Branch는 서로 다른 개념이다. 제품의 Sync Branch 자동 생성 금지 규칙은 그대로 유지한다.
 
 ## Project Map
 - `src/content`: 문제 페이지 관찰, Accepted 감지, Programmers Accepted Editor Snapshot, toast, background messaging.
@@ -29,6 +40,7 @@ SolveSync는 LeetCode와 Programmers에서 Accepted 된 풀이를 사용자가 �
 - 외부 API error는 사용자에게 보여주기 전에 normalized error로 변환한다.
 - Chrome MV3 service worker의 장기 in-memory state를 source of truth로 쓰지 않는다.
 - `content_scripts` bundle은 classic script로 실행된다. content entry build 결과에 static ESM `import`가 남지 않게 한다.
+- 미재현 edge case를 남길 때는 `docs/investigations/`에 상태, 증상, 가설, 구분 조건, 안전한 증거 수집 범위와 승격 조건을 함께 기록한다. 실제 재현되면 회귀 테스트와 구현을 갱신하고, 계약 변경이 있으면 관련 source of truth도 수정한 뒤 investigation note를 정리한다.
 
 ## Don't
 - GitHub access/refresh token, Device Flow device code, legacy PAT, LeetCode/Programmers cookie, session token, 실제 사용자 secret을 source, fixture, docs 예시에 넣지 않는다.
@@ -40,6 +52,7 @@ SolveSync는 LeetCode와 Programmers에서 Accepted 된 풀이를 사용자가 �
 - `dist/`, `node_modules/`, coverage output, build artifact를 커밋하지 않는다.
 - 사용자가 명시적으로 요청하지 않는 한 README를 수정하지 않는다.
 - 제품/아키텍처 세부 규칙을 AGENTS.md에 장황하게 복제하지 않는다. 해당 `docs/` 문서를 갱신한다.
+- Investigation의 가설을 확정된 Known Issue, troubleshooting 절차나 제품 계약처럼 표현하지 않는다.
 
 ## High-Risk Rules
 - processed Sync Deduplication Key는 GitHub commit 성공 후에만 기록한다.

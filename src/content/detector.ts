@@ -7,7 +7,7 @@ const NON_ACCEPTED_RESULT_PATTERN =
   /\b(wrong answer|runtime error|compile error|time limit exceeded|memory limit exceeded|pending|judging|not accepted)\b/i;
 const GENERIC_ACCEPTED_PAGE_TEXT_PATTERN =
   /\b(accepted submissions|accepted solutions|acceptance rate)\b/i;
-const PROGRAMMERS_ACCEPTED_PATTERN = /(^|\s)정답입니다!(\s|$)/;
+const PROGRAMMERS_ACCEPTED_TEXT = "정답입니다!";
 const MAX_RESULT_TEXT_LENGTH = 180;
 const MAX_TRAVERSAL_DEPTH = 6;
 const MAX_TEXT_CANDIDATES = 80;
@@ -89,7 +89,7 @@ export function isProgrammersAcceptedResultText(text: string): boolean {
   return (
     normalized.length > 0 &&
     normalized.length <= MAX_RESULT_TEXT_LENGTH &&
-    PROGRAMMERS_ACCEPTED_PATTERN.test(normalized)
+    normalized === PROGRAMMERS_ACCEPTED_TEXT
   );
 }
 

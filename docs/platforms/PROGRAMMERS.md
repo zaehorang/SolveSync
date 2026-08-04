@@ -1,0 +1,78 @@
+# Programmers 연동 계약
+
+> **Description**: Programmers 전용 route, Accepted presentation, Accepted Editor Snapshot, 오류와 검증 계약을 정의한다. 공통 runtime과 sync 경계는 [ARCHITECTURE.md](../ARCHITECTURE.md)를 따른다.
+
+## Route와 Accepted presentation
+
+- 지원 route는 `/learn/courses/{courseId}/lessons/{lessonId}`다. Accepted 후보마다 현재 URL에서 `courseId`와 `lessonId`를 다시 추출한다.
+- Problem ID와 frontend ID는 `lessonId`를 사용한다. Difficulty가 없으면 `-`로 저장하고 Solution README에도 `-`로 표시한다.
+- 정확한 `정답입니다!`를 Accepted text 신호로 사용한다.
+- `통과`, `채점 결과`, `합계: 100.0 / 100.0`은 보조 결과 text일 뿐이며 단독 Accepted trigger로 사용하지 않는다.
+- Programmers가 같은 result modal을 재사용하므로 새 child node만으로 lifecycle을 판단하지 않는다. 등록된 presentation root의 hidden 또는 non-Accepted 상태가 visible Accepted로 전환될 때 fresh Accepted event를 만든다.
+- 2026-08-04 실제 Chrome post-state 관찰 기준 visibility owner는 `div#modal-dialog.modal.fade`이며 내부 `h4.modal-title`이 `정답입니다!`를 표시한다. Content adapter는 `#modal-dialog`만 presentation root로 등록하고, root 자체의 visibility와 내부 `.modal-title`의 정확한 Accepted title만 확인한다.
+- Content script 시작 시 이미 visible인 Accepted presentation은 baseline으로만 저장하고 event를 만들지 않는다.
+- `inactive → acceptedVisible`은 event 1회, `acceptedVisible → acceptedVisible`은 event 0회다. `acceptedVisible → inactive`는 event를 만들지 않고 다음 Accepted를 위해 re-arm한다.
+- Modal close, Run, Wrong Answer와 unrelated mutation은 Accepted event가 아니다. Modal을 닫은 뒤 실제 두 번째 `inactive → acceptedVisible` 전환은 새 event다.
+- Attribute 관찰은 [ADR 0022](../adr/0022-bounded-mutation-text-traversal-for-accepted-detection.md)에 따라 adapter가 등록한 presentation root와 visibility 관련 attribute로 제한한다. Page 전체의 `class`나 `style` mutation을 관찰하거나 stale title을 포함한 큰 subtree를 다시 검색하지 않는다.
+- Observer callback은 같은 batch가 끝난 현재 DOM state를 즉시 판정한다. 700ms fixed window는 first event coalescing 전용이며 title confirmation이나 delayed DOM reread에 사용하지 않는다. Accepted, close, Wrong Answer와 second Accepted의 실제 mutation 순서는 수동 검증에서 계속 확인한다.
+
+## Accepted Editor Snapshot
+
+Fresh Accepted를 확정한 즉시 다음 값을 한 번 읽어 immutable `ProgrammersAcceptedEditorSnapshot`으로 만든다.
+
+- `courseId`, `lessonId`
+- Problem title
+- 선택된 language
+- Editor code
+- `pageUrl`, `detectedAt`
+
+동일 render burst를 coalescing하는 동안 editor가 바뀌어도 first snapshot을 유지하며, 지연 callback에서 DOM을 다시 읽지 않는다. Route가 바뀌면 이전 pending event와 presentation state를 폐기한다.
+
+2026-05-27 실제 Chrome 검증 기준으로 editor는 CodeMirror 계열로 렌더링되며 code source는 `textarea#code.value`다. `.cm-line` 같은 rendered line DOM은 화면에 보이는 줄만 반영할 수 있으므로 source of truth로 사용하지 않는다. `textarea#code`가 없거나 `value`가 비어 있으면 extraction failure다.
+
+Title은 page metadata/title/heading 후보에서 추출하고, language는 현재 선택된 language control에서 추출한다. Content script isolated world에서 editor source 접근이 막힐 때만 page-world bridge를 사용한다. Bridge는 code string만 전달하고 token, cookie와 session 값은 다루지 않는다.
+
+`content:accepted_detected` payload는 `codingPlatform: "programmers"`, `courseId`, `lessonId`, `problemTitle`, `language`, `code`, `pageUrl`, `detectedAt`을 포함한다. 모든 field는 같은 route-bound fresh Accepted event에서 확정한다.
+
+## Accepted Source ID와 trust boundary
+
+- Programmers는 공식 Accepted Source ID가 없으므로 `acceptedSourceId`를 `programmers:{lessonId}:{language}:{codeHash}` 형식의 deterministic value로 만든다.
+- Sync Deduplication Key는 `codingPlatform`, `acceptedSourceId`, problem identifier와 language 조합이다.
+- Accepted Editor Snapshot은 v1의 DOM-trusted source다. Programmers origin DOM/script가 compromise되면 committed solution source integrity가 영향을 받을 수 있는 residual risk를 [ADR 0028](../adr/0028-programmers-dom-snapshot-risk-acceptance.md)에 따라 수용한다.
+- 이 trust boundary는 secret이나 write destination으로 확장되지 않는다. Content message에는 GitHub token, cookie와 session token을 포함하지 않고, GitHub API 호출은 background service worker에서만 수행하며 write 대상은 사용자가 선택한 Sync Repository와 Sync Branch로 제한한다.
+
+## 오류 계약
+
+Missing lesson, title 또는 language와 empty code는 commit하지 않고 `programmers_extract_failed`로 normalize한다. Supported language registry에 없는 language는 `unsupported_language`로 기록하고 commit하지 않는다.
+
+## 자동 검증
+
+- `src/content/detector.test.ts`: route와 bounded Accepted text 판정
+- `src/content/programmersAcceptedPresentation.test.ts`: modal baseline, visibility lifecycle와 root replacement
+- `src/content/index.test.ts`: controller coalescing, immutable snapshot, second Accepted와 SPA route reset
+- Background/shared 관련 Vitest: Accepted Source ID, extraction failure, multi-language Solution Catalog/README projection
+
+대표 검증은 `npm test -- src/content/detector.test.ts src/content/programmersAcceptedPresentation.test.ts src/content/index.test.ts`로 실행하고, release 전에는 `npm run typecheck`, `npm test`, `npm run build`를 모두 실행한다.
+
+## 수동 검증
+
+[공통 수동 검증](../MANUAL_VALIDATION.md)을 먼저 완료하고, 사용자가 선택한 test repository/test branch에서 다음을 실행한다.
+
+1. Programmers에 로그인하고 지원 route의 문제를 연다.
+2. 첫 번째 지원 언어로 Accepted 제출을 만든다. Toast, Sync History와 GitHub commit이 정확히 하나인지 확인한다.
+3. Modal을 닫고 Run을 실행한다. 새 toast, Sync History와 commit이 없어야 한다.
+4. Wrong Answer 제출을 만든다. 새 sync가 없어야 한다.
+5. Code를 구별 가능하게 수정한 뒤 두 번째 Accepted 제출을 만든다. 두 번째 Solution Revision commit이 정확히 하나인지 확인한다.
+6. 각 Solution File이 Run 또는 Wrong Answer code가 아니라 해당 Accepted를 관찰한 시점의 code와 일치하는지 확인한다.
+7. Accepted 표시 직후 editor를 바꿔도 첫 commit은 first Accepted snapshot의 code를 유지하는지 확인한다.
+8. SPA로 다른 문제에 이동해 같은 modal root가 재사용되는지와 Accepted의 text/visibility mutation 순서를 기록한다. Attribute-only hidden → visible 전환인 경우에도 현재 `lessonId`, title, language와 path로 sync가 정확히 한 번 생성되는지 확인한다.
+9. 같은 문제에서 실제로 선택 가능한 두 번째 지원 언어로 Accepted를 만든다. 기본 검증 조합은 Swift와 Python3다.
+10. 두 solution file이 존재하고 `programmers/README.md`의 같은 문제 한 행과 단일 `Languages` cell에 두 link가 표시되는지 확인한다.
+11. `programmers/.programmers-sync/index.json`이 v4이며 두 language entry를 보존하고, 각 언어의 첫 commit message가 `#1`을 포함하는지 확인한다.
+12. 각 commit이 solution file, Solution README와 Solution Catalog를 함께 변경했는지 확인한다.
+
+실제 token, cookie, session 값, private solution code와 문제 설명 전문은 screenshot, issue, fixture 또는 log에 남기지 않는다.
+
+## Investigation notes (비계약)
+
+- 제출 후 SPA로 다른 화면에 갔다가 돌아온 경우에만 Accepted sync가 누락됐다는 제보가 있으면 [SPA 복귀 후 Accepted 동기화 누락 조사 메모](../investigations/PROGRAMMERS_ACCEPTED_SYNC_MISS_AFTER_SPA_RETURN.md)를 확인한다.
