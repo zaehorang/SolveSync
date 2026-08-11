@@ -972,17 +972,29 @@ def pr_title(plan: dict) -> str:
     return first[:70] if first else plan.get("slug", "")
 
 
-def render_pr_body(plan: dict, check: dict, evaluation: dict, rounds: int) -> str:
+def render_pr_body(plan: dict, check: dict, evaluations: list[dict]) -> str:
+    """모든 라운드의 판정을 반영해 본문을 만든다.
+
+    마지막 판정만 읽으면 앞 라운드에서 찾아 고친 blocker가 사라져서, 지적이
+    하나도 없었던 것처럼 보인다. 그리고 계획의 summary는 exec 중에 고정이라
+    findings 때문에 방향이 바뀌면 낡은 설명이 된다. 그래서 계획의 의도와
+    검토자가 본 최종 상태를 나란히 싣는다.
+    """
     steps = {step["step"]: step for step in check["verify"]["steps"]}
     mark = lambda name: "✅" if steps.get(name, {}).get("passed") else "❌"  # noqa: E731
     tests = steps.get("test", {}).get("testsPassed")
 
-    findings = evaluation.get("findings") or []
-    major = [f for f in findings if f.get("severity") in ("blocker", "major")]
-    minor = [f for f in findings if f.get("severity") == "minor"]
+    current = evaluations[-1] if evaluations else {}
+    fixed = [
+        finding
+        for evaluation in evaluations[:-1]
+        for finding in (evaluation.get("findings") or [])
+        if finding.get("severity") in ("blocker", "major")
+    ]
+    remaining = [f for f in (current.get("findings") or []) if f.get("severity") == "minor"]
 
     lines = [
-        "## 요약",
+        "## 계획한 것",
         plan.get("summary", ""),
         "",
         "## 변경 사항",
@@ -997,14 +1009,17 @@ def render_pr_body(plan: dict, check: dict, evaluation: dict, rounds: int) -> st
     ]
     if check["commits"]["notes"]:
         lines += ["- 계획 대비 커밋 차이: " + "; ".join(check["commits"]["notes"])]
-    lines += [
-        "",
-        "## Eval 리포트",
-        f"- 판정: {evaluation.get('verdict')} (수정 라운드 {rounds - 1}회)",
-    ]
-    lines += [f"- 반영: {f.get('problem')}" for f in major] or ["- 반영: 없음"]
-    if minor:
-        lines += [f"- 남은 minor: {f.get('problem')}" for f in minor]
+
+    lines += ["", "## 검토 결과", f"- 판정: {current.get('verdict')} (수정 라운드 {max(len(evaluations) - 1, 0)}회)"]
+    if current.get("notes"):
+        lines += ["", f"**최종 상태에 대한 검토자 요약.** {current['notes']}"]
+    if fixed:
+        lines += ["", "### 지적받고 고친 것"]
+        lines += [f"- **[{f.get('severity')}] {f.get('file')}** — {f.get('problem')}" for f in fixed]
+    if remaining:
+        lines += ["", "### 남은 minor"]
+        lines += [f"- **{f.get('file')}** — {f.get('problem')}" for f in remaining]
+
     lines += ["", "## 관련 이슈", f"Fixes #{plan['issueNumber']}"]
     if plan.get("outOfScope"):
         lines += ["", "## 후속 작업"] + [f"- {item}" for item in plan["outOfScope"]]
@@ -1025,10 +1040,16 @@ def cmd_pr(args: argparse.Namespace) -> None:
         raise HarnessError("Pull Request 본문을 만들려면 plan.json이 필요합니다.")
 
     check = json.loads((directory / f"check-{args.round}.json").read_text())
-    eval_file = directory / f"eval-{args.round}.json"
-    evaluation = json.loads(eval_file.read_text()) if eval_file.exists() else {"verdict": "unknown"}
+    evaluations = []
+    for round_number in range(1, args.round + 1):
+        eval_file = directory / f"eval-{round_number}.json"
+        if eval_file.exists():
+            evaluations.append(json.loads(eval_file.read_text()))
+    if not evaluations:
+        evaluations = [{"verdict": "unknown"}]
+    evaluation = evaluations[-1]
 
-    body = render_pr_body(plan, check, evaluation, args.round)
+    body = render_pr_body(plan, check, evaluations)
     if args.body_only:
         print(body)
         return

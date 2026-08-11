@@ -141,26 +141,53 @@ class PlanSummary(unittest.TestCase):
 
 
 class PullRequestBody(unittest.TestCase):
+    CHECK = {
+        "verify": {
+            "passed": True,
+            "steps": [
+                {"step": "typecheck", "passed": True},
+                {"step": "test", "passed": True, "testsPassed": 244},
+                {"step": "build", "passed": True},
+            ],
+        },
+        "commits": {
+            "commits": [{"sha": "abc123", "subject": "feat: add revision column to solution catalog"}],
+            "notes": [],
+        },
+    }
+
     def test_body_uses_measured_numbers_not_prose(self):
-        check = {
-            "verify": {
-                "passed": True,
-                "steps": [
-                    {"step": "typecheck", "passed": True},
-                    {"step": "test", "passed": True, "testsPassed": 236},
-                    {"step": "build", "passed": True},
-                ],
-            },
-            "commits": {
-                "commits": [{"sha": "abc123", "subject": "feat: add revision column to solution catalog"}],
-                "notes": [],
-            },
-        }
-        evaluation = {"verdict": "pass", "findings": []}
-        body = cli.render_pr_body(VALID_PLAN, check, evaluation, rounds=1)
-        self.assertIn("(236 passed)", body)
+        body = cli.render_pr_body(VALID_PLAN, self.CHECK, [{"verdict": "pass", "findings": []}])
+        self.assertIn("(244 passed)", body)
         self.assertIn("Fixes #8", body)
         self.assertIn("🤖 SolveSync harness", body)
+
+    def test_blocker_fixed_in_an_earlier_round_is_reported(self):
+        # 마지막 판정만 읽으면 앞 라운드에서 찾아 고친 blocker가 사라져서
+        # 지적이 하나도 없었던 것처럼 보인다. 실전 1회차에서 실제로 그랬다.
+        evaluations = [
+            {"verdict": "fail", "findings": [{"severity": "blocker", "file": "a.mjs", "problem": "모든 build가 실패한다"}]},
+            {"verdict": "pass", "findings": []},
+        ]
+        body = cli.render_pr_body(VALID_PLAN, self.CHECK, evaluations)
+        self.assertIn("지적받고 고친 것", body)
+        self.assertIn("모든 build가 실패한다", body)
+        self.assertIn("수정 라운드 1회", body)
+
+    def test_evaluator_notes_reach_the_body(self):
+        evaluations = [{"verdict": "pass", "findings": [], "notes": "최종 상태는 계획과 다르다"}]
+        body = cli.render_pr_body(VALID_PLAN, self.CHECK, evaluations)
+        self.assertIn("최종 상태는 계획과 다르다", body)
+
+    def test_remaining_minor_findings_are_listed(self):
+        evaluations = [{"verdict": "pass", "findings": [{"severity": "minor", "file": "b.ts", "problem": "noise diff"}]}]
+        body = cli.render_pr_body(VALID_PLAN, self.CHECK, evaluations)
+        self.assertIn("남은 minor", body)
+        self.assertIn("noise diff", body)
+
+    def test_plan_summary_is_labelled_as_intent_not_outcome(self):
+        body = cli.render_pr_body(VALID_PLAN, self.CHECK, [{"verdict": "pass", "findings": []}])
+        self.assertIn("## 계획한 것", body)
 
 
 class Batching(unittest.TestCase):
