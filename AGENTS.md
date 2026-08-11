@@ -2,6 +2,8 @@
 
 이 파일은 AI coding agent를 위한 작업 매뉴얼이다. 제품 명세를 복제하지 말고, 작업 전에 어떤 문서를 확인해야 하는지와 구현 중 절대 놓치면 안 되는 가드레일만 제공한다.
 
+`CLAUDE.md`는 이 파일을 가리키는 symlink다. codex는 `AGENTS.md`를, Claude Code는 `CLAUDE.md`를 읽지만 실체는 하나다. 어느 이름으로 열어 편집해도 같은 파일이 바뀐다. 규칙을 두 파일로 나누면 반드시 어긋나므로 복사본을 만들지 않는다.
+
 SolveSync는 LeetCode와 Programmers에서 Accepted 된 풀이를 사용자가 선택한 GitHub 저장소로 동기화하는 local unpacked Chrome extension이다.
 
 ## Source of Truth
