@@ -453,14 +453,39 @@ def cmd_setup(args: argparse.Namespace) -> None:
     )
 
 
-def preflight(root: Path) -> list[str]:
-    problems = []
+def classify_status(porcelain: str) -> dict:
+    """`git status --porcelain` 출력을 추적/미추적으로 나눈다.
+
+    추적 중인 파일의 미커밋 변경은 base 상태를 모호하게 만들므로 실행을 막는다.
+    미추적 파일은 막지 않는다. worktree는 origin/main에서 분기하므로 메인
+    체크아웃의 미추적 파일은 worktree로 따라가지 않는다. 여기서 막으면 사용자가
+    작업 중인 메모 한 장에 모든 실행이 멈춘다.
+    """
+    lines = [line for line in porcelain.splitlines() if line.strip()]
+    return {
+        "tracked": [line[3:] for line in lines if not line.startswith("??")],
+        "untracked": [line[3:] for line in lines if line.startswith("??")],
+    }
+
+
+def preflight(root: Path) -> dict:
+    problems: list[str] = []
+    notes: list[str] = []
     branch = git("rev-parse", "--abbrev-ref", "HEAD", cwd=root)
     if branch != "main":
         problems.append(f"main에서 시작해야 합니다. 현재 branch: {branch}")
 
-    if git("status", "--porcelain", cwd=root):
-        problems.append("working tree가 더럽습니다. 실행 전에 commit하거나 stash하세요.")
+    status = classify_status(git("status", "--porcelain", cwd=root))
+    if status["tracked"]:
+        problems.append(
+            "main에 커밋되지 않은 변경이 있습니다. 실행 전에 commit하거나 stash하세요: "
+            + ", ".join(status["tracked"][:5])
+        )
+    if status["untracked"]:
+        notes.append(
+            "미추적 파일이 있습니다. worktree에는 영향이 없어 진행합니다: "
+            + ", ".join(status["untracked"][:5])
+        )
 
     run(["git", "fetch", "origin", "--quiet"], cwd=root)
     local = git("rev-parse", "main", cwd=root)
@@ -471,7 +496,7 @@ def preflight(root: Path) -> list[str]:
     if git_optional("config", "core.hooksPath", cwd=root) != HOOKS_PATH:
         problems.append(f"core.hooksPath가 {HOOKS_PATH}가 아닙니다. python3 harness/cli.py setup 을 실행하세요.")
 
-    return problems
+    return {"problems": problems, "notes": notes}
 
 
 def prune_runs(root: Path) -> list[str]:
@@ -512,9 +537,9 @@ def cmd_issues(args: argparse.Namespace) -> None:
     if args.reset:
         lock_path(root).unlink(missing_ok=True)
 
-    problems = preflight(root)
-    if problems:
-        emit({"ok": False, "preflight": problems})
+    checks = preflight(root)
+    if checks["problems"]:
+        emit({"ok": False, "preflight": checks["problems"], "notes": checks["notes"]})
         raise SystemExit(1)
 
     pruned = prune_runs(root)
@@ -582,6 +607,7 @@ def cmd_issues(args: argparse.Namespace) -> None:
             "eligible": [{"number": i["number"], "title": i["title"]} for i in eligible],
             "skipped": skipped,
             "prunedRuns": pruned,
+            "notes": checks["notes"],
             "maxParallel": MAX_PARALLEL,
         }
     )
