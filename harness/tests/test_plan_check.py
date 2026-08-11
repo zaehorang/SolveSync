@@ -217,6 +217,29 @@ class Gates(unittest.TestCase):
         self.assertTrue(cli.missing_gates(self.worktree))
 
 
+class Preflight(unittest.TestCase):
+    def test_untracked_files_do_not_block(self):
+        # 워크트리는 origin/main에서 분기하므로 메인 체크아웃의 미추적 파일은
+        # 따라가지 않는다. 메모 한 장에 모든 실행이 멈추면 안 된다.
+        status = cli.classify_status("?? docs/SCRATCH.md\n")
+        self.assertEqual(status["tracked"], [])
+        self.assertEqual(status["untracked"], ["docs/SCRATCH.md"])
+
+    def test_tracked_changes_block(self):
+        status = cli.classify_status(" M src/shared/catalog.ts\nA  src/shared/new.ts\n")
+        self.assertEqual(status["tracked"], ["src/shared/catalog.ts", "src/shared/new.ts"])
+        self.assertEqual(status["untracked"], [])
+
+    def test_mixed_status_is_split(self):
+        status = cli.classify_status(" M src/a.ts\n?? notes.md\n")
+        self.assertEqual(status["tracked"], ["src/a.ts"])
+        self.assertEqual(status["untracked"], ["notes.md"])
+
+    def test_clean_tree_is_empty(self):
+        status = cli.classify_status("")
+        self.assertEqual(status, {"tracked": [], "untracked": []})
+
+
 class Titles(unittest.TestCase):
     def test_title_is_the_first_sentence(self):
         plan = {"summary": "첫 문장이다. 두 번째 문장은 빠진다.", "slug": "x"}
