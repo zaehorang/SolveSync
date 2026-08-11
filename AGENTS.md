@@ -2,6 +2,8 @@
 
 이 파일은 AI coding agent를 위한 작업 매뉴얼이다. 제품 명세를 복제하지 말고, 작업 전에 어떤 문서를 확인해야 하는지와 구현 중 절대 놓치면 안 되는 가드레일만 제공한다.
 
+`CLAUDE.md`는 이 파일을 가리키는 symlink다. codex는 `AGENTS.md`를, Claude Code는 `CLAUDE.md`를 읽지만 실체는 하나다. 어느 이름으로 열어 편집해도 같은 파일이 바뀐다. 규칙을 두 파일로 나누면 반드시 어긋나므로 복사본을 만들지 않는다.
+
 SolveSync는 LeetCode와 Programmers에서 Accepted 된 풀이를 사용자가 선택한 GitHub 저장소로 동기화하는 local unpacked Chrome extension이다.
 
 ## Source of Truth
@@ -13,6 +15,13 @@ SolveSync는 LeetCode와 Programmers에서 Accepted 된 풀이를 사용자가 �
 - `docs/investigations/`는 source of truth가 아니다. 아직 재현되지 않은 증상, 원인 가설과 재현 시 수집할 근거만 기록한다.
 - 이 파일과 `docs/`가 충돌하면 먼저 관련 `docs/`를 확인하고, 실제 정책 변경이 필요하면 해당 문서를 source of truth로 수정한다.
 
+## Language
+- 산문은 한국어로 쓴다. `docs/`, 코드 주석과 docstring, commit message subject, PR 제목과 본문, GitHub Issue 코멘트가 여기에 해당한다.
+- `harness/`의 prompt, JSON schema description, `.claude/`의 agent와 skill 문서, 그리고 사람이나 agent가 읽는 런타임 메시지(hook 차단 사유, 검증 실패 메시지)도 한국어로 쓴다.
+- 식별자는 번역하지 않는다. 파일 경로, 함수/변수 이름, branch 이름, conventional commit type(`feat:`, `fix:` 등), `CONTEXT.md`가 정의한 도메인 용어는 원문 그대로 쓴다.
+- 도메인 용어는 `CONTEXT.md`의 표기를 따르고, 같은 개념을 한국어로 임의 번역해 새 용어를 만들지 않는다.
+- 사용자에게 보이는 UI 문구는 `docs/UI_GUIDE.md`의 locale 규칙을 따른다. 이 section은 저장소 안에서 개발자끼리 주고받는 글에 대한 규칙이다.
+
 ## Git Workflow
 - 구현이나 문서 변경을 시작하기 전에 `git status --short --branch`와 현재 branch를 확인한다.
 - `main`에서는 직접 작업하거나 commit하지 않는다. 현재 `main`을 base로 `fix/`, `feat/`, `docs/`, `test/`, `refactor/` 같은 목적별 work branch를 만든 뒤 변경한다.
@@ -22,6 +31,14 @@ SolveSync는 LeetCode와 Programmers에서 Accepted 된 풀이를 사용자가 �
 - 관련 GitHub Issue가 있으면 PR body에 `Fixes #<number>` 또는 적절한 issue link를 포함한다.
 - commit, push, PR 생성처럼 저장소나 GitHub 상태를 바꾸는 게시 단계는 사용자가 해당 작업에서 요청하거나 승인한 범위에서 수행한다.
 - 이 section의 development work branch와 제품이 사용자의 Sync Repository에 만드는 Sync Branch는 서로 다른 개념이다. 제품의 Sync Branch 자동 생성 금지 규칙은 그대로 유지한다.
+
+## Agent Harness
+`harness/`는 GitHub Issue를 계획, 구현, 평가, PR까지 자동으로 처리하는 도구다. 설계는 `docs/plans/agent-harness.md`를 따른다. 사람이 직접 작업할 때도 아래 gate는 똑같이 적용된다.
+
+- `git config core.hooksPath harness/hooks`가 설정되어 있으면 commit마다 `npm run typecheck`, `npm test`, `npm run build` 전체와 secret scan, 금지 경로, `main` branch 차단이 실행된다. 설치는 `python3 harness/cli.py setup`이 한다.
+- `src/shared`와 `src/background`의 로직 파일은 같은 디렉터리에 `<모듈>.test.ts`가 있어야 작성할 수 있다. 이건 기존 테스트 관례를 그대로 규칙으로 만든 것이다.
+- gate를 `--no-verify`로 우회하지 않는다. 막히면 막은 이유를 고친다.
+- **하네스는 base branch에 있어야 동작한다.** worktree는 base branch에서 분기하므로, 하네스가 없는 base에서 만든 worktree에는 commit gate가 없다. git은 `core.hooksPath`가 없는 디렉터리를 가리켜도 경고하지 않고 조용히 hook을 건너뛴다.
 
 ## Project Map
 - `src/content`: 문제 페이지 관찰, Accepted 감지, Programmers Accepted Editor Snapshot, toast, background messaging.
