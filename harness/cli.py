@@ -50,6 +50,18 @@ CONVENTIONAL = re.compile(r"^(feat|fix|docs|test|refactor|chore)(\(.+\))?: .+")
 HOOKS_PATH = "harness/hooks"
 BASE_REF = "origin/main"
 
+# Reasoning effort is pinned so a run does not depend on whoever last edited
+# ~/.codex/config.toml. The model is deliberately not pinned here: naming a
+# model this harness cannot verify would break every run the day it is renamed.
+# Set CODEX_MODEL to pin it once you have one you want to hold steady.
+CODEX_MODEL: str | None = None
+PLAN_EFFORT = "high"
+EXEC_EFFORT = "medium"
+
+TIMEOUT_PLAN = 600
+TIMEOUT_EXEC = 2400
+TIMEOUT_NPM = 900
+
 VERIFY_STEPS = (
     ("typecheck", ["npm", "run", "typecheck"]),
     ("test", ["npm", "test"]),
@@ -303,6 +315,90 @@ def render_plan_summary(plan: dict) -> str:
     return "\n".join(lines)
 
 
+# --- batching ---------------------------------------------------------------
+
+
+def plan_batches(plans: list[dict], max_parallel: int = MAX_PARALLEL) -> list[list[int]]:
+    """Group issues into batches that may run at the same time.
+
+    Worktrees are isolated, so running two issues in parallel cannot corrupt
+    anything. The only cost of overlap is a merge conflict later, so the rule is
+    just: plans that touch a common path go in different batches.
+    """
+    batches: list[list[dict]] = []
+    for plan in plans:
+        touched = {policy.normalize(p) for p in plan.get("touchedPaths", [])}
+        for batch in batches:
+            if len(batch) >= max_parallel:
+                continue
+            clash = any(
+                touched & {policy.normalize(p) for p in other.get("touchedPaths", [])}
+                for other in batch
+            )
+            if not clash:
+                batch.append(plan)
+                break
+        else:
+            batches.append([plan])
+    return [[plan["issueNumber"] for plan in batch] for batch in batches]
+
+
+# --- codex ------------------------------------------------------------------
+
+
+def render_issue_block(issue: dict) -> str:
+    return (
+        "<issue-body-untrusted>\n"
+        f"#{issue.get('number')} {issue.get('title', '')}\n\n"
+        f"{issue.get('body') or '(no body)'}\n"
+        "</issue-body-untrusted>"
+    )
+
+
+def render_prompt(root: Path, name: str, replacements: dict[str, str]) -> str:
+    text = (root / "harness" / "prompts" / name).read_text()
+    for key, value in replacements.items():
+        text = text.replace("{{" + key + "}}", value)
+    return text
+
+
+def codex(
+    args: list[str],
+    prompt: str,
+    cwd: Path,
+    log: Path,
+    timeout: int,
+) -> subprocess.CompletedProcess:
+    command = ["codex", "exec", "--json", "--dangerously-bypass-hook-trust", *args]
+    if CODEX_MODEL:
+        command += ["-m", CODEX_MODEL]
+    try:
+        result = subprocess.run(
+            command, input=prompt, cwd=cwd, capture_output=True, text=True, timeout=timeout
+        )
+    except subprocess.TimeoutExpired:
+        log.write_text("timed out")
+        raise HarnessError(f"codex timed out after {timeout}s. Partial commits are kept; escalate.")
+    log.write_text(result.stdout + result.stderr)
+    return result
+
+
+def token_usage(log_text: str) -> dict | None:
+    """Pull the last token-usage record out of the JSONL event stream."""
+    usage = None
+    for line in log_text.splitlines():
+        if '"usage"' not in line and '"token' not in line:
+            continue
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        found = event.get("usage") or (event.get("msg") or {}).get("info")
+        if isinstance(found, dict):
+            usage = found
+    return usage
+
+
 # --- commands ---------------------------------------------------------------
 
 
@@ -481,6 +577,192 @@ def cmd_issues(args: argparse.Namespace) -> None:
     )
 
 
+def _plan_attempt(root: Path, issue: dict, directory: Path, attempt: int, feedback: str | None) -> dict:
+    prompt = render_prompt(root, "plan.md", {"ISSUE": render_issue_block(issue)})
+    if feedback:
+        prompt += (
+            "\n\n## Your previous plan was rejected\n\n"
+            "These are mechanical checks, not opinions. Fix every one of them.\n\n"
+            + feedback
+        )
+    output = directory / f"plan-attempt-{attempt}.json"
+    result = codex(
+        [
+            "--sandbox",
+            "read-only",
+            "-C",
+            str(root),
+            "--output-schema",
+            str(root / "harness" / "plan.schema.json"),
+            "-o",
+            str(output),
+            "-c",
+            f"model_reasoning_effort={PLAN_EFFORT}",
+        ],
+        prompt,
+        root,
+        directory / f"plan-{attempt}.jsonl",
+        TIMEOUT_PLAN,
+    )
+    if result.returncode != 0:
+        raise HarnessError(f"codex plan failed:\n{result.stderr[-2000:]}")
+    if not output.exists():
+        raise HarnessError("codex produced no plan output.")
+    try:
+        return json.loads(output.read_text())
+    except json.JSONDecodeError as error:
+        raise HarnessError(f"plan output was not valid JSON: {error}")
+
+
+def cmd_plan(args: argparse.Namespace) -> None:
+    root = repo_root()
+    directory = issue_dir(root, args.number, create=True)
+
+    issue_file = directory / "issue.json"
+    if not issue_file.exists():
+        raise HarnessError("run `issues` first so the issue body is captured for this run.")
+    issue = json.loads(issue_file.read_text())
+
+    feedback = None
+    for attempt in (1, 2):
+        plan = _plan_attempt(root, issue, directory, attempt, feedback)
+        plan["issueNumber"] = args.number
+        result = validate_plan(plan, root)
+        if not result["problems"]:
+            break
+        feedback = "\n".join(f"- {problem}" for problem in result["problems"])
+    else:
+        (directory / "plan-rejected.json").write_text(json.dumps(plan, ensure_ascii=False, indent=2))
+        emit(
+            {
+                "issue": args.number,
+                "status": "rejected",
+                "problems": result["problems"],
+                "note": "Two plans failed the deterministic checks. A human should look at the issue.",
+            }
+        )
+        raise SystemExit(1)
+
+    if result["demote"] and plan.get("status") == "ready":
+        plan["status"] = "too-large"
+        plan["statusReason"] = (
+            f"{result['demote']}. 이 이슈는 한 PR로 묶기에 큽니다. 분할한 뒤 다시 시도하세요."
+        )
+
+    (directory / "plan.json").write_text(json.dumps(plan, ensure_ascii=False, indent=2))
+
+    emit(
+        {
+            "issue": args.number,
+            "status": plan["status"],
+            "statusReason": plan.get("statusReason"),
+            "attempts": attempt,
+            "phases": len(plan.get("phases") or []),
+            "touchedPaths": plan.get("touchedPaths"),
+            "approvalSummary": render_plan_summary(plan) if plan["status"] == "ready" else None,
+        }
+    )
+
+
+def cmd_batch(args: argparse.Namespace) -> None:
+    root = repo_root()
+    plans = []
+    for number in args.numbers:
+        plan = read_plan(root, number)
+        if plan is None:
+            raise HarnessError(f"no plan for issue {number}")
+        if plan.get("status") != "ready":
+            continue
+        plans.append(plan)
+    emit({"batches": plan_batches(plans), "maxParallel": MAX_PARALLEL})
+
+
+def render_findings(evaluation: dict) -> str:
+    findings = evaluation.get("findings") or []
+    if not findings:
+        return ""
+    lines = [
+        "## Review findings to fix",
+        "",
+        "A reviewer read your work against the plan. Fix these, then commit again.",
+        "Do not change the plan's scope while fixing them.",
+        "",
+    ]
+    for finding in findings:
+        where = finding.get("file", "")
+        if finding.get("line"):
+            where += f":{finding['line']}"
+        lines.append(f"- **[{finding.get('severity', 'major')}] {where}** — {finding.get('problem', '')}")
+        if finding.get("requiredChange"):
+            lines.append(f"  - Required: {finding['requiredChange']}")
+    return "\n".join(lines)
+
+
+def cmd_exec(args: argparse.Namespace) -> None:
+    root = repo_root()
+    plan = read_plan(root, args.number)
+    if not plan:
+        raise HarnessError("plan.json is required before exec.")
+    if plan.get("status") != "ready":
+        raise HarnessError(f"plan status is {plan.get('status')!r}; only a ready plan may be executed.")
+
+    directory = issue_dir(root, args.number, create=True)
+    worktree = worktree_path(root, plan["slug"])
+    if not worktree.exists():
+        raise HarnessError(f"worktree not found: {worktree}. Run `start` first.")
+
+    issue_file = directory / "issue.json"
+    issue = json.loads(issue_file.read_text()) if issue_file.exists() else {"number": args.number}
+
+    findings = ""
+    if args.findings:
+        findings = render_findings(json.loads(Path(args.findings).read_text()))
+
+    prompt = render_prompt(
+        root,
+        "exec.md",
+        {
+            "PLAN": json.dumps(plan, ensure_ascii=False, indent=2),
+            "ISSUE": render_issue_block(issue),
+            "FINDINGS": findings,
+        },
+    )
+
+    before = git("rev-parse", "HEAD", cwd=worktree)
+    log = directory / f"exec-{args.round}.jsonl"
+    result = codex(
+        [
+            "--sandbox",
+            "workspace-write",
+            "-c",
+            "sandbox_workspace_write.network_access=false",
+            "-c",
+            f"model_reasoning_effort={EXEC_EFFORT}",
+            "-C",
+            str(worktree),
+        ],
+        prompt,
+        worktree,
+        log,
+        TIMEOUT_EXEC,
+    )
+    after = git("rev-parse", "HEAD", cwd=worktree)
+    new_commits = git("log", f"{before}..{after}", "--format=%s", cwd=worktree).splitlines()
+
+    emit(
+        {
+            "issue": args.number,
+            "round": args.round,
+            "exitCode": result.returncode,
+            "newCommits": list(reversed(new_commits)),
+            "uncommitted": bool(git("status", "--porcelain", cwd=worktree)),
+            "usage": token_usage(log.read_text()),
+        }
+    )
+    if result.returncode != 0:
+        raise SystemExit(1)
+
+
 def cmd_start(args: argparse.Namespace) -> None:
     root = repo_root()
     plan = read_plan(root, args.number)
@@ -602,6 +884,21 @@ def cmd_check(args: argparse.Namespace) -> None:
     emit(payload)
 
 
+def release_lock(root: Path, number: int) -> None:
+    lock = read_lock(root)
+    issues = lock.get("issues") or {}
+    issues.pop(str(number), None)
+    lock["issues"] = issues
+    write_lock(root, lock)
+
+
+def pr_title(plan: dict) -> str:
+    """First sentence of the summary, short enough for a title."""
+    summary = (plan.get("summary") or "").strip()
+    first = re.split(r"(?<=[.!?。])\s|\n", summary)[0].strip().rstrip(".")
+    return first[:70] if first else plan.get("slug", "")
+
+
 def render_pr_body(plan: dict, check: dict, evaluation: dict, rounds: int) -> str:
     steps = {step["step"]: step for step in check["verify"]["steps"]}
     mark = lambda name: "✅" if steps.get(name, {}).get("passed") else "❌"  # noqa: E731
@@ -662,7 +959,67 @@ def cmd_pr(args: argparse.Namespace) -> None:
     if args.body_only:
         print(body)
         return
-    raise HarnessError("publishing is implemented in a later stage; use --body-only for now.")
+
+    branch = branch_name(plan)
+    worktree = worktree_path(root, plan["slug"])
+    if not worktree.exists():
+        raise HarnessError(f"worktree not found: {worktree}")
+
+    push = run(["git", "push", "-u", "origin", branch], cwd=worktree)
+    if push.returncode != 0:
+        raise HarnessError(f"push failed: {push.stderr.strip()}")
+
+    body_file = directory / f"pr-body-{args.round}.md"
+    body_file.write_text(body)
+
+    title = f"{plan['branchType']}: {pr_title(plan)} (#{args.number})"
+    create = [
+        "pr", "create",
+        "--base", "main",
+        "--head", branch,
+        "--title", title,
+        "--body-file", str(body_file),
+        "--label", LABEL_GENERATED,
+    ]
+    if args.draft:
+        create.append("--draft")
+    created = run(["gh", *create], cwd=worktree)
+    if created.returncode != 0:
+        raise HarnessError(f"gh pr create failed: {created.stderr.strip()}")
+    url = created.stdout.strip().splitlines()[-1]
+
+    mergeable = None
+    view = run(["gh", "pr", "view", url, "--json", "mergeable"], cwd=worktree)
+    if view.returncode == 0:
+        mergeable = json.loads(view.stdout).get("mergeable")
+
+    if args.draft:
+        run(
+            [
+                "gh", "issue", "comment", str(args.number),
+                "--body",
+                "하네스가 이 이슈를 자동으로 해결하지 못했습니다. 작업은 버리지 않고 draft PR로 "
+                f"올려두었습니다: {url}\n\n"
+                f"마지막 판정: {evaluation.get('verdict')}\n"
+                "워크트리는 그대로 두었으니 이어받아 작업할 수 있습니다.",
+            ]
+        )
+    else:
+        run(["gh", "issue", "edit", str(args.number), "--remove-label", LABEL_READY])
+        git("worktree", "remove", "--force", str(worktree), cwd=root)
+
+    release_lock(root, args.number)
+
+    result = {
+        "issue": args.number,
+        "url": url,
+        "draft": bool(args.draft),
+        "branch": branch,
+        "mergeable": mergeable,
+        "worktreeKept": bool(args.draft),
+    }
+    (directory / "pr.json").write_text(json.dumps(result, ensure_ascii=False, indent=2))
+    emit(result)
 
 
 def cmd_validate_plan(args: argparse.Namespace) -> None:
@@ -688,6 +1045,20 @@ def build_parser() -> argparse.ArgumentParser:
     issues.add_argument("--limit", type=int, default=0)
     issues.add_argument("--reset", action="store_true", help="drop the existing lock first")
     issues.set_defaults(func=cmd_issues)
+
+    plan_cmd = sub.add_parser("plan", help="plan an issue with codex and check the result deterministically")
+    plan_cmd.add_argument("number", type=int)
+    plan_cmd.set_defaults(func=cmd_plan)
+
+    batch = sub.add_parser("batch", help="group planned issues into batches that may run in parallel")
+    batch.add_argument("numbers", nargs="+", type=int)
+    batch.set_defaults(func=cmd_batch)
+
+    execute = sub.add_parser("exec", help="implement the approved plan with codex")
+    execute.add_argument("number", type=int)
+    execute.add_argument("--round", type=int, default=1)
+    execute.add_argument("--findings", help="eval-N.json from the previous round")
+    execute.set_defaults(func=cmd_exec)
 
     start = sub.add_parser("start", help="create the worktree, branch and install dependencies")
     start.add_argument("number", type=int)

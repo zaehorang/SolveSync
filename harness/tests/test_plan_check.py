@@ -163,5 +163,65 @@ class PullRequestBody(unittest.TestCase):
         self.assertIn("🤖 SolveSync harness", body)
 
 
+class Batching(unittest.TestCase):
+    def plan(self, number, *paths):
+        return {"issueNumber": number, "touchedPaths": list(paths)}
+
+    def test_disjoint_issues_run_together(self):
+        plans = [self.plan(1, "src/a.ts"), self.plan(2, "src/b.ts")]
+        self.assertEqual(cli.plan_batches(plans, max_parallel=2), [[1, 2]])
+
+    def test_overlapping_issues_are_separated(self):
+        plans = [self.plan(1, "src/a.ts"), self.plan(2, "src/a.ts")]
+        self.assertEqual(cli.plan_batches(plans, max_parallel=2), [[1], [2]])
+
+    def test_parallel_limit_is_respected(self):
+        plans = [self.plan(n, f"src/{n}.ts") for n in (1, 2, 3)]
+        self.assertEqual(cli.plan_batches(plans, max_parallel=2), [[1, 2], [3]])
+
+    def test_partial_overlap_still_separates(self):
+        plans = [
+            self.plan(1, "src/a.ts", "src/shared.ts"),
+            self.plan(2, "src/b.ts", "src/shared.ts"),
+            self.plan(3, "src/c.ts"),
+        ]
+        self.assertEqual(cli.plan_batches(plans, max_parallel=2), [[1, 3], [2]])
+
+    def test_paths_are_normalized_before_comparing(self):
+        plans = [self.plan(1, "./src/a.ts"), self.plan(2, "src/a.ts")]
+        self.assertEqual(cli.plan_batches(plans, max_parallel=2), [[1], [2]])
+
+
+class Titles(unittest.TestCase):
+    def test_title_is_the_first_sentence(self):
+        plan = {"summary": "첫 문장이다. 두 번째 문장은 빠진다.", "slug": "x"}
+        self.assertEqual(cli.pr_title(plan), "첫 문장이다")
+
+    def test_title_is_bounded(self):
+        self.assertLessEqual(len(cli.pr_title({"summary": "가" * 200, "slug": "x"})), 70)
+
+
+class Findings(unittest.TestCase):
+    def test_findings_render_as_actionable_instructions(self):
+        text = cli.render_findings(
+            {
+                "findings": [
+                    {
+                        "severity": "blocker",
+                        "file": "src/shared/catalog.ts",
+                        "line": 12,
+                        "problem": "revision이 실패한 커밋에도 증가한다",
+                        "requiredChange": "commit 성공 후에만 증가시킨다",
+                    }
+                ]
+            }
+        )
+        self.assertIn("src/shared/catalog.ts:12", text)
+        self.assertIn("Required: commit 성공 후에만 증가시킨다", text)
+
+    def test_no_findings_renders_nothing(self):
+        self.assertEqual(cli.render_findings({"findings": []}), "")
+
+
 if __name__ == "__main__":
     unittest.main()
