@@ -157,7 +157,16 @@ def issue_dir(root: Path, number: int, create: bool = False) -> Path:
 
 
 def read_plan(root: Path, number: int) -> dict | None:
-    path = issue_dir(root, number) / "plan.json"
+    """The plan for an issue, or None outside a run or before planning.
+
+    Returning None instead of raising keeps the manual override path usable:
+    `start --branch-type --slug` has to work without an active run so the
+    harness can be exercised by hand.
+    """
+    try:
+        path = issue_dir(root, number) / "plan.json"
+    except HarnessError:
+        return None
     if not path.exists():
         return None
     return json.loads(path.read_text())
@@ -554,7 +563,10 @@ def compare_commits(worktree: Path, plan: dict | None) -> dict:
 def cmd_check(args: argparse.Namespace) -> None:
     root = repo_root()
     plan = read_plan(root, args.number)
-    directory = issue_dir(root, args.number)
+    try:
+        directory = issue_dir(root, args.number)
+    except HarnessError:
+        directory = None
     slug = plan["slug"] if plan else args.slug
     if not slug:
         raise HarnessError("no plan.json for this issue; pass --slug to locate the worktree.")
@@ -562,8 +574,8 @@ def cmd_check(args: argparse.Namespace) -> None:
     if not worktree.exists():
         raise HarnessError(f"worktree not found: {worktree}")
 
-    issue_file = directory / "issue.json"
-    issue = json.loads(issue_file.read_text()) if issue_file.exists() else {}
+    issue_file = directory / "issue.json" if directory else None
+    issue = json.loads(issue_file.read_text()) if issue_file and issue_file.exists() else {}
 
     payload = {
         "issue": {
@@ -584,8 +596,9 @@ def cmd_check(args: argparse.Namespace) -> None:
         "diff": git("diff", f"{BASE_REF}...HEAD", cwd=worktree),
     }
 
-    directory.mkdir(parents=True, exist_ok=True)
-    (directory / f"check-{args.round}.json").write_text(json.dumps(payload, ensure_ascii=False, indent=2))
+    if directory:
+        directory.mkdir(parents=True, exist_ok=True)
+        (directory / f"check-{args.round}.json").write_text(json.dumps(payload, ensure_ascii=False, indent=2))
     emit(payload)
 
 
