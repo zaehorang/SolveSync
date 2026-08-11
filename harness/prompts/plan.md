@@ -45,6 +45,18 @@ fail against it, so each entry must be checkable from the diff or from a test.
   normalized error carrying user-facing guidance"
 - Useless: "the error handling is improved"
 
+## Language
+
+This repository's documentation, issues and pull requests are written in Korean.
+Write `summary`, `acceptanceCriteria`, `outOfScope`, `statusReason`, phase
+`title`, `verifies` and task `detail` in Korean. `summary` and
+`acceptanceCriteria` are copied straight into the pull request body, so writing
+them in English produces a mixed-language pull request.
+
+Identifiers stay as they are: file paths, function names, commit messages and
+`slug` are not translated. `commitMessage` follows conventional commits and its
+subject stays in English, matching this repository's history.
+
 ## Status
 
 - `ready` — you found the code, the requirement is unambiguous, and the work
