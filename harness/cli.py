@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """SolveSync agent harness CLI.
 
-Everything deterministic lives here. The orchestrator calls these subcommands in
-order and only has to make three judgement calls of its own: approve a plan,
-read an evaluator verdict, and route on it.
+결정적인 것은 전부 여기 있다. orchestrator는 이 서브커맨드를 순서대로 부르고,
+스스로 판단하는 것은 세 가지뿐이다. 계획 승인, evaluator 판정 읽기, 그 판정에
+따라 분기하기.
 
-Standard library only, on purpose: the harness must not add a package manager to
-a repository that already has npm.
+표준 라이브러리만 쓰는 것은 의도적이다. 이미 npm이 있는 저장소에 패키지 관리
+체계를 하나 더 들이지 않는다.
 
     python3 harness/cli.py <command> [...]
 """
@@ -28,7 +28,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import policy  # noqa: E402
 
-# --- constants --------------------------------------------------------------
+# --- 상수 --------------------------------------------------------------
 
 LABEL_READY = "agent-ready"
 LABEL_GENERATED = "agent-generated"
@@ -50,10 +50,10 @@ CONVENTIONAL = re.compile(r"^(feat|fix|docs|test|refactor|chore)(\(.+\))?: .+")
 HOOKS_PATH = "harness/hooks"
 BASE_REF = "origin/main"
 
-# Reasoning effort is pinned so a run does not depend on whoever last edited
-# ~/.codex/config.toml. The model is deliberately not pinned here: naming a
-# model this harness cannot verify would break every run the day it is renamed.
-# Set CODEX_MODEL to pin it once you have one you want to hold steady.
+# reasoning effort를 고정해 ~/.codex/config.toml을 마지막으로 고친 사람에 따라
+# 실행 결과가 달라지지 않게 한다. model은 일부러 고정하지 않는다. 이 하네스가
+# 검증할 수 없는 model 이름을 박아두면 그 이름이 바뀌는 날 모든 실행이 깨진다.
+# 고정하고 싶은 model이 정해지면 CODEX_MODEL에 넣는다.
 CODEX_MODEL: str | None = None
 PLAN_EFFORT = "high"
 EXEC_EFFORT = "medium"
@@ -73,10 +73,10 @@ VITEST_FILES = re.compile(r"Test Files\s+(\d+)\s+passed")
 
 
 class HarnessError(Exception):
-    """Something the operator needs to fix before the run can continue."""
+    """실행을 계속하기 전에 사람이 고쳐야 하는 상황."""
 
 
-# --- process helpers --------------------------------------------------------
+# --- 프로세스 헬퍼 --------------------------------------------------------
 
 
 def run(args: list[str], cwd: Path | None = None, timeout: int | None = None) -> subprocess.CompletedProcess:
@@ -86,19 +86,19 @@ def run(args: list[str], cwd: Path | None = None, timeout: int | None = None) ->
 def git(*args: str, cwd: Path | None = None) -> str:
     result = run(["git", *args], cwd=cwd)
     if result.returncode != 0:
-        raise HarnessError(f"git {' '.join(args)} failed: {result.stderr.strip()}")
+        raise HarnessError(f"git {' '.join(args)} 실패: {result.stderr.strip()}")
     return result.stdout.strip()
 
 
 def gh_json(args: list[str]) -> object:
     result = run(["gh", *args])
     if result.returncode != 0:
-        raise HarnessError(f"gh {' '.join(args)} failed: {result.stderr.strip()}")
+        raise HarnessError(f"gh {' '.join(args)} 실패: {result.stderr.strip()}")
     return json.loads(result.stdout or "[]")
 
 
 def git_optional(*args: str, cwd: Path | None = None) -> str:
-    """git that returns "" instead of raising, for values that may be unset."""
+    """설정되지 않았을 수 있는 값을 읽을 때 쓰는, 예외 대신 ""를 돌려주는 git."""
     result = run(["git", *args], cwd=cwd)
     return result.stdout.strip() if result.returncode == 0 else ""
 
@@ -119,7 +119,7 @@ def run_id() -> str:
     return now().strftime("%Y-%m-%dT%H-%M-%SZ")
 
 
-# --- run state --------------------------------------------------------------
+# --- run 상태 --------------------------------------------------------------
 
 
 def harness_dir(root: Path) -> Path:
@@ -157,7 +157,7 @@ def lock_is_stale(entry: dict) -> bool:
 def current_run(root: Path) -> str:
     lock = read_lock(root)
     if not lock.get("runId"):
-        raise HarnessError("no active run. Start with: python3 harness/cli.py issues")
+        raise HarnessError("활성 run이 없습니다. python3 harness/cli.py issues 로 시작하세요.")
     return lock["runId"]
 
 
@@ -169,11 +169,10 @@ def issue_dir(root: Path, number: int, create: bool = False) -> Path:
 
 
 def read_plan(root: Path, number: int) -> dict | None:
-    """The plan for an issue, or None outside a run or before planning.
+    """이슈의 계획. 활성 run이 없거나 아직 계획 전이면 None.
 
-    Returning None instead of raising keeps the manual override path usable:
-    `start --branch-type --slug` has to work without an active run so the
-    harness can be exercised by hand.
+    예외 대신 None을 돌려줘야 수동 경로가 살아 있다. `start --branch-type --slug`는
+    활성 run 없이도 동작해야 사람이 하네스를 손으로 점검할 수 있다.
     """
     try:
         path = issue_dir(root, number) / "plan.json"
@@ -192,14 +191,14 @@ def branch_name(plan: dict) -> str:
     return f"{plan['branchType']}/issue-{plan['issueNumber']}-{plan['slug']}"
 
 
-# --- plan validation --------------------------------------------------------
+# --- 계획 검증 --------------------------------------------------------
 
 
 def validate_plan(plan: dict, root: Path) -> dict:
-    """Deterministic checks on a plan. Never calls a model.
+    """계획에 대한 결정적 검사. model을 부르지 않는다.
 
-    Returns {"problems": [...], "demote": str | None}. `demote` means the plan is
-    structurally fine but too big to run as one pull request.
+    {"problems": [...], "demote": str | None}을 돌려준다. `demote`는 구조는
+    멀쩡하지만 한 Pull Request로 돌리기에는 크다는 뜻이다.
     """
     problems: list[str] = []
 
@@ -208,61 +207,61 @@ def validate_plan(plan: dict, root: Path) -> dict:
             problems.append(message)
 
     status = plan.get("status")
-    require(status in ("ready", "blocked", "too-large"), f"status must be ready/blocked/too-large, got {status!r}")
+    require(status in ("ready", "blocked", "too-large"), f"status는 ready/blocked/too-large 중 하나여야 합니다. 받은 값: {status!r}")
     if status != "ready":
-        require(bool(plan.get("statusReason")), f"status {status!r} requires statusReason")
+        require(bool(plan.get("statusReason")), f"status가 {status!r}이면 statusReason이 있어야 합니다")
         return {"problems": problems, "demote": None}
 
-    require(isinstance(plan.get("issueNumber"), int), "issueNumber must be an integer")
-    require(plan.get("branchType") in BRANCH_TYPES, f"branchType must be one of {BRANCH_TYPES}")
-    require(bool(re.fullmatch(r"[a-z0-9][a-z0-9-]*", plan.get("slug", ""))), "slug must be kebab-case")
-    require(bool(plan.get("summary")), "summary is required")
-    require(bool(plan.get("acceptanceCriteria")), "acceptanceCriteria needs at least one entry")
+    require(isinstance(plan.get("issueNumber"), int), "issueNumber는 정수여야 합니다")
+    require(plan.get("branchType") in BRANCH_TYPES, f"branchType은 {BRANCH_TYPES} 중 하나여야 합니다")
+    require(bool(re.fullmatch(r"[a-z0-9][a-z0-9-]*", plan.get("slug", ""))), "slug는 kebab-case여야 합니다")
+    require(bool(plan.get("summary")), "summary는 필수입니다")
+    require(bool(plan.get("acceptanceCriteria")), "acceptanceCriteria가 최소 하나는 있어야 합니다")
 
     grounded = plan.get("groundedIn") or []
-    require(bool(grounded), "groundedIn needs at least one file that was actually read")
+    require(bool(grounded), "groundedIn에 실제로 읽은 파일이 최소 하나는 있어야 합니다")
     for path in grounded:
-        require((root / path).exists(), f"groundedIn path does not exist: {path}")
+        require((root / path).exists(), f"groundedIn 경로가 존재하지 않습니다: {path}")
 
     touched = [policy.normalize(p) for p in plan.get("touchedPaths") or []]
-    require(bool(touched), "touchedPaths needs at least one entry")
+    require(bool(touched), "touchedPaths가 최소 하나는 있어야 합니다")
     for path in touched:
         if path.startswith("/") or path.startswith("../") or "/../" in path:
-            problems.append(f"touchedPaths must stay inside the repository: {path}")
+            problems.append(f"touchedPaths는 저장소 안에 있어야 합니다: {path}")
             continue
         parent = (root / path).parent
-        require(parent.exists(), f"parent directory of {path} does not exist")
+        require(parent.exists(), f"{path}의 상위 디렉터리가 존재하지 않습니다")
 
     phases = plan.get("phases") or []
-    require(bool(phases), "phases needs at least one entry")
+    require(bool(phases), "phases가 최소 하나는 있어야 합니다")
 
     task_total = 0
     for index, phase in enumerate(phases, start=1):
         label = f"phase {index}"
-        require(bool(phase.get("title")), f"{label}: title is required")
+        require(bool(phase.get("title")), f"{label}: title은 필수입니다")
         message = phase.get("commitMessage", "")
-        require(bool(CONVENTIONAL.match(message)), f"{label}: commitMessage is not conventional: {message!r}")
-        require(bool(phase.get("verifies")), f"{label}: verifies needs at least one entry")
+        require(bool(CONVENTIONAL.match(message)), f"{label}: commitMessage가 conventional 형식이 아닙니다: {message!r}")
+        require(bool(phase.get("verifies")), f"{label}: verifies가 최소 하나는 있어야 합니다")
 
         tasks = phase.get("tasks") or []
         task_total += len(tasks)
-        require(bool(tasks), f"{label}: needs at least one task")
-        require(len(tasks) <= MAX_TASKS_PER_PHASE, f"{label}: more than {MAX_TASKS_PER_PHASE} tasks")
+        require(bool(tasks), f"{label}: task가 최소 하나는 있어야 합니다")
+        require(len(tasks) <= MAX_TASKS_PER_PHASE, f"{label}: task가 {MAX_TASKS_PER_PHASE}개를 넘습니다")
 
         for task in tasks:
-            require(task.get("kind") in TASK_KINDS, f"{label}: task kind must be one of {TASK_KINDS}")
-            require(bool(task.get("file")), f"{label}: every task needs a file")
-            require(bool(task.get("detail")), f"{label}: every task needs a detail")
+            require(task.get("kind") in TASK_KINDS, f"{label}: task kind는 {TASK_KINDS} 중 하나여야 합니다")
+            require(bool(task.get("file")), f"{label}: 모든 task에 file이 있어야 합니다")
+            require(bool(task.get("detail")), f"{label}: 모든 task에 detail이 있어야 합니다")
             path = policy.normalize(task.get("file", ""))
             if path and path not in touched:
-                problems.append(f"{label}: task file {path} is missing from touchedPaths")
+                problems.append(f"{label}: task file {path}이 touchedPaths에 없습니다")
 
         logic_tasks = [t for t in tasks if policy.is_logic_source(t.get("file", ""))]
         if logic_tasks:
             first = tasks[0]
             require(
                 first.get("kind") == "test",
-                f"{label}: touches logic code, so the first task must be kind=test",
+                f"{label}: 로직 코드를 건드리므로 첫 task가 kind=test여야 합니다",
             )
             phase_tests = {policy.normalize(t.get("file", "")) for t in tasks if t.get("kind") == "test"}
             for task in logic_tasks:
@@ -270,30 +269,30 @@ def validate_plan(plan: dict, root: Path) -> dict:
                 if expected in phase_tests or (root / expected).exists():
                     continue
                 problems.append(
-                    f"{label}: {task['file']} has no test. Expected {expected} "
-                    "in this phase or already in the repository."
+                    f"{label}: {task['file']}에 테스트가 없습니다. {expected}가 이 phase에 있거나 "
+                    "저장소에 이미 있어야 합니다."
                 )
 
         for task in tasks:
             if task.get("kind") == "test":
                 require(
                     policy.is_test_file(task.get("file", "")),
-                    f"{label}: kind=test task must point at a *.test.ts file",
+                    f"{label}: kind=test인 task는 *.test.ts 파일을 가리켜야 합니다",
                 )
 
     demote = None
     if len(phases) > MAX_PHASES:
-        demote = f"{len(phases)} phases exceeds the limit of {MAX_PHASES}"
+        demote = f"phase가 {len(phases)}개로 상한 {MAX_PHASES}개를 넘습니다"
     elif task_total > MAX_TASKS_TOTAL:
-        demote = f"{task_total} tasks exceeds the limit of {MAX_TASKS_TOTAL}"
+        demote = f"task가 {task_total}개로 상한 {MAX_TASKS_TOTAL}개를 넘습니다"
     elif len(touched) > MAX_TOUCHED_PATHS:
-        demote = f"{len(touched)} touched paths exceeds the limit of {MAX_TOUCHED_PATHS}"
+        demote = f"touchedPaths가 {len(touched)}개로 상한 {MAX_TOUCHED_PATHS}개를 넘습니다"
 
     return {"problems": problems, "demote": demote}
 
 
 def render_plan_summary(plan: dict) -> str:
-    """Approval screen. Rendered from the plan, never written by a model."""
+    """승인 화면. 계획에서 렌더링하며 model이 작문하지 않는다."""
     lines = [
         f"# Issue #{plan['issueNumber']} — {plan.get('summary', '')}",
         "",
@@ -315,15 +314,15 @@ def render_plan_summary(plan: dict) -> str:
     return "\n".join(lines)
 
 
-# --- batching ---------------------------------------------------------------
+# --- 배치 편성 ---------------------------------------------------------------
 
 
 def plan_batches(plans: list[dict], max_parallel: int = MAX_PARALLEL) -> list[list[int]]:
-    """Group issues into batches that may run at the same time.
+    """동시에 실행해도 되는 이슈들을 batch로 묶는다.
 
-    Worktrees are isolated, so running two issues in parallel cannot corrupt
-    anything. The only cost of overlap is a merge conflict later, so the rule is
-    just: plans that touch a common path go in different batches.
+    worktree는 서로 격리되어 있어 두 이슈를 병렬로 돌려도 무언가가 깨지지 않는다.
+    겹침의 유일한 비용은 나중의 merge 충돌이므로, 규칙은 하나다. 같은 경로를
+    건드리는 계획은 다른 batch로 보낸다.
     """
     batches: list[list[dict]] = []
     for plan in plans:
@@ -343,7 +342,7 @@ def plan_batches(plans: list[dict], max_parallel: int = MAX_PARALLEL) -> list[li
     return [[plan["issueNumber"] for plan in batch] for batch in batches]
 
 
-# --- codex ------------------------------------------------------------------
+# --- codex 호출 ------------------------------------------------------------------
 
 
 def render_issue_block(issue: dict) -> str:
@@ -378,13 +377,13 @@ def codex(
         )
     except subprocess.TimeoutExpired:
         log.write_text("timed out")
-        raise HarnessError(f"codex timed out after {timeout}s. Partial commits are kept; escalate.")
+        raise HarnessError(f"codex가 {timeout}초 후 시간 초과했습니다. 부분 커밋은 보존합니다. escalate하세요.")
     log.write_text(result.stdout + result.stderr)
     return result
 
 
 def token_usage(log_text: str) -> dict | None:
-    """Pull the last token-usage record out of the JSONL event stream."""
+    """JSONL 이벤트 스트림에서 마지막 token 사용량 기록을 꺼낸다."""
     usage = None
     for line in log_text.splitlines():
         if '"usage"' not in line and '"token' not in line:
@@ -399,7 +398,7 @@ def token_usage(log_text: str) -> dict | None:
     return usage
 
 
-# --- commands ---------------------------------------------------------------
+# --- 커맨드 ---------------------------------------------------------------
 
 
 def cmd_setup(args: argparse.Namespace) -> None:
@@ -422,8 +421,8 @@ def cmd_setup(args: argparse.Namespace) -> None:
         trusted = entry.get("trust_level") == "trusted"
     if not trusted:
         notes.append(
-            f"{root} is not trusted in ~/.codex/config.toml, so .codex/config.toml will not load "
-            "and the codex hook will not run. Open codex once in this directory and trust it."
+            f"{root}가 ~/.codex/config.toml에서 trusted가 아닙니다. .codex/config.toml이 로드되지 않아 "
+            "codex hook이 동작하지 않습니다. 이 디렉터리에서 codex를 한 번 열고 신뢰를 부여하세요."
         )
 
     labels = []
@@ -439,7 +438,7 @@ def cmd_setup(args: argparse.Namespace) -> None:
         cwd=root,
     )
     if selftest.returncode != 0:
-        notes.append("harness self-test failed:\n" + (selftest.stderr or selftest.stdout))
+        notes.append("하네스 자체 테스트 실패:\n" + (selftest.stderr or selftest.stdout))
 
     emit(
         {
@@ -457,22 +456,22 @@ def preflight(root: Path) -> list[str]:
     problems = []
     branch = git("rev-parse", "--abbrev-ref", "HEAD", cwd=root)
     if branch != "main":
-        problems.append(f"expected to start from main, currently on {branch}")
+        problems.append(f"main에서 시작해야 합니다. 현재 branch: {branch}")
 
     if git("status", "--porcelain", cwd=root):
-        problems.append("working tree is dirty. Commit or stash before starting a run.")
+        problems.append("working tree가 더럽습니다. 실행 전에 commit하거나 stash하세요.")
 
     run(["git", "fetch", "origin", "--quiet"], cwd=root)
     local = git("rev-parse", "main", cwd=root)
     remote = git("rev-parse", BASE_REF, cwd=root)
     if local != remote:
-        problems.append(f"main and {BASE_REF} differ. Reconcile the base before starting.")
+        problems.append(f"main과 {BASE_REF}가 어긋납니다. 시작 전에 base 상태를 정리하세요.")
 
     if run(["gh", "auth", "status"]).returncode != 0:
-        problems.append("gh is not authenticated. Run: gh auth login")
+        problems.append("gh가 인증되지 않았습니다. gh auth login 을 실행하세요.")
 
     if git_optional("config", "core.hooksPath", cwd=root) != HOOKS_PATH:
-        problems.append(f"core.hooksPath is not {HOOKS_PATH}. Run: python3 harness/cli.py setup")
+        problems.append(f"core.hooksPath가 {HOOKS_PATH}가 아닙니다. python3 harness/cli.py setup 을 실행하세요.")
 
     return problems
 
@@ -491,21 +490,21 @@ def prune_runs(root: Path) -> list[str]:
 
 
 def blocking_state(root: Path, number: int) -> str | None:
-    """Why this issue must not be started now, or None."""
+    """지금 이 이슈에 착수하면 안 되는 이유. 없으면 None."""
     pattern = f"issue-{number}-"
     branches = git("branch", "--all", "--format=%(refname:short)", cwd=root).splitlines()
     for branch in branches:
         if pattern in branch:
-            return f"branch already exists: {branch.strip()}"
+            return f"branch가 이미 있습니다: {branch.strip()}"
 
     for line in git("worktree", "list", "--porcelain", cwd=root).splitlines():
         if line.startswith("worktree ") and pattern in line:
-            return f"worktree already exists: {line.split(' ', 1)[1]}"
+            return f"worktree가 이미 있습니다: {line.split(' ', 1)[1]}"
 
     prs = gh_json(["pr", "list", "--state", "open", "--json", "number,headRefName"])
     for pr in prs:
         if pattern in pr.get("headRefName", ""):
-            return f"open pull request #{pr['number']} already targets this issue"
+            return f"열린 Pull Request #{pr['number']}가 이미 이 이슈를 다룹니다"
     return None
 
 
@@ -538,7 +537,7 @@ def cmd_issues(args: argparse.Namespace) -> None:
         number = issue["number"]
         entry = held.get(number)
         if entry and not lock_is_stale(entry):
-            skipped.append({"number": number, "reason": f"claimed by run {entry.get('runId')}"})
+            skipped.append({"number": number, "reason": f"run {entry.get('runId')}가 선점 중"})
             continue
         reason = blocking_state(root, number)
         if reason:
@@ -581,8 +580,8 @@ def _plan_attempt(root: Path, issue: dict, directory: Path, attempt: int, feedba
     prompt = render_prompt(root, "plan.md", {"ISSUE": render_issue_block(issue)})
     if feedback:
         prompt += (
-            "\n\n## Your previous plan was rejected\n\n"
-            "These are mechanical checks, not opinions. Fix every one of them.\n\n"
+            "\n\n## 이전 계획이 반려되었습니다\n\n"
+            "아래는 의견이 아니라 기계적 검사 결과입니다. 전부 고치세요.\n\n"
             + feedback
         )
     output = directory / f"plan-attempt-{attempt}.json"
@@ -605,13 +604,13 @@ def _plan_attempt(root: Path, issue: dict, directory: Path, attempt: int, feedba
         TIMEOUT_PLAN,
     )
     if result.returncode != 0:
-        raise HarnessError(f"codex plan failed:\n{result.stderr[-2000:]}")
+        raise HarnessError(f"codex plan 실패:\n{result.stderr[-2000:]}")
     if not output.exists():
-        raise HarnessError("codex produced no plan output.")
+        raise HarnessError("codex가 계획 출력을 만들지 않았습니다.")
     try:
         return json.loads(output.read_text())
     except json.JSONDecodeError as error:
-        raise HarnessError(f"plan output was not valid JSON: {error}")
+        raise HarnessError(f"계획 출력이 올바른 JSON이 아닙니다: {error}")
 
 
 def cmd_plan(args: argparse.Namespace) -> None:
@@ -620,7 +619,7 @@ def cmd_plan(args: argparse.Namespace) -> None:
 
     issue_file = directory / "issue.json"
     if not issue_file.exists():
-        raise HarnessError("run `issues` first so the issue body is captured for this run.")
+        raise HarnessError("먼저 `issues`를 실행해 이 run의 이슈 본문을 확보하세요.")
     issue = json.loads(issue_file.read_text())
 
     feedback = None
@@ -638,7 +637,7 @@ def cmd_plan(args: argparse.Namespace) -> None:
                 "issue": args.number,
                 "status": "rejected",
                 "problems": result["problems"],
-                "note": "Two plans failed the deterministic checks. A human should look at the issue.",
+                "note": "계획 두 번이 결정적 검사를 통과하지 못했습니다. 사람이 이슈를 봐야 합니다.",
             }
         )
         raise SystemExit(1)
@@ -670,7 +669,7 @@ def cmd_batch(args: argparse.Namespace) -> None:
     for number in args.numbers:
         plan = read_plan(root, number)
         if plan is None:
-            raise HarnessError(f"no plan for issue {number}")
+            raise HarnessError(f"이슈 {number}의 계획이 없습니다")
         if plan.get("status") != "ready":
             continue
         plans.append(plan)
@@ -682,10 +681,10 @@ def render_findings(evaluation: dict) -> str:
     if not findings:
         return ""
     lines = [
-        "## Review findings to fix",
+        "## 고쳐야 할 리뷰 지적",
         "",
-        "A reviewer read your work against the plan. Fix these, then commit again.",
-        "Do not change the plan's scope while fixing them.",
+        "리뷰어가 계획과 대조해 작업을 읽었습니다. 아래를 고치고 다시 커밋하세요.",
+        "고치는 과정에서 계획의 범위를 바꾸지 마세요.",
         "",
     ]
     for finding in findings:
@@ -694,7 +693,7 @@ def render_findings(evaluation: dict) -> str:
             where += f":{finding['line']}"
         lines.append(f"- **[{finding.get('severity', 'major')}] {where}** — {finding.get('problem', '')}")
         if finding.get("requiredChange"):
-            lines.append(f"  - Required: {finding['requiredChange']}")
+            lines.append(f"  - 필요한 조치: {finding['requiredChange']}")
     return "\n".join(lines)
 
 
@@ -702,14 +701,14 @@ def cmd_exec(args: argparse.Namespace) -> None:
     root = repo_root()
     plan = read_plan(root, args.number)
     if not plan:
-        raise HarnessError("plan.json is required before exec.")
+        raise HarnessError("exec 전에 plan.json이 필요합니다.")
     if plan.get("status") != "ready":
-        raise HarnessError(f"plan status is {plan.get('status')!r}; only a ready plan may be executed.")
+        raise HarnessError(f"plan status가 {plan.get('status')!r}입니다. ready인 계획만 실행할 수 있습니다.")
 
     directory = issue_dir(root, args.number, create=True)
     worktree = worktree_path(root, plan["slug"])
     if not worktree.exists():
-        raise HarnessError(f"worktree not found: {worktree}. Run `start` first.")
+        raise HarnessError(f"worktree를 찾을 수 없습니다: {worktree}. 먼저 `start`를 실행하세요.")
 
     issue_file = directory / "issue.json"
     issue = json.loads(issue_file.read_text()) if issue_file.exists() else {"number": args.number}
@@ -771,13 +770,13 @@ GATE_FILES = (
 
 
 def missing_gates(worktree: Path) -> list[str]:
-    """Gate files that are absent from a worktree.
+    """worktree에 없는 gate 파일 목록.
 
-    A worktree is branched from the base ref, so it only contains the harness if
-    the harness is merged into that branch. When `core.hooksPath` points at a
-    directory that does not exist, git skips hooks **without warning** — the
-    commit gate disappears silently and everything looks fine. That failure mode
-    is worse than a loud one, so `start` refuses to hand over such a worktree.
+    worktree는 base ref에서 분기하므로, 하네스가 그 branch에 merge되어 있어야만
+    worktree 안에 존재한다. `core.hooksPath`가 없는 디렉터리를 가리키면 git은
+    **경고 없이** hook을 건너뛴다. commit gate가 조용히 사라지는데 겉보기에는
+    멀쩡하다. 시끄럽게 실패하는 것보다 나쁜 실패 방식이므로 `start`는 이런
+    worktree를 넘겨주지 않는다.
     """
     return [name for name in GATE_FILES if not (worktree / name).exists()]
 
@@ -788,7 +787,7 @@ def cmd_start(args: argparse.Namespace) -> None:
     if plan is None:
         if not (args.branch_type and args.slug):
             raise HarnessError(
-                "no plan.json for this issue. Run `plan` first, or pass --branch-type and --slug."
+                "이 이슈의 plan.json이 없습니다. 먼저 `plan`을 실행하거나 --branch-type과 --slug를 넘기세요."
             )
         plan = {"issueNumber": args.number, "branchType": args.branch_type, "slug": args.slug}
 
@@ -796,7 +795,7 @@ def cmd_start(args: argparse.Namespace) -> None:
     path = worktree_path(root, plan["slug"])
     path.parent.mkdir(parents=True, exist_ok=True)
     if path.exists():
-        raise HarnessError(f"worktree path already exists: {path}")
+        raise HarnessError(f"worktree 경로가 이미 있습니다: {path}")
 
     git("worktree", "add", "-b", branch, str(path), BASE_REF, cwd=root)
 
@@ -805,14 +804,14 @@ def cmd_start(args: argparse.Namespace) -> None:
         git("worktree", "remove", "--force", str(path), cwd=root)
         run(["git", "branch", "-D", branch], cwd=root)
         raise HarnessError(
-            f"{BASE_REF} does not contain the harness ({', '.join(absent)}), so this worktree "
-            "would have no commit gate — and git does not warn when core.hooksPath points at a "
-            "missing directory. Merge the harness into the base branch before running it."
+            f"{BASE_REF}에 하네스가 없습니다 ({', '.join(absent)}). 이 worktree에는 commit gate가 "
+            "없게 되는데, git은 core.hooksPath가 없는 디렉터리를 가리켜도 경고하지 않습니다. "
+            "하네스를 base branch에 merge한 뒤 실행하세요."
         )
 
     install = run(["npm", "ci"], cwd=path, timeout=TIMEOUT_NPM)
     if install.returncode != 0:
-        raise HarnessError(f"npm ci failed in {path}:\n{install.stderr[-2000:]}")
+        raise HarnessError(f"{path}에서 npm ci 실패:\n{install.stderr[-2000:]}")
 
     emit(
         {
@@ -888,10 +887,10 @@ def cmd_check(args: argparse.Namespace) -> None:
         directory = None
     slug = plan["slug"] if plan else args.slug
     if not slug:
-        raise HarnessError("no plan.json for this issue; pass --slug to locate the worktree.")
+        raise HarnessError("이 이슈의 plan.json이 없습니다. worktree를 찾으려면 --slug를 넘기세요.")
     worktree = worktree_path(root, slug)
     if not worktree.exists():
-        raise HarnessError(f"worktree not found: {worktree}")
+        raise HarnessError(f"worktree를 찾을 수 없습니다: {worktree}")
 
     issue_file = directory / "issue.json" if directory else None
     issue = json.loads(issue_file.read_text()) if issue_file and issue_file.exists() else {}
@@ -930,7 +929,7 @@ def release_lock(root: Path, number: int) -> None:
 
 
 def pr_title(plan: dict) -> str:
-    """First sentence of the summary, short enough for a title."""
+    """summary의 첫 문장. 제목으로 쓸 만큼 짧게 자른다."""
     summary = (plan.get("summary") or "").strip()
     first = re.split(r"(?<=[.!?。])\s|\n", summary)[0].strip().rstrip(".")
     return first[:70] if first else plan.get("slug", "")
@@ -986,7 +985,7 @@ def cmd_pr(args: argparse.Namespace) -> None:
     directory = issue_dir(root, args.number)
     plan = read_plan(root, args.number)
     if not plan:
-        raise HarnessError("plan.json is required to build a pull request body.")
+        raise HarnessError("Pull Request 본문을 만들려면 plan.json이 필요합니다.")
 
     check = json.loads((directory / f"check-{args.round}.json").read_text())
     eval_file = directory / f"eval-{args.round}.json"
@@ -1000,11 +999,11 @@ def cmd_pr(args: argparse.Namespace) -> None:
     branch = branch_name(plan)
     worktree = worktree_path(root, plan["slug"])
     if not worktree.exists():
-        raise HarnessError(f"worktree not found: {worktree}")
+        raise HarnessError(f"worktree를 찾을 수 없습니다: {worktree}")
 
     push = run(["git", "push", "-u", "origin", branch], cwd=worktree)
     if push.returncode != 0:
-        raise HarnessError(f"push failed: {push.stderr.strip()}")
+        raise HarnessError(f"push 실패: {push.stderr.strip()}")
 
     body_file = directory / f"pr-body-{args.round}.md"
     body_file.write_text(body)
@@ -1022,7 +1021,7 @@ def cmd_pr(args: argparse.Namespace) -> None:
         create.append("--draft")
     created = run(["gh", *create], cwd=worktree)
     if created.returncode != 0:
-        raise HarnessError(f"gh pr create failed: {created.stderr.strip()}")
+        raise HarnessError(f"gh pr create 실패: {created.stderr.strip()}")
     url = created.stdout.strip().splitlines()[-1]
 
     mergeable = None
@@ -1068,55 +1067,55 @@ def cmd_validate_plan(args: argparse.Namespace) -> None:
         raise SystemExit(1)
 
 
-# --- entry point ------------------------------------------------------------
+# --- 진입점 ------------------------------------------------------------
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="harness/cli.py", description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
 
-    sub.add_parser("setup", help="install hooks, check codex trust, create labels").set_defaults(func=cmd_setup)
+    sub.add_parser("setup", help="hook 설치, codex trust 확인, 라벨 생성").set_defaults(func=cmd_setup)
 
-    issues = sub.add_parser("issues", help="preflight, prune, claim lock, list eligible issues")
+    issues = sub.add_parser("issues", help="preflight, 오래된 로그 정리, lock 확보, 대상 이슈 선정")
     issues.add_argument("numbers", nargs="*", type=int)
     issues.add_argument("--limit", type=int, default=0)
-    issues.add_argument("--reset", action="store_true", help="drop the existing lock first")
+    issues.add_argument("--reset", action="store_true", help="기존 lock을 먼저 버린다")
     issues.set_defaults(func=cmd_issues)
 
-    plan_cmd = sub.add_parser("plan", help="plan an issue with codex and check the result deterministically")
+    plan_cmd = sub.add_parser("plan", help="codex로 이슈를 계획하고 결과를 결정적으로 검증")
     plan_cmd.add_argument("number", type=int)
     plan_cmd.set_defaults(func=cmd_plan)
 
-    batch = sub.add_parser("batch", help="group planned issues into batches that may run in parallel")
+    batch = sub.add_parser("batch", help="계획된 이슈를 병렬 실행 가능한 batch로 묶기")
     batch.add_argument("numbers", nargs="+", type=int)
     batch.set_defaults(func=cmd_batch)
 
-    execute = sub.add_parser("exec", help="implement the approved plan with codex")
+    execute = sub.add_parser("exec", help="승인된 계획을 codex로 구현")
     execute.add_argument("number", type=int)
     execute.add_argument("--round", type=int, default=1)
-    execute.add_argument("--findings", help="eval-N.json from the previous round")
+    execute.add_argument("--findings", help="직전 라운드의 eval-N.json")
     execute.set_defaults(func=cmd_exec)
 
-    start = sub.add_parser("start", help="create the worktree, branch and install dependencies")
+    start = sub.add_parser("start", help="worktree와 branch를 만들고 의존성 설치")
     start.add_argument("number", type=int)
     start.add_argument("--branch-type", choices=BRANCH_TYPES)
     start.add_argument("--slug")
     start.set_defaults(func=cmd_start)
 
-    check = sub.add_parser("check", help="verify, compare commits to phases, build the evaluator payload")
+    check = sub.add_parser("check", help="검증, 커밋과 Phase 대조, evaluator 페이로드 조립")
     check.add_argument("number", type=int)
     check.add_argument("--round", type=int, default=1)
     check.add_argument("--slug")
     check.set_defaults(func=cmd_check)
 
-    pr = sub.add_parser("pr", help="assemble the pull request body")
+    pr = sub.add_parser("pr", help="Pull Request 본문 조립")
     pr.add_argument("number", type=int)
     pr.add_argument("--round", type=int, default=1)
     pr.add_argument("--draft", action="store_true")
     pr.add_argument("--body-only", action="store_true")
     pr.set_defaults(func=cmd_pr)
 
-    validate = sub.add_parser("validate-plan", help="run the deterministic plan checks on a file")
+    validate = sub.add_parser("validate-plan", help="파일에 대해 계획 결정적 검사 실행")
     validate.add_argument("file")
     validate.set_defaults(func=cmd_validate_plan)
 

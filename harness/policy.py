@@ -1,13 +1,11 @@
-"""Shared rules for the SolveSync agent harness.
+"""하네스가 공유하는 차단 규칙.
 
-Both the codex PreToolUse hook and the git pre-commit hook import this module,
-so every rule lives in exactly one place. Keep this module dependency-free
-(standard library only) and side-effect free: it is pure decision logic and is
-covered by harness/tests/test_policy.py.
+codex PreToolUse hook과 git pre-commit hook이 모두 이 모듈을 import한다. 규칙을
+한 곳에만 두기 위해서다. 표준 라이브러리만 쓰고 부수효과를 두지 않는다. 순수한
+판단 로직이며 harness/tests/test_policy.py가 검증한다.
 
-Deny reasons are written as instructions. The codex hook feeds
-`permissionDecisionReason` straight back to the model, so the text has to tell
-codex what to do instead, not just what went wrong.
+차단 사유는 지시문으로 쓴다. codex hook이 `permissionDecisionReason`을 그대로
+모델에게 돌려주므로, 무엇이 잘못됐는지가 아니라 대신 무엇을 하라고 적어야 한다.
 """
 
 from __future__ import annotations
@@ -17,7 +15,7 @@ import re
 import shlex
 from pathlib import Path, PurePosixPath
 
-# --- paths ------------------------------------------------------------------
+# --- 경로 --------------------------------------------------------------------
 
 LOGIC_DIRS = ("src/shared/", "src/background/")
 TEST_SUFFIX = ".test.ts"
@@ -34,7 +32,7 @@ ENV_ALLOWED = (".env.example",)
 
 
 def normalize(path: str) -> str:
-    """Repo-relative posix path with no leading ./ and no trailing slash."""
+    """저장소 기준 posix 경로. 앞의 ./와 뒤의 /를 제거한다."""
     text = str(path).strip().replace("\\", "/")
     while text.startswith("./"):
         text = text[2:]
@@ -42,19 +40,17 @@ def normalize(path: str) -> str:
 
 
 def forbidden_path_reason(path: str) -> str | None:
-    """Return a deny reason when `path` must never be written or committed."""
+    """절대 쓰거나 커밋하면 안 되는 경로면 차단 사유를 돌려준다."""
     rel = normalize(path)
     for prefix in FORBIDDEN_PREFIXES:
         if rel == prefix.rstrip("/") or rel.startswith(prefix):
             return (
-                f"{rel} is a build/runtime artifact path ({prefix}). "
-                "Do not create or commit files here."
+                f"{rel}은 build/runtime 산출물 경로({prefix})입니다. "
+                "여기에 파일을 만들거나 커밋하지 마세요."
             )
     base = PurePosixPath(rel).name
     if base.startswith(".env") and base not in ENV_ALLOWED:
-        return (
-            f"{rel} may contain secrets. Only .env.example belongs in the repository."
-        )
+        return f"{rel}에는 secret이 들어갈 수 있습니다. 저장소에는 .env.example만 둡니다."
     return None
 
 
@@ -63,7 +59,7 @@ def is_test_file(path: str) -> bool:
 
 
 def is_logic_source(path: str) -> bool:
-    """True for non-test TypeScript under the directories that require tests."""
+    """테스트가 필수인 디렉터리의 비테스트 TypeScript 파일인지 판단한다."""
     rel = normalize(path)
     if not rel.endswith(".ts") or is_test_file(rel):
         return False
@@ -76,21 +72,21 @@ def sibling_test_path(path: str) -> str:
     return rel[: -len(".ts")] + TEST_SUFFIX
 
 
-# --- secrets ----------------------------------------------------------------
+# --- secret ------------------------------------------------------------------
 
 SECRET_PATTERNS = (
     (re.compile(r"\bghp_[A-Za-z0-9]{20,}"), "GitHub personal access token"),
     (re.compile(r"\bgithub_pat_[A-Za-z0-9_]{20,}"), "GitHub fine-grained PAT"),
     (re.compile(r"\bgh[ousr]_[A-Za-z0-9]{20,}"), "GitHub OAuth/user/server token"),
-    # A real bearer token is a long opaque string. Requiring that keeps prose
-    # like "use an `Authorization: Bearer` header" from tripping the scanner,
-    # which it did on this harness's own design document.
+    # 실제 bearer token은 길고 불투명한 문자열이다. 길이를 요구해야 "`Authorization:
+    # Bearer` header를 쓴다" 같은 산문이 걸리지 않는다. 이 하네스의 설계 문서가
+    # 실제로 이 오탐에 막혔다.
     (re.compile(r"Authorization:[ \t]*Bearer[ \t]+[A-Za-z0-9._\-]{20,}"), "Authorization header"),
 )
 
 
 def scan_secrets(text: str) -> list[tuple[str, str]]:
-    """Return (label, matched-text) pairs for every secret-looking token."""
+    """secret으로 보이는 토큰마다 (분류, 일치한 문자열) 쌍을 돌려준다."""
     found: list[tuple[str, str]] = []
     for pattern, label in SECRET_PATTERNS:
         for match in pattern.finditer(text):
@@ -98,7 +94,7 @@ def scan_secrets(text: str) -> list[tuple[str, str]]:
     return found
 
 
-# --- shell commands ---------------------------------------------------------
+# --- shell 명령 ---------------------------------------------------------------
 
 _SPLIT_OPERATORS = re.compile(r"\|\||&&|[;\n|&]")
 _ENV_ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
@@ -106,33 +102,32 @@ _ENV_ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 _DENY_PREFIXES: tuple[tuple[tuple[str, ...], str], ...] = (
     (
         ("git", "push"),
-        "Pushing is the orchestrator's job. Commit your work and stop; "
-        "the harness pushes and opens the pull request.",
+        "push는 orchestrator의 일입니다. 커밋까지만 하고 멈추세요. "
+        "push와 Pull Request 생성은 하네스가 합니다.",
     ),
     (
         ("git", "config"),
-        "Do not change git configuration. The harness owns core.hooksPath "
-        "and the gate it points at.",
+        "git 설정을 바꾸지 마세요. core.hooksPath와 그것이 가리키는 gate는 하네스가 관리합니다.",
     ),
     (
         ("git", "worktree"),
-        "Do not manage worktrees. Work only inside the worktree you were started in.",
+        "worktree를 직접 다루지 마세요. 시작할 때 주어진 worktree 안에서만 작업합니다.",
     ),
     (
         ("gh", "pr"),
-        "Pull requests are created by the orchestrator, not from inside exec.",
+        "Pull Request는 exec 안에서가 아니라 orchestrator가 생성합니다.",
     ),
     (
         ("gh", "issue"),
-        "Issue updates are made by the orchestrator, not from inside exec.",
+        "Issue 갱신은 exec 안에서가 아니라 orchestrator가 합니다.",
     ),
     (
         ("gh", "api"),
-        "Do not call the GitHub API from exec. Report what you need instead.",
+        "exec에서 GitHub API를 호출하지 마세요. 필요한 것이 있으면 그 사실을 보고하세요.",
     ),
     (
         ("npm", "publish"),
-        "Publishing is never part of solving an issue.",
+        "publish는 이슈 해결의 일부가 아닙니다.",
     ),
 )
 
@@ -140,7 +135,7 @@ _HOME_SAFE_PREFIXES = ("~/.cache/", "~/.npm/")
 
 
 def _segments(command: str):
-    """Split a shell command into argv lists, one per pipeline/list element."""
+    """shell 명령을 pipeline/list 요소 단위의 argv 목록으로 나눈다."""
     for raw in _SPLIT_OPERATORS.split(command):
         raw = raw.strip()
         if not raw:
@@ -156,7 +151,7 @@ def _segments(command: str):
 
 
 def _escapes_worktree(token: str, worktree: str, home: str) -> bool:
-    """True when a token points at the user's home outside the worktree."""
+    """worktree 밖의 home을 가리키는 토큰이면 True."""
     if token.startswith("~"):
         return not any(token.startswith(safe) for safe in _HOME_SAFE_PREFIXES)
     if not token.startswith("/"):
@@ -168,7 +163,7 @@ def _escapes_worktree(token: str, worktree: str, home: str) -> bool:
 
 
 def check_bash(command: str, worktree: str, home: str | None = None) -> str | None:
-    """Return a deny reason for a shell command, or None to allow it."""
+    """shell 명령의 차단 사유를 돌려준다. 허용이면 None."""
     home = home or os.path.expanduser("~")
     for argv in _segments(command):
         head = tuple(argv[:2])
@@ -179,44 +174,42 @@ def check_bash(command: str, worktree: str, home: str | None = None) -> str | No
         if argv[0] == "git" and "commit" in argv[:3]:
             if any(flag in argv for flag in ("--no-verify", "-n")):
                 return (
-                    "Do not bypass the pre-commit gate. If it blocks the commit, "
-                    "fix what it reported and commit again."
+                    "pre-commit gate를 우회하지 마세요. gate가 커밋을 막았다면 "
+                    "막은 이유를 고치고 다시 커밋하세요."
                 )
 
         if argv[0] == "git" and head[:2] in (("git", "checkout"), ("git", "switch")):
             if "main" in argv[2:]:
-                return (
-                    "Stay on the work branch. Never check out main inside a worktree."
-                )
+                return "작업 branch에 머무르세요. worktree 안에서 main을 checkout하지 않습니다."
 
         if argv[0] == "npm" and len(argv) > 1 and argv[1] in ("i", "install", "add"):
             if "-g" in argv or "--global" in argv:
-                return "Global installs are not allowed. Use the worktree's own dependencies."
+                return "전역 설치는 허용되지 않습니다. worktree의 의존성만 사용하세요."
 
         for token in argv[1:]:
             if _escapes_worktree(token, worktree, home):
                 return (
-                    f"{token} is outside the worktree. Every file you touch must live "
-                    "under the worktree you were started in."
+                    f"{token}은 worktree 밖입니다. 건드리는 모든 파일은 "
+                    "시작할 때 주어진 worktree 안에 있어야 합니다."
                 )
     return None
 
 
-# --- apply_patch ------------------------------------------------------------
+# --- apply_patch --------------------------------------------------------------
 
 _PATCH_FILE = re.compile(r"^\*\*\*\s+(Add|Update|Delete)\s+File:\s*(.+?)\s*$", re.M)
 _PATCH_MOVE = re.compile(r"^\*\*\*\s+Move\s+to:\s*(.+?)\s*$", re.M)
 
 
 def patch_targets(patch: str) -> list[tuple[str, str]]:
-    """Extract (operation, path) pairs from an apply_patch payload."""
+    """apply_patch payload에서 (연산, 경로) 쌍을 뽑는다."""
     targets = [(op, normalize(path)) for op, path in _PATCH_FILE.findall(patch)]
     targets += [("Add", normalize(path)) for path in _PATCH_MOVE.findall(patch)]
     return targets
 
 
 def check_apply_patch(patch: str, worktree: str | Path) -> str | None:
-    """Return a deny reason for a file edit, or None to allow it."""
+    """파일 편집의 차단 사유를 돌려준다. 허용이면 None."""
     root = Path(worktree)
     targets = patch_targets(patch)
     if not targets:
@@ -227,8 +220,7 @@ def check_apply_patch(patch: str, worktree: str | Path) -> str | None:
     for _op, path in targets:
         if path.startswith("/") or path.startswith("../") or "/../" in path:
             return (
-                f"{path} is outside the worktree. Only edit files under the worktree "
-                "you were started in."
+                f"{path}은 worktree 밖입니다. 시작할 때 주어진 worktree 아래의 파일만 편집하세요."
             )
         reason = forbidden_path_reason(path)
         if reason:
@@ -241,18 +233,18 @@ def check_apply_patch(patch: str, worktree: str | Path) -> str | None:
         if test_path in added or (root / test_path).exists():
             continue
         return (
-            f"Write the test for {path} first. Create {test_path} with a failing case "
-            "that describes the behaviour you are about to implement, then implement it. "
-            "Logic under src/shared and src/background may not be written without a test."
+            f"{path}의 테스트를 먼저 작성하세요. {test_path}를 만들고 구현하려는 동작을 "
+            "설명하는 실패 케이스를 넣은 뒤 구현하세요. src/shared와 src/background의 "
+            "로직은 테스트 없이 작성할 수 없습니다."
         )
     return None
 
 
-# --- staged changes ---------------------------------------------------------
+# --- staged 변경 --------------------------------------------------------------
 
 
 def check_staged_paths(paths: list[str]) -> list[str]:
-    """Return deny reasons for staged paths that must never be committed."""
+    """커밋하면 안 되는 staged 경로들의 차단 사유를 돌려준다."""
     problems = []
     for path in paths:
         reason = forbidden_path_reason(path)

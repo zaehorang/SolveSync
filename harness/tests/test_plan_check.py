@@ -1,8 +1,8 @@
-"""Tests for the deterministic plan checks.
+"""계획 결정적 검사 테스트.
 
-A plan that fails these costs one cheap re-run. A plan that passes them and is
-still wrong costs an exec round, so these checks exist to catch everything that
-can be decided without a model.
+여기서 걸리는 계획은 값싼 재실행 한 번이면 된다. 여기를 통과하고도 틀린 계획은
+exec 라운드 하나를 통째로 쓴다. 그래서 이 검사들은 model 없이 판정할 수 있는
+것을 전부 잡는다.
 """
 
 import copy
@@ -75,7 +75,7 @@ class PlanValidation(unittest.TestCase):
 
     def test_grounded_paths_must_exist(self):
         result = self.check(lambda p: p.update(groundedIn=["src/shared/imaginary.ts"]))
-        self.assertTrue(any("does not exist" in problem for problem in result["problems"]))
+        self.assertTrue(any("존재하지 않습니다" in problem for problem in result["problems"]))
 
     def test_logic_phase_must_start_with_a_test_task(self):
         def mutate(plan):
@@ -83,7 +83,7 @@ class PlanValidation(unittest.TestCase):
             tasks[0], tasks[1] = tasks[1], tasks[0]
 
         result = self.check(mutate)
-        self.assertTrue(any("first task must be kind=test" in problem for problem in result["problems"]))
+        self.assertTrue(any("첫 task가 kind=test여야" in problem for problem in result["problems"]))
 
     def test_logic_task_without_a_matching_test_fails(self):
         def mutate(plan):
@@ -94,22 +94,22 @@ class PlanValidation(unittest.TestCase):
             plan["touchedPaths"].append("src/shared/other.test.ts")
 
         result = self.check(mutate)
-        self.assertTrue(any("has no test" in problem for problem in result["problems"]))
+        self.assertTrue(any("테스트가 없습니다" in problem for problem in result["problems"]))
 
     def test_task_files_must_be_declared_in_touched_paths(self):
         result = self.check(lambda p: p["touchedPaths"].remove("docs/PRD.md"))
-        self.assertTrue(any("missing from touchedPaths" in problem for problem in result["problems"]))
+        self.assertTrue(any("touchedPaths에 없습니다" in problem for problem in result["problems"]))
 
     def test_commit_message_must_be_conventional(self):
         result = self.check(lambda p: p["phases"][0].update(commitMessage="add revision column"))
-        self.assertTrue(any("not conventional" in problem for problem in result["problems"]))
+        self.assertTrue(any("conventional 형식이 아닙니다" in problem for problem in result["problems"]))
 
     def test_kind_test_task_must_point_at_a_test_file(self):
         def mutate(plan):
             plan["phases"][0]["tasks"][0]["file"] = "src/shared/catalog.ts"
 
         result = self.check(mutate)
-        self.assertTrue(any("must point at a *.test.ts" in problem for problem in result["problems"]))
+        self.assertTrue(any("*.test.ts 파일을 가리켜야" in problem for problem in result["problems"]))
 
     def test_missing_acceptance_criteria_fails(self):
         result = self.check(lambda p: p.update(acceptanceCriteria=[]))
@@ -122,14 +122,14 @@ class PlanValidation(unittest.TestCase):
 
         result = self.check(mutate)
         self.assertEqual(result["problems"], [])
-        self.assertIn("phases exceeds", result["demote"])
+        self.assertIn("상한", result["demote"])
 
     def test_too_many_touched_paths_is_demoted(self):
         def mutate(plan):
             plan["touchedPaths"] += [f"docs/extra-{i}.md" for i in range(cli.MAX_TOUCHED_PATHS)]
 
         result = self.check(mutate)
-        self.assertIn("touched paths exceeds", result["demote"])
+        self.assertIn("touchedPaths가", result["demote"])
 
 
 class PlanSummary(unittest.TestCase):
@@ -199,8 +199,8 @@ class Gates(unittest.TestCase):
         self.addCleanup(self.tmp.cleanup)
 
     def test_a_worktree_without_the_harness_is_reported(self):
-        # git skips hooks silently when core.hooksPath is missing, so a worktree
-        # branched off a base that lacks the harness has no gate at all.
+        # core.hooksPath가 없으면 git은 조용히 hook을 건너뛴다. 하네스가 없는 base에서
+        # 분기한 worktree에는 gate가 아예 없다.
         self.assertEqual(sorted(cli.missing_gates(self.worktree)), sorted(cli.GATE_FILES))
 
     def test_a_complete_worktree_reports_nothing(self):
@@ -242,7 +242,7 @@ class Findings(unittest.TestCase):
             }
         )
         self.assertIn("src/shared/catalog.ts:12", text)
-        self.assertIn("Required: commit 성공 후에만 증가시킨다", text)
+        self.assertIn("필요한 조치: commit 성공 후에만 증가시킨다", text)
 
     def test_no_findings_renders_nothing(self):
         self.assertEqual(cli.render_findings({"findings": []}), "")

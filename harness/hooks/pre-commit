@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Git pre-commit gate. Installed via core.hooksPath = harness/hooks.
+"""Git pre-commit gate. core.hooksPath = harness/hooks로 설치된다.
 
-The path is relative, so each worktree resolves it against its own root and
-runs the hook checked out on its branch. Git runs hooks from the top level of
-the working tree, so relative paths below are worktree-relative.
+경로가 상대 경로라 각 worktree가 자기 루트를 기준으로 해석하고 자기 branch에
+체크아웃된 hook을 실행한다. git은 hook을 working tree의 최상위에서 실행하므로
+아래의 상대 경로는 worktree 기준이다.
 
-Full verification runs on every commit. It costs about 2.5s in this repository,
-which is cheaper than reasoning about which subset would have been enough.
+전체 검증을 커밋마다 돌린다. 이 저장소에서 약 2.5초이고, 어느 부분만 돌려도
+충분한지 따지는 것보다 싸다.
 """
 
 from __future__ import annotations
@@ -30,24 +30,24 @@ def fail(message: str) -> None:
 
 
 def git(*args: str) -> str:
-    """git that refuses the commit when it cannot answer.
+    """답을 얻지 못하면 커밋을 거부하는 git 호출.
 
-    A gate that cannot determine the branch must not assume the branch is safe.
+    branch를 판정할 수 없는 gate가 branch를 안전하다고 가정해서는 안 된다.
     """
     result = run(["git", *args])
     if result.returncode != 0:
-        fail(f"git {' '.join(args)} failed: {result.stderr.strip()}")
+        fail(f"git {' '.join(args)} 실패: {result.stderr.strip()}")
     return result.stdout.strip()
 
 
 def main() -> None:
     branch = git("rev-parse", "--abbrev-ref", "HEAD")
     if branch == "main":
-        fail("refusing to commit on main. Create a work branch first (AGENTS.md).")
+        fail("main에서는 커밋할 수 없습니다. 작업 branch를 먼저 만드세요 (AGENTS.md).")
 
     staged = [p for p in git("diff", "--cached", "--name-only", "--diff-filter=ACMR").splitlines() if p]
     if not staged:
-        fail("nothing staged.")
+        fail("staged 변경이 없습니다.")
 
     for problem in policy.check_staged_paths(staged):
         fail(problem)
@@ -56,16 +56,18 @@ def main() -> None:
     secrets = policy.scan_secrets(diff)
     if secrets:
         labels = ", ".join(sorted({label for label, _ in secrets}))
-        fail(f"possible secret in staged changes ({labels}). Remove it before committing.")
+        fail(f"staged 변경에 secret으로 보이는 값이 있습니다 ({labels}). 커밋 전에 제거하세요.")
 
     checks = [
         ("typecheck", ["npm", "run", "typecheck"]),
         ("test", ["npm", "test"]),
         ("build", ["npm", "run", "build"]),
     ]
+    # 하네스를 고치는 커밋에서만 돈다. hook과 정책은 하네스의 신뢰 경계라
+    # 자기 자신을 검증하지 않은 채 커밋되면 안 된다.
     if any(path.startswith("harness/") for path in staged):
         checks.append(
-            ("harness self-test", ["python3", "-m", "unittest", "discover", "-s", "harness/tests", "-t", "harness"])
+            ("harness 자체 테스트", ["python3", "-m", "unittest", "discover", "-s", "harness/tests", "-t", "harness"])
         )
 
     for name, args in checks:
@@ -73,7 +75,7 @@ def main() -> None:
         if result.returncode != 0:
             sys.stderr.write(result.stdout or "")
             sys.stderr.write(result.stderr or "")
-            fail(f"{name} failed.")
+            fail(f"{name} 실패.")
 
 
 if __name__ == "__main__":

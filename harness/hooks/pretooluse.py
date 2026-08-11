@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """Codex PreToolUse hook.
 
-Registered from the main repository's .codex/config.toml with a relative
-command path, so each worktree runs the copy checked out on its own branch.
+메인 저장소의 .codex/config.toml에 상대 경로로 등록되어 있다. 상대 경로라 각
+worktree가 자기 branch에 체크아웃된 사본을 실행한다.
 
-Reads the hook payload on stdin and either stays silent (allow) or prints a
-deny decision. Any failure inside this script denies the tool call: a gate that
-opens when it crashes is not a gate.
+stdin으로 hook payload를 받아 아무것도 출력하지 않거나(허용) deny 결정을
+출력한다. 이 스크립트 안에서 무슨 일이 생기든 결과는 deny다. 죽으면 열리는
+gate는 gate가 아니다.
 """
 
 from __future__ import annotations
@@ -29,7 +29,8 @@ def deny(reason: str) -> None:
                     "permissionDecision": "deny",
                     "permissionDecisionReason": reason,
                 }
-            }
+            },
+            ensure_ascii=False,
         )
     )
     sys.exit(0)
@@ -55,8 +56,8 @@ def main() -> None:
 if __name__ == "__main__":
     try:
         main()
-    except Exception as error:  # fail closed
+    except Exception as error:  # fail-closed
         deny(
-            "The harness policy hook failed and therefore denied this call "
-            f"({type(error).__name__}: {error}). Report this instead of retrying."
+            "하네스 정책 hook이 실패했으므로 이 호출을 차단했습니다 "
+            f"({type(error).__name__}: {error}). 재시도하지 말고 이 사실을 보고하세요."
         )

@@ -16,7 +16,8 @@ SolveSync는 LeetCode와 Programmers에서 Accepted 된 풀이를 사용자가 �
 - 이 파일과 `docs/`가 충돌하면 먼저 관련 `docs/`를 확인하고, 실제 정책 변경이 필요하면 해당 문서를 source of truth로 수정한다.
 
 ## Language
-- 산문은 한국어로 쓴다. `docs/`, 코드 주석, commit message subject, PR 제목과 본문, GitHub Issue 코멘트가 여기에 해당한다.
+- 산문은 한국어로 쓴다. `docs/`, 코드 주석과 docstring, commit message subject, PR 제목과 본문, GitHub Issue 코멘트가 여기에 해당한다.
+- `harness/`의 prompt, JSON schema description, `.claude/`의 agent와 skill 문서, 그리고 사람이나 agent가 읽는 런타임 메시지(hook 차단 사유, 검증 실패 메시지)도 한국어로 쓴다.
 - 식별자는 번역하지 않는다. 파일 경로, 함수/변수 이름, branch 이름, conventional commit type(`feat:`, `fix:` 등), `CONTEXT.md`가 정의한 도메인 용어는 원문 그대로 쓴다.
 - 도메인 용어는 `CONTEXT.md`의 표기를 따르고, 같은 개념을 한국어로 임의 번역해 새 용어를 만들지 않는다.
 - 사용자에게 보이는 UI 문구는 `docs/UI_GUIDE.md`의 locale 규칙을 따른다. 이 section은 저장소 안에서 개발자끼리 주고받는 글에 대한 규칙이다.

@@ -1,8 +1,7 @@
-"""Tests for the shared harness policy.
+"""하네스 공유 정책 테스트.
 
-policy.py is the trust boundary: it is the only thing standing between a model
-and `git push`, a file outside the worktree, or logic code with no test. It gets
-tested like one.
+policy.py는 신뢰 경계다. model과 `git push` 사이, worktree 밖의 파일 사이,
+테스트 없는 로직 코드 사이에 서 있는 유일한 것이다. 그에 걸맞게 테스트한다.
 """
 
 import tempfile
@@ -59,7 +58,7 @@ class Secrets(unittest.TestCase):
         self.assertTrue(policy.scan_secrets("Authorization: Bearer " + "a" * 32))
 
     def test_prose_about_bearer_headers_is_not_a_secret(self):
-        # This exact false positive blocked the harness's own design document.
+        # 이 오탐이 실제로 하네스 자신의 설계 문서를 막았다.
         self.assertEqual(policy.scan_secrets("secret scan: `Authorization: Bearer` 패턴을 본다"), [])
         self.assertEqual(policy.scan_secrets("send an Authorization: Bearer header"), [])
 
