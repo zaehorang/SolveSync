@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("../shared/githubAppConfig", () => ({
+  GITHUB_APP_CLIENT_ID: "",
+  getGitHubAppInstallationUrl: () => null
+}));
+
 import { createExtensionStorage, type StorageAreaAdapter } from "./storage";
 import { registerBackgroundRuntime } from "./runtime";
 import {
@@ -39,6 +44,59 @@ describe("background runtime", () => {
         githubAccount: null
       }
     });
+  });
+
+  it("rejects default Device Flow before a request when the client ID is missing", async () => {
+    const chromeMock = installChromeRuntimeMock();
+    const storage = createExtensionStorage(createMemoryStorageArea());
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    registerBackgroundRuntime({
+      storage,
+      orchestrator: makeOrchestrator(),
+      githubClientFactory: () => {
+        throw new Error("GitHub client should not be created.");
+      }
+    });
+
+    const response = await dispatchMessage(chromeMock.listener, {
+      type: "github:auth:start"
+    });
+
+    expect(response).toMatchObject({
+      ok: false,
+      error: {
+        code: "github_app_not_configured",
+        retryable: false
+      }
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects installation before opening a tab when the App slug is missing", async () => {
+    const chromeMock = installChromeRuntimeMock();
+
+    registerBackgroundRuntime({
+      storage: createExtensionStorage(createMemoryStorageArea()),
+      orchestrator: makeOrchestrator(),
+      githubClientFactory: () => {
+        throw new Error("GitHub client should not be created.");
+      }
+    });
+
+    const response = await dispatchMessage(chromeMock.listener, {
+      type: "github:installation:open"
+    });
+
+    expect(response).toMatchObject({
+      ok: false,
+      error: {
+        code: "github_app_not_configured",
+        retryable: false
+      }
+    });
+    expect(chromeMock.tabsCreate).not.toHaveBeenCalled();
   });
 
   it("keeps repository settings when GitHub is disconnected and reconnected", async () => {
@@ -372,6 +430,7 @@ describe("background runtime", () => {
 
 interface ChromeRuntimeMock {
   listener: MessageListener;
+  tabsCreate: ReturnType<typeof vi.fn>;
 }
 
 type MessageListener = (
@@ -382,6 +441,7 @@ type MessageListener = (
 
 function installChromeRuntimeMock(): ChromeRuntimeMock {
   let listener: MessageListener | null = null;
+  const tabsCreate = vi.fn();
   const chromeMock = {
     runtime: {
       onMessage: {
@@ -395,7 +455,7 @@ function installChromeRuntimeMock(): ChromeRuntimeMock {
     },
     tabs: {
       sendMessage: vi.fn(),
-      create: vi.fn()
+      create: tabsCreate
     },
     storage: {
       session: createMemoryStorageArea()
@@ -405,6 +465,7 @@ function installChromeRuntimeMock(): ChromeRuntimeMock {
   vi.stubGlobal("chrome", chromeMock);
 
   return {
+    tabsCreate,
     get listener() {
       if (listener === null) {
         throw new Error("Runtime listener was not registered.");
