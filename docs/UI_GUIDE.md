@@ -49,7 +49,7 @@ Implementation rules:
 - marketing hero나 큰 홍보 영역을 만들지 않는다.
 - v1은 Manifest `options_page` 기반 full-page Options를 사용한다.
 - Device Flow 로그인, GitHub App 설치, repository/branch 선택, branch 생성, connection test 같은 긴 설정 작업은 Popup이 아니라 Options에서 수행한다.
-- 첫 설정 흐름은 `Sign in with GitHub → GitHub 승인/App 설치 → Load repositories → Sync Repository → Sync Branch → Create branch → Connection test → Save` 순서로 보여준다.
+- 첫 설정 흐름은 `Sign in with GitHub → 일회용 코드 확인 → Copy code and open GitHub → GitHub 승인/App 설치 → Load repositories → Sync Repository → Sync Branch → Create branch → Connection test → Save` 순서로 보여준다.
 - embedded options(`options_ui`)나 side panel 전환은 별도 제품 결정 없이는 하지 않는다.
 
 필수 section:
@@ -61,8 +61,11 @@ Implementation rules:
 
 필수 field:
 - GitHub sign-in 상태, `Sign in with GitHub`, `Disconnect GitHub` action.
-- Device Flow 진행 중에는 일회용 user code, verification URL open action, 대기 상태를 보여준다. device code와 token은 표시하지 않는다.
+- Device Flow 응답 직후 일회용 user code, `Copy code and open GitHub` action과 대기 상태를 먼저 보여준다. device code와 token은 표시하지 않는다.
+- `Sign in with GitHub` 클릭이나 Device Flow 응답 수신만으로 GitHub 탭을 자동으로 열지 않는다. 사용자가 verification action을 실행하면 표시된 user code를 clipboard에 복사한 뒤 verification URL을 새 탭으로 연다.
+- 코드 복사 성공과 실패는 기존 인증 상태의 `aria-live="polite"` 영역에 현재 locale의 문구로 알린다. 복사가 실패해도 일회용 코드를 화면에 유지하고 GitHub 탭을 열어 사용자가 코드를 직접 복사할 수 있게 한다.
 - GitHub App install/configure action. 사용자 action 없이 GitHub 탭을 자동으로 열지 않는다.
+- `github_app_not_configured`는 일반 인증 실패 문구 대신 현재 locale로 build 설정 누락과 확장 프로그램 관리자 문의 action을 안내한다.
 - Sync Repository picker. 설정이 없으면 비어 있고, 로그인 계정이 소유하며 App이 설치된 repository 목록에서 선택한다.
 - Sync Branch picker. Sync Repository 선택 전에는 disabled 상태이며, Sync Repository 선택 후 branch 목록에서 선택한다. 기본 선택값은 repository default branch다.
 - Auto Sync switch.
@@ -264,6 +267,7 @@ Links:
 - 과장된 축하 문구보다 `Synced to GitHub`를 선호한다.
 - 모호한 setup 메시지보다 `GitHub connection required`처럼 원인을 드러낸다.
 - Error message는 가능한 경우 사용자가 할 수 있는 다음 조치를 포함한다.
+- Clipboard 결과처럼 화면 전환 뒤에도 알아야 하는 비동기 action 결과는 `aria-live="polite"` status로 알리고, 실패 시 원본 값과 대체 action을 계속 사용할 수 있게 한다.
 - Toast text에는 구현 세부사항을 길게 설명하지 않는다.
 - 한국어 문구도 짧고 명령형 action을 분명히 한다.
 
