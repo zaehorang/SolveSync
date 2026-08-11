@@ -192,6 +192,31 @@ class Batching(unittest.TestCase):
         self.assertEqual(cli.plan_batches(plans, max_parallel=2), [[1], [2]])
 
 
+class Gates(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.worktree = Path(self.tmp.name)
+        self.addCleanup(self.tmp.cleanup)
+
+    def test_a_worktree_without_the_harness_is_reported(self):
+        # git skips hooks silently when core.hooksPath is missing, so a worktree
+        # branched off a base that lacks the harness has no gate at all.
+        self.assertEqual(sorted(cli.missing_gates(self.worktree)), sorted(cli.GATE_FILES))
+
+    def test_a_complete_worktree_reports_nothing(self):
+        for name in cli.GATE_FILES:
+            path = self.worktree / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("")
+        self.assertEqual(cli.missing_gates(self.worktree), [])
+
+    def test_a_partially_present_harness_still_fails(self):
+        path = self.worktree / cli.GATE_FILES[0]
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("")
+        self.assertTrue(cli.missing_gates(self.worktree))
+
+
 class Titles(unittest.TestCase):
     def test_title_is_the_first_sentence(self):
         plan = {"summary": "첫 문장이다. 두 번째 문장은 빠진다.", "slug": "x"}

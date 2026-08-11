@@ -763,6 +763,25 @@ def cmd_exec(args: argparse.Namespace) -> None:
         raise SystemExit(1)
 
 
+GATE_FILES = (
+    "harness/hooks/pre-commit",
+    "harness/hooks/pretooluse.py",
+    "harness/policy.py",
+)
+
+
+def missing_gates(worktree: Path) -> list[str]:
+    """Gate files that are absent from a worktree.
+
+    A worktree is branched from the base ref, so it only contains the harness if
+    the harness is merged into that branch. When `core.hooksPath` points at a
+    directory that does not exist, git skips hooks **without warning** — the
+    commit gate disappears silently and everything looks fine. That failure mode
+    is worse than a loud one, so `start` refuses to hand over such a worktree.
+    """
+    return [name for name in GATE_FILES if not (worktree / name).exists()]
+
+
 def cmd_start(args: argparse.Namespace) -> None:
     root = repo_root()
     plan = read_plan(root, args.number)
@@ -781,11 +800,29 @@ def cmd_start(args: argparse.Namespace) -> None:
 
     git("worktree", "add", "-b", branch, str(path), BASE_REF, cwd=root)
 
-    install = run(["npm", "ci"], cwd=path, timeout=900)
+    absent = missing_gates(path)
+    if absent:
+        git("worktree", "remove", "--force", str(path), cwd=root)
+        run(["git", "branch", "-D", branch], cwd=root)
+        raise HarnessError(
+            f"{BASE_REF} does not contain the harness ({', '.join(absent)}), so this worktree "
+            "would have no commit gate — and git does not warn when core.hooksPath points at a "
+            "missing directory. Merge the harness into the base branch before running it."
+        )
+
+    install = run(["npm", "ci"], cwd=path, timeout=TIMEOUT_NPM)
     if install.returncode != 0:
         raise HarnessError(f"npm ci failed in {path}:\n{install.stderr[-2000:]}")
 
-    emit({"issue": args.number, "branch": branch, "worktree": str(path), "base": BASE_REF})
+    emit(
+        {
+            "issue": args.number,
+            "branch": branch,
+            "worktree": str(path),
+            "base": BASE_REF,
+            "gatesPresent": True,
+        }
+    )
 
 
 def verify(worktree: Path) -> dict:

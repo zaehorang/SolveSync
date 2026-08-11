@@ -47,15 +47,16 @@ fail against it, so each entry must be checkable from the diff or from a test.
 
 ## Language
 
-This repository's documentation, issues and pull requests are written in Korean.
-Write `summary`, `acceptanceCriteria`, `outOfScope`, `statusReason`, phase
-`title`, `verifies` and task `detail` in Korean. `summary` and
-`acceptanceCriteria` are copied straight into the pull request body, so writing
-them in English produces a mixed-language pull request.
+Follow the Language section of `AGENTS.md`. In this plan that means every piece
+of prose is Korean: `summary`, `acceptanceCriteria`, `outOfScope`,
+`statusReason`, each phase `title` and `verifies`, each task `detail`, and the
+subject of every `commitMessage`. `summary` and `acceptanceCriteria` are copied
+straight into the pull request body, so English here produces a mixed-language
+pull request.
 
-Identifiers stay as they are: file paths, function names, commit messages and
-`slug` are not translated. `commitMessage` follows conventional commits and its
-subject stays in English, matching this repository's history.
+Identifiers are not translated: file paths, function names, `slug`, and the
+conventional commit type prefix (`feat:`, `fix:`, ...). Domain terms use the
+spelling defined in `CONTEXT.md`.
 
 ## Status
 

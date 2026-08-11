@@ -192,6 +192,16 @@ cli.py issues [n...]                    # preflight + lock + 대상 선정
 - **타임아웃**: plan 10분, exec 40분, evaluator 10분. 초과 시 프로세스 종료, **부분 커밋은 보존**, escalate
 - **단계 실패**: codex가 0이 아닌 코드로 끝나면 재시도 없이 escalate
 
+### 하네스는 base branch에 있어야 한다 (실측)
+
+worktree는 `origin/main`에서 분기하므로, 하네스가 main에 없으면 **worktree 안에 게이트가 존재하지 않는다.** 그리고 git은 `core.hooksPath`가 없는 디렉터리를 가리켜도 경고하지 않는다. 훅을 조용히 건너뛴다.
+
+실제로 확인했다. main 기반 worktree에서 커밋을 시도하니 pre-commit이 막았어야 할 커밋이 아무 메시지 없이 통과했다. 설계 전체가 피하려던 fail-open이 정확히 여기서 발생한다.
+
+그래서 `cli.py start`는 worktree를 만든 직후 게이트 파일 존재를 확인하고, 없으면 worktree와 branch를 지운 뒤 실패한다. 게이트가 없는 상태를 조용히 넘기지 않는다.
+
+운영상 결론: **하네스를 main에 merge하기 전에는 하네스를 실행할 수 없다.** 첫 실행 전에 하네스 자체가 base에 들어가 있어야 한다.
+
 ## 7. 신뢰 경계: 이슈 본문은 신뢰할 수 없는 입력이다
 
 SolveSync는 public 저장소다. 이슈 본문은 누구나 쓸 수 있고 그 텍스트가 codex 프롬프트로 들어간다.
