@@ -1,0 +1,80 @@
+#!/usr/bin/env python3
+"""Git pre-commit gate. Installed via core.hooksPath = harness/hooks.
+
+The path is relative, so each worktree resolves it against its own root and
+runs the hook checked out on its branch. Git runs hooks from the top level of
+the working tree, so relative paths below are worktree-relative.
+
+Full verification runs on every commit. It costs about 2.5s in this repository,
+which is cheaper than reasoning about which subset would have been enough.
+"""
+
+from __future__ import annotations
+
+import subprocess
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+import policy  # noqa: E402
+
+
+def run(args: list[str], capture: bool = True) -> subprocess.CompletedProcess:
+    return subprocess.run(args, capture_output=capture, text=True)
+
+
+def fail(message: str) -> None:
+    print(f"pre-commit: {message}", file=sys.stderr)
+    sys.exit(1)
+
+
+def git(*args: str) -> str:
+    """git that refuses the commit when it cannot answer.
+
+    A gate that cannot determine the branch must not assume the branch is safe.
+    """
+    result = run(["git", *args])
+    if result.returncode != 0:
+        fail(f"git {' '.join(args)} failed: {result.stderr.strip()}")
+    return result.stdout.strip()
+
+
+def main() -> None:
+    branch = git("rev-parse", "--abbrev-ref", "HEAD")
+    if branch == "main":
+        fail("refusing to commit on main. Create a work branch first (AGENTS.md).")
+
+    staged = [p for p in git("diff", "--cached", "--name-only", "--diff-filter=ACMR").splitlines() if p]
+    if not staged:
+        fail("nothing staged.")
+
+    for problem in policy.check_staged_paths(staged):
+        fail(problem)
+
+    diff = git("diff", "--cached", "-U0")
+    secrets = policy.scan_secrets(diff)
+    if secrets:
+        labels = ", ".join(sorted({label for label, _ in secrets}))
+        fail(f"possible secret in staged changes ({labels}). Remove it before committing.")
+
+    checks = [
+        ("typecheck", ["npm", "run", "typecheck"]),
+        ("test", ["npm", "test"]),
+        ("build", ["npm", "run", "build"]),
+    ]
+    if any(path.startswith("harness/") for path in staged):
+        checks.append(
+            ("harness self-test", ["python3", "-m", "unittest", "discover", "-s", "harness/tests", "-t", "harness"])
+        )
+
+    for name, args in checks:
+        result = run(args)
+        if result.returncode != 0:
+            sys.stderr.write(result.stdout or "")
+            sys.stderr.write(result.stderr or "")
+            fail(f"{name} failed.")
+
+
+if __name__ == "__main__":
+    main()
