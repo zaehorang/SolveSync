@@ -150,16 +150,33 @@ def _segments(command: str):
             yield argv
 
 
+def _is_inside(path: str, root: str) -> bool:
+    root = os.path.normpath(root)
+    return path == root or path.startswith(root + os.sep)
+
+
 def _escapes_worktree(token: str, worktree: str, home: str) -> bool:
-    """worktree 밖의 home을 가리키는 토큰이면 True."""
+    """worktree 경계를 벗어나는 토큰이면 True.
+
+    상대 경로도 검사한다. worktree는 `../<저장소이름>` 옆에 만들어지므로 `..`
+    하나면 메인 체크아웃에 닿는다. apply_patch 쪽은 `../`를 막고 있었는데 여기만
+    비어 있어 실제로 우회가 가능했다.
+    """
     if token.startswith("~"):
         return not any(token.startswith(safe) for safe in _HOME_SAFE_PREFIXES)
-    if not token.startswith("/"):
+
+    if token.startswith("/"):
+        resolved = os.path.normpath(token)
+        if _is_inside(resolved, worktree):
+            return False
+        # worktree 밖의 절대 경로 중 사용자 home만 막는다. /usr 같은 시스템 경로
+        # 읽기까지 막으면 정상 작업이 걸린다.
+        return resolved == home or resolved.startswith(os.path.normpath(home) + os.sep)
+
+    # `..`이 없으면 worktree 기준으로 합쳐도 밖으로 나갈 수 없다.
+    if ".." not in token.split("/"):
         return False
-    resolved = os.path.normpath(token)
-    if resolved.startswith(os.path.normpath(worktree) + os.sep):
-        return False
-    return resolved == home or resolved.startswith(os.path.normpath(home) + os.sep)
+    return not _is_inside(os.path.normpath(os.path.join(worktree, token)), worktree)
 
 
 def check_bash(command: str, worktree: str, home: str | None = None) -> str | None:

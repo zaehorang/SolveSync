@@ -104,6 +104,18 @@ class BashRules(unittest.TestCase):
         self.assertIsNotNone(self.check("cat ~/.ssh/id_rsa"))
         self.assertIsNotNone(self.check(f"cat {HOME}/.codex/config.toml"))
 
+    def test_relative_escape_is_denied(self):
+        # worktree는 ../<저장소이름> 옆에 만들어지므로 `..` 하나면 메인 체크아웃에
+        # 닿는다. 이 구멍은 codex review가 찾았고 실제로 재현됐다.
+        self.assertIsNotNone(self.check("cat ../SolveSync/AGENTS.md"))
+        self.assertIsNotNone(self.check("echo evil > ../SolveSync/src/shared/x.ts"))
+        self.assertIsNotNone(self.check("cat ../../etc/hosts"))
+
+    def test_relative_paths_inside_the_worktree_are_allowed(self):
+        self.assertIsNone(self.check("cat ./src/shared/catalog.ts"))
+        self.assertIsNone(self.check("cat src/../src/shared/catalog.ts"))
+        self.assertIsNone(self.check("git diff origin/main"))
+
     def test_ordinary_work_is_allowed(self):
         self.assertIsNone(self.check("npm test"))
         self.assertIsNone(self.check("git add -A && git commit -m 'feat: add revision column'"))

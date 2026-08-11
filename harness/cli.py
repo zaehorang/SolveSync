@@ -37,6 +37,7 @@ MAX_PARALLEL = 2
 MAX_ROUNDS = 3
 LOCK_TTL_HOURS = 6
 RUN_RETENTION_DAYS = 30
+GH_LIST_LIMIT = 100  # gh issue list 기본값은 30이라 조용히 누락된다
 
 MAX_PHASES = 6
 MAX_TASKS_PER_PHASE = 5
@@ -467,9 +468,6 @@ def preflight(root: Path) -> list[str]:
     if local != remote:
         problems.append(f"main과 {BASE_REF}가 어긋납니다. 시작 전에 base 상태를 정리하세요.")
 
-    if run(["gh", "auth", "status"]).returncode != 0:
-        problems.append("gh가 인증되지 않았습니다. gh auth login 을 실행하세요.")
-
     if git_optional("config", "core.hooksPath", cwd=root) != HOOKS_PATH:
         problems.append(f"core.hooksPath가 {HOOKS_PATH}가 아닙니다. python3 harness/cli.py setup 을 실행하세요.")
 
@@ -521,18 +519,31 @@ def cmd_issues(args: argparse.Namespace) -> None:
 
     pruned = prune_runs(root)
 
-    query = ["issue", "list", "--state", "open", "--json", "number,title,body,url"]
-    if not args.numbers:
-        query += ["--label", LABEL_READY]
-    issues = gh_json(query)
+    # 번호를 명시하면 하나씩 조회한다. `gh issue list`는 기본 30개만 돌려주므로
+    # 목록에서 걸러내면 요청한 이슈가 조용히 빠질 수 있다.
+    eligible, skipped = [], []
     if args.numbers:
-        wanted = set(args.numbers)
-        issues = [issue for issue in issues if issue["number"] in wanted]
+        issues = []
+        for number in args.numbers:
+            issue = gh_json(["issue", "view", str(number), "--json", "number,title,body,url,state"])
+            if issue.get("state") != "OPEN":
+                skipped.append({"number": number, "reason": f"이슈 상태가 {issue.get('state')}입니다"})
+                continue
+            issues.append(issue)
+    else:
+        issues = gh_json(
+            [
+                "issue", "list",
+                "--state", "open",
+                "--label", LABEL_READY,
+                "--limit", str(GH_LIST_LIMIT),
+                "--json", "number,title,body,url",
+            ]
+        )
 
     lock = read_lock(root)
     held = {int(n): entry for n, entry in (lock.get("issues") or {}).items()}
 
-    eligible, skipped = [], []
     for issue in issues:
         number = issue["number"]
         entry = held.get(number)
