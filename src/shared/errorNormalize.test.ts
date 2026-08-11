@@ -39,6 +39,21 @@ describe("error normalization", () => {
     );
   });
 
+  it("normalizes missing GitHub App configuration separately from auth failures", () => {
+    expect(
+      normalizeError({
+        code: "github_app_not_configured",
+        message: "GitHub App client ID is not configured."
+      })
+    ).toEqual({
+      code: "github_app_not_configured",
+      userMessage:
+        "This build is missing GitHub App configuration. Contact the extension administrator.",
+      debugMessage: "GitHub App client ID is not configured.",
+      retryable: false
+    });
+  });
+
   it("keeps unknown generic errors on the GitHub commit fallback", () => {
     expect(normalizeError(new Error("Unexpected background failure"))).toMatchObject({
       code: "github_commit_failed",

@@ -340,6 +340,7 @@ export function mapConnectionErrorCode(
     case "github_conflict_failed":
       return "branch_create_failed";
     case "github_auth_failed":
+    case "github_app_not_configured":
       return "auth_failed";
     case "github_login_required":
       return "login_required";

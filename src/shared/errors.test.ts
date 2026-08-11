@@ -16,6 +16,7 @@ describe("normalized error contracts", () => {
       "leetcode_fetch_failed",
       "programmers_extract_failed",
       "github_auth_failed",
+      "github_app_not_configured",
       "github_login_required",
       "github_device_flow_expired",
       "github_device_flow_denied",
@@ -38,6 +39,7 @@ describe("normalized error contracts", () => {
 
   it("guards known error codes and normalized errors", () => {
     expect(isNormalizedErrorCode("github_rate_limited")).toBe(true);
+    expect(isNormalizedErrorCode("github_app_not_configured")).toBe(true);
     expect(isNormalizedErrorCode("unexpected_error")).toBe(false);
     expect(
       isNormalizedError({
