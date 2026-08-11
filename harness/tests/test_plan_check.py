@@ -268,12 +268,27 @@ class Preflight(unittest.TestCase):
 
 
 class Titles(unittest.TestCase):
-    def test_title_is_the_first_sentence(self):
+    def test_issue_title_wins_over_plan_summary(self):
+        # 실전 1회차에서 계획 summary를 자른 제목이 어절 중간에서 끊기고
+        # findings로 폐기된 작업을 설명했다.
+        check = {"issue": {"title": "fix: GitHub Device Flow 설정 오류와 인증 코드 안내 개선"}}
+        plan = {"summary": "폐기될 수도 있는 긴 계획 설명이다. 두 번째 문장.", "slug": "x"}
+        self.assertEqual(cli.pr_title(plan, check), "GitHub Device Flow 설정 오류와 인증 코드 안내 개선")
+
+    def test_falls_back_to_plan_summary_without_an_issue_title(self):
         plan = {"summary": "첫 문장이다. 두 번째 문장은 빠진다.", "slug": "x"}
         self.assertEqual(cli.pr_title(plan), "첫 문장이다")
 
-    def test_title_is_bounded(self):
-        self.assertLessEqual(len(cli.pr_title({"summary": "가" * 200, "slug": "x"})), 70)
+    def test_long_title_is_cut_at_a_word_boundary(self):
+        words = [f"단어{n}번째항목" for n in range(1, 13)]  # 공백 포함 70자를 넘긴다
+        check = {"issue": {"title": "fix: " + " ".join(words)}}
+        title = cli.pr_title({"summary": "", "slug": "x"}, check)
+
+        self.assertLessEqual(len(title), 71)
+        self.assertTrue(title.endswith("…"))
+        # 잘린 제목은 원본 어절의 온전한 앞부분이어야 한다.
+        kept = title.rstrip("…").split(" ")
+        self.assertEqual(kept, words[: len(kept)])
 
 
 class Findings(unittest.TestCase):

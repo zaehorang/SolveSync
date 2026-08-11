@@ -965,11 +965,27 @@ def release_lock(root: Path, number: int) -> None:
     write_lock(root, lock)
 
 
-def pr_title(plan: dict) -> str:
-    """summary의 첫 문장. 제목으로 쓸 만큼 짧게 자른다."""
-    summary = (plan.get("summary") or "").strip()
-    first = re.split(r"(?<=[.!?。])\s|\n", summary)[0].strip().rstrip(".")
-    return first[:70] if first else plan.get("slug", "")
+def pr_title(plan: dict, check: dict | None = None) -> str:
+    """제목은 이슈 제목에서 가져온다.
+
+    계획의 summary를 잘라 쓰면 두 가지가 깨진다. 문장이 길면 어절 중간에서
+    끊기고, findings 때문에 방향이 바뀌면 폐기된 작업을 제목이 설명한다.
+    이슈 제목은 짧고, 무엇을 해결하는 PR인지 그대로 말해준다.
+    """
+    title = ((check or {}).get("issue") or {}).get("title") or ""
+    title = re.sub(r"^(feat|fix|docs|test|refactor|chore)(\(.+?\))?:\s*", "", title.strip())
+
+    if not title:
+        summary = (plan.get("summary") or "").strip()
+        title = re.split(r"(?<=[.!?。])\s|\n", summary)[0].strip().rstrip(".")
+    if not title:
+        return plan.get("slug", "")
+
+    if len(title) <= 70:
+        return title
+    # 어절 중간에서 끊지 않는다.
+    cut = title[:70].rsplit(" ", 1)[0]
+    return (cut or title[:70]).rstrip(" ,·") + "…"
 
 
 def render_pr_body(plan: dict, check: dict, evaluations: list[dict]) -> str:
@@ -1066,7 +1082,7 @@ def cmd_pr(args: argparse.Namespace) -> None:
     body_file = directory / f"pr-body-{args.round}.md"
     body_file.write_text(body)
 
-    title = f"{plan['branchType']}: {pr_title(plan)} (#{args.number})"
+    title = f"{plan['branchType']}: {pr_title(plan, check)} (#{args.number})"
     create = [
         "pr", "create",
         "--base", "main",
