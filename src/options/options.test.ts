@@ -6,11 +6,13 @@ import type { NormalizedError, SyncBranch, SyncRepository } from "../shared";
 import {
   getConnectionStatusView,
   getDefaultBranchSelection,
+  getOptionsAuthErrorMessage,
   getOptionsExtensionStateUnavailableMessage,
   getRepositoryFilterState,
   getRepositoryListRenderState,
   getSetupFlowStepStates,
   mapConnectionErrorCode,
+  openGitHubVerification,
   readSettings,
   saveSettings,
   validateSettingsDraft
@@ -87,12 +89,88 @@ describe("options state helpers", () => {
 
   it("uses GitHub Device Flow controls without a PAT input", () => {
     const html = readFileSync(new URL("./index.html", import.meta.url), "utf8");
+    const source = readFileSync(new URL("./index.ts", import.meta.url), "utf8");
+    const startAuthSource = source.slice(
+      source.indexOf("async function startGitHubAuth"),
+      source.indexOf("async function verifyPendingGitHubAuth")
+    );
 
     expect(html).toContain('id="github-auth-start"');
     expect(html).toContain('id="github-user-code"');
+    expect(html).toContain('id="github-open-verification"');
+    expect(html).toContain('id="github-auth-status" class="field-message" aria-live="polite"');
     expect(html).toContain('id="github-install-app"');
     expect(html).not.toContain("github-pat");
     expect(html).not.toContain('type="password"');
+    expect(startAuthSource).toContain("state.pendingAuth = response.data;");
+    expect(startAuthSource).toContain("scheduleAuthPoll(elements, state);");
+    expect(startAuthSource).not.toContain("window.open");
+  });
+
+  it("copies the rendered Device Flow code before opening GitHub", async () => {
+    const clipboard = {
+      writeText: vi.fn(async () => undefined)
+    };
+    const openWindow = vi.fn();
+
+    const copied = await openGitHubVerification(
+      {
+        userCode: "ABCD-1234",
+        verificationUri: "https://github.com/login/device",
+        expiresAt: "2026-01-01T00:15:00.000Z",
+        intervalSeconds: 5
+      },
+      clipboard,
+      openWindow
+    );
+
+    expect(copied).toBe(true);
+    expect(clipboard.writeText).toHaveBeenCalledWith("ABCD-1234");
+    expect(openWindow).toHaveBeenCalledWith(
+      "https://github.com/login/device",
+      "_blank",
+      "noopener"
+    );
+    expect(clipboard.writeText.mock.invocationCallOrder[0]).toBeLessThan(
+      openWindow.mock.invocationCallOrder[0]
+    );
+  });
+
+  it("still opens GitHub and reports failure when copying the code fails", async () => {
+    const clipboard = {
+      writeText: vi.fn(async () => {
+        throw new Error("Clipboard permission denied");
+      })
+    };
+    const openWindow = vi.fn();
+
+    const copied = await openGitHubVerification(
+      {
+        userCode: "ABCD-1234",
+        verificationUri: "https://github.com/login/device",
+        expiresAt: "2026-01-01T00:15:00.000Z",
+        intervalSeconds: 5
+      },
+      clipboard,
+      openWindow
+    );
+
+    expect(copied).toBe(false);
+    expect(openWindow).toHaveBeenCalledOnce();
+  });
+
+  it("localizes GitHub App configuration errors in Options", () => {
+    const error = makeError(
+      "github_app_not_configured",
+      "This build is missing GitHub App configuration. Contact the extension administrator."
+    );
+
+    expect(getOptionsAuthErrorMessage(error, "en")).toBe(
+      "This build is missing GitHub App configuration. Contact the extension administrator."
+    );
+    expect(getOptionsAuthErrorMessage(error, "ko")).toBe(
+      "이 빌드에 GitHub App 설정이 없습니다. 확장 프로그램 관리자에게 문의하세요."
+    );
   });
 
   it("uses the repository default branch when no saved branch is selected", () => {

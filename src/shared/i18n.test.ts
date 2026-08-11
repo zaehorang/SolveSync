@@ -38,4 +38,34 @@ describe("i18n foundation", () => {
     );
     expect(t("en", "validation.required")).toBe("{field} is required.");
   });
+
+  it("localizes the explicit Device Flow verification action and results", () => {
+    expect(t("en", "action.copyCodeAndOpenGitHub")).toBe(
+      "Copy code and open GitHub"
+    );
+    expect(t("ko", "action.copyCodeAndOpenGitHub")).toBe(
+      "코드 복사 후 GitHub 열기"
+    );
+    expect(t("en", "options.auth.codeCopied")).toBe(
+      "Code copied. Complete authorization on GitHub."
+    );
+    expect(t("ko", "options.auth.codeCopied")).toBe(
+      "코드를 복사했습니다. GitHub에서 승인을 완료하세요."
+    );
+    expect(t("en", "options.auth.codeCopyFailed")).toBe(
+      "Could not copy the code. Copy the code shown above, then continue on GitHub."
+    );
+    expect(t("ko", "options.auth.codeCopyFailed")).toBe(
+      "코드를 복사하지 못했습니다. 위 코드를 직접 복사한 뒤 GitHub에서 계속하세요."
+    );
+  });
+
+  it("localizes missing GitHub App configuration guidance", () => {
+    expect(t("en", "options.message.githubAppNotConfigured")).toBe(
+      "This build is missing GitHub App configuration. Contact the extension administrator."
+    );
+    expect(t("ko", "options.message.githubAppNotConfigured")).toBe(
+      "이 빌드에 GitHub App 설정이 없습니다. 확장 프로그램 관리자에게 문의하세요."
+    );
+  });
 });
