@@ -95,6 +95,11 @@ export interface PublicPendingGitHubAuth {
   intervalSeconds: number;
 }
 
+export interface DeviceFlowRenderState {
+  hidden: boolean;
+  userCode: string;
+}
+
 type GitHubAuthPollResult =
   | { status: "pending"; pending: PublicPendingGitHubAuth }
   | {
@@ -1204,6 +1209,8 @@ function renderAuthControls(
   elements: OptionsElements,
   state: OptionsRuntimeState
 ): void {
+  const deviceFlow = getDeviceFlowRenderState(state.pendingAuth);
+
   elements.authAccount.textContent =
     state.githubAccount === null
       ? t(state.locale, "options.auth.signedOut")
@@ -1220,8 +1227,8 @@ function renderAuthControls(
     state.locale,
     "action.disconnectGitHub"
   );
-  elements.deviceFlow.hidden = state.pendingAuth === null;
-  elements.userCode.textContent = state.pendingAuth?.userCode ?? "";
+  elements.deviceFlow.hidden = deviceFlow.hidden;
+  elements.userCode.textContent = deviceFlow.userCode;
   elements.openVerificationButton.textContent = t(
     state.locale,
     "action.copyCodeAndOpenGitHub"
@@ -1232,6 +1239,15 @@ function renderAuthControls(
     "action.installGitHubApp"
   );
   renderInlineMessage(elements.authStatus, state.authMessage, state.locale);
+}
+
+export function getDeviceFlowRenderState(
+  pendingAuth: PublicPendingGitHubAuth | null
+): DeviceFlowRenderState {
+  return {
+    hidden: pendingAuth === null,
+    userCode: pendingAuth?.userCode ?? ""
+  };
 }
 
 function renderLanguageControls(

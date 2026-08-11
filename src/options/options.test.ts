@@ -6,6 +6,7 @@ import type { NormalizedError, SyncBranch, SyncRepository } from "../shared";
 import {
   getConnectionStatusView,
   getDefaultBranchSelection,
+  getDeviceFlowRenderState,
   getOptionsAuthErrorMessage,
   getOptionsExtensionStateUnavailableMessage,
   getRepositoryFilterState,
@@ -105,6 +106,18 @@ describe("options state helpers", () => {
     expect(startAuthSource).toContain("state.pendingAuth = response.data;");
     expect(startAuthSource).toContain("scheduleAuthPoll(elements, state);");
     expect(startAuthSource).not.toContain("window.open");
+
+    expect(
+      getDeviceFlowRenderState({
+        userCode: "ABCD-1234",
+        verificationUri: "https://github.com/login/device",
+        expiresAt: "2026-01-01T00:15:00.000Z",
+        intervalSeconds: 5
+      })
+    ).toEqual({
+      hidden: false,
+      userCode: "ABCD-1234"
+    });
   });
 
   it("copies the rendered Device Flow code before opening GitHub", async () => {

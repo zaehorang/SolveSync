@@ -22,12 +22,13 @@
 ```bash
 npm run typecheck
 npm test
-VITE_GITHUB_APP_CLIENT_ID= npm run build
-VITE_GITHUB_APP_SLUG= npm run build
 npm run build
+VITE_GITHUB_APP_CLIENT_ID= npm run package:chrome
+VITE_GITHUB_APP_SLUG= npm run package:chrome
+npm run package:chrome
 ```
 
-앞의 두 명령은 각각 `VITE_GITHUB_APP_CLIENT_ID`, `VITE_GITHUB_APP_SLUG` 변수명을 포함한 production build 검증 오류와 함께 non-zero로 종료해야 한다. 마지막 `npm run build`는 `.env.local`의 두 공개 설정을 사용해 manifest 선언과 content IIFE 검증을 포함하여 통과해야 한다. `npm run typecheck`와 `npm test`도 통과해야 한다. 일반 테스트는 실제 GitHub, LeetCode, Programmers 네트워크나 사용자 secret을 사용하지 않는다.
+`npm run build`는 GitHub App 공개 설정이 없는 checkout에서도 manifest 선언과 content IIFE 검증을 포함하여 통과해야 한다. 설정을 비운 두 `package:chrome` 명령은 각각 `VITE_GITHUB_APP_CLIENT_ID`, `VITE_GITHUB_APP_SLUG` 변수명을 포함한 release packaging 오류와 함께 non-zero로 종료해야 한다. 마지막 `npm run package:chrome`은 `.env.local`의 두 공개 설정을 bundle에서 확인하고 Chrome ZIP을 만들어야 한다. `npm run typecheck`와 `npm test`도 통과해야 한다. 일반 테스트는 실제 GitHub, LeetCode, Programmers 네트워크나 사용자 secret을 사용하지 않는다.
 
 ## 2. Extension Load
 
