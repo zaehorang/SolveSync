@@ -171,6 +171,62 @@ describe("background sync orchestrator", () => {
     });
   });
 
+  it("migrates a v3 LeetCode catalog and legacy README in the next Accepted commit", async () => {
+    const harness = makeHarness();
+    await harness.saveSettings();
+    const beforeMarker = "# Existing\n\n수동 소개  \n";
+    const afterMarker = "\n수동 꼬리말\n";
+    harness.github.files.set(
+      "leetcode/README.md",
+      [
+        beforeMarker + "<!-- LEETCODE_TABLE_START -->",
+        "| # | Title | Difficulty | Solved | Swift | Python |",
+        "| ---: | --- | --- | --- | --- | --- |",
+        "| 1 | Two Sum | Easy | 2026-01-01 | [Swift](swift/0001_two_sum.swift) | [Python3](python/0001_two_sum.py) |",
+        "<!-- LEETCODE_TABLE_END -->" + afterMarker
+      ].join("\n")
+    );
+    harness.github.files.set(
+      "leetcode/.leetcode-sync/index.json",
+      JSON.stringify(makeV3CatalogWithTwoLanguages())
+    );
+    harness.leetcode.fetchProblemMetadata.mockResolvedValue(problem);
+    harness.leetcode.fetchLatestAcceptedSubmission.mockResolvedValue(
+      syncableAcceptedSubmission({ acceptedSourceId: "new-swift-source" })
+    );
+
+    await harness.sync.handleAcceptedDetected(makeAcceptedDetected());
+
+    const readme = committedContent(harness, "leetcode/README.md");
+    const catalog = committedJson(
+      harness,
+      "leetcode/.leetcode-sync/index.json"
+    ) as {
+      version: number;
+      problems: Array<{
+        languages: Record<string, { solutionPath: string }>;
+      }>;
+    };
+    expect(readme.startsWith(beforeMarker)).toBe(true);
+    expect(readme.endsWith(afterMarker)).toBe(true);
+    expect(readme).not.toContain("| Swift | Python |");
+    expect(readme).toContain(
+      "[Swift](swift/0001_two_sum.swift) · [Python3](python/0001_two_sum.py)"
+    );
+    expect(catalog.version).toBe(4);
+    expect(catalog.problems[0]?.languages.swift?.solutionPath).toBe(
+      "leetcode/swift/0001_two_sum.swift"
+    );
+    expect(catalog.problems[0]?.languages.python3?.solutionPath).toBe(
+      "leetcode/python/0001_two_sum.py"
+    );
+    expect(harness.github.commits[0]?.files.map((file) => file.path)).toEqual([
+      "leetcode/swift/0001_two_sum.swift",
+      "leetcode/README.md",
+      "leetcode/.leetcode-sync/index.json"
+    ]);
+  });
+
   it("commits Programmers Accepted Editor Snapshots with Solution README and Solution Catalog files", async () => {
     const harness = makeHarness();
     await harness.saveSettings();
@@ -194,7 +250,10 @@ describe("background sync orchestrator", () => {
         ?.content
     ).toContain("<!-- PROGRAMMERS_TABLE_START -->");
     expect(committedContent(harness, "programmers/README.md")).toContain(
-      `| 120804 | 두 수의 곱 구하기 | - | ${expectedAcceptedDate} |`
+      `| 120804 | 두 수의 곱 구하기 | ${expectedAcceptedDate} |`
+    );
+    expect(committedContent(harness, "programmers/README.md")).not.toContain(
+      "Difficulty"
     );
     expect(committedJson(harness, "programmers/.programmers-sync/index.json")).toMatchObject({
       version: 4,
@@ -965,6 +1024,44 @@ function makeV2CatalogWithSwiftEntry(
             firstAcceptedDate: "2026-01-01",
             lastAcceptedDate: "2026-01-01"
           }
+        }
+      }
+    ]
+  };
+}
+
+function makeV3CatalogWithTwoLanguages(): unknown {
+  const languageEntry = (solutionPath: string, lastAcceptedSourceId: string) => ({
+    solutionPath,
+    lastAcceptedSourceId,
+    solutionRevisionNumber: 1,
+    lastSyncedAt: "2026-01-01T00:00:00.000Z",
+    firstAcceptedDate: "2026-01-01",
+    lastAcceptedDate: "2026-01-01"
+  });
+
+  return {
+    version: 3,
+    activity: {
+      days: {
+        "2026-01-01": { acceptedCount: 2, newProblemCount: 1 }
+      }
+    },
+    problems: [
+      {
+        ...problem,
+        lastSyncedAt: "2026-01-01T00:00:00.000Z",
+        firstAcceptedDate: "2026-01-01",
+        lastAcceptedDate: "2026-01-01",
+        languages: {
+          swift: languageEntry(
+            "leetcode/swift/0001_two_sum.swift",
+            "legacy-swift-source"
+          ),
+          python3: languageEntry(
+            "leetcode/python/0001_two_sum.py",
+            "legacy-python-source"
+          )
         }
       }
     ]

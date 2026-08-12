@@ -5,7 +5,8 @@
 ## Route와 Accepted presentation
 
 - 지원 route는 `/learn/courses/{courseId}/lessons/{lessonId}`다. Accepted 후보마다 현재 URL에서 `courseId`와 `lessonId`를 다시 추출한다.
-- Problem ID와 frontend ID는 `lessonId`를 사용한다. Difficulty가 없으면 `-`로 저장하고 Solution README에도 `-`로 표시한다.
+- Problem ID와 frontend ID는 `lessonId`를 사용한다. Difficulty가 없으면 Catalog에는
+  `-`로 저장하되 Solution README에서는 의미 없는 Difficulty column을 표시하지 않는다.
 - 정확한 `정답입니다!`를 Accepted text 신호로 사용한다.
 - `통과`, `채점 결과`, `합계: 100.0 / 100.0`은 보조 결과 text일 뿐이며 단독 Accepted trigger로 사용하지 않는다.
 - Programmers가 같은 result modal을 재사용하므로 새 child node만으로 lifecycle을 판단하지 않는다. 등록된 presentation root의 hidden 또는 non-Accepted 상태가 visible Accepted로 전환될 때 fresh Accepted event를 만든다.
@@ -67,7 +68,8 @@ Missing lesson, title 또는 language와 empty code는 commit하지 않고 `prog
 7. Accepted 표시 직후 editor를 바꿔도 첫 commit은 first Accepted snapshot의 code를 유지하는지 확인한다.
 8. SPA로 다른 문제에 이동해 같은 modal root가 재사용되는지와 Accepted의 text/visibility mutation 순서를 기록한다. Attribute-only hidden → visible 전환인 경우에도 현재 `lessonId`, title, language와 path로 sync가 정확히 한 번 생성되는지 확인한다.
 9. 같은 문제에서 실제로 선택 가능한 두 번째 지원 언어로 Accepted를 만든다. 기본 검증 조합은 Swift와 Python3다.
-10. 두 solution file이 존재하고 `programmers/README.md`의 같은 문제 한 행과 단일 `Languages` cell에 두 link가 표시되는지 확인한다.
+10. 두 solution file이 존재하고 `programmers/README.md`에 Difficulty column 없이 같은
+    문제 한 행과 단일 `Languages` cell에 두 link가 표시되는지 확인한다.
 11. `programmers/.programmers-sync/index.json`이 v4이며 두 language entry를 보존하고, 각 언어의 첫 commit message가 `#1`을 포함하는지 확인한다.
 12. 각 commit이 solution file, Solution README와 Solution Catalog를 함께 변경했는지 확인한다.
 

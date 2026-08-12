@@ -6,7 +6,12 @@
 
 Coding Platform이 실제로 노출하는 alias만 normalize한다. 알 수 없는 언어는 기존 `unsupported_language` 흐름으로 처리하고 commit하지 않는다. Path policy, type guard, Solution Catalog, README renderer는 registry key를 공유한다.
 
-Solution Catalog schema는 v4로 올린다. v1-v3 catalog는 읽을 때 v4로 normalize한다. Solution README는 언어마다 별도 column을 늘리지 않고 `#`, `Title`, `Difficulty`, `Solved`, `Languages` 다섯 column을 사용한다. `Languages` cell은 존재하는 solution link를 registry 순서로 표시한다.
+Solution Catalog schema는 v4로 올린다. v1-v3 catalog는 읽을 때 v4로 normalize한다.
+Solution README는 언어마다 별도 column을 늘리지 않는다. LeetCode는 `#`, `Title`,
+`Difficulty`, `Solved`, `Languages`를 사용하고, 신뢰할 수 있는 Difficulty source가 없는
+Programmers는 `#`, `Title`, `Solved`, `Languages`를 사용한다. Programmers Catalog의
+`difficulty: "-"`는 schema 호환성을 위해 유지한다. `Languages` cell은 존재하는 solution
+link를 registry 순서로 표시한다.
 
 이유: 언어 추가 시 mapping, extension, path, README를 여러 모듈에서 따로 수정하면 drift가 생긴다. 단일 registry는 pure logic 테스트가 가능한 계약을 만들고, 단일 Languages column은 앞으로 언어가 추가되어도 README 폭과 schema를 안정적으로 유지한다.
 

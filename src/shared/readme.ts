@@ -26,11 +26,14 @@ export function renderManagedReadmeTable(
     .sort(compareSolutionCatalogProblems)
     .map((problem) => renderProblemRow(problem, policy));
 
-  return [
-    "| # | Title | Difficulty | Solved | Languages |",
-    "| ---: | --- | --- | --- | --- |",
-    ...rows
-  ].join("\n");
+  const headers = policy.readmeIncludesDifficulty
+    ? ["#", "Title", "Difficulty", "Solved", "Languages"]
+    : ["#", "Title", "Solved", "Languages"];
+  const alignments = policy.readmeIncludesDifficulty
+    ? ["---:", "---", "---", "---", "---"]
+    : ["---:", "---", "---", "---"];
+
+  return [renderTableRow(headers), renderTableRow(alignments), ...rows].join("\n");
 }
 
 export function mergeReadmeManagedBlock(
@@ -75,13 +78,21 @@ function renderProblemRow(
   problem: SolutionCatalogProblem,
   policy: PlatformPolicy
 ): string {
-  return [
+  const cells = [
     renderProblemNumber(problem.frontendId),
     escapeMarkdownTableCell(problem.title),
-    escapeMarkdownTableCell(problem.difficulty),
+    ...(policy.readmeIncludesDifficulty
+      ? [escapeMarkdownTableCell(problem.difficulty)]
+      : []),
     escapeMarkdownTableCell(problem.firstAcceptedDate),
     renderLanguageLinks(problem, policy)
-  ]
+  ];
+
+  return renderTableRow(cells);
+}
+
+function renderTableRow(cells: string[]): string {
+  return cells
     .map((cell) => ` ${cell} `)
     .join("|")
     .replace(/^/u, "|")

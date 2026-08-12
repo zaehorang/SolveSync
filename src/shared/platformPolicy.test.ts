@@ -31,6 +31,7 @@ describe("platform policy", () => {
     expect(policy.solutionCatalogPath).toBe(
       "programmers/.programmers-sync/index.json"
     );
+    expect(policy.readmeIncludesDifficulty).toBe(false);
     expect(policy.readmeMarkers).toEqual({
       start: "<!-- PROGRAMMERS_TABLE_START -->",
       end: "<!-- PROGRAMMERS_TABLE_END -->"

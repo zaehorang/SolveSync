@@ -22,6 +22,7 @@ export interface PlatformPolicy {
   solutionCatalogPath: string;
   readmeMarkers: ReadmeMarkers;
   initialReadmeTitle: string;
+  readmeIncludesDifficulty: boolean;
   commitPlatformLabel: string;
 }
 
@@ -55,6 +56,7 @@ export const PLATFORM_POLICIES = {
       end: "<!-- LEETCODE_TABLE_END -->"
     },
     initialReadmeTitle: "LeetCode Solutions",
+    readmeIncludesDifficulty: true,
     commitPlatformLabel: "leetcode"
   },
   programmers: {
@@ -68,6 +70,7 @@ export const PLATFORM_POLICIES = {
       end: "<!-- PROGRAMMERS_TABLE_END -->"
     },
     initialReadmeTitle: "Programmers Solutions",
+    readmeIncludesDifficulty: false,
     commitPlatformLabel: "programmers"
   }
 } as const satisfies Record<CodingPlatform, PlatformPolicy>;
