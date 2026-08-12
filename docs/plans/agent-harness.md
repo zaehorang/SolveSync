@@ -489,6 +489,10 @@ Fixes #<n>
 🤖 SolveSync harness (plan/exec: codex, eval: Claude Code evaluator). merge 전 사람 리뷰 필요.
 ```
 
+최종 판정이 `pass`일 때만 이전 라운드의 blocker/major를 해결된 지적으로 표시한다.
+최종 판정이 `fail` 또는 `replan`이면 이전 라운드 지적과 현재 남은 blocker/major를
+구분해 표시하며, 마지막 평가의 중요 지적을 본문에서 누락하지 않는다.
+
 ## 14. 로그
 
 ```

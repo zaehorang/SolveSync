@@ -174,6 +174,34 @@ class PullRequestBody(unittest.TestCase):
         self.assertIn("모든 build가 실패한다", body)
         self.assertIn("수정 라운드 1회", body)
 
+    def test_blocker_still_present_is_not_reported_as_fixed(self):
+        finding = {"severity": "blocker", "file": "a.mjs", "problem": "모든 build가 실패한다"}
+        evaluations = [
+            {"verdict": "fail", "findings": [finding]},
+            {"verdict": "fail", "findings": [finding]},
+        ]
+        body = cli.render_pr_body(VALID_PLAN, self.CHECK, evaluations)
+        self.assertNotIn("지적받고 고친 것", body)
+        self.assertIn("이전 라운드 주요 지적", body)
+        self.assertIn("현재 남은 blocker/major", body)
+
+    def test_new_major_in_final_round_is_reported_as_remaining(self):
+        evaluations = [
+            {"verdict": "pass", "findings": []},
+            {
+                "verdict": "fail",
+                "findings": [{"severity": "major", "file": "b.py", "problem": "본문이 틀리다"}],
+            },
+        ]
+        body = cli.render_pr_body(VALID_PLAN, self.CHECK, evaluations)
+        self.assertIn("현재 남은 blocker/major", body)
+        self.assertIn("**[major] b.py** — 본문이 틀리다", body)
+
+    def test_requested_round_number_is_used_when_an_eval_file_is_missing(self):
+        evaluations = [{"verdict": "fail", "findings": []}, {"verdict": "pass", "findings": []}]
+        body = cli.render_pr_body(VALID_PLAN, self.CHECK, evaluations, round_number=3)
+        self.assertIn("수정 라운드 2회", body)
+
     def test_evaluator_notes_reach_the_body(self):
         evaluations = [{"verdict": "pass", "findings": [], "notes": "최종 상태는 계획과 다르다"}]
         body = cli.render_pr_body(VALID_PLAN, self.CHECK, evaluations)

@@ -988,7 +988,12 @@ def pr_title(plan: dict, check: dict | None = None) -> str:
     return (cut or title[:70]).rstrip(" ,·") + "…"
 
 
-def render_pr_body(plan: dict, check: dict, evaluations: list[dict]) -> str:
+def render_pr_body(
+    plan: dict,
+    check: dict,
+    evaluations: list[dict],
+    round_number: int | None = None,
+) -> str:
     """모든 라운드의 판정을 반영해 본문을 만든다.
 
     마지막 판정만 읽으면 앞 라운드에서 찾아 고친 blocker가 사라져서, 지적이
@@ -1001,13 +1006,19 @@ def render_pr_body(plan: dict, check: dict, evaluations: list[dict]) -> str:
     tests = steps.get("test", {}).get("testsPassed")
 
     current = evaluations[-1] if evaluations else {}
-    fixed = [
+    previous_critical = [
         finding
         for evaluation in evaluations[:-1]
         for finding in (evaluation.get("findings") or [])
         if finding.get("severity") in ("blocker", "major")
     ]
-    remaining = [f for f in (current.get("findings") or []) if f.get("severity") == "minor"]
+    current_findings = current.get("findings") or []
+    remaining_critical = [
+        finding for finding in current_findings if finding.get("severity") in ("blocker", "major")
+    ]
+    remaining_minor = [f for f in current_findings if f.get("severity") == "minor"]
+    evaluated_round = round_number if round_number is not None else len(evaluations)
+    correction_rounds = max(evaluated_round - 1, 0)
 
     lines = [
         "## 계획한 것",
@@ -1026,15 +1037,31 @@ def render_pr_body(plan: dict, check: dict, evaluations: list[dict]) -> str:
     if check["commits"]["notes"]:
         lines += ["- 계획 대비 커밋 차이: " + "; ".join(check["commits"]["notes"])]
 
-    lines += ["", "## 검토 결과", f"- 판정: {current.get('verdict')} (수정 라운드 {max(len(evaluations) - 1, 0)}회)"]
+    lines += [
+        "",
+        "## 검토 결과",
+        f"- 판정: {current.get('verdict')} (수정 라운드 {correction_rounds}회)",
+    ]
     if current.get("notes"):
         lines += ["", f"**최종 상태에 대한 검토자 요약.** {current['notes']}"]
-    if fixed:
-        lines += ["", "### 지적받고 고친 것"]
-        lines += [f"- **[{f.get('severity')}] {f.get('file')}** — {f.get('problem')}" for f in fixed]
-    if remaining:
+    if previous_critical:
+        heading = (
+            "지적받고 고친 것" if current.get("verdict") == "pass" else "이전 라운드 주요 지적"
+        )
+        lines += ["", f"### {heading}"]
+        lines += [
+            f"- **[{f.get('severity')}] {f.get('file')}** — {f.get('problem')}"
+            for f in previous_critical
+        ]
+    if remaining_critical:
+        lines += ["", "### 현재 남은 blocker/major"]
+        lines += [
+            f"- **[{f.get('severity')}] {f.get('file')}** — {f.get('problem')}"
+            for f in remaining_critical
+        ]
+    if remaining_minor:
         lines += ["", "### 남은 minor"]
-        lines += [f"- **{f.get('file')}** — {f.get('problem')}" for f in remaining]
+        lines += [f"- **{f.get('file')}** — {f.get('problem')}" for f in remaining_minor]
 
     lines += ["", "## 관련 이슈", f"Fixes #{plan['issueNumber']}"]
     if plan.get("outOfScope"):
@@ -1065,7 +1092,7 @@ def cmd_pr(args: argparse.Namespace) -> None:
         evaluations = [{"verdict": "unknown"}]
     evaluation = evaluations[-1]
 
-    body = render_pr_body(plan, check, evaluations)
+    body = render_pr_body(plan, check, evaluations, round_number=args.round)
     if args.body_only:
         print(body)
         return
