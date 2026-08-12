@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 const root = fileURLToPath(new URL("..", import.meta.url));
 const contentScriptPath = resolve(root, "dist/content/index.js");
 const manifestPath = resolve(root, "dist/manifest.json");
+
 const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
 const contentScript = readFileSync(contentScriptPath, "utf8");
 
