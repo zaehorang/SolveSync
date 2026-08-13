@@ -267,6 +267,7 @@ describe("background sync orchestrator", () => {
       },
       problems: [
         {
+          difficulty: "-",
           firstAcceptedDate: expectedAcceptedDate,
           lastAcceptedDate: expectedAcceptedDate,
           languages: {
@@ -281,6 +282,48 @@ describe("background sync orchestrator", () => {
       ]
     });
     await expect(historyStatuses(harness.storage)).resolves.toEqual(["synced"]);
+  });
+
+  it("drops the Difficulty column from an existing Programmers README while keeping every row", async () => {
+    const harness = makeHarness();
+    await harness.saveSettings();
+    const beforeMarker = "# Programmers\n\n수동 소개  \n";
+    const afterMarker = "\n수동 꼬리말\n";
+    harness.github.files.set(
+      "programmers/README.md",
+      [
+        `${beforeMarker}<!-- PROGRAMMERS_TABLE_START -->`,
+        "| # | Title | Difficulty | Solved | Languages |",
+        "| ---: | --- | --- | --- | --- |",
+        "| 120803 | 두 수의 나눗셈 | - | 2026-01-01 | [Swift](swift/120803_두_수의_나눗셈.swift) |",
+        `<!-- PROGRAMMERS_TABLE_END -->${afterMarker}`
+      ].join("\n")
+    );
+    harness.github.files.set(
+      "programmers/.programmers-sync/index.json",
+      JSON.stringify(makeProgrammersCatalogWithPreviousProblem())
+    );
+
+    await harness.sync.handleAcceptedDetected(makeProgrammersAcceptedDetected());
+
+    const readme = committedContent(harness, "programmers/README.md");
+
+    expect(readme.startsWith(beforeMarker)).toBe(true);
+    expect(readme.endsWith(afterMarker)).toBe(true);
+    expect(readme).not.toContain("Difficulty");
+    expect(readme).toContain("| # | Title | Solved | Languages |");
+    expect(readme).toContain(
+      "| 120803 | 두 수의 나눗셈 | 2026-01-01 | [Swift](swift/120803_두_수의_나눗셈.swift) |"
+    );
+    expect(readme).toContain(
+      `| 120804 | 두 수의 곱 구하기 | ${expectedAcceptedDate} | [Swift](swift/120804_두_수의_곱_구하기.swift) |`
+    );
+    expect(
+      committedJson(harness, "programmers/.programmers-sync/index.json")
+    ).toMatchObject({
+      version: 4,
+      problems: [{ frontendId: "120803", difficulty: "-" }, { frontendId: "120804" }]
+    });
   });
 
   it("keeps two languages for the same Programmers problem in one README row", async () => {
@@ -1020,6 +1063,40 @@ function makeV2CatalogWithSwiftEntry(
             solutionPath: "leetcode/swift/0001_two_sum.swift",
             lastAcceptedSourceId:
               overrides.lastAcceptedSourceId ?? "123456789",
+            lastSyncedAt: "2026-01-01T00:00:00.000Z",
+            firstAcceptedDate: "2026-01-01",
+            lastAcceptedDate: "2026-01-01"
+          }
+        }
+      }
+    ]
+  };
+}
+
+function makeProgrammersCatalogWithPreviousProblem(): unknown {
+  return {
+    version: 4,
+    activity: {
+      days: {
+        "2026-01-01": { acceptedCount: 1, newProblemCount: 1 }
+      }
+    },
+    problems: [
+      {
+        problemId: "120803",
+        frontendId: "120803",
+        title: "두 수의 나눗셈",
+        titleSlug: "120803",
+        difficulty: "-",
+        url: "https://school.programmers.co.kr/learn/courses/30/lessons/120803",
+        lastSyncedAt: "2026-01-01T00:00:00.000Z",
+        firstAcceptedDate: "2026-01-01",
+        lastAcceptedDate: "2026-01-01",
+        languages: {
+          swift: {
+            solutionPath: "programmers/swift/120803_두_수의_나눗셈.swift",
+            lastAcceptedSourceId: "legacy-programmers-source",
+            solutionRevisionNumber: 1,
             lastSyncedAt: "2026-01-01T00:00:00.000Z",
             firstAcceptedDate: "2026-01-01",
             lastAcceptedDate: "2026-01-01"
