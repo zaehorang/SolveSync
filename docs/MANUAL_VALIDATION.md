@@ -23,9 +23,12 @@
 npm run typecheck
 npm test
 npm run build
+VITE_GITHUB_APP_CLIENT_ID= npm run package:chrome
+VITE_GITHUB_APP_SLUG= npm run package:chrome
+npm run package:chrome
 ```
 
-모두 통과해야 한다. 일반 테스트는 실제 GitHub, LeetCode, Programmers 네트워크나 사용자 secret을 사용하지 않는다.
+`npm run build`는 GitHub App 공개 설정이 없는 checkout에서도 manifest 선언과 content IIFE 검증을 포함하여 통과해야 한다. 설정을 비운 두 `package:chrome` 명령은 각각 `VITE_GITHUB_APP_CLIENT_ID`, `VITE_GITHUB_APP_SLUG` 변수명을 포함한 release packaging 오류와 함께 non-zero로 종료해야 한다. 마지막 `npm run package:chrome`은 `.env.local`의 두 공개 설정을 bundle에서 확인하고 Chrome ZIP을 만들어야 한다. `npm run typecheck`와 `npm test`도 통과해야 한다. 일반 테스트는 실제 GitHub, LeetCode, Programmers 네트워크나 사용자 secret을 사용하지 않는다.
 
 ## 2. Extension Load
 
@@ -38,13 +41,16 @@ npm run build
 ## 3. GitHub 연결 Happy Path
 
 1. Options에서 `Sign in with GitHub`를 누른다.
-2. 표시된 일회용 code를 GitHub Device Flow page에서 승인한다.
-3. Options에 연결된 GitHub account login이 표시되는지 확인한다.
-4. `Install or configure GitHub App`에서 본인 소유 test repository를 선택한다.
-5. `Load Sync Repositories`에서 해당 repository를 선택한다.
-6. 기존 test branch를 선택하거나 `Create Sync Branch`를 명시적으로 실행한다.
-7. Connection test를 실행한다.
-8. `Connected` 상태를 확인하고 Auto Sync를 켠 뒤 저장한다.
+2. GitHub tab이 자동으로 열리지 않고 Options에 일회용 code와 `Copy code and open GitHub` action이 먼저 표시되는지 확인한다.
+3. `Copy code and open GitHub`를 누르고 일회용 code가 clipboard에 복사되며 GitHub Device Flow page가 새 tab에서 열리는지 확인한다.
+4. Options의 `aria-live="polite"` 인증 상태 영역에 현재 locale의 복사 성공 안내가 표시되는지 확인한다. Clipboard 쓰기를 차단한 환경에서는 실패 안내가 표시되고, 화면의 일회용 code와 열린 GitHub page를 계속 사용할 수 있는지 확인한다.
+5. 복사한 일회용 code를 GitHub Device Flow page에 입력하고 승인한다.
+6. Options의 기존 polling이 승인을 감지하고 연결된 GitHub account login을 표시하는지 확인한다.
+7. `Install or configure GitHub App`에서 본인 소유 test repository를 선택한다.
+8. `Load Sync Repositories`에서 해당 repository를 선택한다.
+9. 기존 test branch를 선택하거나 `Create Sync Branch`를 명시적으로 실행한다.
+10. Connection test를 실행한다.
+11. `Connected` 상태를 확인하고 Auto Sync를 켠 뒤 저장한다.
 
 Connection test는 commit을 만들지 않아야 한다. Branch는 사용자의 Create action 없이 자동 생성되면 안 된다.
 

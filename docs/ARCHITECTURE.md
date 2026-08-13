@@ -45,6 +45,7 @@ README.md
 - `https://leetcode.com/problems/*`와 `https://school.programmers.co.kr/learn/courses/*/lessons/*`에서 실행된다.
 - Manifest `content_scripts`는 classic script로 실행되므로 content entry는 별도 IIFE bundle인 `dist/content/index.js`로 빌드한다.
 - Content bundle에는 static ESM `import`가 남으면 안 되며 `npm run build`의 build verification이 이를 검사한다.
+- 일반 `npm run build`는 manifest 선언과 content IIFE를 검증하며 GitHub App 공개 설정이 없는 개발용 build도 허용한다. Release용 `npm run package:chrome`은 Vite의 production 환경에서 `VITE_GITHUB_APP_CLIENT_ID`와 `VITE_GITHUB_APP_SLUG`를 읽고, trim한 값이 하나라도 비어 있거나 placeholder이면 해당 변수명을 포함한 오류로 packaging을 중단한다. 두 공개 설정이 bundle에 포함된 경우에만 Chrome ZIP을 만든다.
 - Content detection controller가 `MutationObserver`, route lifecycle, coalescing과 message emission을 소유한다. Content entry는 controller 시작과 toast wiring만 담당한다.
 - Accepted 감지는 현재 DOM에 Accepted 상태가 존재하는지가 아니라, Coding Platform adapter가 이번 mutation에서 fresh visible Accepted transition을 확정했는지를 기준으로 한다.
 - Text signal 탐색은 ADR 0022에 따라 mutation 범위 안에서 bounded traversal한다. 플랫폼별 presentation state가 필요하면 같은 observer에 adapter가 등록한 presentation root를 추가 target으로 등록하고 그 root의 visibility attribute만 관찰한다.
@@ -70,7 +71,7 @@ README.md
 
 ### Options Page
 - GitHub App Device Flow 로그인, Sync Repository, Sync Branch, Auto Sync 설정을 관리한다.
-- 일회용 user code와 verification URL을 표시하고 background에 polling을 요청한다.
+- Device Flow 응답을 받으면 일회용 user code와 verification action을 먼저 표시하고 background authorization polling을 예약한다. 사용자가 `Copy code and open GitHub` action을 실행할 때만 코드를 clipboard에 복사하고 verification URL을 새 탭으로 연다.
 - 로그인 계정이 소유하고 GitHub App이 설치된 Sync Repository 목록과 선택한 Sync Repository의 Sync Branch 목록을 불러온다.
 - 사용자가 명시적으로 요청한 경우에만 선택한 Sync Repository의 default branch HEAD에서 새 Sync Branch를 생성한다.
 - GitHub Sync Repository, Sync Branch, Git data read API를 대상으로 connection test를 실행한다.
@@ -143,6 +144,7 @@ Coding Platform 문제 page
 ## GitHub 연동
 - Sync Repository는 코드 기본값이 아니라 Options에서 사용자가 선택한 값이다.
 - Public GitHub App은 Device Flow를 활성화하고 expiring user access token을 사용한다. Extension에는 공개 client ID와 App slug만 build-time 환경 변수로 포함하며 client secret은 사용하지 않는다.
+- 기본 runtime에서 공개 client ID 또는 App slug가 없으면 외부 인증 요청이나 tab 생성을 실행하지 않고 `github_app_not_configured`를 반환한다. 이 오류는 재시도로 해결할 수 없는 build 설정 오류이며 Options는 현재 locale로 확장 프로그램 관리자에게 문의하라는 다음 행동을 표시한다. Connection status에는 기존 `auth_failed` 표현을 사용한다.
 - Device code는 `chrome.storage.session`에 저장하고 Options에는 user code, verification URL, 만료 시각, polling interval만 반환한다.
 - 발급된 access token과 refresh token은 `chrome.storage.local`의 별도 `githubAuth` state에 저장한다. access token 만료 5분 전에는 refresh하며, API 401이면 강제 refresh 후 요청을 한 번만 재시도한다.
 - 동시 refresh 요청은 single-flight promise로 하나만 수행한다. refresh 실패나 refresh token 만료 시 auth state를 삭제하고 재로그인을 요구한다.
@@ -300,6 +302,7 @@ Content/popup/options로 나가는 message payload에는 GitHub access token, re
 - `auto_sync_disabled`
 - `unsupported_language`
 - `github_auth_failed`
+- `github_app_not_configured`
 - `github_login_required`
 - `github_device_flow_expired`
 - `github_device_flow_denied`

@@ -53,6 +53,7 @@ export interface BackgroundRuntimeOptions {
 export function registerBackgroundRuntime(options: BackgroundRuntimeOptions = {}): void {
   const storage = options.storage ?? createDefaultExtensionStorage();
   const broadcast = options.broadcast ?? createChromeBroadcast();
+  const usesDefaultAuthManager = options.authManager === undefined;
   const authManager =
     options.authManager ??
     createGitHubAuthManager({
@@ -84,7 +85,8 @@ export function registerBackgroundRuntime(options: BackgroundRuntimeOptions = {}
       storage,
       orchestrator,
       githubClientFactory,
-      authManager
+      authManager,
+      requireConfiguredClientId: usesDefaultAuthManager
     })
       .then((response) => sendResponse(response))
       .catch((error) => sendResponse(failure(normalizeError(error))));
@@ -101,6 +103,7 @@ async function handleRuntimeMessage(
     orchestrator: SyncOrchestrator;
     githubClientFactory: () => GitHubClient;
     authManager: GitHubAuthManager;
+    requireConfiguredClientId: boolean;
   }
 ): Promise<RuntimeResponse> {
   switch (message.type) {
@@ -134,6 +137,16 @@ async function handleRuntimeMessage(
     }
 
     case "github:auth:start":
+      if (
+        context.requireConfiguredClientId &&
+        GITHUB_APP_CLIENT_ID.length === 0
+      ) {
+        throw explicitError(
+          "github_app_not_configured",
+          "GitHub App client ID is not configured."
+        );
+      }
+
       return success(await context.authManager.start());
 
     case "github:auth:read":
@@ -151,7 +164,7 @@ async function handleRuntimeMessage(
 
       if (installationUrl === null) {
         throw explicitError(
-          "github_auth_failed",
+          "github_app_not_configured",
           "GitHub App slug is not configured."
         );
       }
@@ -412,6 +425,7 @@ function toConnectionStatusCode(code: NormalizedErrorCode): ConnectionStatusCode
     case "github_branch_create_failed":
       return "branch_create_failed";
     case "github_auth_failed":
+    case "github_app_not_configured":
       return "auth_failed";
     case "github_login_required":
       return "login_required";

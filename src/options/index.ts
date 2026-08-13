@@ -88,11 +88,16 @@ interface RuntimeFailureResponse {
 
 type RuntimeResponse<T> = RuntimeSuccessResponse<T> | RuntimeFailureResponse;
 
-interface PublicPendingGitHubAuth {
+export interface PublicPendingGitHubAuth {
   userCode: string;
   verificationUri: string;
   expiresAt: string;
   intervalSeconds: number;
+}
+
+export interface DeviceFlowRenderState {
+  hidden: boolean;
+  userCode: string;
 }
 
 type GitHubAuthPollResult =
@@ -226,6 +231,15 @@ export function getOptionsExtensionStateUnavailableMessage(
   return t(locale, "options.message.extensionStateUnavailable");
 }
 
+export function getOptionsAuthErrorMessage(
+  error: NormalizedError,
+  locale: UiLocale = "en"
+): string {
+  return error.code === "github_app_not_configured"
+    ? t(locale, "options.message.githubAppNotConfigured")
+    : error.userMessage;
+}
+
 function localizedExtensionStateUnavailableMessage(): InlineMessage {
   return localizedMessage("options.message.extensionStateUnavailable", "error");
 }
@@ -340,6 +354,7 @@ export function mapConnectionErrorCode(
     case "github_conflict_failed":
       return "branch_create_failed";
     case "github_auth_failed":
+    case "github_app_not_configured":
       return "auth_failed";
     case "github_login_required":
       return "login_required";
@@ -449,9 +464,7 @@ function bindEvents(elements: OptionsElements, state: OptionsRuntimeState): void
   });
 
   elements.openVerificationButton.addEventListener("click", () => {
-    if (state.pendingAuth !== null) {
-      window.open(state.pendingAuth.verificationUri, "_blank", "noopener");
-    }
+    void verifyPendingGitHubAuth(elements, state);
   });
 
   elements.installAppButton.addEventListener("click", () => {
@@ -549,18 +562,58 @@ async function startGitHubAuth(
 
     state.pendingAuth = response.data;
     state.authMessage = localizedMessage("options.auth.waiting", "neutral");
-    window.open(response.data.verificationUri, "_blank", "noopener");
     scheduleAuthPoll(elements, state);
   } catch (error) {
     const normalized = normalizeError(error);
     state.authorizing = false;
     state.authMessage = {
-      text: normalized.userMessage,
+      text: getOptionsAuthErrorMessage(normalized, state.locale),
       tone: "error"
     };
   } finally {
     render(elements, state);
   }
+}
+
+async function verifyPendingGitHubAuth(
+  elements: OptionsElements,
+  state: OptionsRuntimeState
+): Promise<void> {
+  if (state.pendingAuth === null) {
+    return;
+  }
+
+  const copied = await openGitHubVerification(state.pendingAuth);
+  state.authMessage = localizedMessage(
+    copied ? "options.auth.codeCopied" : "options.auth.codeCopyFailed",
+    copied ? "success" : "warning"
+  );
+  render(elements, state);
+}
+
+export async function openGitHubVerification(
+  pendingAuth: PublicPendingGitHubAuth,
+  clipboard: Pick<Clipboard, "writeText"> | undefined = navigator.clipboard,
+  openWindow: (url: string, target: string, features: string) => unknown = (
+    url,
+    target,
+    features
+  ) => window.open(url, target, features)
+): Promise<boolean> {
+  let copied = true;
+
+  try {
+    if (clipboard === undefined) {
+      throw new Error("Clipboard API is unavailable.");
+    }
+
+    await clipboard.writeText(pendingAuth.userCode);
+  } catch {
+    copied = false;
+  }
+
+  openWindow(pendingAuth.verificationUri, "_blank", "noopener");
+  return copied;
 }
 
 function scheduleAuthPoll(
@@ -614,7 +667,7 @@ async function pollGitHubAuth(
     state.pendingAuth = null;
     state.authorizing = false;
     state.authMessage = {
-      text: normalized.userMessage,
+      text: getOptionsAuthErrorMessage(normalized, state.locale),
       tone: "error"
     };
   } finally {
@@ -633,7 +686,7 @@ async function disconnectGitHub(
 
   if (!response.ok) {
     state.authMessage = {
-      text: response.error.userMessage,
+      text: getOptionsAuthErrorMessage(response.error, state.locale),
       tone: "error"
     };
     render(elements, state);
@@ -660,7 +713,7 @@ async function openGitHubAppInstallation(
 
   if (!response.ok) {
     state.authMessage = {
-      text: response.error.userMessage,
+      text: getOptionsAuthErrorMessage(response.error, state.locale),
       tone: "error"
     };
     render(elements, state);
@@ -1156,6 +1209,8 @@ function renderAuthControls(
   elements: OptionsElements,
   state: OptionsRuntimeState
 ): void {
+  const deviceFlow = getDeviceFlowRenderState(state.pendingAuth);
+
   elements.authAccount.textContent =
     state.githubAccount === null
       ? t(state.locale, "options.auth.signedOut")
@@ -1172,11 +1227,11 @@ function renderAuthControls(
     state.locale,
     "action.disconnectGitHub"
   );
-  elements.deviceFlow.hidden = state.pendingAuth === null;
-  elements.userCode.textContent = state.pendingAuth?.userCode ?? "";
+  elements.deviceFlow.hidden = deviceFlow.hidden;
+  elements.userCode.textContent = deviceFlow.userCode;
   elements.openVerificationButton.textContent = t(
     state.locale,
-    "action.openGitHub"
+    "action.copyCodeAndOpenGitHub"
   );
   elements.installAppButton.hidden = !state.isGithubConnected;
   elements.installAppButton.textContent = t(
@@ -1184,6 +1239,15 @@ function renderAuthControls(
     "action.installGitHubApp"
   );
   renderInlineMessage(elements.authStatus, state.authMessage, state.locale);
+}
+
+export function getDeviceFlowRenderState(
+  pendingAuth: PublicPendingGitHubAuth | null
+): DeviceFlowRenderState {
+  return {
+    hidden: pendingAuth === null,
+    userCode: pendingAuth?.userCode ?? ""
+  };
 }
 
 function renderLanguageControls(

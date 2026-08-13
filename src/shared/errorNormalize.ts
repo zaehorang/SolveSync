@@ -35,6 +35,11 @@ const ERROR_DESCRIPTORS = {
     userMessage: "GitHub authentication failed.",
     retryable: false
   },
+  github_app_not_configured: {
+    userMessage:
+      "This build is missing GitHub App configuration. Contact the extension administrator.",
+    retryable: false
+  },
   github_login_required: {
     userMessage: "GitHub login required.",
     retryable: false
