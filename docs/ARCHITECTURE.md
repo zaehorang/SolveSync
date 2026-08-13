@@ -249,7 +249,9 @@ README 생성 규칙:
 - Coding Platform marker 사이 내용만 교체한다.
   - LeetCode: `<!-- LEETCODE_TABLE_START -->`, `<!-- LEETCODE_TABLE_END -->`
   - Programmers: `<!-- PROGRAMMERS_TABLE_START -->`, `<!-- PROGRAMMERS_TABLE_END -->`
-- number, title, difficulty, solved date, 단일 Languages 컬럼을 생성한다.
+- LeetCode는 number, title, difficulty, solved date, 단일 Languages 컬럼을 생성한다.
+- Programmers는 신뢰할 수 있는 Difficulty source가 없으므로 number, title, solved date,
+  단일 Languages 컬럼만 생성한다. Catalog의 `difficulty: "-"`는 v4 호환성을 위해 유지한다.
 - row는 numeric problem id 오름차순으로 정렬한다.
 - Solved cell은 Solution Catalog의 problem-level first accepted date를 표시한다.
 - Languages cell은 존재하는 solution path를 registry 순서로 나열하고 Solution README 기준 상대 link를 건다.

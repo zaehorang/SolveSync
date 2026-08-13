@@ -155,7 +155,9 @@ describe("README managed block", () => {
     const table = renderManagedReadmeTable(programmersCatalog, "programmers");
     const readme = buildInitialReadme(table, "programmers");
 
-    expect(table).toContain("| 120804 | 두 수의 곱 구하기 | - | 2026-05-27 |");
+    expect(table).toContain("| # | Title | Solved | Languages |");
+    expect(table).not.toContain("Difficulty");
+    expect(table).toContain("| 120804 | 두 수의 곱 구하기 | 2026-05-27 |");
     expect(table).toContain("[Swift](swift/120804_두_수의_곱_구하기.swift)");
     expect(readme).toContain("# Programmers Solutions");
     expect(readme).toContain(PROGRAMMERS_README_TABLE_START_MARKER);
@@ -180,5 +182,31 @@ describe("README managed block", () => {
     expect(merged).toContain("leetcode table");
     expect(merged).not.toContain("old programmers table");
     expect(merged).toContain("new programmers table");
+  });
+
+  it("migrates a legacy LeetCode table without changing content outside markers", () => {
+    const before = "# Custom\n\n수동 소개  \n";
+    const after = "\n수동 꼬리말\n";
+    const legacyTable = [
+      "| # | Title | Difficulty | Solved | Swift | Python |",
+      "| ---: | --- | --- | --- | --- | --- |",
+      "| 1 | Two Sum | Easy | 2026-05-27 | [Swift](swift/0001_two_sum.swift) | - |"
+    ].join("\n");
+    const existing = `${before}${README_TABLE_START_MARKER}\n${legacyTable}\n${README_TABLE_END_MARKER}${after}`;
+    const table = renderManagedReadmeTable(solutionCatalog);
+    const merged = mergeReadmeManagedBlock(existing, table);
+
+    expect(merged.slice(0, before.length)).toBe(before);
+    expect(merged.slice(-after.length)).toBe(after);
+    expect(merged).not.toContain("| Swift | Python |");
+    expect(merged).toContain("| # | Title | Difficulty | Solved | Languages |");
+  });
+
+  it("renders the same managed README repeatedly", () => {
+    const table = renderManagedReadmeTable(solutionCatalog);
+    const first = mergeReadmeManagedBlock(null, table);
+    const second = mergeReadmeManagedBlock(first, table);
+
+    expect(second).toBe(first);
   });
 });

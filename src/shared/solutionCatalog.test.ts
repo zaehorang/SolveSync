@@ -259,6 +259,52 @@ describe("Solution Catalog", () => {
     });
   });
 
+  it("preserves every language path when normalizing a v3 catalog", () => {
+    const languageEntry = (solutionPath: string, lastAcceptedSourceId: string) => ({
+      solutionPath,
+      lastAcceptedSourceId,
+      solutionRevisionNumber: 2,
+      lastSyncedAt: syncedAt,
+      firstAcceptedDate: acceptedDate,
+      lastAcceptedDate: acceptedDate
+    });
+    const parsed = parseSolutionCatalogJson(
+      JSON.stringify({
+        version: 3,
+        problems: [
+          {
+            problemId: "1",
+            frontendId: "1",
+            title: "Two Sum",
+            titleSlug: "two-sum",
+            difficulty: "Easy",
+            url: "https://leetcode.com/problems/two-sum/",
+            lastSyncedAt: syncedAt,
+            firstAcceptedDate: acceptedDate,
+            lastAcceptedDate: acceptedDate,
+            languages: {
+              swift: languageEntry("leetcode/swift/0001_two_sum.swift", "swift-100"),
+              python3: languageEntry("leetcode/python/0001_two_sum.py", "python-100")
+            }
+          }
+        ],
+        activity: {
+          days: {
+            [acceptedDate]: { acceptedCount: 2, newProblemCount: 1 }
+          }
+        }
+      })
+    );
+
+    expect(parsed.version).toBe(4);
+    expect(parsed.problems[0]?.languages.swift?.solutionPath).toBe(
+      "leetcode/swift/0001_two_sum.swift"
+    );
+    expect(parsed.problems[0]?.languages.python3?.solutionPath).toBe(
+      "leetcode/python/0001_two_sum.py"
+    );
+  });
+
   it("returns revision 1 for a new problem language", () => {
     const result = mergeSolutionCatalogEntryWithResult(
       createEmptySolutionCatalog(),
