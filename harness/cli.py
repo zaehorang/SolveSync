@@ -965,24 +965,63 @@ def release_lock(root: Path, number: int) -> None:
     write_lock(root, lock)
 
 
-def pr_title(plan: dict) -> str:
-    """summary의 첫 문장. 제목으로 쓸 만큼 짧게 자른다."""
-    summary = (plan.get("summary") or "").strip()
-    first = re.split(r"(?<=[.!?。])\s|\n", summary)[0].strip().rstrip(".")
-    return first[:70] if first else plan.get("slug", "")
+def pr_title(plan: dict, check: dict | None = None) -> str:
+    """제목은 이슈 제목에서 가져온다.
+
+    계획의 summary를 잘라 쓰면 두 가지가 깨진다. 문장이 길면 어절 중간에서
+    끊기고, findings 때문에 방향이 바뀌면 폐기된 작업을 제목이 설명한다.
+    이슈 제목은 짧고, 무엇을 해결하는 PR인지 그대로 말해준다.
+    """
+    title = ((check or {}).get("issue") or {}).get("title") or ""
+    title = re.sub(r"^(feat|fix|docs|test|refactor|chore)(\(.+?\))?:\s*", "", title.strip())
+
+    if not title:
+        summary = (plan.get("summary") or "").strip()
+        title = re.split(r"(?<=[.!?。])\s|\n", summary)[0].strip().rstrip(".")
+    if not title:
+        return plan.get("slug", "")
+
+    if len(title) <= 70:
+        return title
+    # 어절 중간에서 끊지 않는다.
+    cut = title[:70].rsplit(" ", 1)[0]
+    return (cut or title[:70]).rstrip(" ,·") + "…"
 
 
-def render_pr_body(plan: dict, check: dict, evaluation: dict, rounds: int) -> str:
+def render_pr_body(
+    plan: dict,
+    check: dict,
+    evaluations: list[dict],
+    round_number: int | None = None,
+) -> str:
+    """모든 라운드의 판정을 반영해 본문을 만든다.
+
+    마지막 판정만 읽으면 앞 라운드에서 찾아 고친 blocker가 사라져서, 지적이
+    하나도 없었던 것처럼 보인다. 그리고 계획의 summary는 exec 중에 고정이라
+    findings 때문에 방향이 바뀌면 낡은 설명이 된다. 그래서 계획의 의도와
+    검토자가 본 최종 상태를 나란히 싣는다.
+    """
     steps = {step["step"]: step for step in check["verify"]["steps"]}
     mark = lambda name: "✅" if steps.get(name, {}).get("passed") else "❌"  # noqa: E731
     tests = steps.get("test", {}).get("testsPassed")
 
-    findings = evaluation.get("findings") or []
-    major = [f for f in findings if f.get("severity") in ("blocker", "major")]
-    minor = [f for f in findings if f.get("severity") == "minor"]
+    current = evaluations[-1] if evaluations else {}
+    previous_critical = [
+        finding
+        for evaluation in evaluations[:-1]
+        for finding in (evaluation.get("findings") or [])
+        if finding.get("severity") in ("blocker", "major")
+    ]
+    current_findings = current.get("findings") or []
+    remaining_critical = [
+        finding for finding in current_findings if finding.get("severity") in ("blocker", "major")
+    ]
+    remaining_minor = [f for f in current_findings if f.get("severity") == "minor"]
+    evaluated_round = round_number if round_number is not None else len(evaluations)
+    correction_rounds = max(evaluated_round - 1, 0)
 
     lines = [
-        "## 요약",
+        "## 계획한 것",
         plan.get("summary", ""),
         "",
         "## 변경 사항",
@@ -997,14 +1036,33 @@ def render_pr_body(plan: dict, check: dict, evaluation: dict, rounds: int) -> st
     ]
     if check["commits"]["notes"]:
         lines += ["- 계획 대비 커밋 차이: " + "; ".join(check["commits"]["notes"])]
+
     lines += [
         "",
-        "## Eval 리포트",
-        f"- 판정: {evaluation.get('verdict')} (수정 라운드 {rounds - 1}회)",
+        "## 검토 결과",
+        f"- 판정: {current.get('verdict')} (수정 라운드 {correction_rounds}회)",
     ]
-    lines += [f"- 반영: {f.get('problem')}" for f in major] or ["- 반영: 없음"]
-    if minor:
-        lines += [f"- 남은 minor: {f.get('problem')}" for f in minor]
+    if current.get("notes"):
+        lines += ["", f"**최종 상태에 대한 검토자 요약.** {current['notes']}"]
+    if previous_critical:
+        heading = (
+            "지적받고 고친 것" if current.get("verdict") == "pass" else "이전 라운드 주요 지적"
+        )
+        lines += ["", f"### {heading}"]
+        lines += [
+            f"- **[{f.get('severity')}] {f.get('file')}** — {f.get('problem')}"
+            for f in previous_critical
+        ]
+    if remaining_critical:
+        lines += ["", "### 현재 남은 blocker/major"]
+        lines += [
+            f"- **[{f.get('severity')}] {f.get('file')}** — {f.get('problem')}"
+            for f in remaining_critical
+        ]
+    if remaining_minor:
+        lines += ["", "### 남은 minor"]
+        lines += [f"- **{f.get('file')}** — {f.get('problem')}" for f in remaining_minor]
+
     lines += ["", "## 관련 이슈", f"Fixes #{plan['issueNumber']}"]
     if plan.get("outOfScope"):
         lines += ["", "## 후속 작업"] + [f"- {item}" for item in plan["outOfScope"]]
@@ -1025,10 +1083,16 @@ def cmd_pr(args: argparse.Namespace) -> None:
         raise HarnessError("Pull Request 본문을 만들려면 plan.json이 필요합니다.")
 
     check = json.loads((directory / f"check-{args.round}.json").read_text())
-    eval_file = directory / f"eval-{args.round}.json"
-    evaluation = json.loads(eval_file.read_text()) if eval_file.exists() else {"verdict": "unknown"}
+    evaluations = []
+    for round_number in range(1, args.round + 1):
+        eval_file = directory / f"eval-{round_number}.json"
+        if eval_file.exists():
+            evaluations.append(json.loads(eval_file.read_text()))
+    if not evaluations:
+        evaluations = [{"verdict": "unknown"}]
+    evaluation = evaluations[-1]
 
-    body = render_pr_body(plan, check, evaluation, args.round)
+    body = render_pr_body(plan, check, evaluations, round_number=args.round)
     if args.body_only:
         print(body)
         return
@@ -1045,7 +1109,7 @@ def cmd_pr(args: argparse.Namespace) -> None:
     body_file = directory / f"pr-body-{args.round}.md"
     body_file.write_text(body)
 
-    title = f"{plan['branchType']}: {pr_title(plan)} (#{args.number})"
+    title = f"{plan['branchType']}: {pr_title(plan, check)} (#{args.number})"
     create = [
         "pr", "create",
         "--base", "main",
