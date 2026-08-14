@@ -76,6 +76,7 @@ README.md
 - 사용자가 명시적으로 요청한 경우에만 선택한 Sync Repository의 default branch HEAD에서 새 Sync Branch를 생성한다.
 - GitHub Sync Repository, Sync Branch, Git data read API를 대상으로 connection test를 실행한다.
 - Connection test는 test commit이나 branch update 같은 write 작업을 수행하지 않는다.
+- 사용자가 명시적으로 실행한 경우 현재 Sync Repository와 Sync Branch의 Solution README projection 정리를 background에 요청하고 committed, no-op, normalized failure 상태만 표시한다.
 - GitHub access/refresh token과 Retry Bundle code가 local storage에 저장된다는 사실을 명시한다.
 
 ### Popup
@@ -173,6 +174,13 @@ Coding Platform 문제 page
   - LeetCode: `solve: leetcode 0001 two sum in swift #1`
   - Programmers: `solve: programmers 120804 두 수의 곱 구하기 in swift #1`
 
+저장소 파일 정리는 Accepted sync와 별도의 background action이다.
+- Options가 전달한 현재 Sync Repository와 Sync Branch를 그대로 사용하며 branch를 생성하거나 ref를 force update하지 않는다.
+- LeetCode와 Programmers의 Solution Catalog를 읽고 현재 Coding Platform policy로 Solution README managed block을 렌더링한다. Catalog가 없는 Coding Platform은 건너뛰며 malformed Catalog는 normalized failure로 반환한다.
+- managed marker 밖 기존 bytes는 보존하고, 기존 Solution README와 실제로 다른 projection만 commit files에 포함한다. Solution File과 Solution Catalog는 정리 commit에 포함하지 않는다.
+- 변경 파일이 있으면 Git Data API로 `chore: README 표 형식을 정리한다` 단독 commit 하나를 만들고 `committed` 결과를 반환한다.
+- 변경 파일이 없으면 GitHub commit API를 호출하지 않고 `no_changes`를 반환한다. 첫 commit 반영 후 같은 action을 반복해도 `no_changes`다.
+
 ## Sync Repository 경로
 Sync Repository와 Sync Branch는 Options에서 선택한다. 특정 repository를 코드 기본값으로 고정하지 않는다.
 
@@ -256,6 +264,8 @@ README 생성 규칙:
 - Solved cell은 Solution Catalog의 problem-level first accepted date를 표시한다.
 - Languages cell은 존재하는 solution path를 registry 순서로 나열하고 Solution README 기준 상대 link를 건다.
 
+Accepted sync는 Solution File, Solution README, Solution Catalog를 함께 갱신한다. 저장소 파일 정리 action은 같은 projection 규칙을 재사용하지만 Solution README만 갱신하며 이 정책을 바꾸지 않는다.
+
 ## Storage Model
 `chrome.storage.local`을 사용한다.
 
@@ -289,10 +299,12 @@ Keys:
 
 Message categories:
 - content to background: Accepted detected, toast action.
-- popup/options to background: settings read/write, GitHub auth start/read/poll/disconnect, App install page open, repository list, branch list, branch create, connection test, retry.
+- popup/options to background: settings read/write, GitHub auth start/read/poll/disconnect, App install page open, repository list, branch list, branch create, connection test, repository cleanup, retry.
 - background to content/popup: sync status, Sync History update.
 
 `content:accepted_detected`는 `codingPlatform` discriminated union이다. 각 payload의 `detectedAt`, `pageUrl`, route field와 source snapshot field는 같은 fresh Accepted event에서 확정한다. 플랫폼별 payload source는 [LeetCode 연동](platforms/LEETCODE.md)과 [Programmers 연동](platforms/PROGRAMMERS.md)을 따른다.
+
+`repository:cleanup` payload는 사용자가 현재 선택한 `SyncRepository`와 `SyncBranch`를 포함한다. 응답 data는 `committed`와 `no_changes` discriminated result이며 예외는 runtime failure envelope의 normalized error로 반환한다.
 
 Runtime message type은 `surface:action_name` 형태의 stable namespaced identifier를 사용한다. Sync History와 Retry Bundle message의 정확한 old/new type string은 Domain Naming Contract의 legacy 대응 표를 따른다.
 
