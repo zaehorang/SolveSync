@@ -44,7 +44,9 @@ MAX_TASKS_PER_PHASE = 5
 MAX_TASKS_TOTAL = 20
 MAX_TOUCHED_PATHS = 15
 
-BRANCH_TYPES = ("feat", "fix", "docs", "test", "refactor")
+# pre-commit gate가 같은 값으로 branch 이름을 검사한다. 두 곳에 두면 어긋나고,
+# 어긋나면 하네스가 자기가 만든 branch에서 커밋하지 못한다.
+BRANCH_TYPES = policy.BRANCH_TYPES
 TASK_KINDS = ("test", "impl", "docs", "refactor")
 CONVENTIONAL = re.compile(r"^(feat|fix|docs|test|refactor|chore)(\(.+\))?: .+")
 

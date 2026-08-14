@@ -45,6 +45,10 @@ def main() -> None:
     if branch == "main":
         fail("main에서는 커밋할 수 없습니다. 작업 branch를 먼저 만드세요 (AGENTS.md).")
 
+    branch_problem = policy.check_branch_name(branch)
+    if branch_problem:
+        fail(branch_problem)
+
     staged = [p for p in git("diff", "--cached", "--name-only", "--diff-filter=ACMR").splitlines() if p]
     if not staged:
         fail("staged 변경이 없습니다.")

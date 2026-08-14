@@ -8,6 +8,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import cli
 import policy
 
 WORKTREE = "/tmp/wt"
@@ -181,6 +182,37 @@ class ApplyPatchRules(unittest.TestCase):
 
     def test_payload_without_file_headers_is_allowed(self):
         self.assertIsNone(policy.check_apply_patch("no file headers here", self.worktree))
+
+
+class BranchName(unittest.TestCase):
+    def test_harness_generated_names_pass(self):
+        """gate와 harness가 어긋나면 하네스가 자기 branch에서 커밋하지 못한다."""
+        for branch_type in policy.BRANCH_TYPES:
+            plan = {"branchType": branch_type, "issueNumber": 19, "slug": "issue-first-workflow-gate"}
+            self.assertIsNone(policy.check_branch_name(cli.branch_name(plan)), branch_type)
+
+    def test_names_without_an_issue_number_are_rejected(self):
+        for branch in ("fix/pr-body-accuracy", "docs/swea-platform-contract", "feat/agent-harness-phase1"):
+            self.assertIsNotNone(policy.check_branch_name(branch), branch)
+
+    def test_unknown_branch_types_are_rejected(self):
+        for branch in ("ci/issue-19-github-actions", "agent/issue-19-preview", "chore/issue-19-cleanup"):
+            self.assertIsNotNone(policy.check_branch_name(branch), branch)
+
+    def test_missing_slug_is_rejected(self):
+        for branch in ("feat/issue-19-", "feat/issue-19", "feat/issue--slug"):
+            self.assertIsNotNone(policy.check_branch_name(branch), branch)
+
+    def test_main_is_rejected(self):
+        self.assertIsNotNone(policy.check_branch_name("main"))
+
+    def test_nested_slug_is_rejected(self):
+        self.assertIsNotNone(policy.check_branch_name("feat/issue-19-slug/extra"))
+
+    def test_reason_names_the_branch_and_the_expected_form(self):
+        reason = policy.check_branch_name("fix/pr-body-accuracy")
+        self.assertIn("fix/pr-body-accuracy", reason)
+        self.assertIn("issue-", reason)
 
 
 if __name__ == "__main__":

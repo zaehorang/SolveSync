@@ -257,6 +257,32 @@ def check_apply_patch(patch: str, worktree: str | Path) -> str | None:
     return None
 
 
+# --- branch ------------------------------------------------------------------
+
+BRANCH_TYPES = ("feat", "fix", "docs", "test", "refactor")
+
+# `harness/cli.py`의 branch_name()이 만드는 형식과 같다. 두 곳이 어긋나면
+# 하네스가 자기가 만든 branch에서 커밋하지 못하므로 cli가 이 값을 import한다.
+# slug는 느슨하게 둔다. slug 형식 검증은 이 gate의 목적이 아니고, 좁히면
+# 정상 branch를 막을 위험만 늘어난다.
+_BRANCH_NAME = re.compile(rf"^(?:{'|'.join(BRANCH_TYPES)})/issue-\d+-[^/]+$")
+
+
+def check_branch_name(branch: str) -> str | None:
+    """work branch 이름의 차단 사유를 돌려준다. 허용이면 None.
+
+    이슈 번호를 이름에 요구하는 것은 이슈 없이 시작한 작업을 늦게라도 막기
+    위해서다. 커밋 시점 gate라 작업 시작은 막지 못한다.
+    """
+    if _BRANCH_NAME.match(branch.strip()):
+        return None
+    return (
+        f"branch 이름 '{branch}'에 이슈 번호가 없습니다. 먼저 GitHub Issue를 "
+        "만들고 {type}/issue-{번호}-{slug} 형식으로 branch를 다시 만드세요 "
+        f"(type: {', '.join(BRANCH_TYPES)}). AGENTS.md의 Git Workflow를 따르세요."
+    )
+
+
 # --- staged 변경 --------------------------------------------------------------
 
 
