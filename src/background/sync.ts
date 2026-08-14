@@ -26,7 +26,8 @@ import type {
 import type { SyncHistoryState } from "../shared/storageSchema";
 import type {
   AcceptedDetectedPayload,
-  BackgroundToContentPopupMessage
+  BackgroundToContentPopupMessage,
+  RepositoryCleanupResult
 } from "../shared/messages";
 import { SYNC_HISTORY_UPDATED_TYPE } from "../shared/messages";
 import {
@@ -103,15 +104,6 @@ export type RetrySyncOutcome =
   | { kind: "duplicate_processed"; syncDeduplicationKey: SyncDeduplicationKey }
   | { kind: "duplicate_in_flight"; syncDeduplicationKey: SyncDeduplicationKey };
 
-export type RepositoryCleanupOutcome =
-  | {
-      kind: "committed";
-      commitSha: string;
-      commitUrl: string;
-      paths: string[];
-    }
-  | { kind: "no_changes" };
-
 export interface SyncOrchestrator {
   handleAcceptedDetected(
     payload: AcceptedDetectedPayload,
@@ -124,7 +116,7 @@ export interface SyncOrchestrator {
   cleanupRepository(
     syncRepository: SyncRepository,
     syncBranch: SyncBranch
-  ): Promise<RepositoryCleanupOutcome>;
+  ): Promise<RepositoryCleanupResult>;
 }
 
 interface PreparedCommit {
@@ -622,7 +614,7 @@ export function createSyncOrchestrator(
   async function cleanupRepository(
     syncRepository: SyncRepository,
     syncBranch: SyncBranch
-  ): Promise<RepositoryCleanupOutcome> {
+  ): Promise<RepositoryCleanupResult> {
     const github = options.githubClientFactory();
     const files = await buildRepositoryCleanupFiles(
       (path) =>

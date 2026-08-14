@@ -296,6 +296,75 @@ describe("background runtime", () => {
     expect(orchestrator.handleRetry).toHaveBeenCalledWith("retry-1");
   });
 
+  it("routes repository cleanup and returns committed and no-change results", async () => {
+    const chromeMock = installChromeRuntimeMock();
+    const storage = createExtensionStorage(createMemoryStorageArea());
+    const orchestrator = makeOrchestrator();
+    const repository = {
+      owner: "octo",
+      name: "algorithms",
+      fullName: "octo/algorithms",
+      defaultBranch: "main",
+      private: true,
+      htmlUrl: "https://github.com/octo/algorithms"
+    };
+    const branch = { name: "solutions", sha: "branch-sha", protected: false };
+    vi.mocked(orchestrator.cleanupRepository)
+      .mockResolvedValueOnce({
+        kind: "committed",
+        commitSha: "cleanup-sha",
+        commitUrl: "https://github.com/octo/algorithms/commit/cleanup-sha",
+        paths: ["leetcode/README.md"]
+      })
+      .mockResolvedValueOnce({ kind: "no_changes" });
+    registerBackgroundRuntime({ storage, orchestrator });
+
+    const committed = await dispatchMessage(chromeMock.listener, {
+      type: "repository:cleanup",
+      payload: { repository, branch }
+    });
+    const noChanges = await dispatchMessage(chromeMock.listener, {
+      type: "repository:cleanup",
+      payload: { repository, branch }
+    });
+
+    expect(orchestrator.cleanupRepository).toHaveBeenCalledWith(repository, branch);
+    expect(committed).toMatchObject({ ok: true, data: { kind: "committed" } });
+    expect(noChanges).toEqual({ ok: true, data: { kind: "no_changes" } });
+  });
+
+  it("normalizes repository cleanup failures at the runtime boundary", async () => {
+    const chromeMock = installChromeRuntimeMock();
+    const orchestrator = makeOrchestrator();
+    vi.mocked(orchestrator.cleanupRepository).mockRejectedValue(
+      new Error("cleanup failed")
+    );
+    registerBackgroundRuntime({
+      storage: createExtensionStorage(createMemoryStorageArea()),
+      orchestrator
+    });
+
+    const response = await dispatchMessage(chromeMock.listener, {
+      type: "repository:cleanup",
+      payload: {
+        repository: {
+          owner: "octo",
+          name: "algorithms",
+          fullName: "octo/algorithms",
+          defaultBranch: "main",
+          private: true,
+          htmlUrl: "https://github.com/octo/algorithms"
+        },
+        branch: { name: "main", sha: "branch-sha", protected: false }
+      }
+    });
+
+    expect(response).toMatchObject({
+      ok: false,
+      error: { code: "github_commit_failed", retryable: true }
+    });
+  });
+
   it("routes content toast retry actions through the existing toast action flow", async () => {
     const chromeMock = installChromeRuntimeMock();
     const storage = createExtensionStorage(createMemoryStorageArea());

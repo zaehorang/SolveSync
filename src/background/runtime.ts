@@ -254,6 +254,14 @@ async function handleRuntimeMessage(
         })
       );
 
+    case "repository:cleanup":
+      return success(
+        await context.orchestrator.cleanupRepository(
+          message.payload.repository,
+          message.payload.branch
+        )
+      );
+
     case "sync:retry":
       return success(await context.orchestrator.handleRetry(message.payload.retryBundleId));
 

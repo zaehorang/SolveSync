@@ -8,6 +8,7 @@ import {
   hasForbiddenMessageSecretKey,
   isRuntimeMessage,
   normalizeRuntimeMessage,
+  type RepositoryCleanupResult,
   type RuntimeMessage
 } from "./messages";
 
@@ -144,6 +145,38 @@ describe("runtime message contracts", () => {
     expect(JSON.stringify(message)).not.toContain("class Solution");
   });
 
+  it("accepts repository cleanup requests and result contracts", () => {
+    const message: RuntimeMessage = {
+      type: "repository:cleanup",
+      payload: {
+        repository: {
+          owner: "octo",
+          name: "algorithms",
+          fullName: "octo/algorithms",
+          defaultBranch: "main",
+          private: true,
+          htmlUrl: "https://github.com/octo/algorithms"
+        },
+        branch: {
+          name: "solutions",
+          sha: "branch-sha",
+          protected: false
+        }
+      }
+    };
+    const committed: RepositoryCleanupResult = {
+      kind: "committed",
+      commitSha: "commit-sha",
+      commitUrl: "https://github.com/octo/algorithms/commit/commit-sha",
+      paths: ["leetcode/README.md"]
+    };
+    const noChanges: RepositoryCleanupResult = { kind: "no_changes" };
+
+    expect(isRuntimeMessage(message)).toBe(true);
+    expect(RUNTIME_MESSAGE_TYPES).toContain("repository:cleanup");
+    expect([committed.kind, noChanges.kind]).toEqual(["committed", "no_changes"]);
+  });
+
   it("normalizes legacy content toast action entry ids", () => {
     expect(
       normalizeRuntimeMessage({
@@ -175,6 +208,16 @@ describe("runtime message contracts", () => {
 
     expect(hasForbiddenMessageSecretKey(unsafeMessage)).toBe(true);
     expect(isRuntimeMessage(unsafeMessage)).toBe(false);
+    expect(
+      isRuntimeMessage({
+        type: "repository:cleanup",
+        payload: {
+          repository: {},
+          branch: {},
+          accessToken: "redacted"
+        }
+      })
+    ).toBe(false);
     expect(
       hasForbiddenMessageSecretKey({
         type: "github:auth:poll",

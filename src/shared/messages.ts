@@ -4,7 +4,7 @@ import type {
   SyncHistoryEntry,
   SyncStatus
 } from "./types";
-import type { SyncRepository } from "./types";
+import type { SyncBranch, SyncRepository } from "./types";
 import { isPlainRecord } from "./types";
 import type { PublicSettingsUpdate, SyncHistoryState } from "./storageSchema";
 
@@ -147,6 +147,23 @@ export interface RetrySyncMessage {
   };
 }
 
+export interface RepositoryCleanupMessage {
+  type: "repository:cleanup";
+  payload: {
+    repository: SyncRepository;
+    branch: SyncBranch;
+  };
+}
+
+export type RepositoryCleanupResult =
+  | {
+      kind: "committed";
+      commitSha: string;
+      commitUrl: string;
+      paths: string[];
+    }
+  | { kind: "no_changes" };
+
 export interface SyncHistoryReadMessage {
   type: typeof SYNC_HISTORY_READ_TYPE;
   payload: {
@@ -170,6 +187,7 @@ export type PopupOptionsToBackgroundMessage =
   | BranchListMessage
   | BranchCreateMessage
   | ConnectionTestMessage
+  | RepositoryCleanupMessage
   | RetrySyncMessage
   | SyncHistoryReadMessage
   | RetryBundlesReadMessage;
@@ -218,6 +236,7 @@ export const RUNTIME_MESSAGE_TYPES = [
   "github:branches:list",
   "github:branch:create",
   "github:connection:test",
+  "repository:cleanup",
   "sync:retry",
   SYNC_HISTORY_READ_TYPE,
   RETRY_BUNDLES_READ_TYPE,
