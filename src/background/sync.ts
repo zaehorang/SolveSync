@@ -12,6 +12,7 @@ import { normalizeError, normalizeLeetCodeError } from "../shared/errorNormalize
 import type { NormalizedError, NormalizedErrorCode } from "../shared/errors";
 import type {
   AcceptedSubmission,
+  CodingPlatform,
   SyncBranch,
   IsoDateString,
   LeetCodeLanguage,
@@ -102,6 +103,15 @@ export type RetrySyncOutcome =
   | { kind: "duplicate_processed"; syncDeduplicationKey: SyncDeduplicationKey }
   | { kind: "duplicate_in_flight"; syncDeduplicationKey: SyncDeduplicationKey };
 
+export type RepositoryCleanupOutcome =
+  | {
+      kind: "committed";
+      commitSha: string;
+      commitUrl: string;
+      paths: string[];
+    }
+  | { kind: "no_changes" };
+
 export interface SyncOrchestrator {
   handleAcceptedDetected(
     payload: AcceptedDetectedPayload,
@@ -111,6 +121,10 @@ export interface SyncOrchestrator {
     retryBundleId: string,
     target?: SyncBroadcastTarget
   ): Promise<RetrySyncOutcome>;
+  cleanupRepository(
+    syncRepository: SyncRepository,
+    syncBranch: SyncBranch
+  ): Promise<RepositoryCleanupOutcome>;
 }
 
 interface PreparedCommit {
@@ -605,6 +619,45 @@ export function createSyncOrchestrator(
     }
   }
 
+  async function cleanupRepository(
+    syncRepository: SyncRepository,
+    syncBranch: SyncBranch
+  ): Promise<RepositoryCleanupOutcome> {
+    const github = options.githubClientFactory();
+    const files = await buildRepositoryCleanupFiles(
+      (path) =>
+        readRepositoryFile(github, syncRepository, syncBranch, path),
+      ["leetcode", "programmers"]
+    );
+
+    if (files.length === 0) {
+      return { kind: "no_changes" };
+    }
+
+    const result = await github.commitFiles({
+      owner: syncRepository.owner,
+      name: syncRepository.name,
+      repository: syncRepository,
+      branchName: syncBranch.name,
+      files,
+      message: "chore: README 표 형식을 정리한다",
+      onConflict: async (context) => ({
+        files: await buildRepositoryCleanupFiles(
+          (path) => context.readTextFile(path),
+          ["leetcode", "programmers"]
+        ),
+        message: "chore: README 표 형식을 정리한다"
+      })
+    });
+
+    return {
+      kind: "committed",
+      commitSha: result.commitSha,
+      commitUrl: result.commitUrl,
+      paths: files.map((file) => file.path)
+    };
+  }
+
   async function commitPrepared(
     github: SyncGitHubClient,
     prepared: PreparedCommit,
@@ -781,8 +834,41 @@ export function createSyncOrchestrator(
 
   return {
     handleAcceptedDetected,
-    handleRetry
+    handleRetry,
+    cleanupRepository
   };
+}
+
+async function buildRepositoryCleanupFiles(
+  readTextFile: (path: string) => Promise<string | null>,
+  codingPlatforms: CodingPlatform[]
+): Promise<Array<{ path: string; content: string }>> {
+  const files = await Promise.all(
+    codingPlatforms.map(async (codingPlatform) => {
+      const policy = getPlatformPolicy(codingPlatform);
+      const [catalogText, existingReadme] = await Promise.all([
+        readTextFile(policy.solutionCatalogPath),
+        readTextFile(policy.solutionReadmePath)
+      ]);
+
+      if (catalogText === null || catalogText.trim().length === 0) {
+        return null;
+      }
+
+      const catalog = parseSolutionCatalogJson(catalogText);
+      const nextReadme = mergeReadmeManagedBlock(
+        existingReadme,
+        renderManagedReadmeTable(catalog, codingPlatform),
+        codingPlatform
+      );
+
+      return nextReadme === existingReadme
+        ? null
+        : { path: policy.solutionReadmePath, content: nextReadme };
+    })
+  );
+
+  return files.filter((file): file is { path: string; content: string } => file !== null);
 }
 
 function resolveProgrammersSource(
@@ -978,6 +1064,25 @@ async function readRepositoryTextFile(
     name: prepared.syncRepository.name,
     repository: prepared.syncRepository,
     branchName: prepared.syncBranch.name,
+    path
+  });
+}
+
+async function readRepositoryFile(
+  github: SyncGitHubClient,
+  syncRepository: SyncRepository,
+  syncBranch: SyncBranch,
+  path: string
+): Promise<string | null> {
+  if (github.readTextFile === undefined) {
+    return null;
+  }
+
+  return github.readTextFile({
+    owner: syncRepository.owner,
+    name: syncRepository.name,
+    repository: syncRepository,
+    branchName: syncBranch.name,
     path
   });
 }

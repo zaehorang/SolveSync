@@ -489,7 +489,8 @@ function makeOrchestrator(): SyncOrchestrator {
 
   return {
     handleAcceptedDetected: vi.fn(async () => duplicateOutcome),
-    handleRetry: vi.fn(async () => duplicateOutcome)
+    handleRetry: vi.fn(async () => duplicateOutcome),
+    cleanupRepository: vi.fn(async () => ({ kind: "no_changes" as const }))
   };
 }
 

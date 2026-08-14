@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { normalizeError } from "../shared/errorNormalize";
+import { mergeReadmeManagedBlock, renderManagedReadmeTable } from "../shared/readme";
+import { parseSolutionCatalogJson } from "../shared/solutionCatalog";
 import { STORAGE_SCHEMA_VERSION } from "../shared/storageSchema";
 import { createExtensionStorage, type StorageAreaAdapter } from "./storage";
 import type {
@@ -717,6 +719,103 @@ describe("background sync orchestrator", () => {
     expect(await harness.storage.hasProcessedSyncDeduplicationKey(syncDeduplicationKey)).toBe(false);
     await expect(historyStatuses(harness.storage)).resolves.toEqual(["failed"]);
   });
+
+  it("cleans both Solution READMEs in one dedicated commit", async () => {
+    const harness = makeHarness();
+    const selectedBranch = { ...syncBranch, name: "solutions" };
+    const leetcodeBefore = "# LeetCode\r\n\r\n수동 머리말  \r\n";
+    const leetcodeAfter = "\r\n수동 꼬리말\r\n";
+    harness.github.files.set(
+      "leetcode/.leetcode-sync/index.json",
+      JSON.stringify(makeV3CatalogWithTwoLanguages())
+    );
+    harness.github.files.set(
+      "leetcode/README.md",
+      `${leetcodeBefore}<!-- LEETCODE_TABLE_START -->\nlegacy\n<!-- LEETCODE_TABLE_END -->${leetcodeAfter}`
+    );
+    harness.github.files.set(
+      "programmers/.programmers-sync/index.json",
+      JSON.stringify(makeProgrammersCatalogWithPreviousProblem())
+    );
+    harness.github.files.set(
+      "programmers/README.md",
+      "# Programmers\n\n<!-- PROGRAMMERS_TABLE_START -->\nlegacy\n<!-- PROGRAMMERS_TABLE_END -->\n"
+    );
+
+    const outcome = await harness.sync.cleanupRepository(
+      syncRepository,
+      selectedBranch
+    );
+
+    expect(outcome).toMatchObject({ kind: "committed", commitSha: "commit-sha" });
+    expect(harness.github.commits).toHaveLength(1);
+    expect(harness.github.commits[0]).toMatchObject({
+      branchName: "solutions",
+      message: "chore: README 표 형식을 정리한다"
+    });
+    expect(harness.github.commits[0]?.files.map((file) => file.path)).toEqual([
+      "leetcode/README.md",
+      "programmers/README.md"
+    ]);
+    const leetcodeReadme = committedContent(harness, "leetcode/README.md");
+    expect(leetcodeReadme.startsWith(leetcodeBefore)).toBe(true);
+    expect(leetcodeReadme.endsWith(leetcodeAfter)).toBe(true);
+    expect(leetcodeReadme).toContain(
+      "[Swift](swift/0001_two_sum.swift) · [Python3](python/0001_two_sum.py)"
+    );
+    expect(committedContent(harness, "programmers/README.md")).not.toContain(
+      "Difficulty"
+    );
+    expect(harness.github.reads.every((read) => read.branchName === "solutions")).toBe(
+      true
+    );
+  });
+
+  it("ignores missing Catalogs and does not commit unchanged READMEs", async () => {
+    const harness = makeHarness();
+    const catalog = makeV3CatalogWithTwoLanguages();
+    const currentReadme = mergeReadmeManagedBlock(
+      null,
+      renderManagedReadmeTable(parseSolutionCatalogJson(JSON.stringify(catalog)))
+    );
+    harness.github.files.set(
+      "leetcode/.leetcode-sync/index.json",
+      JSON.stringify(catalog)
+    );
+    harness.github.files.set("leetcode/README.md", currentReadme);
+
+    await expect(
+      harness.sync.cleanupRepository(syncRepository, syncBranch)
+    ).resolves.toEqual({ kind: "no_changes" });
+    expect(harness.github.commits).toHaveLength(0);
+  });
+
+  it("fails cleanup when an existing Solution Catalog is malformed", async () => {
+    const harness = makeHarness();
+    harness.github.files.set("leetcode/.leetcode-sync/index.json", "{broken");
+
+    await expect(
+      harness.sync.cleanupRepository(syncRepository, syncBranch)
+    ).rejects.toMatchObject({ code: "malformed_index" });
+    expect(harness.github.commits).toHaveLength(0);
+  });
+
+  it("does not create a second cleanup commit after applying the first result", async () => {
+    const harness = makeHarness();
+    harness.github.files.set(
+      "leetcode/.leetcode-sync/index.json",
+      JSON.stringify(makeV3CatalogWithTwoLanguages())
+    );
+    harness.github.files.set("leetcode/README.md", "# Legacy\n");
+
+    await expect(
+      harness.sync.cleanupRepository(syncRepository, syncBranch)
+    ).resolves.toMatchObject({ kind: "committed" });
+    await expect(
+      harness.sync.cleanupRepository(syncRepository, syncBranch)
+    ).resolves.toEqual({ kind: "no_changes" });
+    expect(harness.github.commits).toHaveLength(1);
+  });
 });
 
 interface Harness {
@@ -779,10 +878,12 @@ function makeHarness(): Harness {
 
 class FakeGitHubClient implements SyncGitHubClient {
   readonly commits: CommitGitDataInput[] = [];
+  readonly reads: ReadTextFileInput[] = [];
   readonly files = new Map<string, string>();
   commitError: unknown = null;
 
   async readTextFile(input: ReadTextFileInput): Promise<string | null> {
+    this.reads.push(input);
     return this.files.get(input.path) ?? null;
   }
 
@@ -791,6 +892,10 @@ class FakeGitHubClient implements SyncGitHubClient {
 
     if (this.commitError !== null) {
       throw this.commitError;
+    }
+
+    for (const file of input.files) {
+      this.files.set(file.path, file.content);
     }
 
     return {
