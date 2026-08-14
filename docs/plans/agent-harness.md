@@ -16,12 +16,17 @@
 
 **커밋은 codex가 한다.** plan의 Phase 단위로 conventional commit을 남긴다. push와 PR은 orchestrator만 한다.
 
-## 2. 강제 장치는 2층이다
+## 2. 강제 장치는 3층이다
 
 | 층 | 시점 | 잡는 것 |
 | --- | --- | --- |
 | Codex PreToolUse 훅 | codex가 도구를 쓰기 직전 | 테스트 선행, 워크트리 이탈, push/PR/`--no-verify` 시도 |
-| Git pre-commit 훅 | 커밋 시점 | typecheck / test / build 전체, 시크릿, 금지 경로, main 브랜치 |
+| Claude Code PreToolUse 훅 | 대화형 세션이 도구를 쓰기 직전 | 테스트 선행, 금지 경로, `--no-verify`, 주 워크트리 브랜치 전환 |
+| Git pre-commit 훅 | 커밋 시점 | typecheck / test / build 전체, 시크릿, 금지 경로, main 브랜치, 브랜치 이름, 주 워크트리 |
+
+앞의 두 층은 **같은 `policy.py`를 실행 컨텍스트만 달리해서 쓴다.** codex는 하네스가 준 워크트리 안에서만 돌고 게시는 orchestrator가 전담하지만, 대화형 세션은 이슈를 만들고 워크트리를 만들고 사용자가 승인하면 push도 한다 — 그게 워크플로우 자체다. exec 규칙을 대화형 세션에 그대로 붙이면 `gh issue`와 `git worktree`가 막혀 이슈 우선 규칙과 워크트리 규칙이 그 자리에서 막힌다. 규칙을 두 벌로 복제하는 대신 컨텍스트를 인자로 받는다. 두 벌이 되면 반드시 어긋나고, 어긋난 쪽이 느슨하면 그게 게이트의 실제 강도가 된다.
+
+층을 나눈 이유는 시점이 다르기 때문이다. **워크트리 이탈의 피해는 커밋이 아니라 checkout 시점에 발생한다.** 커밋 게이트는 이미 남의 브랜치를 밀어낸 뒤에 막으므로 사전 차단 층이 따로 필요하다. 반대로 PreToolUse 층은 그 설정을 쓰는 에이전트에만 붙으므로 터미널의 사람은 커밋 게이트에만 걸린다. 두 층을 다 두는 이유가 이것이다.
 
 commit-msg 훅은 두지 않는다. 커밋 메시지 형식은 안전 문제가 아니라 위생 문제이고, exec 프롬프트가 plan의 `commitMessage`를 그대로 쓰게 하며 evaluator가 확인한다. 훅 하나와 `[no-test]` 규칙 전체가 사라진다.
 
@@ -90,8 +95,9 @@ harness/
   cli.py               # 모든 결정적 작업. 서브커맨드로 노출
   policy.py            # 금지 명령/경로, 테스트 선행 규칙. 훅 2개가 import
   hooks/
-    pretooluse.py      # codex 훅
-    pre-commit         # git 훅. 확장자 없이 이 이름이어야 한다 (내용은 Python)
+    pretooluse.py         # codex 훅
+    claude_pretooluse.py  # Claude Code 훅
+    pre-commit            # git 훅. 확장자 없이 이 이름이어야 한다 (내용은 Python)
   tests/
     test_policy.py     # 차단 규칙 단위 테스트
     test_plan_check.py # plan 결정적 검증 단위 테스트
@@ -101,6 +107,7 @@ harness/
   plan.schema.json
 .codex/config.toml     # 훅 등록 (gitignore에서 제외 필요)
 .claude/
+  settings.json          # Claude Code 훅 등록
   skills/solve-issues/SKILL.md
   agents/evaluator.md
 .harness/              # gitignore
@@ -108,7 +115,9 @@ harness/
   lock.json
 ```
 
-`lib/` 아래로 잘게 쪼개지 않는다. 실제 내용은 `gh`, `git`, `codex`를 `subprocess`로 부르는 얇은 래퍼라 한 파일에서 읽는 편이 낫다. 규칙만 `policy.py`로 분리한다 — 훅 두 개가 같은 규칙을 봐야 하므로 여기만 공유가 필요하다.
+`lib/` 아래로 잘게 쪼개지 않는다. 실제 내용은 `gh`, `git`, `codex`를 `subprocess`로 부르는 얇은 래퍼라 한 파일에서 읽는 편이 낫다. 규칙만 `policy.py`로 분리한다 — 훅 세 개가 같은 규칙을 봐야 하므로 여기만 공유가 필요하다.
+
+**훅 진입점은 공유하지 않는다.** codex는 파일 편집을 `apply_patch` 하나로 보내고 payload가 패치 텍스트지만, Claude Code는 `Write`/`Edit`을 보내고 payload가 `file_path`다. 한 파일에서 분기하면 어느 쪽 계약이 깨졌는지 보이지 않는다. 공유하는 것은 `policy.py`이고, 진입점은 각 도구의 계약을 번역해 넣는 얇은 어댑터다. `policy.py`는 `subprocess`를 부르지 않으므로 "지금 주 워크트리인가" 같은 바깥 사실은 진입점이 판정해 인자로 넘긴다.
 
 ### 왜 Python이고, 왜 표준 라이브러리만 쓰는가
 
@@ -363,15 +372,25 @@ codex는 워크트리 루트의 `AGENTS.md`를 자동으로 읽는다. 프로젝
 
 ### tool_name == "Bash" → deny
 
-- `git push`, `gh pr *`, `gh issue *`, `gh api` — 게시는 orchestrator만
-- `git commit --no-verify` / `-n`
-- `git config`, `git worktree`, `git checkout main`, `git switch main`
-- 워크트리 밖을 가리키는 경로에 쓰는 명령
-- `npm publish`, `npm i -g`
+| 규칙 | exec | interactive |
+| --- | --- | --- |
+| `git push`, `gh pr *`, `gh issue *`, `gh api` | deny | 허용 |
+| `git config`, `git worktree` | deny | 허용 |
+| 워크트리 밖을 가리키는 경로 | deny | 허용 |
+| `git checkout main`, `git switch main` | deny | — |
+| 주 워크트리에서의 브랜치 전환 | deny | deny |
+| `git commit --no-verify` / `-n` | deny | deny |
+| `npm publish`, `npm i -g` | deny | deny |
 
-### tool_name == "apply_patch"
+interactive에서 게시를 막지 않는 이유는 그것이 사람이 승인해서 하는 일이기 때문이다. AGENTS.md가 "게시 단계는 사용자가 요청하거나 승인한 범위에서 수행한다"로 이미 다루고 있고, 훅으로 막으면 승인된 작업까지 막힌다. 워크트리 경계도 마찬가지다 — 대화형 세션은 scratchpad와 memory를 정상적으로 오가고, 그 경계는 사용자의 의도이지 훅이 판정할 수 있는 것이 아니다.
 
-패치에서 `*** Add File:` / `*** Update File:` / `*** Delete File:` 경로를 뽑아 검사한다.
+브랜치 전환 판정은 `git switch`를 언제나 브랜치 조작으로 보고, `git checkout`은 `--`로 경로를 명시한 형태만 파일 복원으로 본다. 애매하면 막는 쪽을 고른다. 파일 복원은 `git restore`가 있고 그쪽은 막지 않는다.
+
+### 파일 편집 (codex `apply_patch`, Claude Code `Write`/`Edit`/`NotebookEdit`)
+
+codex는 패치에서 `*** Add File:` / `*** Update File:` / `*** Delete File:` 경로를 뽑고, Claude Code는 `tool_input.file_path`를 쓴다. 형태를 워크트리 기준 상대 경로로 맞춘 뒤 **같은 검사 함수**에 넣는다. 한쪽만 검사하면 그쪽이 아닌 경로로 들어온 편집에는 게이트가 없는 것과 같고, 훅이 붙어 있으므로 없다는 사실조차 보이지 않는다.
+
+`Read`도 `file_path`를 갖고 있으므로 key만 보고 판단하지 않는다. 파일을 쓰는 도구 이름만 검사한다.
 
 - 워크트리 밖 → deny
 - `dist/`, `node_modules/`, `coverage/`, `artifacts/`, `.env*` → deny
@@ -400,14 +419,18 @@ codex는 워크트리 루트의 `AGENTS.md`를 자동으로 읽는다. 프로젝
 `git config core.hooksPath harness/hooks`로 설치한다 (`cli.py setup`).
 
 1. 현재 브랜치가 `main`이면 차단
-2. 금지 경로 staged 차단: `dist/`, `node_modules/`, `coverage/`, `artifacts/`, `.env*`(`.env.example` 제외), `.harness/`
-3. secret scan: staged diff에서 `ghp_`, `github_pat_`, `gho_`, `ghu_`, `ghs_`, `Authorization: Bearer`
-4. `npm run typecheck && npm test && npm run build`
-5. staged에 `harness/`가 있으면 `python3 -m unittest discover harness/tests`
+2. 브랜치 이름이 `{type}/issue-{번호}-{slug}`가 아니면 차단
+3. 주 워크트리이면 차단 — `--git-dir`와 `--git-common-dir`가 같으면 주 워크트리다. git이 계산해주는 값이라 판정이 결정적이고 값싸다
+4. 금지 경로 staged 차단: `dist/`, `node_modules/`, `coverage/`, `artifacts/`, `.env*`(`.env.example` 제외), `.harness/`
+5. secret scan: staged diff에서 `ghp_`, `github_pat_`, `gho_`, `ghu_`, `ghs_`, `Authorization: Bearer`
+6. `npm run typecheck && npm test && npm run build`
+7. staged에 `harness/`가 있으면 `python3 -m unittest discover harness/tests`
 
-5번은 조건부다. 하네스를 고치는 커밋에서만 돈다. 훅과 정책은 하네스의 신뢰 경계라 자기 자신을 검증하지 않은 채 커밋되면 안 된다.
+2번과 3번은 사후 차단이다. 커밋 시점 게이트라 "작업 시작"은 막지 못하고 "결과물 확정"만 막는다. 사전 차단은 §2의 PreToolUse 층이 한다.
 
-**4번은 부분 검증이 아니라 전체 검증이다.** 처음에는 `vitest related`로 변경 파일 관련 테스트만 돌리려 했는데, 실측해보니 전체 검증이 약 2.5초다.
+7번은 조건부다. 하네스를 고치는 커밋에서만 돈다. 훅과 정책은 하네스의 신뢰 경계라 자기 자신을 검증하지 않은 채 커밋되면 안 된다.
+
+**6번은 부분 검증이 아니라 전체 검증이다.** 처음에는 `vitest related`로 변경 파일 관련 테스트만 돌리려 했는데, 실측해보니 전체 검증이 약 2.5초다.
 
 | 명령 | 실측 |
 | --- | --- |
@@ -527,6 +550,7 @@ gitignore 유지. 코드와 diff가 그대로 남으므로 토큰 패턴은 기�
 | 전체 검증을 pre-commit에서 돌릴 만큼 빠르다 | 확인. 약 2.5초. `vitest related`는 오히려 느려서 폐기 |
 | 테스트 파일이 `<모듈>.test.ts` 형제 규칙을 따른다 | 확인. 기존 30개 테스트가 이미 이 관례다 |
 | codex 훅이 `#!/usr/bin/env python3` 스크립트로도 동작한다 | 확인. payload 수신과 deny 모두 정상 |
+| linked worktree를 `--git-dir`/`--git-common-dir`로 구분할 수 있다 | 확인. 주 디렉터리는 `.git` / `.git`, 워크트리는 `<repo>/.git/worktrees/<slug>` / `<repo>/.git` |
 
 훅 스크립트가 크래시했을 때 codex가 어떻게 처리하는지는 확인하지 않는다. 훅 자체를 fail-closed로 만들면 codex의 처리 방식과 무관해진다.
 
