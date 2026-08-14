@@ -27,6 +27,13 @@ SolveSync는 LeetCode와 Programmers에서 Accepted 된 풀이를 사용자가 �
 - 계획을 승인받았다고 해서 파일 변경까지 승인된 것은 아니다. 짧은 승인은 다음 한 단계에만 적용한다. 이슈를 만든 뒤 착수 여부를 다시 확인한다.
 - 구현이나 문서 변경을 시작하기 전에 `git status --short --branch`와 현재 branch를 확인한다.
 - `main`에서는 직접 작업하거나 commit하지 않는다. 현재 `main`을 base로 work branch를 만든 뒤 변경한다.
+- **work branch 작업은 `{root}-wt/{slug}` worktree에서 한다.** 주 작업 디렉터리의 branch를 갈아타지 않는다. 다른 세션이나 다른 agent가 그 디렉터리에서 작업 중일 수 있고, branch를 갈아타면 그쪽 작업이 조용히 깨진다. 주 디렉터리는 worktree를 만들고 지우는 용도로 쓴다.
+
+  ```bash
+  git worktree add -b feat/issue-20-worktree-isolation-gate ../SolveSync-wt/worktree-isolation-gate main
+  ```
+
+  이 규칙은 두 층이 강제한다. pre-commit gate가 주 디렉터리에서의 커밋을 막고, `.claude/settings.json`이 배선한 PreToolUse hook이 주 디렉터리에서의 branch 전환을 막는다. 커밋 gate만으로는 이미 남의 branch를 밀어낸 뒤에 막힌다.
 - work branch 이름은 `{type}/issue-{번호}-{slug}` 형식이다. `type`은 `feat`, `fix`, `docs`, `test`, `refactor` 중 하나이고 `slug`는 kebab-case다. 예: `feat/issue-19-issue-first-workflow-gate`.
 - 이 형식은 pre-commit gate가 강제한다. 이슈 번호가 없거나 다른 접두사를 쓰면 커밋이 막힌다. 우회용 접두사는 두지 않는다. 막히면 이슈를 만들고 branch를 다시 만든다.
 - 예외는 없다. 오타 수정도 이슈에서 시작한다. 이슈 하나에 작은 변경을 묶는 것은 괜찮다.
@@ -40,7 +47,8 @@ SolveSync는 LeetCode와 Programmers에서 Accepted 된 풀이를 사용자가 �
 ## Agent Harness
 `harness/`는 GitHub Issue를 계획, 구현, 평가, PR까지 자동으로 처리하는 도구다. 설계는 `docs/plans/agent-harness.md`를 따른다. 사람이 직접 작업할 때도 아래 gate는 똑같이 적용된다.
 
-- `git config core.hooksPath harness/hooks`가 설정되어 있으면 commit마다 `npm run typecheck`, `npm test`, `npm run build` 전체와 secret scan, 금지 경로, `main` branch 차단, work branch 이름의 이슈 번호 검사가 실행된다. 설치는 `python3 harness/cli.py setup`이 한다.
+- `git config core.hooksPath harness/hooks`가 설정되어 있으면 commit마다 `npm run typecheck`, `npm test`, `npm run build` 전체와 secret scan, 금지 경로, `main` branch 차단, work branch 이름의 이슈 번호 검사, 주 worktree 차단이 실행된다. 설치는 `python3 harness/cli.py setup`이 한다.
+- `.claude/settings.json`이 `harness/hooks/claude_pretooluse.py`를 PreToolUse에 배선한다. 대화형 세션에도 금지 경로, 테스트 선행, `--no-verify` 차단, 주 디렉터리 branch 전환 차단이 적용된다. 게시(`git push`, `gh pr`, `gh issue`)와 저장소 밖 경로는 막지 않는다 — 대화형 세션에서는 그것이 정상 작업이다.
 - `src/shared`와 `src/background`의 로직 파일은 같은 디렉터리에 `<모듈>.test.ts`가 있어야 작성할 수 있다. 이건 기존 테스트 관례를 그대로 규칙으로 만든 것이다.
 - gate를 `--no-verify`로 우회하지 않는다. 막히면 막은 이유를 고친다.
 - **하네스는 base branch에 있어야 동작한다.** worktree는 base branch에서 분기하므로, 하네스가 없는 base에서 만든 worktree에는 commit gate가 없다. git은 `core.hooksPath`가 없는 디렉터리를 가리켜도 경고하지 않고 조용히 hook을 건너뛴다.

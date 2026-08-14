@@ -49,6 +49,14 @@ def main() -> None:
     if branch_problem:
         fail(branch_problem)
 
+    # git이 주는 경로는 이 hook의 cwd(= working tree 최상위) 기준이다.
+    git_dirs = git("rev-parse", "--git-dir", "--git-common-dir").splitlines()
+    if len(git_dirs) != 2:
+        fail("git rev-parse가 --git-dir와 --git-common-dir를 돌려주지 않았습니다.")
+    isolation_problem = policy.check_worktree_isolation(*git_dirs)
+    if isolation_problem:
+        fail(isolation_problem)
+
     staged = [p for p in git("diff", "--cached", "--name-only", "--diff-filter=ACMR").splitlines() if p]
     if not staged:
         fail("staged 변경이 없습니다.")
