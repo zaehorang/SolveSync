@@ -5,10 +5,12 @@ exec 라운드 하나를 통째로 쓴다. 그래서 이 검사들은 model 없�
 것을 전부 잡는다.
 """
 
+import argparse
 import copy
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import cli
 
@@ -130,6 +132,52 @@ class PlanValidation(unittest.TestCase):
 
         result = self.check(mutate)
         self.assertIn("touchedPaths가", result["demote"])
+
+
+class PlanLockRelease(unittest.TestCase):
+    """착수하지 않고 끝난 이슈는 lock을 쥐고 있으면 안 된다.
+
+    `blocked`나 `too-large`는 사람이 이슈를 고쳐 곧바로 다시 돌리는 흐름이다.
+    lock이 남으면 그 재실행이 LOCK_TTL_HOURS 동안 "선점 중"으로 건너뛰어진다.
+    """
+
+    RUN = "2026-01-01T00-00-00Z"
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = make_repo(Path(self.tmp.name))
+        self.addCleanup(self.tmp.cleanup)
+
+        cli.write_lock(
+            self.root,
+            {
+                "runId": self.RUN,
+                "startedAt": cli.now().isoformat(),
+                "issues": {"8": {"runId": self.RUN, "since": cli.now().isoformat()}},
+            },
+        )
+        directory = cli.issue_dir(self.root, 8, create=True)
+        (directory / "issue.json").write_text('{"number": 8, "title": "t", "body": "b"}')
+
+    def run_plan(self, plan: dict) -> dict:
+        with mock.patch.object(cli, "repo_root", return_value=self.root), mock.patch.object(
+            cli, "_plan_attempt", return_value=copy.deepcopy(plan)
+        ), mock.patch.object(cli, "emit"):
+            cli.cmd_plan(argparse.Namespace(number=8))
+        return cli.read_lock(self.root).get("issues") or {}
+
+    def test_too_large_plan_releases_the_lock(self):
+        plan = copy.deepcopy(VALID_PLAN)
+        plan.update(status="too-large", statusReason="기능 두 개가 한 이슈에 있다")
+        self.assertNotIn("8", self.run_plan(plan))
+
+    def test_blocked_plan_releases_the_lock(self):
+        plan = copy.deepcopy(VALID_PLAN)
+        plan.update(status="blocked", statusReason="제품 결정이 필요하다")
+        self.assertNotIn("8", self.run_plan(plan))
+
+    def test_ready_plan_keeps_the_lock(self):
+        self.assertIn("8", self.run_plan(VALID_PLAN))
 
 
 class PlanSummary(unittest.TestCase):
