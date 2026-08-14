@@ -32,6 +32,23 @@ describe("i18n foundation", () => {
     expect(isUiLanguagePreference("fr")).toBe(false);
   });
 
+  it("defines repository cleanup copy in English and Korean", () => {
+    expect(t("en", "options.section.cleanup.title")).toBe("Repository file cleanup");
+    expect(t("ko", "options.section.cleanup.title")).toBe("저장소 파일 정리");
+    expect(t("en", "action.cleanupRepository")).toBe("Clean up now");
+    expect(t("ko", "action.cleanupRepository")).toBe("지금 정리하기");
+    expect(t("en", "options.cleanup.running")).toBe("Cleaning up repository files...");
+    expect(t("ko", "options.cleanup.committed")).toBe(
+      "Solution README 정리 commit을 만들었습니다."
+    );
+    expect(t("en", "options.cleanup.noChanges")).toBe(
+      "Repository files already use the current format."
+    );
+    expect(t("ko", "options.cleanup.failed", { detail: "권한 없음" })).toBe(
+      "저장소 파일 정리에 실패했습니다: 권한 없음"
+    );
+  });
+
   it("interpolates params without throwing for missing params", () => {
     expect(t("en", "validation.required", { field: "Repository" })).toBe(
       "Repository is required."

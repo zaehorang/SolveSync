@@ -72,13 +72,26 @@ Connection test는 commit을 만들지 않아야 한다. Branch는 사용자의 
 
 각 문서는 platform login, Accepted happy path, stale Accepted/Run/Wrong Answer 회귀, 두 번째 Accepted revision과 SPA route 검증을 소유한다. 모든 지원 언어를 실제 계정으로 반복 제출하지 않으며, 특정 Coding Platform의 label이나 editor 추출 회귀가 의심될 때만 해당 언어를 추가로 수동 검증한다.
 
-기존 Sync Repository 마이그레이션은 별도 commit으로 실행하지 않는다. LeetCode v3
+기존 Sync Repository 마이그레이션은 정상 Accepted sync에서도 그대로 일어난다. LeetCode v3
 Catalog와 언어별 개별 column README 또는 Difficulty column이 남은 Programmers README는
 다음 정상 Accepted sync에서 managed marker 내부만 현재 형식으로 바뀌는지 확인한다. 기존
 solution link, 날짜와 marker 밖 수동 내용이 유지되고, 같은 Catalog를 다시 렌더링했을 때
-구조적 diff가 반복되지 않아야 한다.
+구조적 diff가 반복되지 않아야 한다. 이 전환을 풀이 commit과 분리하려면 sync 전에 6절의
+저장소 파일 정리를 먼저 실행한다.
 
-## 6. 최소 보안 확인
+## 6. 저장소 파일 정리
+
+1. 선택한 test branch에 유효한 LeetCode와 Programmers Solution Catalog를 준비하고, Solution README managed marker 내부는 legacy 표 형식으로 만든다. marker 앞뒤에는 줄바꿈과 trailing space를 포함한 식별 가능한 수동 내용을 둔다.
+2. Options에서 해당 Sync Repository와 Sync Branch가 선택되었는지 확인한다. 둘 중 하나를 선택하지 않은 상태에서는 정리 button이 disabled인지 확인한다.
+3. `Clean up now` 또는 `지금 정리하기`를 누르고 진행 중 button이 disabled이며 `aria-live="polite"` 영역에 현재 locale의 진행 상태가 표시되는지 확인한다.
+4. GitHub에서 `chore: README 표 형식을 정리한다` commit이 정확히 하나 생성되었는지 확인한다. 파일 목록에는 실제로 달라진 `leetcode/README.md`와 `programmers/README.md`만 있어야 하며 Solution File과 Solution Catalog는 없어야 한다.
+5. 두 Solution README의 managed marker 내부가 현재 플랫폼별 표 형식으로 바뀌고 marker 앞뒤의 수동 bytes, 기존 solution link와 날짜가 보존되는지 확인한다. 선택한 Sync Branch 외 branch는 변하지 않고 새 branch도 생성되지 않아야 한다.
+6. 같은 action을 다시 실행해 Options에 변경 없음 상태가 표시되고 두 번째 commit이 생성되지 않는지 확인한다.
+7. Catalog 하나를 잠시 malformed JSON으로 만든 test branch에서 실행해 현재 locale의 실패 상태가 표시되고 정리 commit이 생성되지 않는지 확인한다. 검증 뒤 Catalog를 복구한다.
+
+정리 action은 legacy README 전환을 Accepted sync commit과 분리하기 위한 projection 전용 action이다. Coding Platform에서 데이터를 다시 가져오거나 Solution File과 Solution Catalog를 변경하지 않는다.
+
+## 7. 최소 보안 확인
 
 - Options, Popup, toast에 access token, refresh token, device code가 표시되지 않는다.
 - LeetCode와 Programmers 문제 설명 전문이 local storage나 GitHub commit에 저장되지 않는다.

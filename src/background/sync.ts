@@ -12,6 +12,7 @@ import { normalizeError, normalizeLeetCodeError } from "../shared/errorNormalize
 import type { NormalizedError, NormalizedErrorCode } from "../shared/errors";
 import type {
   AcceptedSubmission,
+  CodingPlatform,
   SyncBranch,
   IsoDateString,
   LeetCodeLanguage,
@@ -25,7 +26,8 @@ import type {
 import type { SyncHistoryState } from "../shared/storageSchema";
 import type {
   AcceptedDetectedPayload,
-  BackgroundToContentPopupMessage
+  BackgroundToContentPopupMessage,
+  RepositoryCleanupResult
 } from "../shared/messages";
 import { SYNC_HISTORY_UPDATED_TYPE } from "../shared/messages";
 import {
@@ -43,6 +45,8 @@ import {
 import type { LatestAcceptedSubmissionResult } from "./client/leetcode";
 
 const UNUSED_LEGACY_RETRY_BUNDLE_COMMIT_MESSAGE = "";
+
+const REPOSITORY_CLEANUP_COMMIT_MESSAGE = "chore: README 표 형식을 정리한다";
 
 export type SyncBroadcast = (
   message: BackgroundToContentPopupMessage,
@@ -62,7 +66,12 @@ export interface SyncLeetCodeClient {
 
 export interface SyncGitHubClient {
   commitFiles(input: CommitGitDataInput): Promise<CommitGitDataResult>;
-  readTextFile?(input: ReadTextFileInput): Promise<string | null>;
+  /**
+   * projection 파일을 다시 만들려면 기존 내용을 읽어야 한다. optional로 두면
+   * 읽기를 못 하는 client가 주입됐을 때 "바꿀 게 없다"와 구분되지 않으므로
+   * 필수 method로 요구한다.
+   */
+  readTextFile(input: ReadTextFileInput): Promise<string | null>;
 }
 
 export type GitHubClientFactory = () => SyncGitHubClient;
@@ -111,6 +120,10 @@ export interface SyncOrchestrator {
     retryBundleId: string,
     target?: SyncBroadcastTarget
   ): Promise<RetrySyncOutcome>;
+  cleanupRepository(
+    syncRepository: SyncRepository,
+    syncBranch: SyncBranch
+  ): Promise<RepositoryCleanupResult>;
 }
 
 interface PreparedCommit {
@@ -605,6 +618,40 @@ export function createSyncOrchestrator(
     }
   }
 
+  async function cleanupRepository(
+    syncRepository: SyncRepository,
+    syncBranch: SyncBranch
+  ): Promise<RepositoryCleanupResult> {
+    const github = options.githubClientFactory();
+    const buildFiles = async () =>
+      buildRepositoryCleanupFiles(
+        (path) => readRepositoryFile(github, syncRepository, syncBranch, path),
+        ["leetcode", "programmers"]
+      );
+
+    const files = await buildFiles();
+    if (files.length === 0) {
+      return { kind: "no_changes" };
+    }
+
+    try {
+      return await commitRepositoryCleanup(github, syncRepository, syncBranch, files);
+    } catch (error) {
+      if (normalizeError(error).code !== "github_conflict_failed") {
+        throw error;
+      }
+    }
+
+    // 다른 commit이 먼저 branch에 올라갔다. 최신 상태로 다시 계산한다. 그 사이
+    // 같은 정리가 이미 반영됐다면 파일 변경이 없는 commit을 만들지 않는다.
+    const retryFiles = await buildFiles();
+    if (retryFiles.length === 0) {
+      return { kind: "no_changes" };
+    }
+
+    return commitRepositoryCleanup(github, syncRepository, syncBranch, retryFiles);
+  }
+
   async function commitPrepared(
     github: SyncGitHubClient,
     prepared: PreparedCommit,
@@ -781,8 +828,64 @@ export function createSyncOrchestrator(
 
   return {
     handleAcceptedDetected,
-    handleRetry
+    handleRetry,
+    cleanupRepository
   };
+}
+
+async function commitRepositoryCleanup(
+  github: SyncGitHubClient,
+  syncRepository: SyncRepository,
+  syncBranch: SyncBranch,
+  files: Array<{ path: string; content: string }>
+): Promise<RepositoryCleanupResult> {
+  const result = await github.commitFiles({
+    owner: syncRepository.owner,
+    name: syncRepository.name,
+    repository: syncRepository,
+    branchName: syncBranch.name,
+    files,
+    message: REPOSITORY_CLEANUP_COMMIT_MESSAGE
+  });
+
+  return {
+    kind: "committed",
+    commitSha: result.commitSha,
+    commitUrl: result.commitUrl,
+    paths: files.map((file) => file.path)
+  };
+}
+
+async function buildRepositoryCleanupFiles(
+  readTextFile: (path: string) => Promise<string | null>,
+  codingPlatforms: CodingPlatform[]
+): Promise<Array<{ path: string; content: string }>> {
+  const files = await Promise.all(
+    codingPlatforms.map(async (codingPlatform) => {
+      const policy = getPlatformPolicy(codingPlatform);
+      const [catalogText, existingReadme] = await Promise.all([
+        readTextFile(policy.solutionCatalogPath),
+        readTextFile(policy.solutionReadmePath)
+      ]);
+
+      if (catalogText === null || catalogText.trim().length === 0) {
+        return null;
+      }
+
+      const catalog = parseSolutionCatalogJson(catalogText);
+      const nextReadme = mergeReadmeManagedBlock(
+        existingReadme,
+        renderManagedReadmeTable(catalog, codingPlatform),
+        codingPlatform
+      );
+
+      return nextReadme === existingReadme
+        ? null
+        : { path: policy.solutionReadmePath, content: nextReadme };
+    })
+  );
+
+  return files.filter((file): file is { path: string; content: string } => file !== null);
 }
 
 function resolveProgrammersSource(
@@ -969,15 +1072,26 @@ async function readRepositoryTextFile(
   prepared: PreparedCommit,
   path: string
 ): Promise<string | null> {
-  if (github.readTextFile === undefined) {
-    return null;
-  }
-
   return github.readTextFile({
     owner: prepared.syncRepository.owner,
     name: prepared.syncRepository.name,
     repository: prepared.syncRepository,
     branchName: prepared.syncBranch.name,
+    path
+  });
+}
+
+async function readRepositoryFile(
+  github: SyncGitHubClient,
+  syncRepository: SyncRepository,
+  syncBranch: SyncBranch,
+  path: string
+): Promise<string | null> {
+  return github.readTextFile({
+    owner: syncRepository.owner,
+    name: syncRepository.name,
+    repository: syncRepository,
+    branchName: syncBranch.name,
     path
   });
 }

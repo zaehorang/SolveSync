@@ -25,6 +25,7 @@ TypeScript, runtime message, storage schema는 같은 용어 체계를 사용한
 - 성공, 실패, retry 상태를 문제 풀이 흐름을 방해하지 않는 방식으로 보여준다.
 - Accepted 제출 하나당 GitHub commit 하나를 만들어 Sync History를 깔끔하게 유지한다.
 - Coding Platform 내부의 구조화된 Solution Catalog를 기준으로 Solution README 진행표를 자동 생성한다.
+- 기존 Sync Repository의 Solution README 형식 변경을 Accepted sync와 분리된 명시적 정리 commit으로 적용할 수 있게 한다.
 
 ## 사용자 여정
 ### 첫 설치
@@ -86,9 +87,17 @@ TypeScript, runtime message, storage schema는 같은 용어 체계를 사용한
 - 확장은 사용자가 이유를 알 수 있도록 `Auto Sync is off` 상태를 보여줄 수 있다.
 - v1은 일반 수동 sync action을 제공하지 않는다. Popup의 Retry는 retry 가능한 실패 항목에만 제공된다.
 
+### 저장소 파일 정리
+- 사용자는 Options에서 Sync Repository와 Sync Branch를 선택한 뒤 `Clean up now` 또는 `지금 정리하기`를 명시적으로 실행한다.
+- 정리는 선택한 Sync Branch의 LeetCode와 Programmers Solution Catalog만 source로 사용해 Solution README managed block을 현재 정책으로 다시 만든다. Coding Platform에서 문제 데이터를 다시 가져오거나 Solution File과 Solution Catalog를 변경하지 않는다.
+- 실제 내용이 달라진 Solution README만 `chore: README 표 형식을 정리한다` 단독 commit에 포함한다. managed marker 앞뒤의 수동 내용은 byte 단위로 보존한다.
+- Solution Catalog가 없거나 모든 Solution README가 이미 현재 projection과 같으면 commit을 만들지 않고 변경 사항이 없음을 Options에 표시한다. 같은 정리를 다시 실행해도 두 번째 commit은 생기지 않는다.
+- 이 action은 확장 시작, Auto Sync, Accepted sync에서 자동 실행되지 않으며 Sync Branch 생성, history rewrite, force push를 수행하지 않는다.
+
 ## MVP 기능
 - Local unpacked Chrome extension.
 - GitHub App Device Flow 로그인, App 설치, repository picker, branch picker, branch 생성, Auto Sync, connection test를 설정하는 Options 페이지.
+- 현재 Solution Catalog를 기준으로 Solution README만 단독 commit으로 갱신하는 명시적 저장소 파일 정리 action.
 - Auto Sync 토글, 최근 20개 기록, 실패 상세, retry를 제공하는 Popup.
 - LeetCode와 Programmers Accepted 감지와 toast feedback을 담당하는 content script.
 - LeetCode Accepted 제출의 문제 메타데이터와 solution code 조회.
@@ -109,7 +118,7 @@ TypeScript, runtime message, storage schema는 같은 용어 체계를 사용한
 - 별도 cloud backend service.
 - Programmers 비공식 제출 상세 API 의존. v1 Programmers sync는 현재 페이지 DOM과 Accepted Editor Snapshot 기반으로만 동작한다.
 - LeetCode와 Programmers 외 다른 Coding Platform 자동 sync.
-- 일반 수동 sync. v1에서 사용자가 직접 실행할 수 있는 것은 실패 항목 Retry뿐이다.
+- Accepted Submission을 임의로 선택하거나 다시 조회하는 일반 수동 sync. v1의 저장소 파일 정리는 기존 Solution Catalog의 projection만 갱신하며 Solution File sync를 실행하지 않는다.
 
 ## Programmers Accepted Editor Snapshot 신뢰 범위
 - LeetCode는 Accepted 제출 상세를 API로 다시 확인하지만, Programmers는 안정적인 공식 제출 상세 API를 전제로 하지 않는다.
@@ -136,6 +145,7 @@ TypeScript, runtime message, storage schema는 같은 용어 체계를 사용한
 - Sync Repository 폴더가 없어도 sync가 실패하지 않는다.
 - Sync Repository는 코드 기본값이 아니라 Options에서 선택한 repository여야 한다.
 - 존재하지 않는 Sync Branch는 자동 생성되지 않고, 사용자가 명시적으로 Create branch를 실행한 경우에만 생성된다.
+- 저장소 파일 정리는 선택한 Sync Branch의 실제로 달라진 Solution README만 고정 메시지의 단독 commit으로 반영하고, 변경이 없거나 두 번째 실행이면 commit을 만들지 않는다.
 - 일반적인 실패는 DevTools 없이 Popup에서 원인과 다음 행동을 이해할 수 있다.
 - Chrome unpacked extension에서 GitHub Device Flow와 App 설치, repository/branch 선택, Programmers 동일 문제 다중 언어 sync, GitHub 재연결 후 설정 보존, LeetCode 대표 Accepted sync happy path를 수동 검증할 수 있다.
 

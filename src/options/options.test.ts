@@ -2,8 +2,14 @@ import { readFileSync } from "node:fs";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { NormalizedError, SyncBranch, SyncRepository } from "../shared";
+import type {
+  NormalizedError,
+  RepositoryCleanupResult,
+  SyncBranch,
+  SyncRepository
+} from "../shared";
 import {
+  canCleanupRepository,
   getConnectionStatusView,
   getDefaultBranchSelection,
   getDeviceFlowRenderState,
@@ -11,6 +17,7 @@ import {
   getOptionsExtensionStateUnavailableMessage,
   getRepositoryFilterState,
   getRepositoryListRenderState,
+  getRepositoryCleanupMessage,
   getSetupFlowStepStates,
   mapConnectionErrorCode,
   openGitHubVerification,
@@ -449,6 +456,75 @@ describe("options state helpers", () => {
     expect(html).toContain(
       '<span class="switch-control" aria-hidden="true"></span>'
     );
+  });
+
+  it("renders an explicit accessible repository cleanup action", () => {
+    const html = readFileSync(new URL("./index.html", import.meta.url), "utf8");
+    const source = readFileSync(new URL("./index.ts", import.meta.url), "utf8");
+
+    expect(html).toContain('id="cleanup-repository"');
+    expect(html).toContain(
+      'id="cleanup-status" class="field-message" aria-live="polite"'
+    );
+    expect(source).toContain('cleanupRepositoryButton.addEventListener("click"');
+    expect(source).toContain('type: "repository:cleanup"');
+  });
+
+  it("blocks cleanup without a complete target and while a request is running", () => {
+    const repository = makeRepository("octo/algorithms");
+    const branch = makeBranch("main");
+
+    expect(
+      canCleanupRepository({
+        syncRepository: null,
+        syncBranch: branch,
+        cleanupRunning: false
+      })
+    ).toBe(false);
+    expect(
+      canCleanupRepository({
+        syncRepository: repository,
+        syncBranch: null,
+        cleanupRunning: false
+      })
+    ).toBe(false);
+    expect(
+      canCleanupRepository({
+        syncRepository: repository,
+        syncBranch: branch,
+        cleanupRunning: true
+      })
+    ).toBe(false);
+  });
+
+  it("maps committed, no-change, and normalized failure cleanup states by locale", () => {
+    const committed: RepositoryCleanupResult = {
+      kind: "committed",
+      commitSha: "commit-sha",
+      commitUrl: "https://github.com/octo/algorithms/commit/commit-sha",
+      paths: ["leetcode/README.md"]
+    };
+
+    expect(getRepositoryCleanupMessage(committed, null, "en")).toMatchObject({
+      text: "Repository cleanup commit created.",
+      tone: "success"
+    });
+    expect(
+      getRepositoryCleanupMessage({ kind: "no_changes" }, null, "ko")
+    ).toMatchObject({
+      text: "저장소 파일이 이미 현재 형식입니다.",
+      tone: "neutral"
+    });
+    expect(
+      getRepositoryCleanupMessage(
+        null,
+        makeError("github_commit_failed", "Commit 권한이 없습니다."),
+        "ko"
+      )
+    ).toMatchObject({
+      text: "저장소 파일 정리에 실패했습니다: Commit 권한이 없습니다.",
+      tone: "error"
+    });
   });
 });
 

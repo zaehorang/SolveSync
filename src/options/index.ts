@@ -15,6 +15,7 @@ import {
   type NormalizedErrorCode,
   type RuntimeMessage,
   type PublicSettingsState,
+  type RepositoryCleanupResult,
   type SyncBranch,
   type SyncRepository,
   type Tone,
@@ -128,6 +129,9 @@ interface OptionsRuntimeState {
   creatingBranch: boolean;
   testingConnection: boolean;
   savingSettings: boolean;
+  cleanupRunning: boolean;
+  cleanupResult: RepositoryCleanupResult | null;
+  cleanupError: NormalizedError | null;
   authMessage: InlineMessage;
   repositoryMessage: InlineMessage;
   branchMessage: InlineMessage;
@@ -161,6 +165,8 @@ interface OptionsElements {
   languageButtons: HTMLButtonElement[];
   testConnectionButton: HTMLButtonElement;
   connectionStatusBox: HTMLDivElement;
+  cleanupRepositoryButton: HTMLButtonElement;
+  cleanupStatus: HTMLParagraphElement;
   saveButton: HTMLButtonElement;
   saveStatus: HTMLParagraphElement;
 }
@@ -337,6 +343,48 @@ export function validateSettingsDraft(
   };
 }
 
+export function canCleanupRepository(
+  state: Pick<
+    OptionsRuntimeState,
+    "syncRepository" | "syncBranch" | "cleanupRunning"
+  >
+): boolean {
+  return (
+    state.syncRepository !== null &&
+    state.syncBranch !== null &&
+    !state.cleanupRunning
+  );
+}
+
+export function getRepositoryCleanupMessage(
+  result: RepositoryCleanupResult | null,
+  error: NormalizedError | null,
+  locale: UiLocale = "en"
+): InlineMessage {
+  if (error !== null) {
+    return {
+      text: t(locale, "options.cleanup.failed", { detail: error.userMessage }),
+      tone: "error"
+    };
+  }
+
+  if (result?.kind === "committed") {
+    return {
+      text: t(locale, "options.cleanup.committed"),
+      tone: "success"
+    };
+  }
+
+  if (result?.kind === "no_changes") {
+    return {
+      text: t(locale, "options.cleanup.noChanges"),
+      tone: "neutral"
+    };
+  }
+
+  return EMPTY_MESSAGE;
+}
+
 export function mapConnectionErrorCode(
   code: NormalizedErrorCode
 ): ConnectionStatusCode {
@@ -413,6 +461,9 @@ function createInitialState(): OptionsRuntimeState {
     creatingBranch: false,
     testingConnection: false,
     savingSettings: false,
+    cleanupRunning: false,
+    cleanupResult: null,
+    cleanupError: null,
     authMessage: EMPTY_MESSAGE,
     repositoryMessage: EMPTY_MESSAGE,
     branchMessage: EMPTY_MESSAGE,
@@ -536,10 +587,52 @@ function bindEvents(elements: OptionsElements, state: OptionsRuntimeState): void
     void testConnection(elements, state);
   });
 
+  elements.cleanupRepositoryButton.addEventListener("click", () => {
+    void cleanupRepository(elements, state);
+  });
+
   elements.form.addEventListener("submit", (event) => {
     event.preventDefault();
     void saveSettingsFromForm(elements, state);
   });
+}
+
+async function cleanupRepository(
+  elements: OptionsElements,
+  state: OptionsRuntimeState
+): Promise<void> {
+  if (
+    !canCleanupRepository(state) ||
+    state.syncRepository === null ||
+    state.syncBranch === null
+  ) {
+    return;
+  }
+
+  const repository = state.syncRepository;
+  const branch = state.syncBranch;
+  state.cleanupRunning = true;
+  state.cleanupResult = null;
+  state.cleanupError = null;
+  render(elements, state);
+
+  try {
+    const response = await sendRuntimeMessage<RepositoryCleanupResult>({
+      type: "repository:cleanup",
+      payload: { repository, branch }
+    });
+
+    if (!response.ok) {
+      throw response.error;
+    }
+
+    state.cleanupResult = response.data;
+  } catch (error) {
+    state.cleanupError = normalizeError(error);
+  } finally {
+    state.cleanupRunning = false;
+    render(elements, state);
+  }
 }
 
 async function startGitHubAuth(
@@ -1178,6 +1271,23 @@ function render(elements: OptionsElements, state: OptionsRuntimeState): void {
     : t(state.locale, "action.testConnection");
   renderConnectionStatus(elements.connectionStatusBox, state.connectionStatus, state.locale);
 
+  elements.cleanupRepositoryButton.disabled = !canCleanupRepository(state);
+  elements.cleanupRepositoryButton.textContent = t(
+    state.locale,
+    "action.cleanupRepository"
+  );
+  renderInlineMessage(
+    elements.cleanupStatus,
+    state.cleanupRunning
+      ? localizedMessage("options.cleanup.running", "neutral")
+      : getRepositoryCleanupMessage(
+          state.cleanupResult,
+          state.cleanupError,
+          state.locale
+        ),
+    state.locale
+  );
+
   elements.saveButton.disabled = state.savingSettings;
   elements.saveButton.textContent = state.savingSettings
     ? t(state.locale, "action.saving")
@@ -1524,6 +1634,11 @@ function collectElements(): OptionsElements {
     languageButtons: collectLanguageButtons(),
     testConnectionButton: requireElement("test-connection", HTMLButtonElement),
     connectionStatusBox: requireElement("connection-status", HTMLDivElement),
+    cleanupRepositoryButton: requireElement(
+      "cleanup-repository",
+      HTMLButtonElement
+    ),
+    cleanupStatus: requireElement("cleanup-status", HTMLParagraphElement),
     saveButton: requireElement("save-settings", HTMLButtonElement),
     saveStatus: requireElement("save-status", HTMLParagraphElement)
   };

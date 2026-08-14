@@ -40,7 +40,7 @@ Implementation rules:
 - `document.documentElement.lang`은 실제 표시 locale에 맞춰 `en` 또는 `ko`로 설정한다.
 
 ## Options Page
-목적: 첫 설정과 GitHub 연결 관리.
+목적: 첫 설정, GitHub 연결 관리와 명시적 저장소 파일 정리.
 
 구조:
 - 전체 화면은 큰 Liquid Glass shell 안에 compact settings layout으로 구성한다.
@@ -55,6 +55,7 @@ Implementation rules:
 필수 section:
 - GitHub Connection: Device Flow login/disconnect, App install/configure, repository loading, branch loading, branch create, connection test.
 - General: Auto Sync, Language.
+- Repository file cleanup: 현재 Sync Repository와 Sync Branch의 Solution README projection 정리.
 - Security: GitHub session token과 Retry Bundle disclosure.
 - About: 제품 이름, local unpacked v1 성격, backend 없음 안내.
 - Save controls.
@@ -70,6 +71,21 @@ Implementation rules:
 - Sync Branch picker. Sync Repository 선택 전에는 disabled 상태이며, Sync Repository 선택 후 branch 목록에서 선택한다. 기본 선택값은 repository default branch다.
 - Auto Sync switch.
 - Language segmented control.
+- Repository cleanup action과 `aria-live="polite"` 결과 영역. Sync Repository 또는 Sync Branch가 없거나 요청 처리 중이면 action을 disabled 처리한다.
+
+Repository file cleanup 문구:
+
+| 용도 | English | 한국어 |
+| --- | --- | --- |
+| Section title | `Repository file cleanup` | `저장소 파일 정리` |
+| 설명 | `Rebuilds Solution READMEs from the current Solution Catalogs in the selected Sync Branch. Solution files are not changed.` | `선택한 Sync Branch의 현재 Solution Catalog를 기준으로 Solution README를 다시 만듭니다. Solution File은 변경하지 않습니다.` |
+| Action | `Clean up now` | `지금 정리하기` |
+| 진행 중 | `Cleaning up repository files...` | `저장소 파일을 정리하는 중...` |
+| Commit 성공 | `Repository cleanup commit created.` | `Solution README 정리 commit을 만들었습니다.` |
+| 변경 없음 | `Repository files already use the current format.` | `저장소 파일이 이미 현재 형식입니다.` |
+| 실패 | `Repository cleanup failed: {detail}` | `저장소 파일 정리에 실패했습니다: {detail}` |
+
+정리 action은 사용자의 click에만 반응한다. 진행 중에는 중복 요청을 막고, committed, no-op, normalized failure를 서로 다른 상태 문구와 tone으로 표시한다. 결과 영역은 `aria-live="polite"`를 사용하며 locale이 바뀌면 현재 locale 문구로 다시 렌더링한다.
 
 Sync Repository picker:
 - 로그인 후 Load repositories action을 제공한다.
@@ -294,4 +310,5 @@ Links:
 - 카탈로그/마케팅 card grid를 Options 또는 Popup의 기본 정보 구조로 사용하는 방식.
 - Sync마다 GitHub tab을 자동으로 여는 동작.
 - Auto Sync off 상태에서 일반 수동 sync button을 제공하는 동작.
+- 저장소 파일 정리를 Accepted Submission의 일반 수동 sync처럼 표현하거나 Solution File을 변경하는 동작.
 - Toast에 긴 technical stack trace를 표시하는 방식.
