@@ -72,6 +72,13 @@ Connection test는 commit을 만들지 않아야 한다. Branch는 사용자의 
 
 각 문서는 platform login, Accepted happy path, stale Accepted/Run/Wrong Answer 회귀, 두 번째 Accepted revision과 SPA route 검증을 소유한다. 모든 지원 언어를 실제 계정으로 반복 제출하지 않으며, 특정 Coding Platform의 label이나 editor 추출 회귀가 의심될 때만 해당 언어를 추가로 수동 검증한다.
 
+기존 Sync Repository 마이그레이션은 정상 Accepted sync에서도 그대로 일어난다. LeetCode v3
+Catalog와 언어별 개별 column README 또는 Difficulty column이 남은 Programmers README는
+다음 정상 Accepted sync에서 managed marker 내부만 현재 형식으로 바뀌는지 확인한다. 기존
+solution link, 날짜와 marker 밖 수동 내용이 유지되고, 같은 Catalog를 다시 렌더링했을 때
+구조적 diff가 반복되지 않아야 한다. 이 전환을 풀이 commit과 분리하려면 sync 전에 6절의
+저장소 파일 정리를 먼저 실행한다.
+
 ## 6. 저장소 파일 정리
 
 1. 선택한 test branch에 유효한 LeetCode와 Programmers Solution Catalog를 준비하고, Solution README managed marker 내부는 legacy 표 형식으로 만든다. marker 앞뒤에는 줄바꿈과 trailing space를 포함한 식별 가능한 수동 내용을 둔다.

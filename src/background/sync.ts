@@ -46,6 +46,8 @@ import type { LatestAcceptedSubmissionResult } from "./client/leetcode";
 
 const UNUSED_LEGACY_RETRY_BUNDLE_COMMIT_MESSAGE = "";
 
+const REPOSITORY_CLEANUP_COMMIT_MESSAGE = "chore: README 표 형식을 정리한다";
+
 export type SyncBroadcast = (
   message: BackgroundToContentPopupMessage,
   target?: SyncBroadcastTarget
@@ -64,7 +66,12 @@ export interface SyncLeetCodeClient {
 
 export interface SyncGitHubClient {
   commitFiles(input: CommitGitDataInput): Promise<CommitGitDataResult>;
-  readTextFile?(input: ReadTextFileInput): Promise<string | null>;
+  /**
+   * projection 파일을 다시 만들려면 기존 내용을 읽어야 한다. optional로 두면
+   * 읽기를 못 하는 client가 주입됐을 때 "바꿀 게 없다"와 구분되지 않으므로
+   * 필수 method로 요구한다.
+   */
+  readTextFile(input: ReadTextFileInput): Promise<string | null>;
 }
 
 export type GitHubClientFactory = () => SyncGitHubClient;
@@ -616,38 +623,33 @@ export function createSyncOrchestrator(
     syncBranch: SyncBranch
   ): Promise<RepositoryCleanupResult> {
     const github = options.githubClientFactory();
-    const files = await buildRepositoryCleanupFiles(
-      (path) =>
-        readRepositoryFile(github, syncRepository, syncBranch, path),
-      ["leetcode", "programmers"]
-    );
+    const buildFiles = async () =>
+      buildRepositoryCleanupFiles(
+        (path) => readRepositoryFile(github, syncRepository, syncBranch, path),
+        ["leetcode", "programmers"]
+      );
 
+    const files = await buildFiles();
     if (files.length === 0) {
       return { kind: "no_changes" };
     }
 
-    const result = await github.commitFiles({
-      owner: syncRepository.owner,
-      name: syncRepository.name,
-      repository: syncRepository,
-      branchName: syncBranch.name,
-      files,
-      message: "chore: README 표 형식을 정리한다",
-      onConflict: async (context) => ({
-        files: await buildRepositoryCleanupFiles(
-          (path) => context.readTextFile(path),
-          ["leetcode", "programmers"]
-        ),
-        message: "chore: README 표 형식을 정리한다"
-      })
-    });
+    try {
+      return await commitRepositoryCleanup(github, syncRepository, syncBranch, files);
+    } catch (error) {
+      if (normalizeError(error).code !== "github_conflict_failed") {
+        throw error;
+      }
+    }
 
-    return {
-      kind: "committed",
-      commitSha: result.commitSha,
-      commitUrl: result.commitUrl,
-      paths: files.map((file) => file.path)
-    };
+    // 다른 commit이 먼저 branch에 올라갔다. 최신 상태로 다시 계산한다. 그 사이
+    // 같은 정리가 이미 반영됐다면 파일 변경이 없는 commit을 만들지 않는다.
+    const retryFiles = await buildFiles();
+    if (retryFiles.length === 0) {
+      return { kind: "no_changes" };
+    }
+
+    return commitRepositoryCleanup(github, syncRepository, syncBranch, retryFiles);
   }
 
   async function commitPrepared(
@@ -828,6 +830,29 @@ export function createSyncOrchestrator(
     handleAcceptedDetected,
     handleRetry,
     cleanupRepository
+  };
+}
+
+async function commitRepositoryCleanup(
+  github: SyncGitHubClient,
+  syncRepository: SyncRepository,
+  syncBranch: SyncBranch,
+  files: Array<{ path: string; content: string }>
+): Promise<RepositoryCleanupResult> {
+  const result = await github.commitFiles({
+    owner: syncRepository.owner,
+    name: syncRepository.name,
+    repository: syncRepository,
+    branchName: syncBranch.name,
+    files,
+    message: REPOSITORY_CLEANUP_COMMIT_MESSAGE
+  });
+
+  return {
+    kind: "committed",
+    commitSha: result.commitSha,
+    commitUrl: result.commitUrl,
+    paths: files.map((file) => file.path)
   };
 }
 
@@ -1047,10 +1072,6 @@ async function readRepositoryTextFile(
   prepared: PreparedCommit,
   path: string
 ): Promise<string | null> {
-  if (github.readTextFile === undefined) {
-    return null;
-  }
-
   return github.readTextFile({
     owner: prepared.syncRepository.owner,
     name: prepared.syncRepository.name,
@@ -1066,10 +1087,6 @@ async function readRepositoryFile(
   syncBranch: SyncBranch,
   path: string
 ): Promise<string | null> {
-  if (github.readTextFile === undefined) {
-    return null;
-  }
-
   return github.readTextFile({
     owner: syncRepository.owner,
     name: syncRepository.name,

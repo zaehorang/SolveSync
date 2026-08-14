@@ -800,6 +800,94 @@ describe("background sync orchestrator", () => {
     expect(harness.github.commits).toHaveLength(0);
   });
 
+  it("recomputes cleanup files when the branch changed during the commit", async () => {
+    const harness = makeHarness();
+    const leetcodeCatalog = makeV3CatalogWithTwoLanguages();
+    harness.github.files.set(
+      "leetcode/.leetcode-sync/index.json",
+      JSON.stringify(leetcodeCatalog)
+    );
+    harness.github.files.set("leetcode/README.md", "# Legacy\n");
+    harness.github.files.set(
+      "programmers/.programmers-sync/index.json",
+      JSON.stringify(makeProgrammersCatalogWithPreviousProblem())
+    );
+    harness.github.files.set("programmers/README.md", "# Legacy\n");
+    harness.github.commitErrorQueue.push(
+      normalizeError({ code: "github_conflict_failed", message: "ref conflict" })
+    );
+    harness.github.beforeCommit = () => {
+      // 다른 commit이 먼저 leetcode README 정리만 반영한 상황
+      harness.github.files.set(
+        "leetcode/README.md",
+        mergeReadmeManagedBlock(
+          null,
+          renderManagedReadmeTable(
+            parseSolutionCatalogJson(JSON.stringify(leetcodeCatalog))
+          )
+        )
+      );
+      harness.github.beforeCommit = null;
+    };
+
+    const outcome = await harness.sync.cleanupRepository(syncRepository, syncBranch);
+
+    expect(outcome).toMatchObject({
+      kind: "committed",
+      paths: ["programmers/README.md"]
+    });
+    expect(harness.github.commits).toHaveLength(2);
+    expect(harness.github.commits[1]?.files.map((file) => file.path)).toEqual([
+      "programmers/README.md"
+    ]);
+  });
+
+  it("does not commit when the conflict shows the cleanup already applied", async () => {
+    const harness = makeHarness();
+    const catalog = makeV3CatalogWithTwoLanguages();
+    const cleanedReadme = mergeReadmeManagedBlock(
+      null,
+      renderManagedReadmeTable(parseSolutionCatalogJson(JSON.stringify(catalog)))
+    );
+    harness.github.files.set(
+      "leetcode/.leetcode-sync/index.json",
+      JSON.stringify(catalog)
+    );
+    harness.github.files.set("leetcode/README.md", "# Legacy\n");
+    harness.github.commitErrorQueue.push(
+      normalizeError({ code: "github_conflict_failed", message: "ref conflict" })
+    );
+    harness.github.beforeCommit = () => {
+      harness.github.files.set("leetcode/README.md", cleanedReadme);
+      harness.github.beforeCommit = null;
+    };
+
+    await expect(
+      harness.sync.cleanupRepository(syncRepository, syncBranch)
+    ).resolves.toEqual({ kind: "no_changes" });
+    // 실패한 첫 시도 하나뿐이고 재시도 commit은 만들지 않는다.
+    expect(harness.github.commits).toHaveLength(1);
+    expect(harness.github.files.get("leetcode/README.md")).toBe(cleanedReadme);
+  });
+
+  it("surfaces cleanup failures that are not branch conflicts", async () => {
+    const harness = makeHarness();
+    harness.github.files.set(
+      "leetcode/.leetcode-sync/index.json",
+      JSON.stringify(makeV3CatalogWithTwoLanguages())
+    );
+    harness.github.files.set("leetcode/README.md", "# Legacy\n");
+    harness.github.commitError = normalizeError({
+      code: "github_commit_failed",
+      message: "cleanup failed"
+    });
+
+    await expect(
+      harness.sync.cleanupRepository(syncRepository, syncBranch)
+    ).rejects.toMatchObject({ code: "github_commit_failed" });
+    expect(harness.github.commits).toHaveLength(1);
+  });
+
   it("does not create a second cleanup commit after applying the first result", async () => {
     const harness = makeHarness();
     harness.github.files.set(
@@ -880,7 +968,10 @@ class FakeGitHubClient implements SyncGitHubClient {
   readonly commits: CommitGitDataInput[] = [];
   readonly reads: ReadTextFileInput[] = [];
   readonly files = new Map<string, string>();
+  /** 앞에서부터 하나씩 소비되는 일회성 실패. 재시도 경로를 만들 때 쓴다. */
+  readonly commitErrorQueue: unknown[] = [];
   commitError: unknown = null;
+  beforeCommit: (() => void) | null = null;
 
   async readTextFile(input: ReadTextFileInput): Promise<string | null> {
     this.reads.push(input);
@@ -889,6 +980,12 @@ class FakeGitHubClient implements SyncGitHubClient {
 
   async commitFiles(input: CommitGitDataInput): Promise<CommitGitDataResult> {
     this.commits.push(input);
+    this.beforeCommit?.();
+
+    const queuedError = this.commitErrorQueue.shift();
+    if (queuedError !== undefined) {
+      throw queuedError;
+    }
 
     if (this.commitError !== null) {
       throw this.commitError;

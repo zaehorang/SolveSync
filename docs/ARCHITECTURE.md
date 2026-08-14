@@ -180,6 +180,7 @@ Coding Platform 문제 page
 - managed marker 밖 기존 bytes는 보존하고, 기존 Solution README와 실제로 다른 projection만 commit files에 포함한다. Solution File과 Solution Catalog는 정리 commit에 포함하지 않는다.
 - 변경 파일이 있으면 Git Data API로 `chore: README 표 형식을 정리한다` 단독 commit 하나를 만들고 `committed` 결과를 반환한다.
 - 변경 파일이 없으면 GitHub commit API를 호출하지 않고 `no_changes`를 반환한다. 첫 commit 반영 후 같은 action을 반복해도 `no_changes`다.
+- commit 중 branch가 바뀌어 ref conflict가 나면 최신 branch 기준으로 projection을 한 번 다시 계산한다. 그 사이 같은 정리가 이미 반영됐으면 빈 commit을 만들지 않고 `no_changes`를 반환하며, `committed` 결과의 파일 목록은 실제로 commit한 파일과 같다.
 
 ## Sync Repository 경로
 Sync Repository와 Sync Branch는 Options에서 선택한다. 특정 repository를 코드 기본값으로 고정하지 않는다.
