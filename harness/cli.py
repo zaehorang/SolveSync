@@ -669,6 +669,7 @@ def cmd_plan(args: argparse.Namespace) -> None:
         feedback = "\n".join(f"- {problem}" for problem in result["problems"])
     else:
         (directory / "plan-rejected.json").write_text(json.dumps(plan, ensure_ascii=False, indent=2))
+        release_lock(root, args.number)
         emit(
             {
                 "issue": args.number,
@@ -686,6 +687,11 @@ def cmd_plan(args: argparse.Namespace) -> None:
         )
 
     (directory / "plan.json").write_text(json.dumps(plan, ensure_ascii=False, indent=2))
+
+    # blocked/too-large는 착수하지 않는다. lock을 쥐고 있으면 사람이 이슈를 고쳐
+    # 다시 돌릴 때 LOCK_TTL_HOURS 동안 "선점 중"으로 건너뛴다.
+    if plan["status"] != "ready":
+        release_lock(root, args.number)
 
     emit(
         {

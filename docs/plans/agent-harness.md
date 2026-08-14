@@ -187,7 +187,7 @@ cli.py issues [n...]                    # preflight + lock + 대상 선정
 
 ### 실행 제어
 
-- **잠금**: `cli.py issues`가 `.harness/lock.json`에 `{ runId, pid, issues }`. 같은 이슈가 다른 런에서 처리 중이면 착수하지 않는다. 죽은 pid는 자동 해제
+- **잠금**: `cli.py issues`가 `.harness/lock.json`에 `{ runId, startedAt, issues }`. 같은 이슈가 다른 런에서 처리 중이면 착수하지 않는다. 해제 경로는 세 개다 — `cli.py pr`이 이슈를 끝낼 때, `cli.py plan`이 `blocked`/`too-large`/`rejected`로 착수하지 않고 끝날 때, 그리고 항목이 `LOCK_TTL_HOURS`(6시간)를 넘겨 stale이 될 때. pid는 보지 않는다. 죽은 프로세스는 TTL로 흡수하고, 급하면 `cli.py issues --reset`으로 버린다
 - **기존 상태**: 브랜치/워크트리/열린 PR이 이미 있으면 덮어쓰지 않고 사유와 함께 건너뛴다 (`cli.py issues`가 판단)
 - **타임아웃**: plan 10분, exec 40분, evaluator 10분. 초과 시 프로세스 종료, **부분 커밋은 보존**, escalate
 - **단계 실패**: codex가 0이 아닌 코드로 끝나면 재시도 없이 escalate
