@@ -426,3 +426,33 @@ def check_staged_paths(paths: list[str]) -> list[str]:
         if reason:
             problems.append(reason)
     return problems
+
+
+# --- 실행 환경 ----------------------------------------------------------------
+
+MIN_PYTHON = (3, 11)
+
+
+def check_python_version(version: tuple, executable: str) -> str | None:
+    """인터프리터가 요구 버전에 못 미치면 차단 사유를 돌려준다. 충족이면 None.
+
+    `cli.py`가 `tomllib`을 쓰고 그것이 3.11 표준 라이브러리에 들어왔다. 기능을
+    조용히 빼고 진행하는 대신 멈춘다. 절반만 설치된 하네스는 없는 하네스보다
+    나쁘다. 있다고 믿게 만들기 때문이다.
+
+    잡힌 인터프리터 경로를 함께 돌려주는 것은 이것이 대개 버전 문제가 아니라
+    PATH 문제이기 때문이다. macOS 기본 /usr/bin/python3는 3.9이고 Homebrew는
+    버전 없는 python3 링크를 만들지 않는다. 어느 인터프리터가 잡혔는지 모르면
+    3.12를 설치해 두고도 원인을 찾지 못한다.
+    """
+    if tuple(version[:2]) >= MIN_PYTHON:
+        return None
+    current = ".".join(str(part) for part in version[:3])
+    required = ".".join(str(part) for part in MIN_PYTHON)
+    return (
+        f"하네스는 Python {required} 이상이 필요합니다. {executable}가 {current}로 "
+        "실행됐습니다. Homebrew Python을 설치하고(brew install python@3.12) 그 "
+        "libexec/bin을 PATH 앞에 두거나 해당 인터프리터로 직접 실행하세요. "
+        "git hook과 스크립트는 비대화형 shell이라 .zshrc를 읽지 않으므로 PATH "
+        "설정은 .zshenv에 두세요."
+    )

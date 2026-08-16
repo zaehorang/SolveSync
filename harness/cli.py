@@ -1232,8 +1232,14 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main() -> None:
-    args = build_parser().parse_args()
+    # 버전 검사가 인자 파싱보다 먼저다. 인터프리터가 요구에 못 미치면 어떤
+    # 서브커맨드든 결과가 같으므로, 인자가 틀렸다는 argparse 오류로 원인을
+    # 가리지 않는다.
     try:
+        problem = policy.check_python_version(sys.version_info, sys.executable)
+        if problem:
+            raise HarnessError(problem)
+        args = build_parser().parse_args()
         args.func(args)
     except HarnessError as error:
         emit({"ok": False, "error": str(error)})

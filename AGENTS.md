@@ -52,6 +52,7 @@ SolveSync는 LeetCode와 Programmers에서 Accepted 된 풀이를 사용자가 �
 - `src/shared`와 `src/background`의 로직 파일은 같은 디렉터리에 `<모듈>.test.ts`가 있어야 작성할 수 있다. 이건 기존 테스트 관례를 그대로 규칙으로 만든 것이다.
 - gate를 `--no-verify`로 우회하지 않는다. 막히면 막은 이유를 고친다.
 - **하네스는 base branch에 있어야 동작한다.** worktree는 base branch에서 분기하므로, 하네스가 없는 base에서 만든 worktree에는 commit gate가 없다. git은 `core.hooksPath`가 없는 디렉터리를 가리켜도 경고하지 않고 조용히 hook을 건너뛴다.
+- **`cli.py`는 Python 3.11 이상을 요구한다.** 미달이면 진단과 함께 즉시 멈춘다. macOS 기본 `/usr/bin/python3`는 3.9이고 Homebrew는 버전 없는 `python3` 링크를 만들지 않으므로, `brew install python@3.12` 후 그 `libexec/bin`을 PATH 앞에 둔다. PATH 설정은 `.zshrc`가 아니라 `.zshenv`에 둔다. `.zshrc`는 대화형 shell에서만 로드되어 git hook과 스크립트에는 적용되지 않는다. hook 본체(`pre-commit`, PreToolUse)는 이 요구를 받지 않는다. 버전 때문에 커밋과 대화형 세션까지 막히면 고치러 들어갈 수단을 잃는다.
 
 ## Project Map
 - `src/content`: 문제 페이지 관찰, Accepted 감지, Programmers Accepted Editor Snapshot, toast, background messaging.

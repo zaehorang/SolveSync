@@ -7,6 +7,7 @@ policy.py는 신뢰 경계다. model과 `git push` 사이, worktree 밖의 파�
 import os
 import tempfile
 import unittest
+from collections import namedtuple
 from pathlib import Path
 
 import cli
@@ -378,6 +379,33 @@ class BranchName(unittest.TestCase):
         reason = policy.check_branch_name("fix/pr-body-accuracy")
         self.assertIn("fix/pr-body-accuracy", reason)
         self.assertIn("issue-", reason)
+
+
+class PythonVersion(unittest.TestCase):
+    def test_supported_versions_pass(self):
+        for version in ((3, 11, 0), (3, 12, 14), (4, 0, 0)):
+            self.assertIsNone(policy.check_python_version(version, "/usr/bin/python3"), version)
+
+    def test_older_versions_are_rejected(self):
+        for version in ((3, 9, 6), (3, 10, 13), (2, 7, 18)):
+            self.assertIsNotNone(policy.check_python_version(version, "/usr/bin/python3"), version)
+
+    def test_reason_names_the_interpreter_and_both_versions(self):
+        """PATH 문제를 버전 문제로 오해하지 않으려면 셋 다 필요하다."""
+        reason = policy.check_python_version((3, 9, 6), "/usr/bin/python3")
+        self.assertIn("/usr/bin/python3", reason)
+        self.assertIn("3.9.6", reason)
+        self.assertIn("3.11", reason)
+
+    def test_named_tuple_version_is_handled(self):
+        """실제 인자는 plain tuple이 아니라 sys.version_info named tuple이다.
+
+        실행 중인 인터프리터의 버전으로 단정하지 않는다. 이 테스트는 3.9에서
+        도는 pre-commit hook에서도 함께 실행된다.
+        """
+        version_info = namedtuple("version_info", "major minor micro releaselevel serial")
+        self.assertIsNone(policy.check_python_version(version_info(3, 12, 14, "final", 0), "/x/python3"))
+        self.assertIsNotNone(policy.check_python_version(version_info(3, 9, 6, "final", 0), "/x/python3"))
 
 
 if __name__ == "__main__":
