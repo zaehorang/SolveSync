@@ -14,10 +14,3 @@ dist/
 build/
 artifacts/
 coverage/
-
-# agent harness
-# .codex/config.toml registers the codex hook and must be versioned; nothing
-# else under .codex/ is ours.
-.codex/*
-!.codex/config.toml
-.harness/

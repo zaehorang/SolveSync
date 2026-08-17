@@ -44,14 +44,31 @@ SolveSync는 LeetCode와 Programmers에서 Accepted 된 풀이를 사용자가 �
 - commit, push, PR 생성처럼 저장소나 GitHub 상태를 바꾸는 게시 단계는 사용자가 해당 작업에서 요청하거나 승인한 범위에서 수행한다.
 - 이 section의 development work branch와 제품이 사용자의 Sync Repository에 만드는 Sync Branch는 서로 다른 개념이다. 제품의 Sync Branch 자동 생성 금지 규칙은 그대로 유지한다.
 
-## Agent Harness
-`harness/`는 GitHub Issue를 계획, 구현, 평가, PR까지 자동으로 처리하는 도구다. 설계는 `docs/plans/agent-harness.md`를 따른다. 사람이 직접 작업할 때도 아래 gate는 똑같이 적용된다.
+## Guardrails
+`harness/`는 이 저장소를 망가뜨리는 변경을 막는 gate다. 자동으로 일해주는 도구가 아니다. 구현은 Claude Code 대화형 세션에서 하고, `harness/`는 그 작업이 규칙을 벗어나지 못하게만 한다.
 
-- `git config core.hooksPath harness/hooks`가 설정되어 있으면 commit마다 `npm run typecheck`, `npm test`, `npm run build` 전체와 secret scan, 금지 경로, `main` branch 차단, work branch 이름의 이슈 번호 검사, 주 worktree 차단이 실행된다. 설치는 `python3 harness/cli.py setup`이 한다.
-- `.claude/settings.json`이 `harness/hooks/claude_pretooluse.py`를 PreToolUse에 배선한다. 대화형 세션에도 금지 경로, 테스트 선행, `--no-verify` 차단, 주 디렉터리 branch 전환 차단이 적용된다. 게시(`git push`, `gh pr`, `gh issue`)와 저장소 밖 경로는 막지 않는다 — 대화형 세션에서는 그것이 정상 작업이다.
+구조는 네 파일이 전부다.
+
+| 파일 | 역할 |
+|---|---|
+| `harness/policy.py` | 차단 규칙. 순수 함수이고 부수효과가 없다 |
+| `harness/hooks/pre-commit` | commit 시점 gate |
+| `harness/hooks/claude_pretooluse.py` | Claude Code 도구 호출 시점 gate |
+| `harness/tests/test_policy.py` | 규칙 테스트 |
+
+설치는 한 줄이다. 저장소를 새로 clone하면 실행한다.
+
+```bash
+git config core.hooksPath harness/hooks
+```
+
+- 이 설정이 있으면 commit마다 `npm run typecheck`, `npm test`, `npm run build` 전체와 secret scan, 금지 경로, `main` branch 차단, work branch 이름의 이슈 번호 검사, 주 worktree 차단이 실행된다. `harness/`를 건드리는 commit에서는 `harness/tests`도 함께 돈다.
+- `.claude/settings.json`이 `harness/hooks/claude_pretooluse.py`를 PreToolUse에 배선한다. 대화형 세션에는 금지 경로, 테스트 선행, `--no-verify` 차단, 주 디렉터리 branch 전환 차단이 도구 호출 전에 적용된다. 게시(`git push`, `gh pr`, `gh issue`)와 저장소 밖 경로는 막지 않는다 — 대화형 세션에서는 그것이 정상 작업이다.
+- **pre-commit이 최후 방어선이다.** 누가 커밋하든, 어떤 도구를 거쳤든 걸린다. PreToolUse는 그보다 앞서는 조기 경보이므로, 둘 중 하나만 남는다면 pre-commit이 남아야 한다.
 - `src/shared`와 `src/background`의 로직 파일은 같은 디렉터리에 `<모듈>.test.ts`가 있어야 작성할 수 있다. 이건 기존 테스트 관례를 그대로 규칙으로 만든 것이다.
 - gate를 `--no-verify`로 우회하지 않는다. 막히면 막은 이유를 고친다.
-- **하네스는 base branch에 있어야 동작한다.** worktree는 base branch에서 분기하므로, 하네스가 없는 base에서 만든 worktree에는 commit gate가 없다. git은 `core.hooksPath`가 없는 디렉터리를 가리켜도 경고하지 않고 조용히 hook을 건너뛴다.
+- **gate는 base branch에 있어야 동작한다.** worktree는 base branch에서 분기하므로, gate가 없는 base에서 만든 worktree에는 commit gate가 없다. git은 `core.hooksPath`가 없는 디렉터리를 가리켜도 경고하지 않고 조용히 hook을 건너뛴다.
+- 규칙을 고칠 때는 `harness/tests/test_policy.py`를 함께 고친다. `policy.py`는 신뢰 경계이고, 죽은 분기를 남기면 보호 장치처럼 보이는데 아무것도 하지 않는 코드가 된다.
 
 ## Project Map
 - `src/content`: 문제 페이지 관찰, Accepted 감지, Programmers Accepted Editor Snapshot, toast, background messaging.
