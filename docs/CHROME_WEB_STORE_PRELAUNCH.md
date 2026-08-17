@@ -1,8 +1,10 @@
 # Chrome Web Store 배포 전 체크리스트
 
-> **Description**: SolveSync를 Chrome Web Store에 Public으로 제출하기 전에 준비해야 할 작업을 Codex와 사용자 역할로 나눈 실행 문서다.
+> **Description**: SolveSync를 Chrome Web Store에 Public으로 제출하기 전에 준비해야 할 작업을 Agent와 사용자 역할로 나눈 실행 문서다.
 
-Last checked against official Chrome Web Store docs: 2026-06-05.
+Last checked against official Chrome Web Store docs: 2026-08-12.
+
+전체 출시 전략, 역할 분담, 실행 순서, Release Gate는 [`docs/CHROME_WEB_STORE_RELEASE_PLAN.md`](CHROME_WEB_STORE_RELEASE_PLAN.md)에 있다. 이 문서는 그 계획의 제출 항목 체크리스트다.
 
 ## 배포 목표
 - 첫 Chrome Web Store 제출은 Public 배포를 목표로 한다.
@@ -26,7 +28,7 @@ Last checked against official Chrome Web Store docs: 2026-06-05.
 - 제품 문서와 UI copy 일부가 아직 local unpacked v1 기준이다.
 - Chrome Web Store Developer 계정 상태, 2-Step Verification, publisher 정보, Trader/Non-Trader 선언이 아직 확인되지 않았다.
 
-## Codex가 할 일
+## Agent가 할 일
 ### 1. 문서와 제품 copy 정리
 - `docs/PRD.md`의 릴리즈 전략과 v1 제외 사항을 v2 Public Store release 흐름에 맞게 갱신한다.
 - `docs/adr/0010-defer-chrome-web-store-to-v2.md`를 새 결정으로 대체하거나 후속 ADR을 추가해 Store 배포를 진행한다는 결정을 기록한다.
@@ -42,7 +44,7 @@ Last checked against official Chrome Web Store docs: 2026-06-05.
 - ZIP 검증 script 또는 release checklist에서 다음을 확인한다.
   - ZIP 루트에 `manifest.json`이 있다.
   - `src/`, `docs/`, `node_modules/`, `coverage/`, `.git/`, local secrets가 들어가지 않는다.
-  - ZIP 용량이 Chrome Web Store 제한 안에 있다.
+  - ZIP 용량이 Chrome Web Store의 2GB 제한 안에 있다.
   - content script bundle에 static ESM `import`가 없다.
 
 ### 3. 스토어 자산 초안 제작
@@ -130,6 +132,7 @@ Last checked against official Chrome Web Store docs: 2026-06-05.
 ## 사용자가 할 일
 ### 1. Chrome Web Store Developer 계정 준비
 - Chrome Web Store Developer 계정을 등록한다.
+- 일회성 Developer 등록비를 결제한다.
 - Google 계정 2-Step Verification을 켠다.
 - publisher name을 정한다.
 - contact email을 인증한다.
@@ -137,14 +140,14 @@ Last checked against official Chrome Web Store docs: 2026-06-05.
 - Trader/Non-Trader 상태를 확인하고 dashboard에 선언한다.
 
 ### 2. Notion Privacy Policy 공개
-- Codex가 작성한 Privacy Policy 초안을 Notion 페이지에 붙여 넣는다.
+- Agent가 작성한 Privacy Policy 초안을 Notion 페이지에 붙여 넣는다.
 - Notion 페이지를 로그인 없이 접근 가능한 공개 페이지로 설정한다.
 - 공개 URL이 외부 브라우저/시크릿 창에서 열리는지 확인한다.
-- Chrome Web Store Privacy Policy URL로 사용할 URL을 Codex에게 전달한다.
+- Chrome Web Store Privacy Policy URL로 사용할 URL을 Agent에게 전달한다.
 - Notion URL이 바뀌지 않게 유지한다.
 
 ### 3. 스토어 자산 최종 승인
-- Codex가 만든 icon, screenshot, promo tile을 확인한다.
+- Agent가 만든 icon, screenshot, promo tile을 확인한다.
 - 제품명 `SolveSync` 사용을 확정한다.
 - 스토어에 노출될 짧은 설명과 자세한 설명을 승인한다.
 - homepage URL과 support URL을 정한다.
@@ -170,17 +173,18 @@ Last checked against official Chrome Web Store docs: 2026-06-05.
 - Programmers 같은 문제를 지원 언어 두 개로 sync하고 README/Catalog가 두 언어를 보존하는지 확인한다.
 - GitHub 연결 해제와 재연결 후 repository/branch 설정이 유지되는지 확인한다.
 - LeetCode 지원 언어 하나의 Accepted sync를 확인한다.
-- 확인 결과와 발견한 문제를 Codex에게 전달한다.
+- 확인 결과와 발견한 문제를 Agent에게 전달한다.
 
 ### 6. Chrome Web Store Dashboard 제출
-- Codex가 만든 ZIP을 Developer Dashboard에 업로드한다.
+- Agent가 만든 ZIP을 Developer Dashboard에 업로드한다.
 - Store Listing 탭을 입력한다.
 - Privacy 탭을 입력한다.
 - Distribution 탭에서 Public, all regions, 결제 없음 설정을 확인한다.
 - Test instructions를 입력한다.
 - 제출 전 deferred publishing 여부를 결정한다.
   - 권장: 첫 Public 제출은 review 통과 후 수동 publish 가능하도록 deferred publishing을 사용한다.
-- reviewer rejection 또는 warning이 오면 원문을 Codex에게 전달한다.
+  - 승인 후 30일 안에 publish하지 않으면 staged submission이 draft로 돌아가 재심사가 필요하다.
+- reviewer rejection 또는 warning이 오면 원문을 Agent에게 전달한다.
 
 ## 제출 전 완료 기준
 - `manifest.json`이 Store 배포용 metadata와 icons를 포함한다.
