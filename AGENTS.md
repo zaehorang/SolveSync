@@ -8,7 +8,7 @@ SolveSync는 LeetCode와 Programmers에서 Accepted 된 풀이를 사용자가 �
 
 ## Source of Truth
 - 제품 범위, 사용자 흐름, 성공 기준은 `docs/PRD.md`를 따른다.
-- 설계 결정과 tradeoff는 `docs/adr/`의 ADR 파일을 따른다.
+- 설계 결정과 tradeoff는 `docs/adr/`의 ADR 파일을 따른다. 목록과 다음에 쓸 번호는 `docs/adr/README.md`에 있다. ADR 번호는 재사용하지 않는다.
 - 런타임 구조, 데이터 흐름, storage, messaging, error model은 `docs/ARCHITECTURE.md`를 따른다.
 - Options, Popup, Toast UI와 문구/접근성 규칙은 `docs/UI_GUIDE.md`를 따른다.
 - 수동 검증 절차는 `docs/MANUAL_VALIDATION.md`를 따른다.
