@@ -34,7 +34,7 @@ SolveSync는 LeetCode와 Programmers에서 Accepted 된 풀이를 사용자가 �
   ```
 
   이 규칙은 두 층이 강제한다. pre-commit gate가 주 디렉터리에서의 커밋을 막고, `.claude/settings.json`이 배선한 PreToolUse hook이 주 디렉터리에서의 branch 전환을 막는다. 커밋 gate만으로는 이미 남의 branch를 밀어낸 뒤에 막힌다.
-- work branch 이름은 `{type}/issue-{번호}-{slug}` 형식이다. `type`은 `feat`, `fix`, `docs`, `test`, `refactor` 중 하나이고 `slug`는 kebab-case다. 예: `feat/issue-19-issue-first-workflow-gate`.
+- work branch 이름은 `{type}/issue-{번호}-{slug}` 형식이다. `type`은 `feat`, `fix`, `docs`, `test`, `refactor`, `chore`, `ci` 중 하나이고 `slug`는 kebab-case다. 예: `feat/issue-19-issue-first-workflow-gate`.
 - 이 형식은 pre-commit gate가 강제한다. 이슈 번호가 없거나 다른 접두사를 쓰면 커밋이 막힌다. 우회용 접두사는 두지 않는다. 막히면 이슈를 만들고 branch를 다시 만든다.
 - 예외는 없다. 오타 수정도 이슈에서 시작한다. 이슈 하나에 작은 변경을 묶는 것은 괜찮다.
 - `main`과 `origin/main`이 어긋나 있으면 그대로 진행하지 말고 base 상태를 먼저 정리한다. 사용자 변경이 섞여 있으면 되돌리지 말고 현재 작업과의 관계를 확인한다.
@@ -120,12 +120,14 @@ npm run build
 
 변경 범위가 작으면 관련 Vitest 파일을 먼저 실행해도 된다. 최종 build는 content IIFE bundle 검증까지 포함한다.
 
+Node는 `package.json`의 `engines`가 하한을 정한다. `.github/workflows/ci.yml`은 그 하한 버전을 고정해서 돌리므로 로컬이 더 새 버전이어도 CI가 하한을 검증한다. 하한을 올릴 때는 두 곳을 함께 바꾼다.
+
 ## Change Checklist
 - 제품 동작이나 scope 변경: `docs/PRD.md` 확인.
 - architecture, storage, runtime message, API boundary 변경: `docs/ARCHITECTURE.md`와 `docs/adr/` 확인.
 - UI layout, copy, locale, accessibility 변경: `docs/UI_GUIDE.md` 확인.
 - sync flow 또는 browser 검증 영향: `docs/MANUAL_VALIDATION.md` 갱신 필요 여부 확인.
-- commit message를 작성할 때는 `feat:`, `fix:`, `docs:`, `test:`, `refactor:` 같은 conventional commits 형식을 사용한다.
+- commit message를 작성할 때는 `feat:`, `fix:`, `docs:`, `test:`, `refactor:`, `chore:`, `ci:` 같은 conventional commits 형식을 사용한다. branch type과 같은 목록이다.
 
 ## When Stuck
 - 추측으로 큰 rewrite를 하지 말고, 현재 관찰한 사실과 막힌 지점을 짧게 정리한다.

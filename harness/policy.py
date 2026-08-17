@@ -265,7 +265,7 @@ def check_worktree_isolation(git_dir: str, git_common_dir: str) -> str | None:
 
 # --- branch ------------------------------------------------------------------
 
-BRANCH_TYPES = ("feat", "fix", "docs", "test", "refactor")
+BRANCH_TYPES = ("feat", "fix", "docs", "test", "refactor", "chore", "ci")
 
 # AGENTS.md의 Git Workflow가 안내하는 형식과 같아야 한다. 어긋나면 문서대로
 # 만든 branch에서 커밋하지 못한다.
@@ -273,19 +273,52 @@ BRANCH_TYPES = ("feat", "fix", "docs", "test", "refactor")
 # 정상 branch를 막을 위험만 늘어난다.
 _BRANCH_NAME = re.compile(rf"^(?:{'|'.join(BRANCH_TYPES)})/issue-\d+-[^/]+$")
 
+_BRANCH_FORM = "{type}/issue-{번호}-{slug}"
+
 
 def check_branch_name(branch: str) -> str | None:
     """work branch 이름의 차단 사유를 돌려준다. 허용이면 None.
 
     이슈 번호를 이름에 요구하는 것은 이슈 없이 시작한 작업을 늦게라도 막기
     위해서다. 커밋 시점 gate라 작업 시작은 막지 못한다.
+
+    실패 사유를 구분해서 돌려준다. 하나로 뭉뚱그리면 틀린 지시를 하게 된다.
+    `chore/issue-29-x`는 이슈 번호가 있는데도 "이슈 번호가 없습니다"라는
+    안내를 받았고, 그대로 따르면 이슈를 하나 더 만들고 같은 곳에서 다시
+    막힌다. gate가 사람을 잘못된 방향으로 보내면 없느니만 못하다.
     """
-    if _BRANCH_NAME.match(branch.strip()):
+    name = branch.strip()
+
+    if _BRANCH_NAME.match(name):
         return None
+
+    types = ", ".join(BRANCH_TYPES)
+    prefix, separator, rest = name.partition("/")
+
+    if not separator:
+        return (
+            f"branch 이름 '{branch}'에 type이 없습니다. {_BRANCH_FORM} 형식으로 "
+            f"다시 만드세요 (type: {types}). AGENTS.md의 Git Workflow를 따르세요."
+        )
+
+    if prefix not in BRANCH_TYPES:
+        return (
+            f"branch type '{prefix}'는 쓸 수 없습니다. {types} 중에서 고르고 "
+            f"{_BRANCH_FORM} 형식으로 branch를 다시 만드세요. "
+            "AGENTS.md의 Git Workflow를 따르세요."
+        )
+
+    if not re.match(r"^issue-\d+-", rest):
+        return (
+            f"branch 이름 '{branch}'에 이슈 번호가 없습니다. 먼저 GitHub Issue를 "
+            f"만들고 {_BRANCH_FORM} 형식으로 branch를 다시 만드세요. "
+            "AGENTS.md의 Git Workflow를 따르세요."
+        )
+
     return (
-        f"branch 이름 '{branch}'에 이슈 번호가 없습니다. 먼저 GitHub Issue를 "
-        "만들고 {type}/issue-{번호}-{slug} 형식으로 branch를 다시 만드세요 "
-        f"(type: {', '.join(BRANCH_TYPES)}). AGENTS.md의 Git Workflow를 따르세요."
+        f"branch 이름 '{branch}'의 slug가 형식에 맞지 않습니다. 이슈 번호 뒤에 "
+        f"`/` 없는 kebab-case slug를 붙여 {_BRANCH_FORM} 형식으로 만드세요. "
+        "AGENTS.md의 Git Workflow를 따르세요."
     )
 
 

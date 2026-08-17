@@ -214,8 +214,13 @@ class BranchName(unittest.TestCase):
             self.assertIsNotNone(policy.check_branch_name(branch), branch)
 
     def test_unknown_branch_types_are_rejected(self):
-        for branch in ("ci/issue-19-github-actions", "agent/issue-19-preview", "chore/issue-19-cleanup"):
+        for branch in ("agent/issue-19-preview", "build/issue-19-bundle", "perf/issue-19-faster"):
             self.assertIsNotNone(policy.check_branch_name(branch), branch)
+
+    def test_chore_and_ci_are_allowed(self):
+        """맞는 type이 없으면 맞지 않는 type을 억지로 고르게 되고 history 신호가 흐려진다."""
+        self.assertIsNone(policy.check_branch_name("chore/issue-29-cleanup"))
+        self.assertIsNone(policy.check_branch_name("ci/issue-29-github-actions"))
 
     def test_missing_slug_is_rejected(self):
         for branch in ("feat/issue-19-", "feat/issue-19", "feat/issue--slug"):
@@ -227,10 +232,44 @@ class BranchName(unittest.TestCase):
     def test_nested_slug_is_rejected(self):
         self.assertIsNotNone(policy.check_branch_name("feat/issue-19-slug/extra"))
 
-    def test_reason_names_the_branch_and_the_expected_form(self):
+
+class BranchNameDiagnosis(unittest.TestCase):
+    """차단 사유가 실제 원인을 가리키는가.
+
+    사유를 하나로 뭉뚱그리면 틀린 지시를 하게 된다. `chore/issue-29-x`는 이슈
+    번호가 있는데도 "이슈 번호가 없습니다"를 받았고, 그대로 따르면 이슈를 하나
+    더 만들고 같은 곳에서 다시 막힌다.
+    """
+
+    def test_bad_type_reason_names_the_type_not_the_issue_number(self):
+        reason = policy.check_branch_name("chore2/issue-29-ci-tests")
+        self.assertIn("chore2", reason)
+        self.assertNotIn("이슈 번호가 없습니다", reason)
+
+    def test_missing_issue_number_reason_asks_for_an_issue(self):
         reason = policy.check_branch_name("fix/pr-body-accuracy")
         self.assertIn("fix/pr-body-accuracy", reason)
-        self.assertIn("issue-", reason)
+        self.assertIn("이슈 번호가 없습니다", reason)
+
+    def test_missing_type_is_reported_as_a_missing_type(self):
+        reason = policy.check_branch_name("issue-29-no-type")
+        self.assertIn("type이 없습니다", reason)
+
+    def test_bad_slug_is_reported_as_a_slug_problem(self):
+        reason = policy.check_branch_name("feat/issue-19-slug/extra")
+        self.assertIn("slug", reason)
+
+    def test_every_reason_names_the_expected_form_and_the_workflow_doc(self):
+        for branch in (
+            "main",
+            "issue-29-no-type",
+            "chore2/issue-29-x",
+            "fix/no-number",
+            "feat/issue-19-a/b",
+        ):
+            reason = policy.check_branch_name(branch)
+            self.assertIn("{type}/issue-{번호}-{slug}", reason, branch)
+            self.assertIn("AGENTS.md", reason, branch)
 
 
 if __name__ == "__main__":
