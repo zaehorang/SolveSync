@@ -2,7 +2,7 @@
 
 설계 결정과 tradeoff의 source of truth다. 구현이 ADR과 어긋나면 어느 쪽이 맞는지 먼저 판단하고, 결정이 바뀐 것이면 새 ADR을 쓴다. 기존 ADR을 조용히 고쳐 과거 결정을 덮어쓰지 않는다.
 
-**다음에 쓸 번호는 0035다.** 아래 "번호 구멍"을 참고한다.
+**다음에 쓸 번호는 0037이다.** 아래 "번호 구멍"을 참고한다.
 
 ## 목록
 
@@ -38,6 +38,8 @@
 | 0029 | [Public GitHub App Device Flow와 local token refresh 사용](0029-public-github-app-device-flow-with-local-token-refresh.md) |
 | 0030 | [중앙 language registry와 단일 README Languages column 사용](0030-central-language-registry-and-single-readme-languages-column.md) |
 | 0034 | [Fresh Accepted transition은 route-bound immutable event로 캡처한다](0034-fresh-accepted-transition-and-immutable-event.md) |
+| 0035 | [SWEA editor code는 MAIN world bridge로 읽는다](0035-main-world-editor-bridge-for-swea.md) |
+| 0036 | [Content route key는 adapter가 확정한다](0036-adapter-resolved-content-route-key.md) |
 
 ## 번호 구멍
 
@@ -55,4 +57,4 @@ harness validation과 dirty recovery 정책을 다뤘다. 자동화 orchestratio
 | 0032 | alarm-backed retry retention and explicit local deletion | 미구현. `chrome.alarms` 사용처가 없다 |
 | 0033 | reproducible GitHub preview release pipeline | 미구현 |
 
-세 결정 모두 **여전히 유효한 문제 제기다.** 다시 다루기로 하면 새 번호(0035 이후)로 쓴다. 특히 0031의 sender 검증은 content script 외의 발신자가 background로 message를 보낼 수 있는지와 직결되므로, 출시 전에 재검토할 가치가 있다.
+세 결정 모두 **여전히 유효한 문제 제기다.** 다시 다루기로 하면 새 번호로 쓴다. 특히 0031의 sender 검증은 content script 외의 발신자가 background로 message를 보낼 수 있는지와 직결되므로, 출시 전에 재검토할 가치가 있다.

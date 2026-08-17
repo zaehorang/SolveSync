@@ -28,7 +28,7 @@ VITE_GITHUB_APP_SLUG= npm run package:chrome
 npm run package:chrome
 ```
 
-`npm run build`는 GitHub App 공개 설정이 없는 checkout에서도 manifest 선언과 content IIFE 검증을 포함하여 통과해야 한다. 설정을 비운 두 `package:chrome` 명령은 각각 `VITE_GITHUB_APP_CLIENT_ID`, `VITE_GITHUB_APP_SLUG` 변수명을 포함한 release packaging 오류와 함께 non-zero로 종료해야 한다. 마지막 `npm run package:chrome`은 `.env.local`의 두 공개 설정을 bundle에서 확인하고 Chrome ZIP을 만들어야 한다. `npm run typecheck`와 `npm test`도 통과해야 한다. 일반 테스트는 실제 GitHub, LeetCode, Programmers 네트워크나 사용자 secret을 사용하지 않는다.
+`npm run build`는 GitHub App 공개 설정이 없는 checkout에서도 manifest 선언과 content IIFE 검증을 포함하여 통과해야 한다. 설정을 비운 두 `package:chrome` 명령은 각각 `VITE_GITHUB_APP_CLIENT_ID`, `VITE_GITHUB_APP_SLUG` 변수명을 포함한 release packaging 오류와 함께 non-zero로 종료해야 한다. 마지막 `npm run package:chrome`은 `.env.local`의 두 공개 설정을 bundle에서 확인하고 Chrome ZIP을 만들어야 한다. `npm run typecheck`와 `npm test`도 통과해야 한다. 일반 테스트는 실제 GitHub나 Coding Platform 네트워크, 사용자 secret을 사용하지 않는다.
 
 ## 2. Extension Load
 
@@ -69,6 +69,7 @@ Connection test는 commit을 만들지 않아야 한다. Branch는 사용자의 
 
 - LeetCode [자동 검증](platforms/LEETCODE.md#자동-검증)과 [수동 검증](platforms/LEETCODE.md#수동-검증)
 - Programmers [자동 검증](platforms/PROGRAMMERS.md#자동-검증)과 [수동 검증](platforms/PROGRAMMERS.md#수동-검증)
+- SWEA [자동 검증](platforms/SWEA.md#자동-검증)과 [수동 검증](platforms/SWEA.md#수동-검증). SWEA는 [미확인 전제](platforms/SWEA.md#미확인-전제) 확인을 겸하므로 첫 실행 결과를 문서에 반영한다.
 
 각 문서는 platform login, Accepted happy path, stale Accepted/Run/Wrong Answer 회귀, 두 번째 Accepted revision과 SPA route 검증을 소유한다. 모든 지원 언어를 실제 계정으로 반복 제출하지 않으며, 특정 Coding Platform의 label이나 editor 추출 회귀가 의심될 때만 해당 언어를 추가로 수동 검증한다.
 
@@ -94,7 +95,7 @@ solution link, 날짜와 marker 밖 수동 내용이 유지되고, 같은 Catalo
 ## 7. 최소 보안 확인
 
 - Options, Popup, toast에 access token, refresh token, device code가 표시되지 않는다.
-- LeetCode와 Programmers 문제 설명 전문이 local storage나 GitHub commit에 저장되지 않는다.
+- 지원 Coding Platform 문제 설명 전문이 local storage나 GitHub commit에 저장되지 않는다.
 - 실제 token, cookie, session 값, private solution code를 screenshot, issue, fixture, log에 남기지 않는다.
 
 지원 언어와 path 계약은 `docs/ARCHITECTURE.md`의 registry 표와 자동 테스트가 검증한다.
