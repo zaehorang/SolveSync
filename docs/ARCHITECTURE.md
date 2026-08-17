@@ -171,8 +171,9 @@ Coding Platform 문제 page
 - branch protection으로 ref update가 막히면 우회하지 않고 `github_branch_protected`로 실패 처리한다.
 - GitHub rate limit은 `github_rate_limited`, token 만료나 권한 부족은 `github_token_expired` 또는 `github_auth_failed`로 normalize한다.
 - commit message 형식은 Coding Platform별 prefix를 사용한다.
-  - LeetCode: `solve: leetcode 0001 two sum in swift #1`
+  - LeetCode: `solve: leetcode 1 Two Sum in swift #1`
   - Programmers: `solve: programmers 120804 두 수의 곱 구하기 in swift #1`
+- commit message의 문제 번호와 제목은 Solution File path와 다른 규칙을 쓴다. path는 정렬을 위해 번호를 4자리로 zero-pad하고 제목을 소문자 slug로 바꾸지만(`leetcode/swift/0001_two_sum.swift`), commit message는 사람이 읽는 줄이므로 원래 번호와 원문 제목 표기를 유지한다.
 
 저장소 파일 정리는 Accepted sync와 별도의 background action이다.
 - Options가 전달한 현재 Sync Repository와 Sync Branch를 그대로 사용하며 branch를 생성하거나 ref를 force update하지 않는다.
