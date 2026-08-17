@@ -21,6 +21,7 @@ describe("shared domain type guards", () => {
   it("guards supported platform values", () => {
     expect(isCodingPlatform("leetcode")).toBe(true);
     expect(isCodingPlatform("programmers")).toBe(true);
+    expect(isCodingPlatform("swea")).toBe(true);
     expect(isCodingPlatform("baekjoon")).toBe(false);
   });
 

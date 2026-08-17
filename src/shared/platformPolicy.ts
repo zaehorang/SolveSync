@@ -72,6 +72,20 @@ export const PLATFORM_POLICIES = {
     initialReadmeTitle: "Programmers Solutions",
     readmeIncludesDifficulty: false,
     commitPlatformLabel: "programmers"
+  },
+  swea: {
+    codingPlatform: "swea",
+    rootFolder: "swea",
+    languages: buildLanguagePathPolicies("swea"),
+    solutionReadmePath: "swea/README.md",
+    solutionCatalogPath: "swea/.swea-sync/index.json",
+    readmeMarkers: {
+      start: "<!-- SWEA_TABLE_START -->",
+      end: "<!-- SWEA_TABLE_END -->"
+    },
+    initialReadmeTitle: "SW Expert Academy Solutions",
+    readmeIncludesDifficulty: false,
+    commitPlatformLabel: "swea"
   }
 } as const satisfies Record<CodingPlatform, PlatformPolicy>;
 

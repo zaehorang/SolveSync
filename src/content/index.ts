@@ -12,6 +12,7 @@ import {
   resolveContentPage,
   startAcceptedDetectionController
 } from "./acceptedDetectionController";
+import { createSweaBridgeNonce, requestSweaEditorCode } from "./sweaBridgeClient";
 import { ContentToast, createToastModel } from "./toast";
 
 interface RuntimeSuccessResponse<T> {
@@ -34,7 +35,7 @@ export function resolveContentToastLocale(
 }
 
 export function startContentScript(): void {
-  const page = resolveContentPage(new URL(window.location.href));
+  const page = resolveContentPage(new URL(window.location.href), document);
   const toast = new ContentToast(document, sendToastAction);
   let toastRenderSequence = 0;
 
@@ -47,7 +48,12 @@ export function startContentScript(): void {
     documentRef: document,
     getCurrentUrl: () => window.location.href,
     sendAcceptedMessage: sendRuntimeMessage,
-    createObserver: (callback) => new MutationObserver(callback)
+    createObserver: (callback) => new MutationObserver(callback),
+    requestSweaEditorCode: () =>
+      requestSweaEditorCode({
+        windowRef: window,
+        createNonce: createSweaBridgeNonce
+      })
   });
 
   chrome.runtime.onMessage.addListener((rawMessage) => {

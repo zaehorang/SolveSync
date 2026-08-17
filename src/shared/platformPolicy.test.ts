@@ -43,4 +43,25 @@ describe("platform policy", () => {
       extension: "py"
     });
   });
+
+  it("describes SWEA paths, markers, and labels", () => {
+    const policy = getPlatformPolicy("swea");
+
+    expect(policy.codingPlatform).toBe("swea");
+    expect(policy.rootFolder).toBe("swea");
+    expect(policy.solutionReadmePath).toBe("swea/README.md");
+    expect(policy.solutionCatalogPath).toBe("swea/.swea-sync/index.json");
+    // Difficulty(D1~D7)는 풀이 페이지에 없다. 이것 때문에 추가 요청을 만들지 않는다.
+    expect(policy.readmeIncludesDifficulty).toBe(false);
+    expect(policy.readmeMarkers).toEqual({
+      start: "<!-- SWEA_TABLE_START -->",
+      end: "<!-- SWEA_TABLE_END -->"
+    });
+    expect(policy.initialReadmeTitle).toBe("SW Expert Academy Solutions");
+    expect(policy.commitPlatformLabel).toBe("swea");
+    expect(getLanguagePathPolicy("swea", "python3")).toEqual({
+      folder: "swea/python",
+      extension: "py"
+    });
+  });
 });

@@ -12,20 +12,27 @@ import { resolveContentToastLocale } from "./index";
 
 describe("content runtime wiring helpers", () => {
   it("resolves LeetCode and Programmers content page contexts", () => {
-    expect(resolveContentPage(new URL("https://leetcode.com/problems/two-sum/"))).toEqual({
+    const emptyDocument = { querySelector: () => null };
+
+    expect(
+      resolveContentPage(new URL("https://leetcode.com/problems/two-sum/"), emptyDocument)
+    ).toEqual({
       platform: "leetcode",
       titleSlug: "two-sum"
     });
     expect(
       resolveContentPage(
-        new URL("https://school.programmers.co.kr/learn/courses/30/lessons/120804")
+        new URL("https://school.programmers.co.kr/learn/courses/30/lessons/120804"),
+        emptyDocument
       )
     ).toEqual({
       platform: "programmers",
       courseId: "30",
       lessonId: "120804"
     });
-    expect(resolveContentPage(new URL("https://example.com/problems/two-sum/"))).toEqual({
+    expect(
+      resolveContentPage(new URL("https://example.com/problems/two-sum/"), emptyDocument)
+    ).toEqual({
       platform: "unsupported"
     });
   });

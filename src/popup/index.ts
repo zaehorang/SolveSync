@@ -13,6 +13,7 @@ import {
   getSyncStatusSemanticTone,
   getSyncStatusTone,
   getUnsupportedLanguageReason,
+  isExtractFailedCode,
   normalizeError,
   resolveUiLocale,
   t,
@@ -925,7 +926,10 @@ function getHistoryRecoveryHint(
     return null;
   }
 
-  if (syncHistoryEntry.error?.code === "programmers_extract_failed") {
+  if (
+    syncHistoryEntry.error !== null &&
+    isExtractFailedCode(syncHistoryEntry.error.code)
+  ) {
     return t(locale, "detail.noCommitDataRetryUnavailable");
   }
 

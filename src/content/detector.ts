@@ -8,13 +8,14 @@ const NON_ACCEPTED_RESULT_PATTERN =
 const GENERIC_ACCEPTED_PAGE_TEXT_PATTERN =
   /\b(accepted submissions|accepted solutions|acceptance rate)\b/i;
 const PROGRAMMERS_ACCEPTED_TEXT = "정답입니다!";
+const SWEA_ACCEPTED_TEXT_PREFIX = "축하합니다. Pass입니다.";
 const MAX_RESULT_TEXT_LENGTH = 180;
 const MAX_TRAVERSAL_DEPTH = 6;
 const MAX_TEXT_CANDIDATES = 80;
 const MAX_JOINED_LEAF_TEXTS = 8;
 const IGNORED_ELEMENT_NAMES = new Set(["script", "style", "noscript"]);
 
-export type AcceptedDetectionPlatform = "leetcode" | "programmers";
+export type AcceptedDetectionPlatform = "leetcode" | "programmers" | "swea";
 
 export interface TimeoutScheduler {
   setTimeout(callback: () => void, delayMs: number): ReturnType<typeof setTimeout>;
@@ -70,6 +71,12 @@ export function extractProgrammersRouteFromPathname(
   };
 }
 
+export const SWEA_SOLVING_PATHNAME = "/main/solvingProblem/solvingProblem.do";
+
+export function isSweaSolvingPathname(pathname: string): boolean {
+  return pathname === SWEA_SOLVING_PATHNAME;
+}
+
 export function isAcceptedResultText(text: string): boolean {
   const normalized = normalizeCandidateText(text);
 
@@ -90,6 +97,22 @@ export function isProgrammersAcceptedResultText(text: string): boolean {
     normalized.length > 0 &&
     normalized.length <= MAX_RESULT_TEXT_LENGTH &&
     normalized === PROGRAMMERS_ACCEPTED_TEXT
+  );
+}
+
+/** SWEA alert layer의 Accepted 문구.
+ *
+ * 실패는 `채점용 input 파일로 채점한 결과 fail 입니다.`로 시작하고 제한시간
+ * 초과와 런타임 에러 문구가 그 뒤에 붙으므로 접두사가 겹치지 않는다. 뒤에 붙는
+ * 부가 문구를 허용하되 접두사는 정확히 일치해야 한다.
+ */
+export function isSweaAcceptedResultText(text: string): boolean {
+  const normalized = normalizeCandidateText(text);
+
+  return (
+    normalized.length > 0 &&
+    normalized.length <= MAX_RESULT_TEXT_LENGTH &&
+    normalized.startsWith(SWEA_ACCEPTED_TEXT_PREFIX)
   );
 }
 
@@ -277,6 +300,10 @@ function isAcceptedTextCandidate(
 ): boolean {
   if (platform === "programmers") {
     return isProgrammersAcceptedResultText(candidate.text);
+  }
+
+  if (platform === "swea") {
+    return isSweaAcceptedResultText(candidate.text);
   }
 
   if (!isResultTextCandidate(candidate.text)) {

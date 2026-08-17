@@ -49,9 +49,21 @@ export interface ProgrammersAcceptedDetectedPayload {
   detectedAt: string;
 }
 
+export interface SweaAcceptedDetectedPayload {
+  codingPlatform: "swea";
+  contestProbId: string;
+  problemNumber: string;
+  problemTitle: string;
+  language: string;
+  code: string;
+  pageUrl: string;
+  detectedAt: string;
+}
+
 export type AcceptedDetectedPayload =
   | LeetCodeAcceptedDetectedPayload
-  | ProgrammersAcceptedDetectedPayload;
+  | ProgrammersAcceptedDetectedPayload
+  | SweaAcceptedDetectedPayload;
 
 export interface AcceptedDetectedMessage {
   type: "content:accepted_detected";

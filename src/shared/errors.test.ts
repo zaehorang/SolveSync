@@ -15,6 +15,7 @@ describe("normalized error contracts", () => {
       "leetcode_auth_required",
       "leetcode_fetch_failed",
       "programmers_extract_failed",
+      "swea_extract_failed",
       "github_auth_failed",
       "github_app_not_configured",
       "github_login_required",

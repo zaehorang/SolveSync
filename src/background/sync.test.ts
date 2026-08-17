@@ -526,6 +526,95 @@ describe("background sync orchestrator", () => {
     });
   });
 
+  it("commits SWEA Accepted Editor Snapshots with Solution README and Solution Catalog files", async () => {
+    const harness = makeHarness();
+    await harness.saveSettings();
+
+    await harness.sync.handleAcceptedDetected(makeSweaAcceptedDetected());
+
+    expect(harness.leetcode.fetchProblemMetadata).not.toHaveBeenCalled();
+    expect(harness.github.commits).toHaveLength(1);
+    expect(
+      await harness.storage.hasProcessedSyncDeduplicationKey(sweaSyncDeduplicationKey)
+    ).toBe(true);
+    expect(harness.github.commits[0]).toMatchObject({
+      message: "solve: swea 1234 숫자 카드 in python3 #1"
+    });
+    expect(harness.github.commits[0]?.files.map((file) => file.path)).toEqual([
+      "swea/python/1234_숫자_카드.py",
+      "swea/README.md",
+      "swea/.swea-sync/index.json"
+    ]);
+    expect(committedContent(harness, "swea/README.md")).toContain(
+      "<!-- SWEA_TABLE_START -->"
+    );
+    expect(committedContent(harness, "swea/README.md")).toContain(
+      `| 1234 | 숫자 카드 | ${expectedAcceptedDate} |`
+    );
+    // SWEA Difficulty는 풀이 페이지에 없다. Programmers와 같은 처리다.
+    expect(committedContent(harness, "swea/README.md")).not.toContain("Difficulty");
+  });
+
+  it("uses the SWEA contest problem id for the filename when the title has no number", async () => {
+    const harness = makeHarness();
+    await harness.saveSettings();
+
+    await harness.sync.handleAcceptedDetected(
+      makeSweaAcceptedDetected({
+        problemNumber: ""
+      })
+    );
+
+    expect(harness.github.commits[0]?.files[0]?.path).toBe(
+      "swea/python/AV13zZ7KAAACFAYh_숫자_카드.py"
+    );
+  });
+
+  it("records SWEA languages outside the registry as unsupported", async () => {
+    const harness = makeHarness();
+    await harness.saveSettings();
+
+    // SWEA는 Swift를 제공하지 않는다. 다른 플랫폼 alias가 새어 들어오면 안 된다.
+    await harness.sync.handleAcceptedDetected(
+      makeSweaAcceptedDetected({
+        language: "Swift"
+      })
+    );
+
+    expect(harness.github.commits).toHaveLength(0);
+    const records = await harness.storage.listSyncHistoryEntries();
+    expect(records[0]).toMatchObject({
+      codingPlatform: "swea",
+      status: "unsupported_language",
+      supportedLanguage: null,
+      problemTitle: "숫자 카드"
+    });
+  });
+
+  it("records SWEA bridge failures as extract failures without Retry Bundles", async () => {
+    const harness = makeHarness();
+    await harness.saveSettings();
+
+    // bridge 미주입, timeout, empty editor는 모두 empty code로 도착한다.
+    await harness.sync.handleAcceptedDetected(
+      makeSweaAcceptedDetected({
+        code: ""
+      })
+    );
+
+    expect(harness.github.commits).toHaveLength(0);
+    await expect(harness.storage.listRetryBundles()).resolves.toHaveLength(0);
+    const records = await harness.storage.listSyncHistoryEntries();
+    expect(records[0]).toMatchObject({
+      codingPlatform: "swea",
+      status: "failed",
+      retryBundleId: null,
+      error: {
+        code: "swea_extract_failed"
+      }
+    });
+  });
+
   it("records Programmers extract failures without Retry Bundles", async () => {
     const harness = makeHarness();
     await harness.saveSettings();
@@ -1093,6 +1182,46 @@ const programmersCode = [
   "  num1 * num2",
   "}"
 ].join("\n");
+
+const sweaCode = [
+  "T = int(input())",
+  "for tc in range(1, T + 1):",
+  "    print(f'#{tc} {sum(map(int, input().split()))}')"
+].join("\n");
+
+const sweaSyncDeduplicationKey: SyncDeduplicationKey = {
+  codingPlatform: "swea",
+  // 식별은 contestProbId로 한다. 파일명 번호와 다른 값이다.
+  acceptedSourceId: `swea:AV13zZ7KAAACFAYh:python3:${buildShortCodeHash(sweaCode)}`,
+  titleSlug: "1234_숫자_카드",
+  language: "python3"
+};
+
+function makeSweaAcceptedDetected(
+  overrides: Partial<{
+    contestProbId: string;
+    problemNumber: string;
+    problemTitle: string;
+    language: string;
+    code: string;
+    pageUrl: string;
+    detectedAt: string;
+  }> = {}
+) {
+  return {
+    codingPlatform: "swea" as const,
+    contestProbId: overrides.contestProbId ?? "AV13zZ7KAAACFAYh",
+    problemNumber: overrides.problemNumber ?? "1234",
+    problemTitle: overrides.problemTitle ?? "숫자 카드",
+    // select#sel_lang의 option value code다.
+    language: overrides.language ?? "Y",
+    code: overrides.code ?? sweaCode,
+    pageUrl:
+      overrides.pageUrl ??
+      "https://swexpertacademy.com/main/solvingProblem/solvingProblem.do",
+    detectedAt: overrides.detectedAt ?? defaultAcceptedAt
+  };
+}
 
 const programmersSyncDeduplicationKey: SyncDeduplicationKey = {
   codingPlatform: "programmers",

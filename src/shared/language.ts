@@ -40,10 +40,15 @@ export function mapProgrammersLanguage(raw: string): SupportedLanguage | null {
   return mapPlatformLanguage("programmers", raw);
 }
 
+export function mapSweaLanguage(raw: string): SupportedLanguage | null {
+  return mapPlatformLanguage("swea", raw);
+}
+
 export function mapSupportedLanguage(raw: string): SupportedLanguage | null {
   return (
     mapPlatformLanguage("leetcode", raw) ??
-    mapPlatformLanguage("programmers", raw)
+    mapPlatformLanguage("programmers", raw) ??
+    mapPlatformLanguage("swea", raw)
   );
 }
 
