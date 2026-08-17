@@ -1,15 +1,9 @@
 #!/usr/bin/env python3
 """Claude Code PreToolUse hook.
 
-저장소의 `.claude/settings.json`에 등록된다. 이 저장소에서 열린 대화형 Claude
-Code 세션에 하네스 정책을 붙이는 유일한 경로다. 이것이 없으면 대화형 세션에는
-secret scan도, 테스트 선행 gate도, worktree 이탈 차단도 커밋 시점까지 전혀
-없다.
-
-codex용 `pretooluse.py`와 진입점을 나눈 이유는 계약이 다르기 때문이다. codex는
-파일 편집을 `apply_patch` 하나로 보내고 payload가 patch 텍스트지만, Claude Code는
-`Write`/`Edit`을 보내고 payload가 `file_path`다. 한 파일에서 분기하면 어느 쪽
-계약이 깨졌는지 보이지 않는다. 공유하는 것은 `policy.py`이지 진입점이 아니다.
+저장소의 `.claude/settings.json`에 등록된다. 대화형 Claude Code 세션에 하네스
+정책을 붙이는 유일한 경로다. 이것이 없으면 대화형 세션에는 금지 경로 차단도,
+테스트 선행 gate도, 주 디렉터리 branch 전환 차단도 커밋 시점까지 전혀 없다.
 
 이 스크립트 안에서 무슨 일이 생기든 결과는 deny다. 죽으면 열리는 gate는 gate가
 아니다.
@@ -86,11 +80,10 @@ def main() -> None:
         reason = policy.check_bash(
             tool_input.get("command", ""),
             cwd,
-            context=policy.CONTEXT_INTERACTIVE,
             in_main_worktree=in_main_worktree(cwd),
         )
     elif tool in WRITE_TOOLS:
-        reason = policy.check_file_write(write_targets(tool_input), cwd, policy.CONTEXT_INTERACTIVE)
+        reason = policy.check_file_write(write_targets(tool_input), cwd)
     else:
         reason = None
 
