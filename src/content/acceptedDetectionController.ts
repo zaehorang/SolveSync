@@ -139,7 +139,6 @@ export function startAcceptedDetectionController(
     });
   };
 
-
   const queueAcceptedEvent = (
     page: Exclude<ContentPageContext, { platform: "unsupported" }>,
     pageUrl: string,
@@ -160,8 +159,11 @@ export function startAcceptedDetectionController(
         pageUrl,
         detectedAt
       );
-      const codePromise =
-        options.requestSweaEditorCode?.() ?? Promise.resolve(null);
+      // bridge 실패는 전부 empty code로 수렴해야 한다. 여기서 reject를 흘리면
+      // event가 조용히 사라져 사용자가 실패를 보지 못한다.
+      const codePromise = (
+        options.requestSweaEditorCode?.() ?? Promise.resolve(null)
+      ).catch(() => null);
 
       pendingEvent = {
         routeKey,

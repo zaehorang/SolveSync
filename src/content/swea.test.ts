@@ -210,6 +210,16 @@ describe("SWEA detection controller", () => {
     });
   });
 
+  it("bridge 요청이 reject해도 empty code event를 만든다", async () => {
+    const harness = createSweaControllerHarness({ rejectBridge: true });
+
+    harness.observer.emit([childListMutation([elementNode([textNode(ACCEPTED_TEXT)])])]);
+    await harness.flush();
+
+    expect(harness.sentMessages).toHaveLength(1);
+    expect(harness.sentMessages[0]).toMatchObject({ payload: { code: "" } });
+  });
+
   it("실패 제출과 무관한 mutation은 event를 만들지 않는다", async () => {
     const harness = createSweaControllerHarness();
 
@@ -375,7 +385,7 @@ function fakeBridgeWindow(): {
 }
 
 function createSweaControllerHarness(
-  options: { code?: string | null } = {}
+  options: { code?: string | null; rejectBridge?: boolean } = {}
 ): {
   observer: { emit(mutations: MutationRecord[]): void };
   sentMessages: unknown[];
@@ -426,7 +436,9 @@ function createSweaControllerHarness(
       }
     },
     requestSweaEditorCode: () =>
-      Promise.resolve(options.code === undefined ? "code\n" : options.code)
+      options.rejectBridge === true
+        ? Promise.reject(new Error("bridge unavailable"))
+        : Promise.resolve(options.code === undefined ? "code\n" : options.code)
   });
 
   return {
