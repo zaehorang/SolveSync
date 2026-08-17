@@ -37,8 +37,8 @@ export const LANGUAGE_REGISTRY: Record<SupportedLanguage, LanguageDefinition> = 
     folder: "python",
     extension: "py",
     aliases: {
-      leetcode: ["python3", "python 3"],
-      programmers: ["python3", "python 3"]
+      leetcode: ["python3"],
+      programmers: ["python3"]
     }
   },
   java: {
@@ -67,8 +67,8 @@ export const LANGUAGE_REGISTRY: Record<SupportedLanguage, LanguageDefinition> = 
     folder: "javascript",
     extension: "js",
     aliases: {
-      leetcode: ["javascript", "java script"],
-      programmers: ["javascript", "java script"]
+      leetcode: ["javascript"],
+      programmers: ["javascript"]
     }
   },
   typescript: {
@@ -77,8 +77,8 @@ export const LANGUAGE_REGISTRY: Record<SupportedLanguage, LanguageDefinition> = 
     folder: "typescript",
     extension: "ts",
     aliases: {
-      leetcode: ["typescript", "type script"],
-      programmers: ["typescript", "type script"]
+      leetcode: ["typescript"],
+      programmers: ["typescript"]
     }
   },
   kotlin: {
@@ -138,6 +138,12 @@ export function mapPlatformLanguage(
   return null;
 }
 
+/** alias 비교용 정규화.
+ *
+ * 공백, `_`, `-`를 모두 제거하므로 `Python 3`, `python-3`, `python3`은 같은
+ * 값이 된다. 표기 변형은 여기서 흡수되므로 alias 목록에는 정규화 후 서로 다른
+ * 것만 둔다. `c++`와 `cpp`처럼 실제로 다른 것만 나열한다.
+ */
 function normalizeLanguageAlias(value: string): string {
   return value.trim().toLowerCase().replace(/[\s_-]+/g, "");
 }
