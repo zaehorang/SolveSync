@@ -656,12 +656,29 @@ export function buildGitHubCommitMessage(
   const codingPlatform = input.codingPlatform ?? "leetcode";
   const policy = getPlatformPolicy(codingPlatform);
 
-  return `solve: ${policy.commitPlatformLabel} ${formatPlatformProblemNumber(
+  return `solve: ${policy.commitPlatformLabel} ${toCommitProblemNumber(
     codingPlatform,
     input.frontendId
-  )} ${toCommitTitle(input.title, codingPlatform)} in ${input.language} #${
+  )} ${toCommitTitle(input.title)} in ${input.language} #${
     input.solutionRevisionNumber
   }`;
+}
+
+/** commit message에 쓰는 문제 번호.
+ *
+ * 파일 경로의 `formatPlatformProblemNumber`와 일부러 다르다. 경로는 정렬을 위해
+ * 4자리로 zero-pad하지만(`0001_two_sum.swift`), commit message는 사람이 읽는
+ * 줄이라 원래 번호를 그대로 보여주는 편이 낫다.
+ */
+function toCommitProblemNumber(
+  codingPlatform: CodingPlatform,
+  raw: string
+): string {
+  const trimmed = raw.trim();
+
+  return /^\d+$/u.test(trimmed)
+    ? String(Number(trimmed))
+    : formatPlatformProblemNumber(codingPlatform, trimmed);
 }
 
 function isPositiveInteger(value: unknown): value is number {
@@ -908,21 +925,21 @@ function encodePath(path: string): string {
   return path.split("/").map(encodePathPart).join("/");
 }
 
-function toCommitTitle(title: string, platform: CodingPlatform): string {
-  const normalized =
-    platform === "leetcode"
-      ? title
-          .trim()
-          .toLowerCase()
-          .replace(/['"]/gu, "")
-          .replace(/[^a-z0-9]+/gu, " ")
-          .replace(/\s+/gu, " ")
-          .trim()
-      : title.normalize("NFC").trim().replace(/['"]/gu, "").replace(/\s+/gu, " ");
+/** commit message에 쓰는 문제 제목.
+ *
+ * 플랫폼과 무관하게 원문 표기를 보존한다. 따옴표만 지우고 연속 공백을 접는다.
+ * 파일 경로는 `formatPlatformTitleSlug`가 따로 정규화하므로 여기서 소문자로
+ * 낮출 이유가 없다.
+ */
+function toCommitTitle(title: string): string {
+  const normalized = title
+    .normalize("NFC")
+    .trim()
+    .replace(/['"]/gu, "")
+    .replace(/\s+/gu, " ")
+    .trim();
 
-  const trimmed = normalized.trim();
-
-  return trimmed.length > 0 ? trimmed : "solution";
+  return normalized.length > 0 ? normalized : "solution";
 }
 
 function decodeBase64(content: string): string {

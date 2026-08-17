@@ -131,7 +131,7 @@ describe("background sync orchestrator", () => {
 
     expect(harness.github.commits).toHaveLength(1);
     expect(harness.github.commits[0]).toMatchObject({
-      message: "solve: leetcode 0001 two sum in swift #1"
+      message: "solve: leetcode 1 Two Sum in swift #1"
     });
     expect(await harness.storage.hasProcessedSyncDeduplicationKey(syncDeduplicationKey)).toBe(true);
     await expect(historyStatuses(harness.storage)).resolves.toEqual(["synced"]);
@@ -443,7 +443,7 @@ describe("background sync orchestrator", () => {
 
     expect(harness.github.commits).toHaveLength(1);
     expect(harness.github.commits[0]).toMatchObject({
-      message: "solve: leetcode 0001 two sum in swift #2"
+      message: "solve: leetcode 1 Two Sum in swift #2"
     });
     expect(committedJson(harness, "leetcode/.leetcode-sync/index.json")).toMatchObject({
       version: 4,
@@ -481,7 +481,7 @@ describe("background sync orchestrator", () => {
 
     expect(harness.github.commits).toHaveLength(1);
     expect(harness.github.commits[0]).toMatchObject({
-      message: "solve: leetcode 0001 two sum in python3 #1"
+      message: "solve: leetcode 1 Two Sum in python3 #1"
     });
     expect(harness.github.commits[0]?.files[0]).toMatchObject({
       path: "leetcode/python/0001_two_sum.py"
@@ -631,7 +631,7 @@ describe("background sync orchestrator", () => {
     expect(harness.leetcode.fetchProblemMetadata).not.toHaveBeenCalled();
     expect(harness.github.commits).toHaveLength(1);
     expect(harness.github.commits[0]).toMatchObject({
-      message: "solve: leetcode 0001 two sum in swift #1"
+      message: "solve: leetcode 1 Two Sum in swift #1"
     });
     expect(await harness.storage.hasProcessedSyncDeduplicationKey(syncDeduplicationKey)).toBe(true);
     await expect(harness.storage.getRetryBundle("retry-1")).resolves.toBeNull();
@@ -661,7 +661,7 @@ describe("background sync orchestrator", () => {
 
     expect(harness.github.commits).toHaveLength(1);
     expect(harness.github.commits[0]).toMatchObject({
-      message: "solve: leetcode 0001 two sum in swift #2"
+      message: "solve: leetcode 1 Two Sum in swift #2"
     });
     expect(committedJson(harness, "leetcode/.leetcode-sync/index.json")).toMatchObject({
       version: 4,

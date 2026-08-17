@@ -299,7 +299,7 @@ describe("GitHub background client", () => {
         language: "swift",
         solutionRevisionNumber: 1
       })
-    ).toBe("solve: leetcode 0001 two sum in swift #1");
+    ).toBe("solve: leetcode 1 Two Sum in swift #1");
 
     expect(
       buildGitHubCommitMessage({
@@ -310,6 +310,41 @@ describe("GitHub background client", () => {
         solutionRevisionNumber: 3
       })
     ).toBe("solve: programmers 120804 두 수의 곱 구하기 in swift #3");
+  });
+
+  it("keeps the original problem number and title casing", () => {
+    // 경로는 정렬 때문에 0001로 zero-pad하고 소문자 slug를 쓰지만, commit
+    // message는 사람이 읽는 줄이라 원문을 보여준다. 두 규칙이 붙어 있었다.
+    expect(
+      buildGitHubCommitMessage({
+        frontendId: "26",
+        title: "Remove Duplicates from Sorted Array",
+        language: "swift",
+        solutionRevisionNumber: 1
+      })
+    ).toBe("solve: leetcode 26 Remove Duplicates from Sorted Array in swift #1");
+  });
+
+  it("keeps punctuation that the path slug would drop", () => {
+    expect(
+      buildGitHubCommitMessage({
+        frontendId: "0167",
+        title: "Two Sum II - Input Array Is Sorted",
+        language: "python3",
+        solutionRevisionNumber: 2
+      })
+    ).toBe("solve: leetcode 167 Two Sum II - Input Array Is Sorted in python3 #2");
+  });
+
+  it("falls back to platform formatting for non-numeric problem ids", () => {
+    expect(
+      buildGitHubCommitMessage({
+        frontendId: "daily-challenge",
+        title: "Daily Challenge",
+        language: "swift",
+        solutionRevisionNumber: 1
+      })
+    ).toBe("solve: leetcode daily_challenge Daily Challenge in swift #1");
   });
 
   it("rejects invalid Solution Revision Numbers in solve commit messages", () => {
