@@ -526,7 +526,8 @@ a:focus-visible {
 .history-title-block h3,
 .history-meta,
 .history-detail,
-.history-recovery {
+.history-recovery,
+.history-superseded {
   overflow-wrap: anywhere;
 }
 
@@ -662,7 +663,8 @@ a:focus-visible {
   line-height: 1.4;
 }
 
-.history-recovery {
+.history-recovery,
+.history-superseded {
   margin: 0;
   color: var(--ss-text-muted);
   font-size: 0.75rem;

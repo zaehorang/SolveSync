@@ -164,10 +164,12 @@ History item 내용:
 - 실패한 경우 짧은 error summary.
 - Unsupported language인 경우 commit이 만들어지지 않았다는 짧은 이유.
 - 같은 Coding Platform의 같은 문제에 대해 여러 Sync History event가 있더라도 Popup 카드 안에서는 language별 최신 row 하나만 보여준다.
+- 그렇게 접히면서 가려진 이전 **실패**가 있으면 그 row에 가려진 실패 개수를 한 줄로 표시한다. 실패가 흔적 없이 사라지면 사용자가 해결된 실패와 유실된 실패를 구분할 수 없다. 가려진 이전 성공은 표시하지 않는다.
 - Commit/File link는 language row의 primary action 영역에 두고, time 같은 낮은 우선순위 metadata와 붙어 보이지 않게 분리한다.
 
 History limit:
 - Sync History는 최근 20개 항목만 보여준다.
+- 항목 개수 label은 접힌 뒤 실제로 화면에 그려지는 row 수를 말한다. 저장된 event 수가 아니다.
 - Sync History가 없으면 Accepted submission이 sync된 뒤 여기에 표시된다는 조용한 empty state를 보여준다.
 
 Retry behavior:

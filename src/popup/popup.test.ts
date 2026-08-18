@@ -41,7 +41,9 @@ describe("popup state helpers", () => {
     );
 
     expect(model.items.map((item) => item.id)).toEqual(["newer", "older"]);
-    expect(model.entryCount).toBe(2);
+    // 같은 (문제, 언어)라 row는 하나로 접힌다. label은 그 row 수를 말한다.
+    expect(model.entryCount).toBe(1);
+    expect(model.groups[0]?.entries.map((entry) => entry.id)).toEqual(["newer"]);
     expect(model.items[0]).toMatchObject({
       title: "1. Two Sum",
       platformLabel: "LeetCode",
@@ -319,7 +321,8 @@ describe("popup state helpers", () => {
       Date.parse("2026-01-01T00:05:00.000Z")
     );
 
-    expect(model.entryCount).toBe(3);
+    // label은 접힌 뒤 실제로 그려지는 row 수를 말해야 한다.
+    expect(model.entryCount).toBe(2);
     expect(model.items.map((item) => item.id)).toEqual([
       "swift-newer",
       "python-synced",
@@ -366,6 +369,124 @@ describe("popup state helpers", () => {
       "swift-failure-newer"
     ]);
     expect(model.groups[0]?.errorBatches).toEqual([]);
+    expect(model.entryCount).toBe(1);
+    expect(model.groups[0]?.entries[0]).toMatchObject({
+      supersededFailureCount: 1,
+      supersededNote: "1 earlier failure hidden"
+    });
+  });
+
+  it("keeps a trace of failures hidden by a later success in the same language", () => {
+    const failure = makeSyncHistoryEntry({
+      id: "swift-failure",
+      status: "failed",
+      updatedAt: "2026-01-01T00:03:00.000Z",
+      commitSha: null,
+      commitUrl: null,
+      fileUrl: null,
+      retryBundleId: "retry-swift",
+      error: makeError("github_commit_failed", "Could not commit the solution.")
+    });
+    const success = makeSyncHistoryEntry({
+      id: "swift-synced",
+      updatedAt: "2026-01-01T00:04:00.000Z"
+    });
+
+    const model = buildHistoryDisplayModel(
+      [failure, success],
+      [],
+      Date.parse("2026-01-01T00:05:00.000Z")
+    );
+
+    const shownRow = model.groups[0]?.entries[0];
+
+    expect(model.entryCount).toBe(1);
+    expect(shownRow?.id).toBe("swift-synced");
+    expect(shownRow?.status).toBe("synced");
+    expect(shownRow).toMatchObject({
+      supersededFailureCount: 1,
+      supersededNote: "1 earlier failure hidden"
+    });
+  });
+
+  it("counts only hidden failures, not hidden successes, in the superseded note", () => {
+    const olderSuccess = makeSyncHistoryEntry({
+      id: "swift-synced-older",
+      updatedAt: "2026-01-01T00:01:00.000Z"
+    });
+    const firstFailure = makeSyncHistoryEntry({
+      id: "swift-failure-first",
+      status: "failed",
+      updatedAt: "2026-01-01T00:02:00.000Z",
+      commitSha: null,
+      commitUrl: null,
+      fileUrl: null,
+      error: makeError("github_commit_failed", "Could not commit the solution.")
+    });
+    const secondFailure = makeSyncHistoryEntry({
+      id: "swift-failure-second",
+      status: "failed",
+      updatedAt: "2026-01-01T00:03:00.000Z",
+      commitSha: null,
+      commitUrl: null,
+      fileUrl: null,
+      error: makeError("github_commit_failed", "Could not commit the solution.")
+    });
+    const newerSuccess = makeSyncHistoryEntry({
+      id: "swift-synced-newer",
+      updatedAt: "2026-01-01T00:04:00.000Z"
+    });
+
+    const model = buildHistoryDisplayModel(
+      [olderSuccess, firstFailure, secondFailure, newerSuccess],
+      [],
+      Date.parse("2026-01-01T00:05:00.000Z")
+    );
+
+    expect(model.groups[0]?.entries[0]).toMatchObject({
+      id: "swift-synced-newer",
+      supersededFailureCount: 2,
+      supersededNote: "2 earlier failures hidden"
+    });
+  });
+
+  it("localizes the superseded failure note in Korean", () => {
+    const failure = makeSyncHistoryEntry({
+      id: "swift-failure",
+      status: "failed",
+      updatedAt: "2026-01-01T00:03:00.000Z",
+      commitSha: null,
+      commitUrl: null,
+      fileUrl: null,
+      error: makeError("github_commit_failed", "커밋하지 못했습니다.")
+    });
+    const success = makeSyncHistoryEntry({
+      id: "swift-synced",
+      updatedAt: "2026-01-01T00:04:00.000Z"
+    });
+
+    const model = buildHistoryDisplayModel(
+      [failure, success],
+      [],
+      Date.parse("2026-01-01T00:05:00.000Z"),
+      "ko"
+    );
+
+    expect(model.groups[0]?.entries[0]?.supersededNote).toBe("가려진 이전 실패 1건");
+  });
+
+  it("leaves the superseded note empty when nothing is hidden", () => {
+    const model = buildHistoryDisplayModel(
+      [makeSyncHistoryEntry({ id: "swift-only" })],
+      [],
+      Date.parse("2026-01-01T00:05:00.000Z")
+    );
+
+    expect(model.entryCount).toBe(1);
+    expect(model.groups[0]?.entries[0]).toMatchObject({
+      supersededFailureCount: 0,
+      supersededNote: null
+    });
   });
 
   it("keeps syncing and retrying history badges on the progress tone", () => {
@@ -696,6 +817,29 @@ describe("popup state helpers", () => {
     expect(html).toContain("0 syncs");
     expect(html).toContain("Accepted submissions will appear here after sync runs.");
     expect(html).not.toContain("history-item");
+  });
+
+  it("renders the hidden-failure note on the row that replaced it", () => {
+    const fixture = createPopupRuntimeFixture();
+    const failure = makeSyncHistoryEntry({
+      id: "swift-failure",
+      status: "failed",
+      updatedAt: "2026-06-08T04:30:00.000Z",
+      commitSha: null,
+      commitUrl: null,
+      fileUrl: null,
+      error: makeError("github_commit_failed", "Could not commit the solution.")
+    });
+    const success = makeSyncHistoryEntry({
+      id: "swift-synced",
+      updatedAt: "2026-06-08T04:31:00.000Z"
+    });
+
+    const html = renderPopupStaticQaFixture(fixture.settings, [failure, success], []);
+
+    expect(html).toContain("history-superseded");
+    expect(html).toContain("1 earlier failure hidden");
+    expect(html).toContain("1 sync");
   });
 
   it("renders retryable failure rows and Retry all without exposing revision text", () => {

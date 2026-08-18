@@ -234,6 +234,11 @@ function renderEntry(entry: HistoryItem): string {
       <span class="language-badge">${escapeHtml(entry.languageLabel)}</span>
       <span class="status-badge ${entry.tone}">${escapeHtml(entry.statusLabel)}</span>
       <p class="history-meta history-entry-footer">${escapeHtml(entry.entryMeta)}</p>
+      ${
+        entry.supersededNote === null
+          ? ""
+          : `<p class="history-superseded">${escapeHtml(entry.supersededNote)}</p>`
+      }
       ${entry.commitUrl === null ? "" : '<a class="history-link history-link-pill">Commit</a>'}
       ${entry.fileUrl === null ? "" : '<a class="history-link history-link-pill">File</a>'}
       ${
