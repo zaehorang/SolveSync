@@ -174,11 +174,18 @@ Accepted가 아닌 경로도 같은 날 실측했다. 아래 네 가지 모두 t
 
 **동작이 실제로 수행됐는지 함께 확인해야 한다.** 세션이 만료된 상태에서는 임시저장이 인증에서 튕기고 `세션이 만료되었습니다. 로그인 페이지로 이동합니다.` layer만 떠서, event가 없는 것이 감지 정확성 때문인지 요청이 실행되지 않아서인지 구분되지 않는다.
 
+route 전환도 같은 날 확인했다. 1206 풀이 window를 닫고 같은 URL에서 1859 window를 연 뒤 Accepted를 만들었더니 현재 `contestProbId`와 제목으로 commit이 정확히 하나 생겼고, Solution README의 1206 행은 그대로 보존됐다. URL이 동일한데도 route key가 갈린다는 것을 실측으로 확인한 것이다([ADR 0036](../adr/0036-adapter-resolved-content-route-key.md)).
+
 ## 수동 검증
 
 [공통 수동 검증](../MANUAL_VALIDATION.md)을 먼저 완료하고, 사용자가 선택한 test repository/test branch에서 다음을 실행한다.
 
-**기준 문제는 1206 `[S/W 문제해결 기본] 1일차 - View`(`contestProbId`: `AV134DPqAA8CFAYh`)다.** 같은 문제로 반복해야 결과를 이전 실행과 비교할 수 있다. 문제를 바꾸면 이 문서의 실측값도 함께 갱신한다.
+기준 문제 두 개를 고정한다. 같은 문제로 반복해야 결과를 이전 실행과 비교할 수 있다. 문제를 바꾸면 이 문서의 실측값도 함께 갱신한다.
+
+| 역할 | 문제 | `contestProbId` |
+| --- | --- | --- |
+| 주력 | 1206 `[S/W 문제해결 기본] 1일차 - View` | `AV134DPqAA8CFAYh` |
+| route 전환 확인용 | 1859 `백만 장자 프로젝트` | `AV5LrsUaDxcDFAXc` |
 
 두 가지를 미리 알고 시작한다.
 
