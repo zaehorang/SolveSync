@@ -4,7 +4,7 @@
 
 이유: SWEA는 기존 두 플랫폼의 추출 경로가 모두 막혀 있다. 2026-08-14 로그인 상태의 실제 Chrome에서 확인한 사실이다.
 
-- `textarea#textSource.value.length`가 0이었다. 같은 시점 editor는 67줄을 갖고 있었다. Programmers의 `textarea#code`와 달리 CodeMirror가 textarea로 sync하지 않는다.
+- `textarea#textSource`는 Programmers의 `textarea#code`와 달리 editor 변경을 반영하지 않는다. 2026-08-18 실측에서 풀이 window를 열 때 들어 있던 초기 code(20줄)가 editor를 55줄로 바꾼 뒤에도 그대로였다. 이 경로를 source로 쓰면 다른 시점의 code를 commit한다.
 - `.CodeMirror-line`은 67줄 중 27개만 존재했다. 가상 스크롤이라 rendered line DOM을 source로 쓰면 code가 조용히 잘린다.
 - CodeMirror instance는 element expando와 page global로만 접근할 수 있고 둘 다 isolated world에서 보이지 않는다.
 
