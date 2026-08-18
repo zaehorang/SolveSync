@@ -221,10 +221,118 @@ describe("background extension storage", () => {
     expect(state.locks).toHaveLength(1);
     expect(state.locks[0]?.lockedAt).toBe(addMs(lockedAt, SYNC_DEDUPLICATION_KEY_LOCK_TTL_MS + 1));
   });
+
+  it("keeps both Sync History entries appended at the same time", async () => {
+    const storage = createExtensionStorage(createSlowMemoryStorageArea());
+
+    await Promise.all([
+      storage.appendSyncHistoryEntry(makeSyncHistoryEntry(1)),
+      storage.appendSyncHistoryEntry(makeSyncHistoryEntry(2))
+    ]);
+
+    const entries = await storage.listSyncHistoryEntries();
+    expect(entries.map((entry) => entry.id).sort()).toEqual(["record-1", "record-2"]);
+  });
+
+  it("grants a Sync Deduplication Key lock to only one concurrent caller", async () => {
+    const storage = createExtensionStorage(createSlowMemoryStorageArea());
+    const syncDeduplicationKey = makeSyncDeduplicationKey("source-concurrent");
+    const now = "2026-01-01T00:00:00.000Z";
+
+    const results = await Promise.all([
+      storage.acquireSyncDeduplicationKeyLock(syncDeduplicationKey, now),
+      storage.acquireSyncDeduplicationKeyLock(syncDeduplicationKey, now)
+    ]);
+
+    expect(results.filter(Boolean)).toHaveLength(1);
+  });
+
+  it("keeps both Retry Bundles saved at the same time", async () => {
+    const storage = createExtensionStorage(createSlowMemoryStorageArea());
+    const createdAt = "2026-01-01T00:00:00.000Z";
+
+    await Promise.all([
+      storage.saveRetryBundle(makeRetryBundle("retry-1", createdAt), createdAt),
+      storage.saveRetryBundle(makeRetryBundle("retry-2", createdAt), createdAt)
+    ]);
+
+    const bundles = await storage.listRetryBundles();
+    expect(bundles.map((bundle) => bundle.id).sort()).toEqual(["retry-1", "retry-2"]);
+  });
+
+  it("does not serialize different storage keys against each other", async () => {
+    const area = createSlowMemoryStorageArea();
+    const storage = createExtensionStorage(area);
+
+    await Promise.all([
+      storage.appendSyncHistoryEntry(makeSyncHistoryEntry(1)),
+      storage.saveRetryBundle(
+        makeRetryBundle("retry-1", "2026-01-01T00:00:00.000Z"),
+        "2026-01-01T00:00:00.000Z"
+      )
+    ]);
+
+    expect(await storage.listSyncHistoryEntries()).toHaveLength(1);
+    expect(await storage.listRetryBundles()).toHaveLength(1);
+  });
+
+  it("keeps serving later writes after one of them throws", async () => {
+    const area = createSlowMemoryStorageArea();
+    let failNextSet = true;
+    const failingArea: MemoryStorageArea = {
+      ...area,
+      async set(items) {
+        if (failNextSet) {
+          failNextSet = false;
+          throw new Error("storage set failed");
+        }
+
+        return area.set(items);
+      }
+    };
+    const storage = createExtensionStorage(failingArea);
+
+    const [first, second] = await Promise.allSettled([
+      storage.appendSyncHistoryEntry(makeSyncHistoryEntry(1)),
+      storage.appendSyncHistoryEntry(makeSyncHistoryEntry(2))
+    ]);
+
+    expect(first?.status).toBe("rejected");
+    expect(second?.status).toBe("fulfilled");
+    expect(await storage.listSyncHistoryEntries()).toHaveLength(1);
+  });
 });
 
 interface MemoryStorageArea extends StorageAreaAdapter {
   dump(): Record<string, unknown>;
+}
+
+/** 모든 호출 사이에 실제 turn을 끼워 read-modify-write 구간이 겹치게 만든다.
+ * 직렬화가 없으면 나중 write가 앞선 write를 덮는다. */
+function createSlowMemoryStorageArea(
+  seed: Record<string, unknown> = {}
+): MemoryStorageArea {
+  const area = createMemoryStorageArea(seed);
+  const yieldTurn = (): Promise<void> =>
+    new Promise((resolve) => {
+      setTimeout(resolve, 0);
+    });
+
+  return {
+    async get(keys) {
+      await yieldTurn();
+      return area.get(keys);
+    },
+    async set(items) {
+      await yieldTurn();
+      return area.set(items);
+    },
+    async remove(keys) {
+      await yieldTurn();
+      return area.remove(keys);
+    },
+    dump: area.dump
+  };
 }
 
 function createMemoryStorageArea(seed: Record<string, unknown> = {}): MemoryStorageArea {

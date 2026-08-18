@@ -88,7 +88,42 @@ export interface ExtensionStorage {
   ): Promise<SyncDeduplicationKeyLocksState>;
 }
 
+/** 같은 storage key의 read-modify-write를 순서대로 실행한다.
+ *
+ * `chrome.storage`에는 compare-and-swap이 없다. 두 flow가 같은 key를 동시에
+ * 읽고 쓰면 나중 write가 앞선 변경을 통째로 덮는다. Sync History 기록이
+ * 사라지는 정도가 아니라, Sync Deduplication Key lock을 둘 다 획득해 같은
+ * 제출이 두 번 commit될 수 있다.
+ *
+ * 실패한 작업이 뒤 작업을 막지 않도록 queue tail은 항상 resolve된 promise로
+ * 잇는다. */
+function createStorageKeyQueue(): <T>(
+  key: StorageKey,
+  task: () => Promise<T>
+) => Promise<T> {
+  const tails = new Map<StorageKey, Promise<void>>();
+
+  return <T>(key: StorageKey, task: () => Promise<T>): Promise<T> => {
+    const previous = tails.get(key) ?? Promise.resolve();
+    const result = previous.then(task);
+
+    tails.set(
+      key,
+      result.then(
+        () => undefined,
+        () => undefined
+      )
+    );
+
+    return result;
+  };
+}
+
 export function createExtensionStorage(area: StorageAreaAdapter): ExtensionStorage {
+  // read-modify-write mutator는 전부 이 queue를 거친다. 새 mutator를 추가하면
+  // 아래 반환 객체의 배선에도 함께 넣는다.
+  const runExclusive = createStorageKeyQueue();
+
   async function getSettings(): Promise<SettingsState> {
     const values = await area.get(STORAGE_KEYS.settings);
     const raw = values[STORAGE_KEYS.settings];
@@ -363,25 +398,45 @@ export function createExtensionStorage(area: StorageAreaAdapter): ExtensionStora
     return writeState(area, STORAGE_KEYS.syncDeduplicationKeyLocks, next);
   }
 
+  // 읽기 전용 함수는 그대로 두고, 같은 key를 읽고 다시 쓰는 함수만 직렬화한다.
+  // `getSettings`는 legacy migration write를 하지만 `saveSettings`가 내부에서
+  // 호출하므로 queue에 넣지 않는다. 넣으면 서로를 기다려 교착한다.
   return {
     getSettings,
-    saveSettings,
+    saveSettings: (settings, now) =>
+      runExclusive(STORAGE_KEYS.settings, () => saveSettings(settings, now)),
     getGitHubAuth,
     saveGitHubAuth,
     clearGitHubAuth,
     listProcessedSyncDeduplicationKeys,
     hasProcessedSyncDeduplicationKey,
-    markSyncDeduplicationKeyProcessed,
-    appendSyncHistoryEntry,
+    markSyncDeduplicationKeyProcessed: (syncDeduplicationKey, details, now) =>
+      runExclusive(STORAGE_KEYS.processedSyncDeduplicationKeys, () =>
+        markSyncDeduplicationKeyProcessed(syncDeduplicationKey, details, now)
+      ),
+    appendSyncHistoryEntry: (entry) =>
+      runExclusive(STORAGE_KEYS.syncHistory, () => appendSyncHistoryEntry(entry)),
     listSyncHistoryEntries,
-    saveRetryBundle,
+    saveRetryBundle: (bundle, now) =>
+      runExclusive(STORAGE_KEYS.retryBundles, () => saveRetryBundle(bundle, now)),
     listRetryBundles,
     getRetryBundle,
-    removeRetryBundle,
-    pruneRetryBundles,
-    acquireSyncDeduplicationKeyLock,
-    releaseSyncDeduplicationKeyLock,
-    pruneSyncDeduplicationKeyLocks
+    removeRetryBundle: (id) =>
+      runExclusive(STORAGE_KEYS.retryBundles, () => removeRetryBundle(id)),
+    pruneRetryBundles: (now) =>
+      runExclusive(STORAGE_KEYS.retryBundles, () => pruneRetryBundles(now)),
+    acquireSyncDeduplicationKeyLock: (syncDeduplicationKey, now) =>
+      runExclusive(STORAGE_KEYS.syncDeduplicationKeyLocks, () =>
+        acquireSyncDeduplicationKeyLock(syncDeduplicationKey, now)
+      ),
+    releaseSyncDeduplicationKeyLock: (syncDeduplicationKey) =>
+      runExclusive(STORAGE_KEYS.syncDeduplicationKeyLocks, () =>
+        releaseSyncDeduplicationKeyLock(syncDeduplicationKey)
+      ),
+    pruneSyncDeduplicationKeyLocks: (now) =>
+      runExclusive(STORAGE_KEYS.syncDeduplicationKeyLocks, () =>
+        pruneSyncDeduplicationKeyLocks(now)
+      )
   };
 }
 
