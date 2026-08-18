@@ -93,24 +93,36 @@ export function startAcceptedDetectionController(
   const documentRoot = options.documentRef.body ?? options.documentRef.documentElement;
   const programmersPresentationTracker =
     createProgrammersAcceptedPresentationTracker();
-  let pendingEvent: {
-    routeKey: string;
-    /** 값이 이미 확정된 경우. SWEA처럼 bridge 응답을 기다리면 null이다. */
-    message: AcceptedDetectedMessage | null;
-    messagePromise: Promise<AcceptedDetectedMessage> | null;
-  } | null = null;
-  let pendingTimer: ReturnType<typeof setTimeout> | null = null;
+  // 같은 render burst를 한 번만 전달하기 위한 억제 창이다 (ADR 0034).
+  //
+  // 전달을 창이 닫힐 때까지 미루지 않는다. 미루면 그 사이 page가 사라졌을 때
+  // event가 통째로 사라진다. SWEA Accepted layer의 `확인`을 빠르게 누르면
+  // page가 그 창 안에서 언로드되어 sync가 시작조차 하지 못했다.
+  let suppressed = false;
+  let suppressionTimer: ReturnType<typeof setTimeout> | null = null;
+  // route가 바뀔 때마다 올린다. 전달 직전의 route key 비교만으로는 A→B→A로
+  // 돌아온 경우를 걸러내지 못한다. 그때 key는 다시 A라서 같아 보인다.
+  let routeGeneration = 0;
 
-  const clearPendingEvent = (): void => {
-    if (pendingTimer !== null) {
-      scheduler.clearTimeout(pendingTimer);
+  const clearSuppression = (): void => {
+    if (suppressionTimer !== null) {
+      scheduler.clearTimeout(suppressionTimer);
     }
 
-    pendingEvent = null;
-    pendingTimer = null;
+    suppressed = false;
+    suppressionTimer = null;
+  };
+
+  const openSuppressionWindow = (): void => {
+    suppressed = true;
+    suppressionTimer = scheduler.setTimeout(() => {
+      suppressed = false;
+      suppressionTimer = null;
+    }, coalescingWindowMs);
   };
 
   const deliver = (message: AcceptedDetectedMessage, routeKey: string): void => {
+    // route는 전달 직전에 다시 확인한다 (ADR 0034).
     if (routeKeyForUrl(options.getCurrentUrl()) !== routeKey) {
       return;
     }
@@ -118,40 +130,21 @@ export function startAcceptedDetectionController(
     options.sendAcceptedMessage(message);
   };
 
-  const flushPendingEvent = (): void => {
-    const event = pendingEvent;
-    pendingEvent = null;
-    pendingTimer = null;
-
-    if (event === null) {
-      return;
-    }
-
-    if (event.message !== null) {
-      deliver(event.message, event.routeKey);
-      return;
-    }
-
-    // route는 전달 직전에 다시 확인한다 (ADR 0034). bridge 응답을 기다리는
-    // 동안 route가 바뀌었으면 이 event는 버린다.
-    void event.messagePromise?.then((message) => {
-      deliver(message, event.routeKey);
-    });
-  };
-
   const queueAcceptedEvent = (
     page: Exclude<ContentPageContext, { platform: "unsupported" }>,
     pageUrl: string,
     routeKey: string
   ): void => {
-    if (pendingEvent !== null) {
+    if (suppressed) {
       return;
     }
+
+    openSuppressionWindow();
 
     const detectedAt = options.now?.() ?? new Date().toISOString();
 
     if (page.platform === "swea") {
-      // metadata는 지금 읽고 code 요청도 지금 보낸다. 지연 callback에서 DOM을
+      // metadata는 지금 읽고 code 요청도 지금 보낸다. 나중 callback에서 DOM을
       // 다시 읽지 않는다 (ADR 0034).
       const snapshot = extractSweaAcceptedEditorSnapshotMetadata(
         options.documentRef,
@@ -165,29 +158,26 @@ export function startAcceptedDetectionController(
         options.requestSweaEditorCode?.() ?? Promise.resolve(null)
       ).catch(() => null);
 
-      pendingEvent = {
-        routeKey,
-        message: null,
-        messagePromise: codePromise.then((code) =>
-          createSweaAcceptedDetectedMessage(snapshot, code ?? "")
-        )
-      };
-      pendingTimer = scheduler.setTimeout(flushPendingEvent, coalescingWindowMs);
+      // SWEA만 code를 기다린다. 남는 지연은 bridge 왕복뿐이다.
+      const generation = routeGeneration;
+
+      void codePromise.then((code) => {
+        // 관찰된 route 이동이 있었으면 버린다. `deliver`의 현재 URL 비교는
+        // mutation 없이 바뀐 route를 잡고, 이 비교는 되돌아온 route를 잡는다.
+        if (generation !== routeGeneration) {
+          return;
+        }
+
+        deliver(createSweaAcceptedDetectedMessage(snapshot, code ?? ""), routeKey);
+      });
 
       return;
     }
 
-    pendingEvent = {
-      routeKey,
-      message: createAcceptedMessageForPage(
-        options.documentRef,
-        page,
-        pageUrl,
-        detectedAt
-      ),
-      messagePromise: null
-    };
-    pendingTimer = scheduler.setTimeout(flushPendingEvent, coalescingWindowMs);
+    deliver(
+      createAcceptedMessageForPage(options.documentRef, page, pageUrl, detectedAt),
+      routeKey
+    );
   };
 
   const observeTargets = (presentationRoot: Element | null): void => {
@@ -217,7 +207,8 @@ export function startAcceptedDetectionController(
     if (routeChanged) {
       currentPage = page;
       currentRouteKey = nextRouteKey;
-      clearPendingEvent();
+      routeGeneration += 1;
+      clearSuppression();
     }
 
     if (page.platform === "unsupported") {
@@ -270,7 +261,9 @@ export function startAcceptedDetectionController(
   );
 
   return () => {
-    clearPendingEvent();
+    // 종료 뒤 도착하는 bridge 응답도 무효로 만든다.
+    routeGeneration += 1;
+    clearSuppression();
     observer.disconnect();
   };
 }

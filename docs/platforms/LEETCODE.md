@@ -40,7 +40,7 @@ Vitest에서 다음을 검증한다.
 - hidden Accepted 후보와 removed Accepted node 제외
 - traversal depth, text length와 candidate count cap
 - 같은 render burst는 first event 하나만 전달
-- route 변경 시 이전 pending event 폐기, 새 route event에는 현재 `titleSlug`와 URL 사용
+- route 변경 시 억제 창 초기화, 새 route event에는 현재 `titleSlug`와 URL 사용. 이미 전달한 event는 회수하지 않는다([ADR 0037](../adr/0037-immediate-accepted-delivery-with-suppression-window.md))
 - GraphQL metadata/Accepted Submission parsing과 submission ID 기반 deduplication
 - auth/fetch 실패 normalization
 

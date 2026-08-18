@@ -48,6 +48,8 @@ layer 전체 text에는 버튼 label `확인`과 `닫기`가 뒤에 붙지만 **
 
 `확인`을 누르면 layer가 DOM에서 **제거된다.** 숨김 전환이 아니다.
 
+`확인` 클릭이 page 언로드까지 일으키는지는 확인되지 않았다. 사용자 제보가 있고 [조사 메모](../investigations/SWEA_ACCEPTED_LAYER_CONFIRM_UNLOADS_PAGE.md)에 확인 절차를 적어뒀다. Accepted event는 감지 즉시 전달하므로([ADR 0037](../adr/0037-immediate-accepted-delivery-with-suppression-window.md)) 어느 쪽이든 sync는 영향받지 않는다.
+
 실패 신호도 같은 layer 구조를 쓴다. 둘 다 2026-08-18 실측값이다.
 
 | 실패 | layer 전체 text |
@@ -140,7 +142,7 @@ Missing `contestProbId`/title/language와 empty code는 commit하지 않고 `swe
 
 ## 자동 검증
 
-- `src/content/swea.test.ts`: Accepted/실패 문구 판정, `#contestProbId` route key, 제목·언어 추출, bridge nonce/origin/timeout, controller의 immutable snapshot·coalescing·route 폐기
+- `src/content/swea.test.ts`: Accepted/실패 문구 판정, `#contestProbId` route key, 제목·언어 추출, bridge nonce/origin/timeout, controller의 immutable snapshot·억제 창·route 변경 시 bridge 응답 폐기
 - `src/shared/languageRegistry.test.ts`: `swea` alias 매핑과 플랫폼별 지원 언어 집합
 - `src/shared/platformPolicy.test.ts`, `src/shared/paths.test.ts`: `swea` policy와 Solution File 경로
 - `src/background/sync.test.ts`: commit message, Solution Catalog/README projection, unsupported language, extract failure
@@ -196,8 +198,9 @@ route 전환도 같은 날 확인했다. 1206 풀이 window를 닫고 같은 URL
 2. Python 3로 Accepted 제출을 만든다. Toast, Sync History와 GitHub commit이 정확히 하나인지 확인한다.
 3. **commit된 code가 화면 밖으로 스크롤된 줄을 포함해 제출한 code 전체와 일치하는지 확인한다.** 최소 40줄 이상인 풀이로 확인한다.
 4. 이때 alert layer가 새 node 추가였는지 기존 node의 visibility 전환이었는지 기록한다([확인된 전제](#확인된-전제) 3번의 회귀 확인이다).
-5. 실패 제출을 만든다. 새 toast, Sync History와 commit이 없어야 한다.
-6. Code를 구별 가능하게 수정한 뒤 두 번째 Accepted 제출을 만든다. 두 번째 Solution Revision commit이 정확히 하나인지 확인한다.
-7. 같은 URL에서 다른 문제를 연 뒤 Accepted를 만든다. 현재 `contestProbId`와 제목으로 sync가 정확히 한 번 생성되는지 확인한다.
-8. JAVA로 Accepted를 만든다. 같은 문제의 Solution README 행에 두 언어가 함께 보이는지 확인한다.
-9. Extension을 재로드하지 않은 채 풀이 window를 새로 열어 bridge가 다시 주입되는지 확인한다.
+5. **Accepted layer가 뜨자마자 곧바로 `확인`을 누른다.** toast를 기다리지 않는다. Sync History와 GitHub commit이 그대로 하나 생기는지 확인한다. 이때 page가 리로드되는지도 함께 기록한다([조사 메모](../investigations/SWEA_ACCEPTED_LAYER_CONFIRM_UNLOADS_PAGE.md)).
+6. 실패 제출을 만든다. 새 toast, Sync History와 commit이 없어야 한다.
+7. Code를 구별 가능하게 수정한 뒤 두 번째 Accepted 제출을 만든다. 두 번째 Solution Revision commit이 정확히 하나인지 확인한다.
+8. 같은 URL에서 다른 문제를 연 뒤 Accepted를 만든다. 현재 `contestProbId`와 제목으로 sync가 정확히 한 번 생성되는지 확인한다.
+9. JAVA로 Accepted를 만든다. 같은 문제의 Solution README 행에 두 언어가 함께 보이는지 확인한다.
+10. Extension을 재로드하지 않은 채 풀이 window를 새로 열어 bridge가 다시 주입되는지 확인한다.

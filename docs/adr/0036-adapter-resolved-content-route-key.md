@@ -4,7 +4,7 @@
 
 이유: SWEA 풀이 페이지는 `https://swexpertacademy.com/main/solvingProblem/solvingProblem.do`이고 **모든 문제가 같은 URL을 쓰며 query string이 없다.** URL만으로는 어떤 문제인지 알 수 없고, 문제 식별자는 DOM의 `input#contestProbId`에만 있다. Route key를 URL에서 뽑는 구조에서는 SWEA의 모든 문제가 같은 key를 갖게 되어 ADR 0034의 route 경계가 무의미해진다.
 
-ADR 0034의 나머지 계약은 그대로 유지한다. Fresh signal 시점에 route key를 확정하고, 전달 직전에 다시 확인하며, route key가 바뀌면 pending event와 coalescing state, route-bound adapter state를 폐기한다. 바뀌는 것은 route key의 출처뿐이다.
+ADR 0034의 나머지 계약은 그대로 유지한다(coalescing window의 의미와 pending event 폐기 규칙은 이후 [ADR 0037](0037-immediate-accepted-delivery-with-suppression-window.md)에서 바뀌었다). Fresh signal 시점에 route key를 확정하고, 전달 직전에 다시 확인하며, route key가 바뀌면 pending event와 coalescing state, route-bound adapter state를 폐기한다. 바뀌는 것은 route key의 출처뿐이다.
 
 Route key를 확정할 수 없는 경우는 unsupported page로 처리하고 event를 만들지 않는다. SWEA에서 `#contestProbId`를 읽지 못하는 순간이 여기에 해당한다.
 

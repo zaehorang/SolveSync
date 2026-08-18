@@ -27,7 +27,7 @@ Fresh Accepted를 확정한 즉시 다음 값을 한 번 읽어 immutable `Progr
 - Editor code
 - `pageUrl`, `detectedAt`
 
-동일 render burst를 coalescing하는 동안 editor가 바뀌어도 first snapshot을 유지하며, 지연 callback에서 DOM을 다시 읽지 않는다. Route가 바뀌면 이전 pending event와 presentation state를 폐기한다.
+동일 render burst의 후속 signal은 억제되며, 그 사이 editor가 바뀌어도 이미 전달한 first snapshot에 섞이지 않는다. 나중 callback에서 DOM을 다시 읽지 않는다. Route가 바뀌면 억제 창과 presentation state를 폐기한다. event는 감지 즉시 전달하므로 route 이동으로 회수되지 않는다([ADR 0037](../adr/0037-immediate-accepted-delivery-with-suppression-window.md)).
 
 2026-05-27 실제 Chrome 검증 기준으로 editor는 CodeMirror 계열로 렌더링되며 code source는 `textarea#code.value`다. `.cm-line` 같은 rendered line DOM은 화면에 보이는 줄만 반영할 수 있으므로 source of truth로 사용하지 않는다. `textarea#code`가 없거나 `value`가 비어 있으면 extraction failure다.
 
