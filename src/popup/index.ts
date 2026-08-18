@@ -73,6 +73,11 @@ export interface PopupHistoryItem {
   recoveryHint: string | null;
   retryBundleId: string | null;
   canRetry: boolean;
+  /** 같은 (문제, 언어) row에 접혀서 화면에서 사라진 이전 실패 수.
+   * 접는 것은 의도된 규칙이지만 실패가 흔적 없이 사라지면 안 된다. */
+  supersededFailureCount: number;
+  /** 접힌 실패를 알리는 문구. 접힌 실패가 없으면 null이다. */
+  supersededNote: string | null;
 }
 
 export interface PopupHistoryBatch {
@@ -179,10 +184,12 @@ export function buildHistoryDisplayModel(
     .slice(0, HISTORY_LIMIT)
     .map((entry) => toHistoryItem(entry, retryBundleIds, nowMs, locale));
 
+  const groups = groupHistoryItems(items, locale);
+
   return {
     items,
-    groups: groupHistoryItems(items, locale),
-    entryCount: items.length,
+    groups,
+    entryCount: groups.reduce((count, group) => count + group.entries.length, 0),
     emptyText: t(locale, "history.empty")
   };
 }
@@ -611,6 +618,13 @@ function createHistoryEntryRow(
   meta.textContent = item.entryMeta;
   row.append(meta);
 
+  if (item.supersededNote !== null) {
+    const superseded = document.createElement("p");
+    superseded.className = "history-superseded";
+    superseded.textContent = item.supersededNote;
+    row.append(superseded);
+  }
+
   const detailText = item.failure?.summary ?? item.unsupportedReason;
   if (detailText !== null) {
     const detail = document.createElement("p");
@@ -790,7 +804,9 @@ function toHistoryItem(
       locale
     ),
     retryBundleId,
-    canRetry
+    canRetry,
+    supersededFailureCount: 0,
+    supersededNote: null
   };
 }
 
@@ -825,13 +841,28 @@ function groupHistoryItems(
       continue;
     }
 
-    if (!group.entries.some((entry) => entry.languageKey === item.languageKey)) {
+    const shownItem = group.entries.find(
+      (entry) => entry.languageKey === item.languageKey
+    );
+
+    if (shownItem === undefined) {
       group.entries.push(item);
+      continue;
+    }
+
+    // language별 최신 row 하나만 보여준다 (UI_GUIDE). 접힌 실패는 개수라도
+    // 남겨야 사용자가 "해결된 실패"와 "사라진 실패"를 구분할 수 있다.
+    if (item.status === "failed") {
+      shownItem.supersededFailureCount += 1;
     }
   }
 
   for (const group of groups) {
     group.errorBatches = buildHistoryErrorBatches(group, locale);
+
+    for (const entry of group.entries) {
+      entry.supersededNote = getSupersededFailureText(entry, locale);
+    }
   }
 
   return groups;
@@ -968,6 +999,22 @@ function getSyncHistoryLanguageKey(syncHistoryEntry: SyncHistoryEntry): string {
 
   const language = syncHistoryEntry.language.trim().toLowerCase();
   return language.length > 0 ? language : "unknown";
+}
+
+/** 접혀서 사라진 이전 실패를 알리는 문구. 접힌 실패가 없으면 null이다. */
+function getSupersededFailureText(
+  item: PopupHistoryItem,
+  locale: UiLocale
+): string | null {
+  const count = item.supersededFailureCount;
+
+  if (count <= 0) {
+    return null;
+  }
+
+  return count === 1
+    ? t(locale, "history.supersededFailureOne")
+    : t(locale, "history.supersededFailure", { count });
 }
 
 function getSyncHistoryEntryTitle(
