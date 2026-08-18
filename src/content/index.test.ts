@@ -165,7 +165,7 @@ describe("accepted detection controller", () => {
     vi.useRealTimers();
   });
 
-  it("captures the first Programmers snapshot immediately and keeps a fixed window", () => {
+  it("delivers the first Programmers snapshot at once and ignores the rest of the window", () => {
     vi.useFakeTimers();
     const harness = createProgrammersControllerHarness({
       code: "accepted code\n",
@@ -181,13 +181,15 @@ describe("accepted detection controller", () => {
 
     harness.modal.removeAttribute("aria-hidden");
     harness.observer.emit([attributeMutation(harness.modal, "aria-hidden")]);
+    // timer를 전혀 돌리지 않아도 이미 전달되어 있어야 한다.
+    expect(harness.sentMessages).toHaveLength(1);
+
     harness.codeEditor.value = "edited but not accepted\n";
     vi.advanceTimersByTime(500);
     harness.observer.emit([acceptedChildListMutation("정답입니다!")]);
-    vi.advanceTimersByTime(199);
-    expect(harness.sentMessages).toHaveLength(0);
+    vi.advanceTimersByTime(200);
 
-    vi.advanceTimersByTime(1);
+    // 창 안의 후속 signal은 두 번째 event를 만들지 않는다.
     expect(harness.sentMessages).toHaveLength(1);
     expect(harness.sentMessages[0]).toMatchObject({
       payload: {
@@ -304,7 +306,7 @@ describe("accepted detection controller", () => {
     expect(harness.sentMessages).toHaveLength(2);
   });
 
-  it("cancels a Programmers pending event on SPA route change and snapshots the new route", () => {
+  it("delivers Programmers events for both routes across an SPA move", () => {
     vi.useFakeTimers();
     const harness = createProgrammersControllerHarness({
       code: "first route code\n"
@@ -319,8 +321,16 @@ describe("accepted detection controller", () => {
     harness.observer.emit([acceptedChildListMutation("정답입니다!")]);
     vi.advanceTimersByTime(700);
 
-    expect(harness.sentMessages).toHaveLength(1);
+    // 앞 route에서 관찰한 Accepted도 그 route의 snapshot으로 전달된다. 미뤘다가
+    // 버리면 사용자가 푼 문제가 조용히 사라진다.
+    expect(harness.sentMessages).toHaveLength(2);
     expect(harness.sentMessages[0]).toMatchObject({
+      payload: {
+        lessonId: "120804",
+        code: "first route code\n"
+      }
+    });
+    expect(harness.sentMessages[1]).toMatchObject({
       payload: {
         lessonId: "120820",
         pageUrl: harness.pageUrl(),
@@ -348,8 +358,8 @@ describe("accepted detection controller", () => {
     harness.observer.emit([attributeMutation(harness.modal, "aria-hidden")]);
     vi.advanceTimersByTime(700);
 
-    expect(harness.sentMessages).toHaveLength(1);
-    expect(harness.sentMessages[0]).toMatchObject({
+    expect(harness.sentMessages).toHaveLength(2);
+    expect(harness.sentMessages[1]).toMatchObject({
       payload: {
         lessonId: "120820",
         pageUrl: harness.pageUrl(),
@@ -375,7 +385,14 @@ describe("accepted detection controller", () => {
     harness.observer.emit([attributeMutation(harness.modal, "class")]);
     vi.advanceTimersByTime(700);
 
-    expect(harness.sentMessages).toHaveLength(0);
+    // 새 route에서는 fresh 신호가 없었다. 앞 route의 event 하나만 남는다.
+    expect(harness.sentMessages).toHaveLength(1);
+    expect(harness.sentMessages[0]).toMatchObject({
+      payload: {
+        lessonId: "120804",
+        code: "old route code\n"
+      }
+    });
   });
 
   it("rebinds a replacement modal root and treats its current state as baseline", () => {
@@ -429,7 +446,7 @@ describe("accepted detection controller", () => {
     expect(sentMessages).toHaveLength(2);
   });
 
-  it("cancels pending work on SPA route changes and uses the new route next time", () => {
+  it("delivers one event per route across an SPA move", () => {
     vi.useFakeTimers();
     let pageUrl = "https://leetcode.com/problems/two-sum/";
     const documentRef = makeDetectionDocument({});
@@ -453,6 +470,15 @@ describe("accepted detection controller", () => {
         type: "content:accepted_detected",
         payload: {
           codingPlatform: "leetcode",
+          titleSlug: "two-sum",
+          pageUrl: "https://leetcode.com/problems/two-sum/",
+          detectedAt: "2026-01-01T00:00:00.000Z"
+        }
+      },
+      {
+        type: "content:accepted_detected",
+        payload: {
+          codingPlatform: "leetcode",
           titleSlug: "valid-parentheses",
           pageUrl,
           detectedAt: "2026-01-01T00:00:00.000Z"
@@ -461,7 +487,7 @@ describe("accepted detection controller", () => {
     ]);
   });
 
-  it("discards a pending event if the route changes without another mutation", () => {
+  it("keeps an event captured before the user leaves the route", () => {
     vi.useFakeTimers();
     let pageUrl = "https://leetcode.com/problems/two-sum/";
     const observer = createFakeObserver();
@@ -478,7 +504,13 @@ describe("accepted detection controller", () => {
     pageUrl = "https://leetcode.com/problems/valid-parentheses/";
     vi.advanceTimersByTime(700);
 
-    expect(sendAcceptedMessage).not.toHaveBeenCalled();
+    // 감지 시점에 전달했으므로 사용자가 곧바로 이동해도 남는다.
+    expect(sendAcceptedMessage).toHaveBeenCalledTimes(1);
+    expect(sendAcceptedMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payload: expect.objectContaining({ titleSlug: "two-sum" })
+      })
+    );
   });
 });
 

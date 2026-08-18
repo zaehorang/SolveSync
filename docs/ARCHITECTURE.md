@@ -53,8 +53,8 @@ README.md
 - Route key는 URL이 아니라 adapter가 확정한다([ADR 0036](adr/0036-adapter-resolved-content-route-key.md)). URL로 식별 가능한 플랫폼의 adapter는 계속 URL을 parsing한다.
 - Text signal 탐색은 ADR 0022에 따라 mutation 범위 안에서 bounded traversal한다. 플랫폼별 presentation state가 필요하면 같은 observer에 adapter가 등록한 presentation root를 추가 target으로 등록하고 그 root의 visibility attribute만 관찰한다.
 - Fresh signal마다 현재 URL을 다시 parsing해 route-bound immutable Accepted event를 즉시 만든다. Event에 DOM source snapshot이 필요하면 이 시점에 한 번만 캡처하고 지연 callback에서 DOM을 다시 읽지 않는다.
-- 동일 render burst는 첫 event와 snapshot을 보존하는 fixed-window coalescer로 최대 한 번만 전달한다.
-- Route key가 바뀌면 이전 route의 pending event와 coalescing state를 폐기한 뒤 현재 batch를 새 route 기준으로 판정한다. 전달 직전에도 route key를 다시 확인한다.
+- Event는 확정 즉시 전달한다. Coalescing window는 전달을 미루는 지연 창이 아니라 같은 render burst의 후속 signal을 무시하는 억제 창이다([ADR 0037](adr/0037-immediate-accepted-delivery-with-suppression-window.md)). 들고 있는 동안 page가 사라지면 event가 통째로 없어져 실패 기록조차 남지 않는다.
+- 비동기로 기다리는 구간은 SWEA bridge 응답뿐이다. Route key가 바뀌면 억제 창과 route-bound adapter state를 폐기하고 현재 batch를 새 route 기준으로 판정한다. 전달 직전에도 route key를 다시 확인한다.
 - Fresh transition, immutable event와 route lifecycle 결정은 ADR 0034를 따른다.
 - background service worker로 `content:accepted_detected` 메시지를 보낸다.
 - 문제 페이지 안에 toast feedback을 렌더링한다.

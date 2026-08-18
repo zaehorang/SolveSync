@@ -198,6 +198,19 @@ describe("SWEA detection controller", () => {
     ]);
   });
 
+  it("coalescing 창이 닫히기 전에 전달한다", async () => {
+    // Accepted layer의 `확인`을 누르면 page가 사라진다. 창이 닫힐 때까지
+    // 들고 있으면 event가 통째로 사라져 sync가 시작조차 하지 못한다.
+    const harness = createSweaControllerHarness({ code: "print(1)\n" });
+
+    harness.observer.emit([childListMutation([elementNode([textNode(ACCEPTED_TEXT)])])]);
+    await harness.settleBridge();
+
+    expect(harness.sentMessages).toHaveLength(1);
+    // 창은 여전히 열려 있다. 전달이 창을 기다리지 않았다는 뜻이다.
+    expect(harness.pendingTimerCount()).toBe(1);
+  });
+
   it("bridge 응답이 없으면 empty code로 보내 background가 실패로 기록하게 한다", async () => {
     const harness = createSweaControllerHarness({ code: null });
 
@@ -392,6 +405,8 @@ function createSweaControllerHarness(
   setContestProbId(value: string): void;
   setProblemTitle(value: string): void;
   flush(): Promise<void>;
+  settleBridge(): Promise<void>;
+  pendingTimerCount(): number;
 } {
   const state = {
     contestProbId: "AV13zZ7KAAACFAYh",
@@ -466,6 +481,15 @@ function createSweaControllerHarness(
       // bridge promise chain이 끝나기를 기다린다.
       await Promise.resolve();
       await Promise.resolve();
+    },
+    /** timer를 전혀 돌리지 않고 bridge 응답만 기다린다. page가 곧 사라지는
+     * 상황을 흉내 낸다. */
+    async settleBridge() {
+      await Promise.resolve();
+      await Promise.resolve();
+    },
+    pendingTimerCount() {
+      return pendingFlushes.length;
     }
   };
 }
