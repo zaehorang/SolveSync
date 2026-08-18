@@ -14,6 +14,7 @@ import {
   getSyncStatusTone,
   getUnsupportedLanguageReason,
   isExtractFailedCode,
+  mapPlatformLanguage,
   normalizeError,
   resolveUiLocale,
   t,
@@ -957,6 +958,12 @@ function getSyncHistoryGroupKey(syncHistoryEntry: SyncHistoryEntry): string {
   return `${syncHistoryEntry.codingPlatform}:${problemKey.toLowerCase()}`;
 }
 
+/** row를 접을 때 쓰는 언어 key.
+ *
+ * `syncDeduplicationKey`는 source 해석에 성공해야 생긴다. `swea_extract_failed`
+ * 같은 이른 실패 기록에는 없으므로 raw language를 registry로 정규화해야 같은
+ * 언어의 성공 기록과 같은 key가 된다. 정규화하지 않으면 같은 Python3 제출이
+ * `python3`과 `python 3`으로 갈려 두 행으로 남는다. */
 function getSyncHistoryLanguageKey(syncHistoryEntry: SyncHistoryEntry): string {
   const supportedLanguage =
     syncHistoryEntry.syncDeduplicationKey?.language ??
@@ -964,6 +971,15 @@ function getSyncHistoryLanguageKey(syncHistoryEntry: SyncHistoryEntry): string {
 
   if (supportedLanguage !== null && supportedLanguage !== undefined) {
     return supportedLanguage;
+  }
+
+  const mapped = mapPlatformLanguage(
+    syncHistoryEntry.codingPlatform,
+    syncHistoryEntry.language
+  );
+
+  if (mapped !== null) {
+    return mapped;
   }
 
   const language = syncHistoryEntry.language.trim().toLowerCase();

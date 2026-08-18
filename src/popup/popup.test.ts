@@ -368,6 +368,76 @@ describe("popup state helpers", () => {
     expect(model.groups[0]?.errorBatches).toEqual([]);
   });
 
+  it("collapses an early SWEA failure into the same language row as its success", () => {
+    // swea_extract_failed는 source 해석 전에 실패하므로 syncDeduplicationKey가
+    // 없다. 남는 값은 SWEA option code인 raw language뿐이다.
+    const extractFailure = makeSweaSyncHistoryEntry({
+      id: "swea-extract-failed",
+      status: "failed",
+      language: "Y",
+      supportedLanguage: null,
+      syncDeduplicationKey: null,
+      solutionPath: null,
+      commitSha: null,
+      commitUrl: null,
+      fileUrl: null,
+      updatedAt: "2026-01-01T00:03:00.000Z",
+      error: makeError("swea_extract_failed", "SWEA editor code를 읽지 못했습니다.")
+    });
+    const success = makeSweaSyncHistoryEntry({
+      id: "swea-synced",
+      updatedAt: "2026-01-01T00:04:00.000Z"
+    });
+
+    const model = buildHistoryDisplayModel(
+      [extractFailure, success],
+      [],
+      Date.parse("2026-01-01T00:05:00.000Z")
+    );
+
+    expect(model.items.map((item) => item.languageKey)).toEqual([
+      "python3",
+      "python3"
+    ]);
+    expect(model.groups).toHaveLength(1);
+    expect(model.groups[0]?.entries.map((entry) => entry.id)).toEqual([
+      "swea-synced"
+    ]);
+  });
+
+  it("falls back to the raw language when the registry cannot map it", () => {
+    const unknownLanguage = makeSweaSyncHistoryEntry({
+      id: "swea-unknown-language",
+      status: "failed",
+      language: "Whitespace",
+      supportedLanguage: null,
+      syncDeduplicationKey: null,
+      commitSha: null,
+      commitUrl: null,
+      fileUrl: null,
+      error: makeError("swea_extract_failed", "SWEA editor code를 읽지 못했습니다.")
+    });
+    const success = makeSweaSyncHistoryEntry({
+      id: "swea-synced",
+      updatedAt: "2026-01-01T00:04:00.000Z"
+    });
+
+    const model = buildHistoryDisplayModel(
+      [unknownLanguage, success],
+      [],
+      Date.parse("2026-01-01T00:05:00.000Z")
+    );
+
+    expect(model.items.map((item) => item.languageKey)).toEqual([
+      "python3",
+      "whitespace"
+    ]);
+    expect(model.groups[0]?.entries.map((entry) => entry.id)).toEqual([
+      "swea-synced",
+      "swea-unknown-language"
+    ]);
+  });
+
   it("keeps syncing and retrying history badges on the progress tone", () => {
     const syncing = makeSyncHistoryEntry({
       id: "syncing",
@@ -786,6 +856,29 @@ function makeProgrammersSyncHistoryEntry(
     commitUrl: "https://github.com/octo/algorithms/commit/programmers-sha",
     fileUrl:
       "https://github.com/octo/algorithms/blob/main/programmers/swift/120804_두_수의_곱_구하기.swift",
+    ...overrides
+  });
+}
+
+function makeSweaSyncHistoryEntry(
+  overrides: Partial<SyncHistoryEntry> = {}
+): SyncHistoryEntry {
+  return makeSyncHistoryEntry({
+    codingPlatform: "swea",
+    titleSlug: "1206",
+    problemTitle: "View",
+    problemFrontendId: "1206",
+    language: "Python 3",
+    supportedLanguage: "python3",
+    syncDeduplicationKey: {
+      codingPlatform: "swea",
+      acceptedSourceId: "swea:1206:python3:abc1234",
+      titleSlug: "1206",
+      language: "python3"
+    },
+    solutionPath: "swea/python/1206_View.py",
+    commitUrl: "https://github.com/octo/algorithms/commit/swea-sha",
+    fileUrl: "https://github.com/octo/algorithms/blob/main/swea/python/1206_View.py",
     ...overrides
   });
 }
