@@ -88,8 +88,45 @@ export interface ExtensionStorage {
   ): Promise<SyncDeduplicationKeyLocksState>;
 }
 
+/** 같은 storage key의 read-modify-write를 순서대로 실행한다.
+ *
+ * `chrome.storage`에는 compare-and-swap이 없다. 두 flow가 같은 key를 동시에
+ * 읽고 쓰면 나중 write가 앞선 변경을 통째로 덮는다. Sync History 기록이
+ * 사라지는 정도가 아니라, Sync Deduplication Key lock을 둘 다 획득해 같은
+ * 제출이 두 번 commit될 수 있다.
+ *
+ * 실패한 작업이 뒤 작업을 막지 않도록 queue tail은 항상 resolve된 promise로
+ * 잇는다. */
+function createStorageKeyQueue(): <T>(
+  key: StorageKey,
+  task: () => Promise<T>
+) => Promise<T> {
+  const tails = new Map<StorageKey, Promise<void>>();
+
+  return <T>(key: StorageKey, task: () => Promise<T>): Promise<T> => {
+    const previous = tails.get(key) ?? Promise.resolve();
+    const result = previous.then(task);
+
+    tails.set(
+      key,
+      result.then(
+        () => undefined,
+        () => undefined
+      )
+    );
+
+    return result;
+  };
+}
+
 export function createExtensionStorage(area: StorageAreaAdapter): ExtensionStorage {
-  async function getSettings(): Promise<SettingsState> {
+  // read-modify-write mutator는 전부 이 queue를 거친다. 새 mutator를 추가하면
+  // 아래 반환 객체의 배선에도 함께 넣는다.
+  const runExclusive = createStorageKeyQueue();
+
+  /** queue 안에서 부르는 내부용 read. legacy migration write를 포함하므로
+   * 이 자체도 read-modify-write다. 공개 `getSettings`는 이것을 queue에 태운다. */
+  async function readSettings(): Promise<SettingsState> {
     const values = await area.get(STORAGE_KEYS.settings);
     const raw = values[STORAGE_KEYS.settings];
     const parsed = parseSettingsState(raw) ?? cloneState(DEFAULT_SETTINGS_STATE);
@@ -111,7 +148,7 @@ export function createExtensionStorage(area: StorageAreaAdapter): ExtensionStora
     settings: SettingsStorageUpdate,
     now: Date | IsoDateString | number = new Date()
   ): Promise<SettingsState> {
-    const current = await getSettings();
+    const current = await readSettings();
     const next: SettingsState = {
       ...current,
       ...settings,
@@ -363,25 +400,50 @@ export function createExtensionStorage(area: StorageAreaAdapter): ExtensionStora
     return writeState(area, STORAGE_KEYS.syncDeduplicationKeyLocks, next);
   }
 
+  // 읽기 전용 함수는 그대로 두고, 같은 key를 읽고 다시 쓰는 함수만 직렬화한다.
+  // `getSettings`도 legacy migration write를 하므로 queue에 태운다. 내부에서는
+  // queue를 거치지 않는 `readSettings`를 부른다. 공개 함수끼리 서로를 부르면
+  // 같은 key의 queue를 두 번 잡아 교착한다.
   return {
-    getSettings,
-    saveSettings,
+    getSettings: () => runExclusive(STORAGE_KEYS.settings, readSettings),
+    saveSettings: (settings, now) =>
+      runExclusive(STORAGE_KEYS.settings, () => saveSettings(settings, now)),
     getGitHubAuth,
-    saveGitHubAuth,
-    clearGitHubAuth,
+    // auth write는 read-modify-write가 아니지만 같은 key를 두고 경쟁한다.
+    // queue에 넣어 호출 순서가 최종 상태를 정하게 한다.
+    saveGitHubAuth: (session) =>
+      runExclusive(STORAGE_KEYS.githubAuth, () => saveGitHubAuth(session)),
+    clearGitHubAuth: () =>
+      runExclusive(STORAGE_KEYS.githubAuth, () => clearGitHubAuth()),
     listProcessedSyncDeduplicationKeys,
     hasProcessedSyncDeduplicationKey,
-    markSyncDeduplicationKeyProcessed,
-    appendSyncHistoryEntry,
+    markSyncDeduplicationKeyProcessed: (syncDeduplicationKey, details, now) =>
+      runExclusive(STORAGE_KEYS.processedSyncDeduplicationKeys, () =>
+        markSyncDeduplicationKeyProcessed(syncDeduplicationKey, details, now)
+      ),
+    appendSyncHistoryEntry: (entry) =>
+      runExclusive(STORAGE_KEYS.syncHistory, () => appendSyncHistoryEntry(entry)),
     listSyncHistoryEntries,
-    saveRetryBundle,
+    saveRetryBundle: (bundle, now) =>
+      runExclusive(STORAGE_KEYS.retryBundles, () => saveRetryBundle(bundle, now)),
     listRetryBundles,
     getRetryBundle,
-    removeRetryBundle,
-    pruneRetryBundles,
-    acquireSyncDeduplicationKeyLock,
-    releaseSyncDeduplicationKeyLock,
-    pruneSyncDeduplicationKeyLocks
+    removeRetryBundle: (id) =>
+      runExclusive(STORAGE_KEYS.retryBundles, () => removeRetryBundle(id)),
+    pruneRetryBundles: (now) =>
+      runExclusive(STORAGE_KEYS.retryBundles, () => pruneRetryBundles(now)),
+    acquireSyncDeduplicationKeyLock: (syncDeduplicationKey, now) =>
+      runExclusive(STORAGE_KEYS.syncDeduplicationKeyLocks, () =>
+        acquireSyncDeduplicationKeyLock(syncDeduplicationKey, now)
+      ),
+    releaseSyncDeduplicationKeyLock: (syncDeduplicationKey) =>
+      runExclusive(STORAGE_KEYS.syncDeduplicationKeyLocks, () =>
+        releaseSyncDeduplicationKeyLock(syncDeduplicationKey)
+      ),
+    pruneSyncDeduplicationKeyLocks: (now) =>
+      runExclusive(STORAGE_KEYS.syncDeduplicationKeyLocks, () =>
+        pruneSyncDeduplicationKeyLocks(now)
+      )
   };
 }
 

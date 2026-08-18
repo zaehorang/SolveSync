@@ -294,6 +294,7 @@ Keys:
 - `syncDeduplicationKeyLocks`: version, 현재 처리 중인 Sync Deduplication Key lock 목록. 각 lock은 생성 시각을 저장하고 10분 TTL을 가진다.
 
 ## 동시성과 Retry Lifecycle
+- `chrome.storage`에는 compare-and-swap이 없다. 같은 key를 읽고 다시 쓰는 storage 작업은 background의 storage instance 안에서 **key별로 직렬화**한다. 직렬화하지 않으면 나중 write가 앞선 변경을 덮어 Sync History 기록이 사라지고, Sync Deduplication Key lock을 두 flow가 동시에 획득해 같은 제출이 두 번 commit될 수 있다.
 - Sync Deduplication Key는 `codingPlatform`, `acceptedSourceId`, problem identifier, language 조합이다.
 - 새 sync 시작 전 10분이 지난 stale in-flight lock을 정리한다.
 - background는 sync 시작 전에 storage에 Sync Deduplication Key lock을 기록한다.
