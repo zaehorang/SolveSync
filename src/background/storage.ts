@@ -56,6 +56,15 @@ export interface ExtensionStorage {
   ): Promise<SettingsState>;
   getGitHubAuth(): Promise<GitHubAuthSession | null>;
   saveGitHubAuth(session: GitHubAuthSession): Promise<GitHubAuthSession>;
+  /** 저장된 session이 아직 `expectedRefreshToken`을 쓰고 있을 때만 교체한다.
+   *
+   * token refresh는 network 왕복 뒤에 저장하므로, 그 사이 사용자가 연결을
+   * 해제했거나 다른 session으로 바뀌었을 수 있다. 그때 그대로 저장하면
+   * 로그아웃이 되돌려진다. 교체하지 않았으면 null을 반환한다. */
+  replaceGitHubAuthIfUnchanged(
+    expectedRefreshToken: string,
+    session: GitHubAuthSession
+  ): Promise<GitHubAuthSession | null>;
   clearGitHubAuth(): Promise<void>;
   listProcessedSyncDeduplicationKeys(): Promise<ProcessedSyncDeduplicationKeyEntry[]>;
   hasProcessedSyncDeduplicationKey(
@@ -159,7 +168,8 @@ export function createExtensionStorage(area: StorageAreaAdapter): ExtensionStora
     return writeState(area, STORAGE_KEYS.settings, next);
   }
 
-  async function getGitHubAuth(): Promise<GitHubAuthSession | null> {
+  /** queue 안에서 부르는 내부용 read. 공개 `getGitHubAuth`가 이것을 노출한다. */
+  async function readGitHubAuth(): Promise<GitHubAuthSession | null> {
     const values = await area.get(STORAGE_KEYS.githubAuth);
     const parsed = parseGitHubAuthSession(values[STORAGE_KEYS.githubAuth]);
 
@@ -173,6 +183,19 @@ export function createExtensionStorage(area: StorageAreaAdapter): ExtensionStora
       ...session,
       version: STORAGE_SCHEMA_VERSION
     });
+  }
+
+  async function replaceGitHubAuthIfUnchanged(
+    expectedRefreshToken: string,
+    session: GitHubAuthSession
+  ): Promise<GitHubAuthSession | null> {
+    const current = await readGitHubAuth();
+
+    if (current === null || current.refreshToken !== expectedRefreshToken) {
+      return null;
+    }
+
+    return saveGitHubAuth(session);
   }
 
   async function clearGitHubAuth(): Promise<void> {
@@ -408,11 +431,17 @@ export function createExtensionStorage(area: StorageAreaAdapter): ExtensionStora
     getSettings: () => runExclusive(STORAGE_KEYS.settings, readSettings),
     saveSettings: (settings, now) =>
       runExclusive(STORAGE_KEYS.settings, () => saveSettings(settings, now)),
-    getGitHubAuth,
+    getGitHubAuth: readGitHubAuth,
     // auth write는 read-modify-write가 아니지만 같은 key를 두고 경쟁한다.
     // queue에 넣어 호출 순서가 최종 상태를 정하게 한다.
     saveGitHubAuth: (session) =>
       runExclusive(STORAGE_KEYS.githubAuth, () => saveGitHubAuth(session)),
+    // 확인과 저장이 한 덩어리여야 의미가 있다. 둘 사이에 다른 auth write가
+    // 끼면 확인 결과가 이미 낡은 값이 된다.
+    replaceGitHubAuthIfUnchanged: (expectedRefreshToken, session) =>
+      runExclusive(STORAGE_KEYS.githubAuth, () =>
+        replaceGitHubAuthIfUnchanged(expectedRefreshToken, session)
+      ),
     clearGitHubAuth: () =>
       runExclusive(STORAGE_KEYS.githubAuth, () => clearGitHubAuth()),
     listProcessedSyncDeduplicationKeys,

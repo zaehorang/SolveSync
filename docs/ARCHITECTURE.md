@@ -156,6 +156,8 @@ Coding Platform 문제 page
 - Device code는 `chrome.storage.session`에 저장하고 Options에는 user code, verification URL, 만료 시각, polling interval만 반환한다.
 - 발급된 access token과 refresh token은 `chrome.storage.local`의 별도 `githubAuth` state에 저장한다. access token 만료 5분 전에는 refresh하며, API 401이면 강제 refresh 후 요청을 한 번만 재시도한다.
 - 동시 refresh 요청은 single-flight promise로 하나만 수행한다. refresh 실패나 refresh token 만료 시 auth state를 삭제하고 재로그인을 요구한다.
+- **refresh 결과 저장은 compare-and-set이다.** refresh는 network 왕복 뒤에 저장하므로, 그 사이 사용자가 연결을 해제했거나 다른 session으로 바뀌었을 수 있다. 저장 직전에 현재 session이 refresh를 시작할 때 쓴 refresh token을 그대로 쓰고 있는지 확인하고, 다르면 결과를 버린다. 확인과 저장은 `githubAuth` key의 같은 직렬화 구간 안에서 수행한다. 순서 보존만으로는 막히지 않는다. 해제가 먼저 호출되어도 refresh의 저장이 나중에 호출되기 때문이다.
+- 이렇게 버려진 refresh는 refresh 실패로 기록하지 않는다. 사용자가 만든 로그아웃 상태를 오류 상태로 덮지 않기 위해서다. 진행 중이던 요청만 `github_login_required`로 끝난다.
 - Options는 GitHub App user token으로 본인 owner repository 목록을 pagination해 불러온다. App 설치 범위 밖 repository는 GitHub가 token 권한에서 제외한다. 목록이 비면 App installation required 상태를 보여준다.
 - Sync Branch picker는 선택한 Sync Repository의 branch 목록을 불러오고, 기본 선택값은 repository default branch다.
 - 존재하지 않는 Sync Branch는 자동 생성하지 않는다. 사용자가 Create branch action을 실행한 경우에만 repository default branch HEAD에서 branch ref를 생성한다.

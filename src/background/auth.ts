@@ -331,6 +331,8 @@ export function createGitHubAuthManager(
       throw error;
     }
 
+    let nextSession: GitHubAuthSession;
+
     try {
       const response = await postForm<TokenResponse>(
         fetchImpl,
@@ -348,7 +350,7 @@ export function createGitHubAuthManager(
         );
       }
       const refreshedAt = now();
-      const nextSession: GitHubAuthSession = {
+      nextSession = {
         ...session,
         accessToken: response.access_token,
         accessTokenExpiresAt: new Date(
@@ -360,9 +362,6 @@ export function createGitHubAuthManager(
         ).toISOString(),
         updatedAt: refreshedAt.toISOString()
       };
-      await options.storage.saveGitHubAuth(nextSession);
-
-      return nextSession.accessToken;
     } catch (error) {
       const normalized = explicitError(
         "github_token_refresh_failed",
@@ -371,6 +370,23 @@ export function createGitHubAuthManager(
       await clearAuthWithFailure("token_refresh_failed", normalized);
       throw normalized;
     }
+
+    // 저장은 network 실패 처리 밖에 둔다. network 왕복 동안 사용자가 연결을
+    // 해제했을 수 있고, 그건 refresh 실패가 아니라 사용자의 결정이다. 실패로
+    // 기록하면 사용자가 만든 깨끗한 로그아웃 상태를 오류 상태로 덮는다.
+    const saved = await options.storage.replaceGitHubAuthIfUnchanged(
+      session.refreshToken,
+      nextSession
+    );
+
+    if (saved === null) {
+      throw explicitError(
+        "github_login_required",
+        "GitHub connection changed while the token was refreshing."
+      );
+    }
+
+    return saved.accessToken;
   }
 
   async function clearAuthWithFailure(
