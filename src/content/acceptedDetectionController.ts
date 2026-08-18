@@ -100,6 +100,9 @@ export function startAcceptedDetectionController(
   // page가 그 창 안에서 언로드되어 sync가 시작조차 하지 못했다.
   let suppressed = false;
   let suppressionTimer: ReturnType<typeof setTimeout> | null = null;
+  // route가 바뀔 때마다 올린다. 전달 직전의 route key 비교만으로는 A→B→A로
+  // 돌아온 경우를 걸러내지 못한다. 그때 key는 다시 A라서 같아 보인다.
+  let routeGeneration = 0;
 
   const clearSuppression = (): void => {
     if (suppressionTimer !== null) {
@@ -156,7 +159,15 @@ export function startAcceptedDetectionController(
       ).catch(() => null);
 
       // SWEA만 code를 기다린다. 남는 지연은 bridge 왕복뿐이다.
+      const generation = routeGeneration;
+
       void codePromise.then((code) => {
+        // 관찰된 route 이동이 있었으면 버린다. `deliver`의 현재 URL 비교는
+        // mutation 없이 바뀐 route를 잡고, 이 비교는 되돌아온 route를 잡는다.
+        if (generation !== routeGeneration) {
+          return;
+        }
+
         deliver(createSweaAcceptedDetectedMessage(snapshot, code ?? ""), routeKey);
       });
 
@@ -196,6 +207,7 @@ export function startAcceptedDetectionController(
     if (routeChanged) {
       currentPage = page;
       currentRouteKey = nextRouteKey;
+      routeGeneration += 1;
       clearSuppression();
     }
 
@@ -249,6 +261,8 @@ export function startAcceptedDetectionController(
   );
 
   return () => {
+    // 종료 뒤 도착하는 bridge 응답도 무효로 만든다.
+    routeGeneration += 1;
     clearSuppression();
     observer.disconnect();
   };

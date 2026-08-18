@@ -2,7 +2,9 @@
 
 결정: Content script는 fresh Accepted event를 확정하는 즉시 background로 전달한다. Coalescing window는 전달을 미루는 지연 창이 아니라, 같은 render burst의 후속 signal을 무시하는 **억제 창**이다. 창은 첫 signal 시점에 열리고 `ACCEPTED_COALESCING_WINDOW_MS` 동안 유지된다. 창 안의 후속 signal은 event를 만들지 않으며 창을 연장하지도 않는다.
 
-남는 비동기 구간은 SWEA뿐이다. SWEA는 editor code가 MAIN world bridge에서 도착해야 event를 완성할 수 있으므로([ADR 0035](0035-main-world-editor-bridge-for-swea.md)) bridge 응답까지만 기다린다. 전달 직전 route key 재확인은 그대로 유지한다([ADR 0034](0034-fresh-accepted-transition-and-immutable-event.md)).
+남는 비동기 구간은 SWEA뿐이다. SWEA는 editor code가 MAIN world bridge에서 도착해야 event를 완성할 수 있으므로([ADR 0035](0035-main-world-editor-bridge-for-swea.md)) bridge 응답까지만 기다린다.
+
+이 구간은 두 가지로 지킨다. 전달 직전 route key 재확인([ADR 0034](0034-fresh-accepted-transition-and-immutable-event.md))은 mutation 없이 바뀐 route를 잡고, route 이동 횟수 비교는 A→B→A처럼 **되돌아온** route를 잡는다. route key만 비교하면 되돌아온 경우 key가 같아 통과한다. Controller 종료도 이동과 같게 취급해 그 뒤 도착하는 응답을 버린다.
 
 이유: [ADR 0034](0034-fresh-accepted-transition-and-immutable-event.md)는 "동일 render burst를 최대 한 번만 전달한다"를 정했고, 구현은 그 목적을 first-event fixed-window **지연** coalescer로 달성했다. 억제라는 목적에 지연이 필요하지 않은데도 event를 창이 닫힐 때까지 content script 안에 들고 있었다.
 

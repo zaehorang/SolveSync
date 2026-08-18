@@ -142,7 +142,7 @@ Missing `contestProbId`/title/language와 empty code는 commit하지 않고 `swe
 
 ## 자동 검증
 
-- `src/content/swea.test.ts`: Accepted/실패 문구 판정, `#contestProbId` route key, 제목·언어 추출, bridge nonce/origin/timeout, controller의 immutable snapshot·coalescing·route 폐기
+- `src/content/swea.test.ts`: Accepted/실패 문구 판정, `#contestProbId` route key, 제목·언어 추출, bridge nonce/origin/timeout, controller의 immutable snapshot·억제 창·route 변경 시 bridge 응답 폐기
 - `src/shared/languageRegistry.test.ts`: `swea` alias 매핑과 플랫폼별 지원 언어 집합
 - `src/shared/platformPolicy.test.ts`, `src/shared/paths.test.ts`: `swea` policy와 Solution File 경로
 - `src/background/sync.test.ts`: commit message, Solution Catalog/README projection, unsupported language, extract failure

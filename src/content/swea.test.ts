@@ -253,6 +253,21 @@ describe("SWEA detection controller", () => {
     expect(harness.sentMessages).toHaveLength(1);
   });
 
+  it("bridge를 기다리는 동안 다른 문제를 거쳐 돌아와도 event를 버린다", async () => {
+    // route key만 비교하면 A→B→A는 같은 key라 통과한다. 관찰된 route 이동
+    // 자체를 세어야 걸러진다.
+    const harness = createSweaControllerHarness();
+
+    harness.observer.emit([childListMutation([elementNode([textNode(ACCEPTED_TEXT)])])]);
+    harness.setContestProbId("AV99999999999999");
+    harness.observer.emit([childListMutation([elementNode([textNode("다른 문제")])])]);
+    harness.setContestProbId("AV13zZ7KAAACFAYh");
+    harness.observer.emit([childListMutation([elementNode([textNode("원래 문제")])])]);
+    await harness.flush();
+
+    expect(harness.sentMessages).toEqual([]);
+  });
+
   it("bridge를 기다리는 동안 다른 문제로 바뀌면 event를 버린다", async () => {
     // URL이 같아도 contestProbId가 바뀌면 다른 route다 (ADR 0036).
     const harness = createSweaControllerHarness();
