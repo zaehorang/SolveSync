@@ -57,9 +57,22 @@ layer 전체 text에는 버튼 label `확인`과 `닫기`가 뒤에 붙지만 **
 
 두 경우 모두 toast와 event가 생기지 않는 것을 확인했다.
 
-**Accepted layer와 실패 layer는 구조가 다르다.** 실패 layer에는 `오답`, `제출 오류` 같은 **title node가 메시지 앞에 붙지만 Accepted layer에는 없다.** 그래서 Accepted만 접두사가 문자열 맨 앞에 온다.
+**Accepted layer와 실패 layer는 구조가 다르다.** 실패 layer에는 `오답`, `제출 오류` 같은 title이 메시지 앞에 붙지만 Accepted layer에는 없다.
 
-접두사 일치 판정이 성립하는 것은 이 비대칭 덕분이고, 동시에 이것이 이 판정의 취약점이다. SWEA가 Accepted layer에도 title을 붙이면 판정이 조용히 끊긴다. 실패 layer가 이미 그 형태이므로 가상의 위험이 아니다. 감지가 멈추는 방향이라 잘못된 commit은 생기지 않지만, 회귀 fixture로 고정해야 할 1순위다.
+이 비대칭이 접두사 판정을 위협하지는 않는다. `.txt` 안에서 title과 메시지는 `<br>`로 나뉜 **별도 text node**이고, `collectLeafTexts`는 개별 text node를 각각 후보로 넣기 때문이다. join한 문자열은 거기에 더해질 뿐이다. 실측한 실패 layer의 `.txt` 자식 구조는 다음과 같다.
+
+```
+.txt
+├── text  "오답"
+├── <br>
+├── text  "채점용 input 파일로 채점한 결과 fail 입니다."
+├── <br>
+└── text  "(오답 :  10개의 테스트케이스 중 0개가 맞았습니다.)"
+```
+
+SWEA가 Accepted layer에도 같은 방식으로 title을 붙이면 `축하합니다. Pass입니다.`가 자기 자신의 후보로 남아 판정이 유지된다. 판정이 끊기는 것은 **title과 메시지가 하나의 text node로 합쳐질 때**뿐이다. 현재 SWEA의 작성 방식과 다르고 감지가 멈추는 방향이라 잘못된 commit은 생기지 않는다.
+
+다만 이 내성은 후보 생성 방식에 의존한다. 후보를 join된 문자열만으로 바꾸면 조용히 사라지므로, title node가 붙은 Accepted layer 변형을 회귀 fixture에 포함한다.
 
 제출 버튼을 누르면 채점 전에 확인용 layer(`제출 가능 횟수가 1회 감소합니다. 정말로 제출하시겠습니까?`)가 먼저 뜬다. 이것도 native dialog가 아니라 DOM layer다. 감지에는 영향이 없지만 자동화에서는 이 단계를 넘겨야 채점이 시작된다.
 
