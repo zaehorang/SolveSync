@@ -1,4 +1,4 @@
-import type { NormalizedError } from "./errors";
+import type { NormalizedError, NormalizedErrorCode } from "./errors";
 import { t, type UiLocale } from "./i18n";
 import type { ToastAction } from "./messages";
 import type { CodingPlatform, SyncHistoryEntry, SyncStatus } from "./types";
@@ -226,7 +226,7 @@ export function getFailureDetailView(
     );
   }
 
-  if (syncHistoryEntry.error.code === "programmers_extract_failed") {
+  if (isExtractFailedCode(syncHistoryEntry.error.code)) {
     detailLines.push(t(locale, "detail.noCommitDataRetryUnavailable"));
   } else if (
     syncHistoryEntry.retryBundleId === null &&
@@ -366,7 +366,11 @@ export function createToastViewModel(
 }
 
 export function getPlatformLabel(codingPlatform: CodingPlatform): string {
-  return codingPlatform === "programmers" ? "Programmers" : "LeetCode";
+  if (codingPlatform === "programmers") {
+    return "Programmers";
+  }
+
+  return codingPlatform === "swea" ? "SWEA" : "LeetCode";
 }
 
 export function getSyncHistoryEntryLanguageLabel(
@@ -442,7 +446,7 @@ function failureActions(
 ): ToastActionView[] {
   const error = input.error ?? input.syncHistoryEntry?.error ?? null;
 
-  if (error?.code === "programmers_extract_failed") {
+  if (error !== null && isExtractFailedCode(error.code)) {
     return [];
   }
 
@@ -542,6 +546,14 @@ function toastAction(
     retryBundleId,
     primary
   };
+}
+
+/** DOM에서 source를 읽지 못해 commit 데이터 자체가 없는 실패인지.
+ *
+ * Retry Bundle이 만들어지지 않으므로 retry action을 제공할 수 없다. 플랫폼마다
+ * 코드가 다르지만 UI에서의 의미는 같다. */
+export function isExtractFailedCode(code: NormalizedErrorCode): boolean {
+  return code === "programmers_extract_failed" || code === "swea_extract_failed";
 }
 
 function view(

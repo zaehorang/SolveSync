@@ -8,7 +8,19 @@ import {
 } from "./languageRegistry";
 import type { CodingPlatform } from "./types";
 
-const CODING_PLATFORMS: readonly CodingPlatform[] = ["leetcode", "programmers"];
+const CODING_PLATFORMS: readonly CodingPlatform[] = [
+  "leetcode",
+  "programmers",
+  "swea"
+];
+
+/** 각 플랫폼이 실제로 제출 언어로 제공하는 것. SWEA는 `select#sel_lang`에
+ * C++14, JAVA, Python 3 셋만 둔다. */
+const PLATFORM_SUPPORTED_LANGUAGES: Record<CodingPlatform, readonly string[]> = {
+  leetcode: SUPPORTED_LANGUAGE_KEYS,
+  programmers: SUPPORTED_LANGUAGE_KEYS,
+  swea: ["python3", "java", "cpp"]
+};
 
 /** registry가 alias를 비교할 때 쓰는 정규화와 같은 규칙. */
 function normalize(value: string): string {
@@ -48,13 +60,27 @@ describe("registry 무결성", () => {
     }
   });
 
-  it("모든 언어가 플랫폼마다 자기 key로 매핑되는 alias를 갖는다", () => {
+  it("alias가 등록된 조합은 모두 자기 key로 매핑된다", () => {
     for (const language of SUPPORTED_LANGUAGE_KEYS) {
       for (const codingPlatform of CODING_PLATFORMS) {
-        const aliases = LANGUAGE_REGISTRY[language].aliases[codingPlatform];
-        expect(aliases.length).toBeGreaterThan(0);
-        expect(mapPlatformLanguage(codingPlatform, aliases[0])).toBe(language);
+        for (const alias of LANGUAGE_REGISTRY[language].aliases[codingPlatform]) {
+          expect(mapPlatformLanguage(codingPlatform, alias)).toBe(language);
+        }
       }
+    }
+  });
+
+  it("플랫폼별 alias 보유 언어가 그 플랫폼의 실제 제출 언어와 일치한다", () => {
+    // alias가 비어 있다는 것은 그 플랫폼이 그 언어를 제공하지 않는다는 뜻이다.
+    // 실수로 비운 것과 구분되도록 기대 집합을 명시한다.
+    for (const codingPlatform of CODING_PLATFORMS) {
+      const withAliases = SUPPORTED_LANGUAGE_KEYS.filter(
+        (language) => LANGUAGE_REGISTRY[language].aliases[codingPlatform].length > 0
+      );
+
+      expect([...withAliases].sort()).toEqual(
+        [...PLATFORM_SUPPORTED_LANGUAGES[codingPlatform]].sort()
+      );
     }
   });
 
@@ -105,6 +131,20 @@ describe("mapPlatformLanguage", () => {
   it("java가 javascript로 흡수되지 않는다", () => {
     expect(mapPlatformLanguage("leetcode", "java")).toBe("java");
     expect(mapPlatformLanguage("leetcode", "javascript")).toBe("javascript");
+  });
+
+  it("SWEA는 option value code와 version 없는 display 표기를 모두 받는다", () => {
+    expect(mapPlatformLanguage("swea", "P")).toBe("cpp");
+    expect(mapPlatformLanguage("swea", "J")).toBe("java");
+    expect(mapPlatformLanguage("swea", "Y")).toBe("python3");
+    expect(mapPlatformLanguage("swea", "C++14")).toBe("cpp");
+    expect(mapPlatformLanguage("swea", "Python 3")).toBe("python3");
+  });
+
+  it("SWEA가 제공하지 않는 언어는 null을 돌려준다", () => {
+    // SWEA 경로에는 Swift가 없다. 다른 플랫폼 alias가 새어 들어오면 안 된다.
+    expect(mapPlatformLanguage("swea", "swift")).toBeNull();
+    expect(mapPlatformLanguage("swea", "kotlin")).toBeNull();
   });
 });
 

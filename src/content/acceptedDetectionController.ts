@@ -3,6 +3,7 @@ import {
   defaultTimeoutScheduler,
   extractProgrammersRouteFromPathname,
   extractTitleSlugFromPathname,
+  isSweaSolvingPathname,
   mutationListHasAccepted,
   type ProgrammersRoute,
   type TimeoutScheduler
@@ -25,13 +26,33 @@ export type ContentPageContext =
       lessonId: string;
     }
   | {
+      platform: "swea";
+      contestProbId: string;
+    }
+  | {
       platform: "unsupported";
     };
+
+/** route key를 확정하는 데 필요한 최소 document 표면 (ADR 0036).
+ *
+ * SWEA는 모든 문제가 같은 URL을 쓰므로 URL만으로는 route를 알 수 없다. */
+export type ContentPageDocument = Pick<Document, "querySelector">;
 
 export interface ProgrammersAcceptedEditorSnapshot extends ProgrammersRoute {
   problemTitle: string;
   rawLanguage: string;
   code: string;
+  pageUrl: string;
+  detectedAt: string;
+}
+
+/** SWEA는 code가 MAIN world bridge에서 비동기로 오므로 나머지 값만 먼저
+ * 확정한다. 이 값들은 fresh Accepted 시점에 한 번 읽고 바뀌지 않는다. */
+export interface SweaAcceptedEditorSnapshotMetadata {
+  contestProbId: string;
+  problemNumber: string;
+  problemTitle: string;
+  rawLanguage: string;
   pageUrl: string;
   detectedAt: string;
 }
@@ -52,6 +73,9 @@ export interface AcceptedDetectionControllerOptions {
   now?(): string;
   scheduler?: TimeoutScheduler;
   coalescingWindowMs?: number;
+  /** SWEA editor code를 MAIN world bridge에서 읽어온다. 주입되지 않았거나
+   * 응답이 없으면 empty code가 되어 background가 실패로 기록한다. */
+  requestSweaEditorCode?(): Promise<string | null>;
 }
 
 export function startAcceptedDetectionController(
@@ -60,14 +84,20 @@ export function startAcceptedDetectionController(
   const scheduler = options.scheduler ?? defaultTimeoutScheduler;
   const coalescingWindowMs =
     options.coalescingWindowMs ?? ACCEPTED_COALESCING_WINDOW_MS;
-  let currentPage = resolveContentPageSafely(options.getCurrentUrl());
+  const resolvePage = (pageUrl: string): ContentPageContext =>
+    resolveContentPageSafely(pageUrl, options.documentRef);
+  const routeKeyForUrl = (pageUrl: string): string =>
+    createContentRouteKey(resolvePage(pageUrl));
+  let currentPage = resolvePage(options.getCurrentUrl());
   let currentRouteKey = createContentRouteKey(currentPage);
   const documentRoot = options.documentRef.body ?? options.documentRef.documentElement;
   const programmersPresentationTracker =
     createProgrammersAcceptedPresentationTracker();
   let pendingEvent: {
     routeKey: string;
-    message: AcceptedDetectedMessage;
+    /** 값이 이미 확정된 경우. SWEA처럼 bridge 응답을 기다리면 null이다. */
+    message: AcceptedDetectedMessage | null;
+    messagePromise: Promise<AcceptedDetectedMessage> | null;
   } | null = null;
   let pendingTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -80,16 +110,33 @@ export function startAcceptedDetectionController(
     pendingTimer = null;
   };
 
+  const deliver = (message: AcceptedDetectedMessage, routeKey: string): void => {
+    if (routeKeyForUrl(options.getCurrentUrl()) !== routeKey) {
+      return;
+    }
+
+    options.sendAcceptedMessage(message);
+  };
+
   const flushPendingEvent = (): void => {
     const event = pendingEvent;
     pendingEvent = null;
     pendingTimer = null;
 
-    if (event === null || routeKeyForUrl(options.getCurrentUrl()) !== event.routeKey) {
+    if (event === null) {
       return;
     }
 
-    options.sendAcceptedMessage(event.message);
+    if (event.message !== null) {
+      deliver(event.message, event.routeKey);
+      return;
+    }
+
+    // route는 전달 직전에 다시 확인한다 (ADR 0034). bridge 응답을 기다리는
+    // 동안 route가 바뀌었으면 이 event는 버린다.
+    void event.messagePromise?.then((message) => {
+      deliver(message, event.routeKey);
+    });
   };
 
   const queueAcceptedEvent = (
@@ -102,6 +149,34 @@ export function startAcceptedDetectionController(
     }
 
     const detectedAt = options.now?.() ?? new Date().toISOString();
+
+    if (page.platform === "swea") {
+      // metadata는 지금 읽고 code 요청도 지금 보낸다. 지연 callback에서 DOM을
+      // 다시 읽지 않는다 (ADR 0034).
+      const snapshot = extractSweaAcceptedEditorSnapshotMetadata(
+        options.documentRef,
+        page,
+        pageUrl,
+        detectedAt
+      );
+      // bridge 실패는 전부 empty code로 수렴해야 한다. 여기서 reject를 흘리면
+      // event가 조용히 사라져 사용자가 실패를 보지 못한다.
+      const codePromise = (
+        options.requestSweaEditorCode?.() ?? Promise.resolve(null)
+      ).catch(() => null);
+
+      pendingEvent = {
+        routeKey,
+        message: null,
+        messagePromise: codePromise.then((code) =>
+          createSweaAcceptedDetectedMessage(snapshot, code ?? "")
+        )
+      };
+      pendingTimer = scheduler.setTimeout(flushPendingEvent, coalescingWindowMs);
+
+      return;
+    }
+
     pendingEvent = {
       routeKey,
       message: createAcceptedMessageForPage(
@@ -109,7 +184,8 @@ export function startAcceptedDetectionController(
         page,
         pageUrl,
         detectedAt
-      )
+      ),
+      messagePromise: null
     };
     pendingTimer = scheduler.setTimeout(flushPendingEvent, coalescingWindowMs);
   };
@@ -133,7 +209,7 @@ export function startAcceptedDetectionController(
 
   const observer = options.createObserver((mutations) => {
     const pageUrl = options.getCurrentUrl();
-    const page = resolveContentPageSafely(pageUrl);
+    const page = resolvePage(pageUrl);
     const nextRouteKey = createContentRouteKey(page);
     const previousPage = currentPage;
     const routeChanged = nextRouteKey !== currentRouteKey;
@@ -152,7 +228,7 @@ export function startAcceptedDetectionController(
       return;
     }
 
-    if (page.platform === "leetcode") {
+    if (page.platform === "leetcode" || page.platform === "swea") {
       if (routeChanged && previousPage.platform === "programmers") {
         observeTargets(null);
       }
@@ -199,7 +275,10 @@ export function startAcceptedDetectionController(
   };
 }
 
-export function resolveContentPage(url: URL): ContentPageContext {
+export function resolveContentPage(
+  url: URL,
+  documentRef: ContentPageDocument
+): ContentPageContext {
   if (url.hostname === "leetcode.com") {
     const titleSlug = extractTitleSlugFromPathname(url.pathname);
 
@@ -214,7 +293,25 @@ export function resolveContentPage(url: URL): ContentPageContext {
     return route === null ? { platform: "unsupported" } : { platform: "programmers", ...route };
   }
 
+  if (url.hostname === "swexpertacademy.com" && isSweaSolvingPathname(url.pathname)) {
+    return resolveSweaPage(documentRef);
+  }
+
   return { platform: "unsupported" };
+}
+
+/** SWEA route identity는 URL이 아니라 DOM에서 온다 (ADR 0036).
+ *
+ * `#contestProbId`를 읽지 못하면 어떤 문제인지 알 수 없으므로 unsupported로
+ * 처리하고 event를 만들지 않는다. */
+function resolveSweaPage(documentRef: ContentPageDocument): ContentPageContext {
+  const contestProbId = normalizeText(
+    documentRef.querySelector<HTMLInputElement>("input#contestProbId")?.value ?? ""
+  );
+
+  return contestProbId.length === 0
+    ? { platform: "unsupported" }
+    : { platform: "swea", contestProbId };
 }
 
 export function createContentRouteKey(page: ContentPageContext): string {
@@ -224,6 +321,10 @@ export function createContentRouteKey(page: ContentPageContext): string {
 
   if (page.platform === "programmers") {
     return `programmers:${page.courseId}:${page.lessonId}`;
+  }
+
+  if (page.platform === "swea") {
+    return `swea:${page.contestProbId}`;
   }
 
   return "unsupported";
@@ -279,6 +380,90 @@ export function extractProgrammersAcceptedEditorSnapshot(
   };
 }
 
+export function createSweaAcceptedDetectedMessage(
+  snapshot: SweaAcceptedEditorSnapshotMetadata,
+  code: string
+): AcceptedDetectedMessage {
+  return {
+    type: "content:accepted_detected",
+    payload: {
+      codingPlatform: "swea",
+      contestProbId: snapshot.contestProbId,
+      problemNumber: snapshot.problemNumber,
+      problemTitle: snapshot.problemTitle,
+      language: snapshot.rawLanguage,
+      code,
+      pageUrl: snapshot.pageUrl,
+      detectedAt: snapshot.detectedAt
+    }
+  };
+}
+
+export function extractSweaAcceptedEditorSnapshotMetadata(
+  documentRef: ContentPageDocument,
+  page: { contestProbId: string },
+  pageUrl: string,
+  detectedAt: string
+): SweaAcceptedEditorSnapshotMetadata {
+  const problem = extractSweaProblemTitle(documentRef);
+
+  return {
+    contestProbId: page.contestProbId,
+    problemNumber: problem.problemNumber,
+    problemTitle: problem.problemTitle,
+    rawLanguage: extractSweaRawLanguage(documentRef),
+    pageUrl,
+    detectedAt
+  };
+}
+
+/** `h3.problem_title`은 `{문제 번호}. {제목}` 형식이다.
+ *
+ * 번호는 파일명에, 제목은 Solution Catalog에 쓴다. 형식이 어긋나면 번호 없이
+ * 전체를 제목으로 둔다. 이 경우 background가 contestProbId를 번호 자리에 쓴다.
+ */
+export function extractSweaProblemTitle(documentRef: ContentPageDocument): {
+  problemNumber: string;
+  problemTitle: string;
+} {
+  const raw = normalizeText(
+    documentRef.querySelector<HTMLElement>("h3.problem_title")?.textContent ?? ""
+  );
+  const match = raw.match(/^(\d+)\s*\.\s*(.+)$/);
+
+  if (match === null) {
+    return { problemNumber: "", problemTitle: raw };
+  }
+
+  return {
+    problemNumber: match[1] ?? "",
+    problemTitle: normalizeText(match[2] ?? "")
+  };
+}
+
+/** SWEA 언어는 option value code(`P`/`J`/`Y`)를 우선 사용한다.
+ *
+ * option text에는 `gcc-10.5`, `PyPy 7.3.9` 같은 compiler version이 박혀 있어
+ * SWEA가 runtime을 올리면 매핑이 깨진다. text로 되돌아갈 때는 괄호 부분을
+ * 떼어낸다. */
+export function extractSweaRawLanguage(documentRef: ContentPageDocument): string {
+  const select = documentRef.querySelector<HTMLSelectElement>("select#sel_lang");
+
+  if (select === null) {
+    return "";
+  }
+
+  const value = normalizeText(select.value ?? "");
+
+  if (value.length > 0) {
+    return value;
+  }
+
+  const optionText = select.selectedOptions?.[0]?.textContent ?? "";
+
+  return normalizeText(optionText.replace(/\([^)]*\)/g, ""));
+}
+
 export function extractProgrammersEditorCode(
   documentRef: Pick<Document, "querySelector">
 ): string | null {
@@ -293,7 +478,7 @@ export function extractProgrammersEditorCode(
 
 function createAcceptedMessageForPage(
   documentRef: Pick<Document, "querySelector" | "title">,
-  page: Exclude<ContentPageContext, { platform: "unsupported" }>,
+  page: Extract<ContentPageContext, { platform: "leetcode" | "programmers" }>,
   pageUrl: string,
   detectedAt: string
 ): AcceptedDetectedMessage {
@@ -306,13 +491,12 @@ function createAcceptedMessageForPage(
   );
 }
 
-function routeKeyForUrl(pageUrl: string): string {
-  return createContentRouteKey(resolveContentPageSafely(pageUrl));
-}
-
-function resolveContentPageSafely(pageUrl: string): ContentPageContext {
+function resolveContentPageSafely(
+  pageUrl: string,
+  documentRef: ContentPageDocument
+): ContentPageContext {
   try {
-    return resolveContentPage(new URL(pageUrl));
+    return resolveContentPage(new URL(pageUrl), documentRef);
   } catch {
     return { platform: "unsupported" };
   }

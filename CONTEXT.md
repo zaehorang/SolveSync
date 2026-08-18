@@ -1,11 +1,11 @@
 # SolveSync
 
-SolveSync는 LeetCode와 Programmers에서 Accepted 된 풀이를 사용자가 선택한 GitHub 저장소로 동기화하는 개인용 Chrome extension이다. 이 컨텍스트는 문제 풀이 제출, 동기화 대상, GitHub 반영 결과를 다루는 언어를 정의한다.
+SolveSync는 LeetCode, Programmers와 SWEA에서 Accepted 된 풀이를 사용자가 선택한 GitHub 저장소로 동기화하는 개인용 Chrome extension이다. 이 컨텍스트는 문제 풀이 제출, 동기화 대상, GitHub 반영 결과를 다루는 언어를 정의한다.
 
 ## 언어
 
 **Coding Platform**:
-사용자가 문제를 풀고 제출하는 외부 코딩 문제 서비스. SolveSync v1의 Coding Platform은 LeetCode와 Programmers다.
+사용자가 문제를 풀고 제출하는 외부 코딩 문제 서비스. SolveSync의 Coding Platform은 LeetCode, Programmers와 SW Expert Academy(SWEA)다.
 _Avoid_: Problem platform, site, judge, provider
 
 **Accepted Submission**:
@@ -13,7 +13,7 @@ Coding Platform에서 Accepted 판정을 받은 사용자의 제출. SolveSync�
 _Avoid_: Solved problem, accepted problem, result
 
 **Accepted Editor Snapshot**:
-Programmers에서 Accepted 직후 현재 문제 페이지의 editor code와 화면 메타데이터에서 얻은 동기화 source. 제출 상세 기록이나 화면 캡처가 아니라 사용자가 Accepted를 받은 순간 SolveSync가 관찰한 editor 상태다.
+Programmers와 SWEA에서 Accepted 직후 현재 문제 페이지의 editor code와 화면 메타데이터에서 얻은 동기화 source. 제출 상세 기록이나 화면 캡처가 아니라 사용자가 Accepted를 받은 순간 SolveSync가 관찰한 editor 상태다.
 _Avoid_: Accepted snapshot, submission detail, official submission, screenshot, cached code
 
 **Sync Deduplication Key**:

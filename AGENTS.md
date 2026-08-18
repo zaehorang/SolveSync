@@ -4,7 +4,7 @@
 
 `CLAUDE.md`는 이 파일을 가리키는 symlink다. codex는 `AGENTS.md`를, Claude Code는 `CLAUDE.md`를 읽지만 실체는 하나다. 어느 이름으로 열어 편집해도 같은 파일이 바뀐다. 규칙을 두 파일로 나누면 반드시 어긋나므로 복사본을 만들지 않는다.
 
-SolveSync는 LeetCode와 Programmers에서 Accepted 된 풀이를 사용자가 선택한 GitHub 저장소로 동기화하는 local unpacked Chrome extension이다.
+SolveSync는 LeetCode, Programmers와 SWEA에서 Accepted 된 풀이를 사용자가 선택한 GitHub 저장소로 동기화하는 local unpacked Chrome extension이다.
 
 ## Source of Truth
 - 제품 범위, 사용자 흐름, 성공 기준은 `docs/PRD.md`를 따른다.
@@ -71,7 +71,7 @@ git config core.hooksPath harness/hooks
 - 규칙을 고칠 때는 `harness/tests/test_policy.py`를 함께 고친다. `policy.py`는 신뢰 경계이고, 죽은 분기를 남기면 보호 장치처럼 보이는데 아무것도 하지 않는 코드가 된다.
 
 ## Project Map
-- `src/content`: 문제 페이지 관찰, Accepted 감지, Programmers Accepted Editor Snapshot, toast, background messaging.
+- `src/content`: 문제 페이지 관찰, Accepted 감지, Accepted Editor Snapshot, SWEA MAIN world editor bridge, toast, background messaging.
 - `src/background`: sync orchestration, source resolver, storage, Retry Bundle, Sync History.
 - `src/background/client`: LeetCode와 GitHub API client. API 변경 영향은 여기서 막는다.
 - `src/options`: GitHub Device Flow/App 설치, Sync Repository/Sync Branch 선택, branch 생성, Auto Sync, connection test UI.
@@ -86,7 +86,7 @@ git config core.hooksPath harness/hooks
 - shared pure logic, path, README, index, storage, error normalization을 바꾸면 Vitest 테스트를 함께 추가하거나 갱신한다.
 - 외부 API error는 사용자에게 보여주기 전에 normalized error로 변환한다.
 - Chrome MV3 service worker의 장기 in-memory state를 source of truth로 쓰지 않는다.
-- `content_scripts` bundle은 classic script로 실행된다. content entry build 결과에 static ESM `import`가 남지 않게 한다.
+- `content_scripts` bundle은 classic script로 실행된다. content entry와 SWEA MAIN world bridge build 결과에 static ESM `import`가 남지 않게 한다.
 - 미재현 edge case를 남길 때는 `docs/investigations/`에 상태, 증상, 가설, 구분 조건, 안전한 증거 수집 범위와 승격 조건을 함께 기록한다. 실제 재현되면 회귀 테스트와 구현을 갱신하고, 계약 변경이 있으면 관련 source of truth도 수정한 뒤 investigation note를 정리한다.
 
 ## Don't
@@ -105,7 +105,7 @@ git config core.hooksPath harness/hooks
 - processed Sync Deduplication Key는 GitHub commit 성공 후에만 기록한다.
 - 같은 Sync Deduplication Key는 storage 기반 Sync Deduplication Key lock으로 중복 처리를 막는다.
 - Retry Bundle에는 solution code가 임시 저장될 수 있으므로 UI disclosure와 TTL/cap 정책을 유지한다.
-- Programmers는 공식 제출 상세 API를 전제로 하지 않고 Accepted 직후 Accepted Editor Snapshot을 source로 쓴다.
+- Programmers와 SWEA는 공식 제출 상세 API를 전제로 하지 않고 Accepted 직후 Accepted Editor Snapshot을 source로 쓴다. SWEA editor code는 MAIN world bridge에서만 읽을 수 있고 bridge protocol에는 code string만 넣는다.
 - Solution README는 Solution Catalog의 projection이다. managed marker 밖 사용자의 수동 내용은 보존한다.
 - Swift solution은 대상 저장소의 Xcode build source folder 아래에 만들지 않는다.
 

@@ -3,7 +3,7 @@
 > **Description**: 시스템 구조, 모듈 책임, 데이터 흐름, 저장소 모델, 기술 규칙을 정리한 문서다.
 
 ## 시스템 개요
-SolveSync는 standalone Chrome extension이다. LeetCode와 Programmers 문제 페이지를 관찰해 Accepted 제출을 감지하고, 사용자가 선택한 Sync Repository에 Solution File을 커밋한다. 플랫폼별 route, 감지 신호와 source 수집 계약은 [LeetCode 연동](platforms/LEETCODE.md)과 [Programmers 연동](platforms/PROGRAMMERS.md)을 따른다.
+SolveSync는 standalone Chrome extension이다. LeetCode, Programmers와 SWEA 문제 페이지를 관찰해 Accepted 제출을 감지하고, 사용자가 선택한 Sync Repository에 Solution File을 커밋한다. 플랫폼별 route, 감지 신호와 source 수집 계약은 [LeetCode 연동](platforms/LEETCODE.md), [Programmers 연동](platforms/PROGRAMMERS.md)과 [SWEA 연동](platforms/SWEA.md)을 따른다.
 
 이 확장은 별도 backend server를 운영하지 않는다. 모든 orchestration은 브라우저 extension runtime 안에서 수행한다.
 
@@ -17,7 +17,7 @@ SolveSync는 standalone Chrome extension이다. LeetCode와 Programmers 문제 �
 src/
 ├── background/      # sync orchestration, Coding Platform source resolver, 외부 API write
 │   └── client/      # LeetCode GraphQL, GitHub Sync Repository/Sync Branch/Git Data API 실행 코드
-├── content/         # LeetCode/Programmers 페이지 관찰, Programmers Accepted Editor Snapshot, toast UI
+├── content/         # 문제 페이지 관찰, Accepted Editor Snapshot, SWEA MAIN world bridge, toast UI
 ├── options/         # GitHub Device Flow, App 설치, Sync Repository/Sync Branch, connection test UI
 ├── popup/           # Auto Sync 토글, Sync History, failure, Retry Bundle UI
 └── shared/          # 타입, Coding Platform policy, mapping, runtime message, Solution README/Catalog, storage schema, 순수 로직
@@ -31,6 +31,7 @@ package.json
 package-lock.json
 vite.config.ts
 vite.content.config.ts
+vite.swea-bridge.config.ts
 tsconfig.json
 vitest.config.ts
 scripts/
@@ -42,12 +43,14 @@ README.md
 
 ## 런타임 컴포넌트
 ### Content Script
-- `https://leetcode.com/problems/*`와 `https://school.programmers.co.kr/learn/courses/*/lessons/*`에서 실행된다.
+- `https://leetcode.com/problems/*`, `https://school.programmers.co.kr/learn/courses/*/lessons/*`와 `https://swexpertacademy.com/main/solvingProblem/solvingProblem.do*`에서 실행된다.
 - Manifest `content_scripts`는 classic script로 실행되므로 content entry는 별도 IIFE bundle인 `dist/content/index.js`로 빌드한다.
 - Content bundle에는 static ESM `import`가 남으면 안 되며 `npm run build`의 build verification이 이를 검사한다.
+- SWEA 풀이 페이지에는 `world: "MAIN"` bridge bundle `dist/content/sweaEditorBridge.js`를 함께 주입한다. 같은 이유로 별도 IIFE build이며 같은 검증을 받는다([ADR 0035](adr/0035-main-world-editor-bridge-for-swea.md)).
 - 일반 `npm run build`는 manifest 선언과 content IIFE를 검증하며 GitHub App 공개 설정이 없는 개발용 build도 허용한다. Release용 `npm run package:chrome`은 Vite의 production 환경에서 `VITE_GITHUB_APP_CLIENT_ID`와 `VITE_GITHUB_APP_SLUG`를 읽고, trim한 값이 하나라도 비어 있거나 placeholder이면 해당 변수명을 포함한 오류로 packaging을 중단한다. 두 공개 설정이 bundle에 포함된 경우에만 Chrome ZIP을 만든다.
 - Content detection controller가 `MutationObserver`, route lifecycle, coalescing과 message emission을 소유한다. Content entry는 controller 시작과 toast wiring만 담당한다.
 - Accepted 감지는 현재 DOM에 Accepted 상태가 존재하는지가 아니라, Coding Platform adapter가 이번 mutation에서 fresh visible Accepted transition을 확정했는지를 기준으로 한다.
+- Route key는 URL이 아니라 adapter가 확정한다([ADR 0036](adr/0036-adapter-resolved-content-route-key.md)). URL로 식별 가능한 플랫폼의 adapter는 계속 URL을 parsing한다.
 - Text signal 탐색은 ADR 0022에 따라 mutation 범위 안에서 bounded traversal한다. 플랫폼별 presentation state가 필요하면 같은 observer에 adapter가 등록한 presentation root를 추가 target으로 등록하고 그 root의 visibility attribute만 관찰한다.
 - Fresh signal마다 현재 URL을 다시 parsing해 route-bound immutable Accepted event를 즉시 만든다. Event에 DOM source snapshot이 필요하면 이 시점에 한 번만 캡처하고 지연 callback에서 DOM을 다시 읽지 않는다.
 - 동일 render burst는 첫 event와 snapshot을 보존하는 fixed-window coalescer로 최대 한 번만 전달한다.
@@ -102,8 +105,11 @@ README.md
 v1 manifest는 최소 권한을 사용한다.
 
 - `permissions`: `storage`
-- `host_permissions`: `https://leetcode.com/*`, `https://school.programmers.co.kr/*`, `https://github.com/*`, `https://api.github.com/*`
-- content script match: `https://leetcode.com/problems/*`, `https://school.programmers.co.kr/learn/courses/*/lessons/*`
+- `host_permissions`: `https://leetcode.com/*`, `https://school.programmers.co.kr/*`, `https://swexpertacademy.com/*`, `https://github.com/*`, `https://api.github.com/*`
+- content script match: `https://leetcode.com/problems/*`, `https://school.programmers.co.kr/learn/courses/*/lessons/*`, `https://swexpertacademy.com/main/solvingProblem/solvingProblem.do*`
+- MAIN world bridge match: `https://swexpertacademy.com/main/solvingProblem/solvingProblem.do*`
+
+SWEA를 추가하면서 host permission이 늘었으므로 **기존 설치본에는 권한 재승인이 필요하다.**
 
 Content script는 문제 페이지에서 Accepted 감지, Coding Platform source snapshot 추출과 toast 렌더링만 담당한다. Coding Platform network source 조회와 GitHub API 호출은 background service worker에서 수행한다.
 
@@ -141,6 +147,7 @@ Coding Platform 문제 page
 
 - [LeetCode 연동](platforms/LEETCODE.md)
 - [Programmers 연동](platforms/PROGRAMMERS.md)
+- [SWEA 연동](platforms/SWEA.md)
 
 ## GitHub 연동
 - Sync Repository는 코드 기본값이 아니라 Options에서 사용자가 선택한 값이다.
@@ -173,6 +180,7 @@ Coding Platform 문제 page
 - commit message 형식은 Coding Platform별 prefix를 사용한다.
   - LeetCode: `solve: leetcode 1 Two Sum in swift #1`
   - Programmers: `solve: programmers 120804 두 수의 곱 구하기 in swift #1`
+  - SWEA: `solve: swea 1234 숫자 카드 in python3 #1`
 - commit message의 문제 번호와 제목은 Solution File path와 다른 규칙을 쓴다. path는 정렬을 위해 번호를 4자리로 zero-pad하고 제목을 소문자 slug로 바꾸지만(`leetcode/swift/0001_two_sum.swift`), commit message는 사람이 읽는 줄이므로 원래 번호와 원문 제목 표기를 유지한다.
 
 저장소 파일 정리는 Accepted sync와 별도의 background action이다.
@@ -239,6 +247,7 @@ v1은 Solution README를 항상 갱신한다. README 갱신을 끄는 설정이�
 Solution Catalog는 v4 schema를 사용한다. v1-v3 catalog는 읽을 때 v4로 normalize하며 실제 파일 경로는 호환성을 위해 유지한다.
 - LeetCode: `leetcode/.leetcode-sync/index.json`
 - Programmers: `programmers/.programmers-sync/index.json`
+- SWEA: `swea/.swea-sync/index.json`
 
 Catalog entry는 다음 정보를 저장한다.
 - problem id
@@ -259,6 +268,7 @@ README 생성 규칙:
 - Coding Platform marker 사이 내용만 교체한다.
   - LeetCode: `<!-- LEETCODE_TABLE_START -->`, `<!-- LEETCODE_TABLE_END -->`
   - Programmers: `<!-- PROGRAMMERS_TABLE_START -->`, `<!-- PROGRAMMERS_TABLE_END -->`
+  - SWEA: `<!-- SWEA_TABLE_START -->`, `<!-- SWEA_TABLE_END -->`
 - LeetCode는 number, title, difficulty, solved date, 단일 Languages 컬럼을 생성한다.
 - Programmers는 신뢰할 수 있는 Difficulty source가 없으므로 number, title, solved date,
   단일 Languages 컬럼만 생성한다. Catalog의 `difficulty: "-"`는 v4 호환성을 위해 유지한다.
@@ -304,7 +314,7 @@ Message categories:
 - popup/options to background: settings read/write, GitHub auth start/read/poll/disconnect, App install page open, repository list, branch list, branch create, connection test, repository cleanup, retry.
 - background to content/popup: sync status, Sync History update.
 
-`content:accepted_detected`는 `codingPlatform` discriminated union이다. 각 payload의 `detectedAt`, `pageUrl`, route field와 source snapshot field는 같은 fresh Accepted event에서 확정한다. 플랫폼별 payload source는 [LeetCode 연동](platforms/LEETCODE.md)과 [Programmers 연동](platforms/PROGRAMMERS.md)을 따른다.
+`content:accepted_detected`는 `codingPlatform` discriminated union이다. 각 payload의 `detectedAt`, `pageUrl`, route field와 source snapshot field는 같은 fresh Accepted event에서 확정한다. 플랫폼별 payload source는 [LeetCode 연동](platforms/LEETCODE.md), [Programmers 연동](platforms/PROGRAMMERS.md)과 [SWEA 연동](platforms/SWEA.md)을 따른다.
 
 `repository:cleanup` payload는 사용자가 현재 선택한 `SyncRepository`와 `SyncBranch`를 포함한다. 응답 data는 `committed`와 `no_changes` discriminated result이며 예외는 runtime failure envelope의 normalized error로 반환한다.
 
@@ -337,7 +347,7 @@ Content/popup/options로 나가는 message payload에는 GitHub access token, re
 - `network_failed`
 - `extension_state_unavailable`
 
-Coding Platform 전용 source error는 [LeetCode 오류 계약](platforms/LEETCODE.md#오류-계약)과 [Programmers 오류 계약](platforms/PROGRAMMERS.md#오류-계약)을 따른다.
+Coding Platform 전용 source error는 [LeetCode 오류 계약](platforms/LEETCODE.md#오류-계약), [Programmers 오류 계약](platforms/PROGRAMMERS.md#오류-계약)과 [SWEA 오류 계약](platforms/SWEA.md#오류-계약)을 따른다.
 
 Toast는 짧은 메시지만 보여준다. Popup은 상세 메시지와 retry 가능 여부를 보여준다.
 

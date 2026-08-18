@@ -2,7 +2,7 @@ import { isNormalizedError, type NormalizedError } from "./errors";
 
 export type IsoDateString = string;
 
-export type CodingPlatform = "leetcode" | "programmers";
+export type CodingPlatform = "leetcode" | "programmers" | "swea";
 
 export type SupportedLanguage =
   | "swift"
@@ -164,7 +164,7 @@ export function isSupportedLanguage(value: unknown): value is SupportedLanguage 
 }
 
 export function isCodingPlatform(value: unknown): value is CodingPlatform {
-  return value === "leetcode" || value === "programmers";
+  return value === "leetcode" || value === "programmers" || value === "swea";
 }
 
 export function isPlainRecord(value: unknown): value is Record<string, unknown> {

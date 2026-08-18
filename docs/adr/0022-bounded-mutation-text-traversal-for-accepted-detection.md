@@ -8,6 +8,6 @@ Attribute 기반 presentation 감지가 필요한 Coding Platform은 하나의 `
 
 이유: Coding Platform 결과 UI는 성공 상태, runtime, memory, code, link와 추천 문제 text를 큰 container 안에 함께 render할 수 있다. 큰 container의 전체 `textContent`를 판정하면 generic text나 stale Accepted state 때문에 오탐할 수 있다. 반대로 이미 DOM에 존재하는 modal이 attribute만 바꿔 표시되는 경우에는 `addedNodes` text 감지만으로 fresh transition을 놓칠 수 있다. Bounded text traversal과 등록된 presentation root의 state observation을 분리하면 두 경우를 좁은 mutation boundary 안에서 처리할 수 있다.
 
-플랫폼별 Accepted pattern과 presentation state 계약은 [LeetCode 연동](../platforms/LEETCODE.md)과 [Programmers 연동](../platforms/PROGRAMMERS.md)을 따른다.
+플랫폼별 Accepted pattern과 presentation state 계약은 [LeetCode 연동](../platforms/LEETCODE.md), [Programmers 연동](../platforms/PROGRAMMERS.md)과 [SWEA 연동](../platforms/SWEA.md)을 따른다.
 
 트레이드오프: DOM text와 visibility attribute 변화에는 여전히 영향을 받으며 adapter가 presentation root lifecycle을 관리해야 한다. 대신 detector 단위 테스트와 실제 browser 수동 검증으로 변경을 조기에 확인하고, document 전체 attribute observation과 stale subtree 재탐색으로 인한 성능 비용과 오탐을 피한다.

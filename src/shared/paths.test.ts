@@ -81,4 +81,20 @@ describe("solution path generation", () => {
       "programmers/swift/123_A_B_테스트_두_수.swift"
     );
   });
+
+  it("builds SWEA paths from the visible problem number, not the contest problem id", () => {
+    const sweaProblem = {
+      problemId: "AV13zZ7KAAACFAYh",
+      frontendId: "1234",
+      title: "숫자 카드",
+      titleSlug: "1234_숫자_카드"
+    };
+
+    expect(buildSolutionPath("swea", sweaProblem, "python3")).toBe(
+      "swea/python/1234_숫자_카드.py"
+    );
+    expect(buildSolutionPath("swea", sweaProblem, "java")).toBe(
+      "swea/java/1234_숫자_카드.java"
+    );
+  });
 });

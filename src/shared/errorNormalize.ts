@@ -31,6 +31,10 @@ const ERROR_DESCRIPTORS = {
     userMessage: "Could not read the Programmers editor code.",
     retryable: false
   },
+  swea_extract_failed: {
+    userMessage: "Could not read the SWEA editor code.",
+    retryable: false
+  },
   github_auth_failed: {
     userMessage: "GitHub authentication failed.",
     retryable: false

@@ -7,7 +7,7 @@ import { mergeReadmeManagedBlock, renderManagedReadmeTable } from "../shared/rea
 import { buildGitTreeFiles } from "../shared/githubTree";
 import { buildSolutionPath, sanitizeProgrammersFilename } from "../shared/paths";
 import { getPlatformPolicy } from "../shared/platformPolicy";
-import { mapProgrammersLanguage } from "../shared/language";
+import { mapProgrammersLanguage, mapSweaLanguage } from "../shared/language";
 import { normalizeError, normalizeLeetCodeError } from "../shared/errorNormalize";
 import type { NormalizedError, NormalizedErrorCode } from "../shared/errors";
 import type {
@@ -444,6 +444,10 @@ export function createSyncOrchestrator(
       return resolveLeetCodeSource(payload.titleSlug);
     }
 
+    if (payload.codingPlatform === "swea") {
+      return resolveSweaSource(payload);
+    }
+
     return resolveProgrammersSource(payload);
   }
 
@@ -626,7 +630,7 @@ export function createSyncOrchestrator(
     const buildFiles = async () =>
       buildRepositoryCleanupFiles(
         (path) => readRepositoryFile(github, syncRepository, syncBranch, path),
-        ["leetcode", "programmers"]
+        ["leetcode", "programmers", "swea"]
       );
 
     const files = await buildFiles();
@@ -897,7 +901,7 @@ function resolveProgrammersSource(
   const code = payload.code;
   const titleSlug =
     lessonId.length > 0 && title.length > 0
-      ? buildProgrammersTitleSlug(lessonId, title)
+      ? buildFilenameTitleSlug(lessonId, title)
       : getInitialTitleSlug(payload);
 
   if (
@@ -962,6 +966,86 @@ function resolveProgrammersSource(
   };
 }
 
+function resolveSweaSource(
+  payload: Extract<AcceptedDetectedPayload, { codingPlatform: "swea" }>
+): ResolvedSource {
+  const contestProbId = payload.contestProbId.trim();
+  const title = payload.problemTitle.trim();
+  const language = payload.language.trim();
+  const code = payload.code;
+  // 파일명에는 사람이 읽는 문제 번호를 쓰고, 식별은 contestProbId로 한다.
+  // 번호를 읽지 못하면 식별자로 되돌아간다.
+  const frontendId =
+    payload.problemNumber.trim().length > 0
+      ? payload.problemNumber.trim()
+      : contestProbId;
+  const titleSlug =
+    frontendId.length > 0 && title.length > 0
+      ? buildFilenameTitleSlug(frontendId, title)
+      : getInitialTitleSlug(payload);
+
+  if (
+    contestProbId.length === 0 ||
+    title.length === 0 ||
+    language.length === 0 ||
+    code.trim().length === 0
+  ) {
+    return {
+      kind: "extract_failed",
+      titleSlug,
+      problemTitle: title.length > 0 ? title : null,
+      problemFrontendId: frontendId.length > 0 ? frontendId : null,
+      language,
+      error: explicitError(
+        "swea_extract_failed",
+        "SWEA accepted source is missing contest problem id, title, language, or code."
+      )
+    };
+  }
+
+  const supportedLanguage = mapSweaLanguage(language);
+  const codeHash = buildShortCodeHash(code);
+  const acceptedSourceId =
+    supportedLanguage === null
+      ? `swea:${contestProbId}:unsupported:${codeHash}`
+      : `swea:${contestProbId}:${supportedLanguage}:${codeHash}`;
+  const problem: ProblemMetadata = {
+    problemId: contestProbId,
+    frontendId,
+    title,
+    titleSlug,
+    difficulty: "-",
+    url: payload.pageUrl
+  };
+  const submission: AcceptedSubmission = {
+    acceptedSourceId,
+    titleSlug,
+    language: language as LeetCodeLanguage,
+    code,
+    acceptedAt: payload.detectedAt
+  };
+
+  if (supportedLanguage === null) {
+    return {
+      kind: "unsupported_language",
+      problem,
+      submission
+    };
+  }
+
+  return {
+    kind: "syncable",
+    problem,
+    submission,
+    syncDeduplicationKey: {
+      codingPlatform: "swea",
+      acceptedSourceId,
+      titleSlug,
+      language: supportedLanguage
+    }
+  };
+}
+
 function buildProgrammersAcceptedSourceId(
   lessonId: string,
   language: SyncDeduplicationKey["language"],
@@ -970,8 +1054,8 @@ function buildProgrammersAcceptedSourceId(
   return `programmers:${lessonId}:${language}:${codeHash}`;
 }
 
-function buildProgrammersTitleSlug(lessonId: string, title: string): string {
-  return `${sanitizeProgrammersFilename(lessonId)}_${sanitizeProgrammersFilename(title)}`;
+function buildFilenameTitleSlug(problemNumber: string, title: string): string {
+  return `${sanitizeProgrammersFilename(problemNumber)}_${sanitizeProgrammersFilename(title)}`;
 }
 
 function buildShortCodeHash(code: string): string {
@@ -990,32 +1074,35 @@ function getInitialTitleSlug(payload: AcceptedDetectedPayload): string {
     return payload.titleSlug;
   }
 
-  const lessonId = payload.lessonId.trim();
+  const problemNumber =
+    payload.codingPlatform === "programmers"
+      ? payload.lessonId.trim()
+      : payload.problemNumber.trim() || payload.contestProbId.trim();
   const title = payload.problemTitle.trim();
 
-  if (lessonId.length > 0 && title.length > 0) {
-    return buildProgrammersTitleSlug(lessonId, title);
+  if (problemNumber.length > 0 && title.length > 0) {
+    return buildFilenameTitleSlug(problemNumber, title);
   }
 
-  if (lessonId.length > 0) {
-    return sanitizeProgrammersFilename(lessonId);
+  if (problemNumber.length > 0) {
+    return sanitizeProgrammersFilename(problemNumber);
   }
 
-  return "programmers";
+  return payload.codingPlatform;
 }
 
 function getInitialProblemTitle(payload: AcceptedDetectedPayload): string | null {
-  if (payload.codingPlatform === "programmers") {
-    const title = payload.problemTitle.trim();
-
-    return title.length > 0 ? title : null;
+  if (payload.codingPlatform === "leetcode") {
+    return null;
   }
 
-  return null;
+  const title = payload.problemTitle.trim();
+
+  return title.length > 0 ? title : null;
 }
 
 function getInitialLanguage(payload: AcceptedDetectedPayload): string {
-  return payload.codingPlatform === "programmers" ? payload.language : "";
+  return payload.codingPlatform === "leetcode" ? "" : payload.language;
 }
 
 function hasRequiredSetup(settings: {

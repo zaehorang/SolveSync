@@ -5,10 +5,12 @@ import {
   createToastViewModel,
   getConnectionStatusView,
   getFailureDetailView,
+  getPlatformLabel,
   getSetupStatusView,
   getSyncStatusLabel,
   getSyncStatusSemanticTone,
-  getSyncStatusTone
+  getSyncStatusTone,
+  isExtractFailedCode
 } from "./uiModels";
 import {
   STORAGE_SCHEMA_VERSION,
@@ -17,6 +19,19 @@ import {
 import type { SyncHistoryEntry, SyncRepository } from "./types";
 
 describe("shared UI models", () => {
+  it("labels every Coding Platform", () => {
+    expect(getPlatformLabel("leetcode")).toBe("LeetCode");
+    expect(getPlatformLabel("programmers")).toBe("Programmers");
+    expect(getPlatformLabel("swea")).toBe("SWEA");
+  });
+
+  it("treats every platform's extract failure as retry-unavailable", () => {
+    // Retry Bundle이 만들어지지 않으므로 retry action을 제공할 수 없다.
+    expect(isExtractFailedCode("programmers_extract_failed")).toBe(true);
+    expect(isExtractFailedCode("swea_extract_failed")).toBe(true);
+    expect(isExtractFailedCode("github_commit_failed")).toBe(false);
+  });
+
   it("maps connection status labels and details by locale", () => {
     const error = makeError("github_auth_failed", "GitHub authentication failed.");
 

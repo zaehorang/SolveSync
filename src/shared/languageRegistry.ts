@@ -28,7 +28,8 @@ export const LANGUAGE_REGISTRY: Record<SupportedLanguage, LanguageDefinition> = 
     extension: "swift",
     aliases: {
       leetcode: ["swift"],
-      programmers: ["swift"]
+      programmers: ["swift"],
+      swea: []
     }
   },
   python3: {
@@ -38,7 +39,8 @@ export const LANGUAGE_REGISTRY: Record<SupportedLanguage, LanguageDefinition> = 
     extension: "py",
     aliases: {
       leetcode: ["python3"],
-      programmers: ["python3"]
+      programmers: ["python3"],
+      swea: ["Y", "Python 3"]
     }
   },
   java: {
@@ -48,7 +50,8 @@ export const LANGUAGE_REGISTRY: Record<SupportedLanguage, LanguageDefinition> = 
     extension: "java",
     aliases: {
       leetcode: ["java"],
-      programmers: ["java"]
+      programmers: ["java"],
+      swea: ["J", "JAVA"]
     }
   },
   cpp: {
@@ -58,7 +61,8 @@ export const LANGUAGE_REGISTRY: Record<SupportedLanguage, LanguageDefinition> = 
     extension: "cpp",
     aliases: {
       leetcode: ["c++", "cpp", "gnu c++"],
-      programmers: ["c++", "cpp", "gnu c++"]
+      programmers: ["c++", "cpp", "gnu c++"],
+      swea: ["P", "C++14"]
     }
   },
   javascript: {
@@ -68,7 +72,8 @@ export const LANGUAGE_REGISTRY: Record<SupportedLanguage, LanguageDefinition> = 
     extension: "js",
     aliases: {
       leetcode: ["javascript"],
-      programmers: ["javascript"]
+      programmers: ["javascript"],
+      swea: []
     }
   },
   typescript: {
@@ -78,7 +83,8 @@ export const LANGUAGE_REGISTRY: Record<SupportedLanguage, LanguageDefinition> = 
     extension: "ts",
     aliases: {
       leetcode: ["typescript"],
-      programmers: ["typescript"]
+      programmers: ["typescript"],
+      swea: []
     }
   },
   kotlin: {
@@ -88,7 +94,8 @@ export const LANGUAGE_REGISTRY: Record<SupportedLanguage, LanguageDefinition> = 
     extension: "kt",
     aliases: {
       leetcode: ["kotlin"],
-      programmers: ["kotlin"]
+      programmers: ["kotlin"],
+      swea: []
     }
   },
   go: {
@@ -98,7 +105,8 @@ export const LANGUAGE_REGISTRY: Record<SupportedLanguage, LanguageDefinition> = 
     extension: "go",
     aliases: {
       leetcode: ["go", "golang"],
-      programmers: ["go", "golang"]
+      programmers: ["go", "golang"],
+      swea: []
     }
   },
   rust: {
@@ -108,7 +116,8 @@ export const LANGUAGE_REGISTRY: Record<SupportedLanguage, LanguageDefinition> = 
     extension: "rs",
     aliases: {
       leetcode: ["rust"],
-      programmers: ["rust"]
+      programmers: ["rust"],
+      swea: []
     }
   }
 };
