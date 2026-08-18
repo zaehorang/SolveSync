@@ -124,7 +124,9 @@ export function createExtensionStorage(area: StorageAreaAdapter): ExtensionStora
   // 아래 반환 객체의 배선에도 함께 넣는다.
   const runExclusive = createStorageKeyQueue();
 
-  async function getSettings(): Promise<SettingsState> {
+  /** queue 안에서 부르는 내부용 read. legacy migration write를 포함하므로
+   * 이 자체도 read-modify-write다. 공개 `getSettings`는 이것을 queue에 태운다. */
+  async function readSettings(): Promise<SettingsState> {
     const values = await area.get(STORAGE_KEYS.settings);
     const raw = values[STORAGE_KEYS.settings];
     const parsed = parseSettingsState(raw) ?? cloneState(DEFAULT_SETTINGS_STATE);
@@ -146,7 +148,7 @@ export function createExtensionStorage(area: StorageAreaAdapter): ExtensionStora
     settings: SettingsStorageUpdate,
     now: Date | IsoDateString | number = new Date()
   ): Promise<SettingsState> {
-    const current = await getSettings();
+    const current = await readSettings();
     const next: SettingsState = {
       ...current,
       ...settings,
@@ -399,10 +401,11 @@ export function createExtensionStorage(area: StorageAreaAdapter): ExtensionStora
   }
 
   // 읽기 전용 함수는 그대로 두고, 같은 key를 읽고 다시 쓰는 함수만 직렬화한다.
-  // `getSettings`는 legacy migration write를 하지만 `saveSettings`가 내부에서
-  // 호출하므로 queue에 넣지 않는다. 넣으면 서로를 기다려 교착한다.
+  // `getSettings`도 legacy migration write를 하므로 queue에 태운다. 내부에서는
+  // queue를 거치지 않는 `readSettings`를 부른다. 공개 함수끼리 서로를 부르면
+  // 같은 key의 queue를 두 번 잡아 교착한다.
   return {
-    getSettings,
+    getSettings: () => runExclusive(STORAGE_KEYS.settings, readSettings),
     saveSettings: (settings, now) =>
       runExclusive(STORAGE_KEYS.settings, () => saveSettings(settings, now)),
     getGitHubAuth,

@@ -302,6 +302,42 @@ describe("background extension storage", () => {
     expect(await storage.getGitHubAuth()).toBeNull();
   });
 
+  it("does not let a legacy settings migration write overwrite a concurrent save", async () => {
+    // legacy settings가 남아 있으면 getSettings가 migration write를 한다.
+    // 그 write가 queue 밖에 있으면 나중 save를 덮어 사용자 변경이 사라진다.
+    const area = createMemoryStorageArea({
+      [STORAGE_KEYS.settings]: {
+        ...DEFAULT_SETTINGS_STATE,
+        version: 4,
+        githubPat: "legacy-secret-that-must-be-removed"
+      }
+    });
+    // 첫 write(= getSettings의 migration write)만 느리다. 직렬화가 없으면 이
+    // write가 뒤늦게 착지해 그 사이 저장된 사용자 변경을 되돌린다.
+    let pendingSlowSet = true;
+    const skewedArea: MemoryStorageArea = {
+      ...area,
+      async set(items) {
+        if (pendingSlowSet) {
+          pendingSlowSet = false;
+          await yieldTurns(5);
+        }
+
+        return area.set(items);
+      }
+    };
+    const storage = createExtensionStorage(skewedArea);
+
+    await Promise.all([
+      storage.getSettings(),
+      storage.saveSettings({ autoSyncEnabled: true }, "2026-01-01T00:00:00.000Z")
+    ]);
+
+    await expect(storage.getSettings()).resolves.toMatchObject({
+      autoSyncEnabled: true
+    });
+  });
+
   it("keeps serving later writes after one of them throws", async () => {
     const area = createSlowMemoryStorageArea();
     let failNextSet = true;
