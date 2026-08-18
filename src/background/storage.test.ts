@@ -338,6 +338,44 @@ describe("background extension storage", () => {
     });
   });
 
+  it("replaces the GitHub auth session only while the refresh token is unchanged", async () => {
+    const storage = createExtensionStorage(createMemoryStorageArea());
+    const session = makeGitHubAuthSession();
+    await storage.saveGitHubAuth(session);
+
+    const rotated = {
+      ...session,
+      accessToken: "next-access-token",
+      refreshToken: "next-refresh-token",
+      updatedAt: "2026-01-01T01:00:00.000Z"
+    };
+
+    await expect(
+      storage.replaceGitHubAuthIfUnchanged(session.refreshToken, rotated)
+    ).resolves.toMatchObject({ refreshToken: "next-refresh-token" });
+
+    // 이미 rotate된 뒤에는 같은 요청이 다시 통과하면 안 된다.
+    await expect(
+      storage.replaceGitHubAuthIfUnchanged(session.refreshToken, rotated)
+    ).resolves.toBeNull();
+  });
+
+  it("does not restore a cleared GitHub auth session", async () => {
+    const storage = createExtensionStorage(createMemoryStorageArea());
+    const session = makeGitHubAuthSession();
+    await storage.saveGitHubAuth(session);
+    await storage.clearGitHubAuth();
+
+    await expect(
+      storage.replaceGitHubAuthIfUnchanged(session.refreshToken, {
+        ...session,
+        accessToken: "next-access-token",
+        refreshToken: "next-refresh-token"
+      })
+    ).resolves.toBeNull();
+    await expect(storage.getGitHubAuth()).resolves.toBeNull();
+  });
+
   it("keeps serving later writes after one of them throws", async () => {
     const area = createSlowMemoryStorageArea();
     let failNextSet = true;

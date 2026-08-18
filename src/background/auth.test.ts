@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { STORAGE_SCHEMA_VERSION } from "../shared/storageSchema";
+import {
+  STORAGE_SCHEMA_VERSION,
+  type GitHubAuthSession
+} from "../shared/storageSchema";
 import {
   createGitHubAuthManager,
   type GitHubAuthFetch,
@@ -141,6 +144,41 @@ describe("GitHub App device-flow authentication", () => {
     });
   });
 
+  it("discards a token refresh that lands after the user disconnected", async () => {
+    let markRefreshStarted = (): void => {};
+    let releaseRefresh = (): void => {};
+    const refreshStarted = new Promise<void>((resolve) => {
+      markRefreshStarted = resolve;
+    });
+    const refreshGate = new Promise<void>((resolve) => {
+      releaseRefresh = resolve;
+    });
+    const fetchImpl = vi.fn(async () => {
+      markRefreshStarted();
+      await refreshGate;
+      return jsonResponse(tokenResponse("access-2", "refresh-2"));
+    });
+    const harness = makeHarness(fetchImpl);
+    await harness.storage.saveGitHubAuth(makeExpiringSession());
+
+    const refresh = harness.manager.getAccessToken();
+    // refresh가 실제로 network를 기다리는 중인지 확인한 뒤 연결을 해제한다.
+    // 그래야 "해제 뒤에 도착한 refresh"를 검증한다.
+    await refreshStarted;
+    await harness.manager.disconnect();
+    releaseRefresh();
+
+    await expect(refresh).rejects.toMatchObject({
+      code: "github_login_required"
+    });
+    await expect(harness.storage.getGitHubAuth()).resolves.toBeNull();
+    await expect(harness.storage.getSettings()).resolves.toMatchObject({
+      connectionStatus: {
+        code: "login_required"
+      }
+    });
+  });
+
   it("clears an expired refresh session and requires a new login", async () => {
     const harness = makeHarness(queueFetch());
     await harness.storage.saveGitHubAuth({
@@ -246,6 +284,23 @@ function jsonResponse(body: unknown, status = 200): Response {
       "Content-Type": "application/json"
     }
   });
+}
+
+function makeExpiringSession(): GitHubAuthSession {
+  return {
+    version: STORAGE_SCHEMA_VERSION,
+    accessToken: "access-1",
+    accessTokenExpiresAt: "2026-01-01T00:04:00.000Z",
+    refreshToken: "refresh-1",
+    refreshTokenExpiresAt: "2026-07-01T00:00:00.000Z",
+    tokenType: "bearer",
+    account: {
+      id: 7,
+      login: "octo",
+      avatarUrl: null
+    },
+    updatedAt: NOW.toISOString()
+  };
 }
 
 function deviceCodeResponse() {
