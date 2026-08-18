@@ -69,7 +69,7 @@ Connection test는 commit을 만들지 않아야 한다. Branch는 사용자의 
 
 - LeetCode [자동 검증](platforms/LEETCODE.md#자동-검증)과 [수동 검증](platforms/LEETCODE.md#수동-검증)
 - Programmers [자동 검증](platforms/PROGRAMMERS.md#자동-검증)과 [수동 검증](platforms/PROGRAMMERS.md#수동-검증)
-- SWEA [자동 검증](platforms/SWEA.md#자동-검증)과 [수동 검증](platforms/SWEA.md#수동-검증). 감지부터 commit까지는 2026-08-18 실제 제출로 확인했고 결과는 [확인된 전제](platforms/SWEA.md#확인된-전제)에 있다. 남은 확인 대상은 채점 실패 문구다.
+- SWEA [자동 검증](platforms/SWEA.md#자동-검증)과 [수동 검증](platforms/SWEA.md#수동-검증). 감지부터 commit까지와 Run·임시저장·컴파일 오류·오답의 non-Accepted 경로를 2026-08-18 실제 제출로 확인했다. 결과는 [확인된 전제](platforms/SWEA.md#확인된-전제)에 있다.
 
 각 문서는 platform login, Accepted happy path, stale Accepted/Run/Wrong Answer 회귀, 두 번째 Accepted revision과 SPA route 검증을 소유한다. 모든 지원 언어를 실제 계정으로 반복 제출하지 않으며, 특정 Coding Platform의 label이나 editor 추출 회귀가 의심될 때만 해당 언어를 추가로 수동 검증한다.
 
