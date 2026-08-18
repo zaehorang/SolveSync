@@ -406,8 +406,12 @@ export function createExtensionStorage(area: StorageAreaAdapter): ExtensionStora
     saveSettings: (settings, now) =>
       runExclusive(STORAGE_KEYS.settings, () => saveSettings(settings, now)),
     getGitHubAuth,
-    saveGitHubAuth,
-    clearGitHubAuth,
+    // auth write는 read-modify-write가 아니지만 같은 key를 두고 경쟁한다.
+    // queue에 넣어 호출 순서가 최종 상태를 정하게 한다.
+    saveGitHubAuth: (session) =>
+      runExclusive(STORAGE_KEYS.githubAuth, () => saveGitHubAuth(session)),
+    clearGitHubAuth: () =>
+      runExclusive(STORAGE_KEYS.githubAuth, () => clearGitHubAuth()),
     listProcessedSyncDeduplicationKeys,
     hasProcessedSyncDeduplicationKey,
     markSyncDeduplicationKeyProcessed: (syncDeduplicationKey, details, now) =>

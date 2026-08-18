@@ -13,6 +13,7 @@ import {
   LEGACY_STORAGE_KEYS,
   STORAGE_KEYS,
   STORAGE_SCHEMA_VERSION,
+  type GitHubAuthSession,
   type SyncDeduplicationKeyLocksState
 } from "../shared/storageSchema";
 import type {
@@ -276,6 +277,31 @@ describe("background extension storage", () => {
     expect(await storage.listRetryBundles()).toHaveLength(1);
   });
 
+  it("lets the last GitHub auth write win even when set is slower than remove", async () => {
+    // set이 remove보다 느린 area. 직렬화가 없으면 나중에 부른 clear가 먼저
+    // 끝나고 앞선 save가 뒤늦게 착지해 로그아웃이 되돌려진다.
+    const area = createMemoryStorageArea();
+    const skewedArea: MemoryStorageArea = {
+      ...area,
+      async set(items) {
+        await yieldTurns(3);
+        return area.set(items);
+      },
+      async remove(keys) {
+        await yieldTurns(1);
+        return area.remove(keys);
+      }
+    };
+    const storage = createExtensionStorage(skewedArea);
+
+    await Promise.all([
+      storage.saveGitHubAuth(makeGitHubAuthSession()),
+      storage.clearGitHubAuth()
+    ]);
+
+    expect(await storage.getGitHubAuth()).toBeNull();
+  });
+
   it("keeps serving later writes after one of them throws", async () => {
     const area = createSlowMemoryStorageArea();
     let failNextSet = true;
@@ -305,6 +331,36 @@ describe("background extension storage", () => {
 
 interface MemoryStorageArea extends StorageAreaAdapter {
   dump(): Record<string, unknown>;
+}
+
+function yieldTurns(count: number): Promise<void> {
+  return Array.from({ length: count }).reduce<Promise<void>>(
+    (chain) =>
+      chain.then(
+        () =>
+          new Promise((resolve) => {
+            setTimeout(resolve, 0);
+          })
+      ),
+    Promise.resolve()
+  );
+}
+
+function makeGitHubAuthSession(): GitHubAuthSession {
+  return {
+    version: STORAGE_SCHEMA_VERSION,
+    accessToken: "access-token-value",
+    accessTokenExpiresAt: "2026-01-01T08:00:00.000Z",
+    refreshToken: "refresh-token-value",
+    refreshTokenExpiresAt: "2026-06-01T00:00:00.000Z",
+    tokenType: "bearer",
+    account: {
+      id: 1,
+      login: "octo",
+      avatarUrl: null
+    },
+    updatedAt: "2026-01-01T00:00:00.000Z"
+  };
 }
 
 /** 모든 호출 사이에 실제 turn을 끼워 read-modify-write 구간이 겹치게 만든다.
