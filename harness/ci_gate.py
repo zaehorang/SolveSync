@@ -92,11 +92,14 @@ def main() -> None:
     problems: list[str] = []
     for sha in commits:
         short = sha[:9]
+        # `-z`로 받는다. quotePath 기본값에서 비ASCII 경로는 `"dist/\355..."`처럼
+        # C-style로 quote되어 돌아오고, 그러면 `dist/` prefix 검사를 그냥 지나간다.
         changed = [
             p
             for p in git(
-                "diff-tree", "--no-commit-id", "--name-only", "-r", "-c", "--diff-filter=ACMR", sha
-            ).splitlines()
+                "diff-tree", "--no-commit-id", "--name-only", "-r", "-c", "-z",
+                "--diff-filter=ACMR", sha,
+            ).split("\0")
             if p
         ]
         problems += [f"{short}: {reason}" for reason in policy.check_staged_paths(changed)]
