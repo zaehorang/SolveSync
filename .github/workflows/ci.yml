@@ -42,12 +42,14 @@ jobs:
       - name: 하네스 CI gate
         env:
           BASE_REF: ${{ github.base_ref }}
+          # push 범위 전체의 시작점. 마지막 커밋만 보면 한 번에 올라간 앞 커밋들을 놓친다.
+          BEFORE_SHA: ${{ github.event.before }}
         run: |
           if [ -n "$BASE_REF" ]; then
             git fetch --no-tags origin "$BASE_REF"
             python3 harness/ci_gate.py FETCH_HEAD
           else
-            python3 harness/ci_gate.py HEAD^
+            python3 harness/ci_gate.py "$BEFORE_SHA"
           fi
 
       - name: npm 의존성 설치

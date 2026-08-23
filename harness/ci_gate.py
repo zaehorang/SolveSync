@@ -10,6 +10,10 @@
 있는 것은 다시 보지 않는다. 규칙은 `policy.py` 하나이고 이 파일은 CI에 그것을
 붙이는 얇은 adapter다.
 
+**커밋 하나씩 본다.** 범위 전체의 net diff를 보면 한 커밋에서 넣었다가 다음
+커밋에서 지운 secret이 사라진다. 지웠어도 그 값은 이미 push된 history에 남아
+있으므로 회수가 필요하다. 같은 이유로 push 범위의 마지막 커밋만 보지 않는다.
+
     python3 harness/ci_gate.py <base-ref>
 """
 
@@ -37,31 +41,67 @@ def git(*args: str) -> str:
     return result.stdout
 
 
+def added_lines(patch: str) -> str:
+    """patch에서 추가된 줄만 남긴다.
+
+    삭제된 줄까지 보면 base에 이미 있던 secret을 지우는 커밋이 차단된다. 정리하는
+    쪽을 막는 gate는 사람을 잘못된 방향으로 보낸다.
+    """
+    return "\n".join(
+        line[1:] for line in patch.splitlines() if line.startswith("+") and not line.startswith("+++")
+    )
+
+
 def main() -> None:
     if len(sys.argv) != 2:
         fail("base ref를 하나 받아야 합니다. 예: python3 harness/ci_gate.py origin/main")
-    # 세 점은 merge base부터 본다. base branch가 앞서 나가도 이 PR이 실제로 더한
-    # 변경만 검사한다.
-    base = f"{sys.argv[1]}...HEAD"
+    base = sys.argv[1]
 
-    changed = [p for p in git("diff", "--name-only", "--diff-filter=ACMR", base).splitlines() if p]
-    if not changed:
-        print("ci-gate: 검사할 변경이 없습니다.")
+    resolved = subprocess.run(
+        ["git", "rev-parse", "--verify", "--quiet", f"{base}^{{commit}}"],
+        capture_output=True,
+        text=True,
+    )
+    if resolved.returncode != 0:
+        fail(
+            f"base ref '{base}'를 찾을 수 없습니다. 검사 범위를 모르면 통과시키지 않습니다. "
+            "checkout의 fetch 깊이와 workflow가 넘긴 ref를 확인하세요."
+        )
+
+    commits = git("rev-list", "--reverse", f"{base}..HEAD").split()
+    if not commits:
+        print(f"ci-gate: {base} 이후 새 커밋이 없습니다.")
         return
 
-    problems = policy.check_staged_paths(changed)
+    problems: list[str] = []
+    for sha in commits:
+        short = sha[:9]
+        changed = [
+            p
+            for p in git(
+                "diff-tree", "--no-commit-id", "--name-only", "-r", "--diff-filter=ACMR", sha
+            ).splitlines()
+            if p
+        ]
+        problems += [f"{short}: {reason}" for reason in policy.check_staged_paths(changed)]
 
-    secrets = policy.scan_secrets(git("diff", "-U0", base))
-    if secrets:
-        labels = ", ".join(sorted({label for label, _ in secrets}))
-        problems.append(f"변경에 secret으로 보이는 값이 있습니다 ({labels}). 값을 회수하고 history에서 제거하세요.")
+        # merge 커밋은 기본적으로 patch를 내지 않는다. 내용은 부모 커밋에서 이미 봤다.
+        secrets = policy.scan_secrets(
+            added_lines(git("diff-tree", "--no-commit-id", "-p", "-U0", "-r", sha))
+        )
+        if secrets:
+            labels = ", ".join(sorted({label for label, _ in secrets}))
+            problems.append(
+                f"{short}: 커밋에 secret으로 보이는 값이 있습니다 ({labels}). "
+                "값을 회수하고 history에서 제거하세요."
+            )
 
     for problem in problems:
         print(f"ci-gate: {problem}", file=sys.stderr)
     if problems:
         sys.exit(1)
 
-    print(f"ci-gate: {len(changed)}개 파일을 검사했고 문제가 없습니다.")
+    print(f"ci-gate: 커밋 {len(commits)}개를 검사했고 문제가 없습니다.")
 
 
 if __name__ == "__main__":
