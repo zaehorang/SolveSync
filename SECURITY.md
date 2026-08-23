@@ -17,7 +17,7 @@ Issue, screenshot, logs, sample payload에 다음 값을 포함하지 마세요.
 - GitHub refresh token
 - Device Flow device code
 - cookie
-- LeetCode/Programmers session 값
+- 지원 Coding Platform(LeetCode, Programmers, SWEA) session 값
 - private repository URL
 - private solution code
 
@@ -36,7 +36,7 @@ Issue, screenshot, logs, sample payload에 다음 값을 포함하지 마세요.
 
 - 개인 GitHub 계정 설정 대행
 - GitHub token 값 검토
-- private repository, LeetCode session, Programmers session 문제의 대리 디버깅
+- private repository와 Coding Platform session 문제의 대리 디버깅
 - 실제 token, cookie, session 값을 사용한 분석
 
 ## Security Notes
@@ -45,4 +45,5 @@ Issue, screenshot, logs, sample payload에 다음 값을 포함하지 마세요.
 - GitHub access/refresh token과 Retry Bundle code는 Chrome extension local storage에 저장될 수 있습니다. Device Flow pending state는 session storage에 저장됩니다.
 - GitHub write는 사용자가 선택한 Sync Repository와 Sync Branch로 제한됩니다.
 - Content script는 GitHub API를 직접 호출하지 않습니다.
-- LeetCode/Programmers 문제 설명 전문은 저장하지 않습니다.
+- 지원 Coding Platform의 문제 설명 전문은 저장하지 않습니다.
+- SWEA editor code를 읽는 MAIN world bridge는 code string만 전달합니다. bridge는 요청한 nonce에 한 번만 응답하고, 수신 측은 window origin과 nonce가 모두 맞을 때만 값을 사용합니다.

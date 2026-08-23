@@ -82,11 +82,11 @@ solution link, 날짜와 marker 밖 수동 내용이 유지되고, 같은 Catalo
 
 ## 6. 저장소 파일 정리
 
-1. 선택한 test branch에 유효한 LeetCode와 Programmers Solution Catalog를 준비하고, Solution README managed marker 내부는 legacy 표 형식으로 만든다. marker 앞뒤에는 줄바꿈과 trailing space를 포함한 식별 가능한 수동 내용을 둔다.
+1. 선택한 test branch에 유효한 LeetCode, Programmers와 SWEA Solution Catalog를 준비하고, Solution README managed marker 내부는 legacy 표 형식으로 만든다. marker 앞뒤에는 줄바꿈과 trailing space를 포함한 식별 가능한 수동 내용을 둔다.
 2. Options에서 해당 Sync Repository와 Sync Branch가 선택되었는지 확인한다. 둘 중 하나를 선택하지 않은 상태에서는 정리 button이 disabled인지 확인한다.
 3. `Clean up now` 또는 `지금 정리하기`를 누르고 진행 중 button이 disabled이며 `aria-live="polite"` 영역에 현재 locale의 진행 상태가 표시되는지 확인한다.
-4. GitHub에서 `chore: README 표 형식을 정리한다` commit이 정확히 하나 생성되었는지 확인한다. 파일 목록에는 실제로 달라진 `leetcode/README.md`와 `programmers/README.md`만 있어야 하며 Solution File과 Solution Catalog는 없어야 한다.
-5. 두 Solution README의 managed marker 내부가 현재 플랫폼별 표 형식으로 바뀌고 marker 앞뒤의 수동 bytes, 기존 solution link와 날짜가 보존되는지 확인한다. 선택한 Sync Branch 외 branch는 변하지 않고 새 branch도 생성되지 않아야 한다.
+4. GitHub에서 `chore: README 표 형식을 정리한다` commit이 정확히 하나 생성되었는지 확인한다. 파일 목록에는 실제로 달라진 `leetcode/README.md`, `programmers/README.md`와 `swea/README.md`만 있어야 하며 Solution File과 Solution Catalog는 없어야 한다. 정리 대상 Coding Platform 목록은 `cleanupRepository`가 갖고 있으므로 Coding Platform을 추가하면 여기도 함께 확인한다.
+5. 각 Solution README의 managed marker 내부가 현재 플랫폼별 표 형식으로 바뀌고 marker 앞뒤의 수동 bytes, 기존 solution link와 날짜가 보존되는지 확인한다. 선택한 Sync Branch 외 branch는 변하지 않고 새 branch도 생성되지 않아야 한다.
 6. 같은 action을 다시 실행해 Options에 변경 없음 상태가 표시되고 두 번째 commit이 생성되지 않는지 확인한다.
 7. Catalog 하나를 잠시 malformed JSON으로 만든 test branch에서 실행해 현재 locale의 실패 상태가 표시되고 정리 commit이 생성되지 않는지 확인한다. 검증 뒤 Catalog를 복구한다.
 

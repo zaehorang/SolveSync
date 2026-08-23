@@ -4,7 +4,7 @@
   <img src="assets/brand/solvesync-icon.svg" alt="SolveSync logo" width="96" height="96">
 </p>
 
-SolveSync는 LeetCode와 Programmers에서 Accepted 된 풀이를 사용자가 선택한 GitHub 저장소로 자동 동기화하는 local unpacked Chrome extension입니다.
+SolveSync는 LeetCode, Programmers와 SW Expert Academy(SWEA)에서 Accepted 된 풀이를 사용자가 선택한 GitHub 저장소로 자동 동기화하는 local unpacked Chrome extension입니다.
 
 문제를 푼 뒤 코드를 복사하고, 파일명을 정하고, GitHub에 commit하고, README 진행표를 갱신하는 반복 작업을 줄이기 위한 도구입니다. Accepted 결과가 감지되면 SolveSync가 Solution File, Solution README, Solution Catalog를 한 번의 GitHub commit으로 반영합니다.
 
@@ -24,8 +24,8 @@ SolveSync는 LeetCode와 Programmers에서 Accepted 된 풀이를 사용자가 �
 
 ## 지원 범위
 
-- LeetCode/Programmers Accepted solution sync
-- 지원 언어: Swift, Python3, Java, C++, JavaScript, TypeScript, Kotlin, Go, Rust
+- LeetCode, Programmers, SWEA의 Accepted solution sync
+- 지원 언어: Swift, Python3, Java, C++, JavaScript, TypeScript, Kotlin, Go, Rust. 각 Coding Platform이 실제로 제공하는 언어만 해당하며 SWEA는 C++14, JAVA, Python 3 셋뿐입니다
 - GitHub App Device Flow 로그인과 App 설치 repository 기반 Sync Repository/Sync Branch 선택
 - Auto Sync, Sync History, Retry Bundle
 - 별도 backend server 없음
@@ -33,7 +33,8 @@ SolveSync는 LeetCode와 Programmers에서 Accepted 된 풀이를 사용자가 �
 지원하지 않는 범위:
 
 - App이 설치되지 않은 repository와 organization/team workflow
-- LeetCode/Programmers 문제 설명 전문 저장
+- SWEA의 Contest Problem, User Problem, Code Battle과 모의 테스트
+- 지원 Coding Platform의 문제 설명 전문 저장
 - 일반 수동 sync. Retry는 retry 가능한 실패 항목에만 제공됩니다.
 
 ## 설치
@@ -41,7 +42,7 @@ SolveSync는 LeetCode와 Programmers에서 Accepted 된 풀이를 사용자가 �
 필요한 환경:
 
 - Chrome
-- 로그인된 LeetCode 또는 Programmers 계정
+- 로그인된 LeetCode, Programmers 또는 SWEA 계정
 - 본인이 소유한 GitHub repository
 
 1. [GitHub Releases](https://github.com/zaehorang/SolveSync/releases)에서 최신 preview의 `solvesync-*.zip`을 내려받아 압축을 풉니다.
@@ -106,7 +107,7 @@ GitHub App 등록과 Device Flow 공식 설명은 [GitHub의 user access token �
 - GitHub access token과 refresh token은 Chrome extension local storage에 저장됩니다. Device Flow의 pending device code는 session storage에만 저장됩니다.
 - 실패 Retry Bundle은 Accepted solution code를 Chrome extension local storage에 임시 저장할 수 있습니다.
 - Solution code는 사용자가 선택한 Sync Repository/Sync Branch로 GitHub sync commit을 만들 때만 전송됩니다.
-- LeetCode/Programmers 문제 설명 전문은 저장하지 않습니다.
+- 지원 Coding Platform의 문제 설명 전문은 저장하지 않습니다.
 - SolveSync는 별도 backend server를 운영하지 않습니다.
 
 자세한 내용은 [PRIVACY.md](PRIVACY.md)와 [SECURITY.md](SECURITY.md)를 확인하세요.
@@ -123,7 +124,7 @@ GitHub Issue로 받을 수 있는 내용:
 
 - 개인 GitHub 계정 설정 대행
 - GitHub token 값 검토
-- private repository, LeetCode session, Programmers session 문제의 대리 디버깅
+- private repository와 Coding Platform session 문제의 대리 디버깅
 - issue, screenshot, logs에 포함된 secret 분석
 
 Issue를 작성할 때 access token, refresh token, device code, cookie, session 값, private solution code를 포함하지 마세요.
