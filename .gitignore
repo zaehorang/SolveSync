@@ -8,7 +8,10 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 
-node_modules/
+# 슬래시를 붙이면 디렉터리만 잡는다. worktree에서는 주 디렉터리의
+# node_modules를 symlink로 걸어 쓰는데, symlink는 디렉터리가 아니라서
+# node_modules/ 패턴에 걸리지 않고 untracked로 뜬다.
+node_modules
 .next/
 dist/
 build/
