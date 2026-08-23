@@ -166,7 +166,7 @@ class FileWriteRules(unittest.TestCase):
         self.assertIsNone(policy.relative_to_worktree("/etc/passwd", self.worktree))
 
     def test_logic_sources_are_not_gated_on_a_sibling_test(self):
-        """테스트 관례는 AGENTS.md의 Do로 남기고 gate에서는 뺐다.
+        """테스트 관례는 CLAUDE.md의 Do로 남기고 gate에서는 뺐다.
 
         파일 존재만 보는 gate는 빈 테스트 파일 하나로 통과하므로 막을 사고가 없었다.
         """
@@ -188,7 +188,7 @@ class FileWriteRules(unittest.TestCase):
 
 class BranchName(unittest.TestCase):
     def test_every_documented_branch_type_passes(self):
-        """AGENTS.md가 안내하는 형식이 gate를 통과하지 못하면 아무도 커밋하지 못한다."""
+        """CLAUDE.md가 안내하는 형식이 gate를 통과하지 못하면 아무도 커밋하지 못한다."""
         for branch_type in policy.BRANCH_TYPES:
             branch = f"{branch_type}/shrink-harness"
             self.assertIsNone(policy.check_branch_name(branch), branch)
@@ -245,7 +245,7 @@ class BranchNameDiagnosis(unittest.TestCase):
         for branch in ("main", "no-type-here", "chore2/x", "feat/a/b"):
             reason = policy.check_branch_name(branch)
             self.assertIn("{type}/{slug}", reason, branch)
-            self.assertIn("AGENTS.md", reason, branch)
+            self.assertIn("CLAUDE.md", reason, branch)
 
 
 if __name__ == "__main__":

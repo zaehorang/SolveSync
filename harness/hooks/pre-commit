@@ -43,7 +43,7 @@ def git(*args: str) -> str:
 def main() -> None:
     branch = git("rev-parse", "--abbrev-ref", "HEAD")
     if branch == "main":
-        fail("main에서는 커밋할 수 없습니다. 작업 branch를 먼저 만드세요 (AGENTS.md).")
+        fail("main에서는 커밋할 수 없습니다. 작업 branch를 먼저 만드세요 (CLAUDE.md).")
 
     branch_problem = policy.check_branch_name(branch)
     if branch_problem:

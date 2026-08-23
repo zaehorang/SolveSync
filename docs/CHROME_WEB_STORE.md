@@ -6,7 +6,7 @@
 - 목표 채널: Chrome Web Store Public
 - 현재 기준 버전: `0.1.0`
 
-배포를 진행한다는 결정은 [ADR 0038](adr/0038-chrome-web-store-public-release.md)이다. 각 단계는 `AGENTS.md`의 Git Workflow를 따라 work branch와 PR로 진행한다.
+배포를 진행한다는 결정은 [ADR 0038](adr/0038-chrome-web-store-public-release.md)이다. 각 단계는 `CLAUDE.md`의 Git Workflow를 따라 work branch와 PR로 진행한다.
 
 **진행 상황은 이 문서에 적지 않는다.** 무엇을 언제 했는지는 PR과 commit history에 남고, 여기에 적으면 낡는다. 이 문서에는 무엇을 만족해야 제출할 수 있는지만 둔다.
 

@@ -1,7 +1,7 @@
 /**
  * Coding Platform별 Accepted source 확정.
  *
- * `AGENTS.md`의 Project Map과 `docs/ARCHITECTURE.md`가 background의 책임으로 이미
+ * `CLAUDE.md`의 Project Map과 `docs/ARCHITECTURE.md`가 background의 책임으로 이미
  * "source resolver"를 부르고 있었는데 그 파일이 없었다. 역할은 `sync.ts` 안에
  * 흩어져 있었고, 그래서 orchestration이 사이트별 문구와 식별자 규칙을 알고 있었다.
  * ADR 0024는 사이트별 parsing을 adapter에 두라고 정한다.
