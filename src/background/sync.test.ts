@@ -144,7 +144,7 @@ describe("background sync orchestrator", () => {
       harness.github.commits[0]?.files.find((file) => file.path === "leetcode/README.md")?.content
     ).toContain("# Existing");
     expect(committedContent(harness, "leetcode/README.md")).toContain(
-      `| 1 | Two Sum | Easy | ${expectedAcceptedDate} |`
+      `| 1 | [Two Sum](https://leetcode.com/problems/two-sum/) | Easy | ${expectedAcceptedDate} |`
     );
     expect(committedJson(harness, "leetcode/.leetcode-sync/index.json")).toMatchObject({
       version: 4,
@@ -252,7 +252,7 @@ describe("background sync orchestrator", () => {
         ?.content
     ).toContain("<!-- PROGRAMMERS_TABLE_START -->");
     expect(committedContent(harness, "programmers/README.md")).toContain(
-      `| 120804 | 두 수의 곱 구하기 | ${expectedAcceptedDate} |`
+      `| 120804 | [두 수의 곱 구하기](https://school.programmers.co.kr/learn/courses/30/lessons/120804) | ${expectedAcceptedDate} |`
     );
     expect(committedContent(harness, "programmers/README.md")).not.toContain(
       "Difficulty"
@@ -315,10 +315,10 @@ describe("background sync orchestrator", () => {
     expect(readme).not.toContain("Difficulty");
     expect(readme).toContain("| # | Title | Solved | Languages |");
     expect(readme).toContain(
-      "| 120803 | 두 수의 나눗셈 | 2026-01-01 | [Swift](swift/120803_두_수의_나눗셈.swift) |"
+      "| 120803 | [두 수의 나눗셈](https://school.programmers.co.kr/learn/courses/30/lessons/120803) | 2026-01-01 | [Swift](swift/120803_두_수의_나눗셈.swift) |"
     );
     expect(readme).toContain(
-      `| 120804 | 두 수의 곱 구하기 | ${expectedAcceptedDate} | [Swift](swift/120804_두_수의_곱_구하기.swift) |`
+      `| 120804 | [두 수의 곱 구하기](https://school.programmers.co.kr/learn/courses/30/lessons/120804) | ${expectedAcceptedDate} | [Swift](swift/120804_두_수의_곱_구하기.swift) |`
     );
     expect(
       committedJson(harness, "programmers/.programmers-sync/index.json")
@@ -549,7 +549,7 @@ describe("background sync orchestrator", () => {
       "<!-- SWEA_TABLE_START -->"
     );
     expect(committedContent(harness, "swea/README.md")).toContain(
-      `| 1234 | 숫자 카드 | ${expectedAcceptedDate} |`
+      `| 1234 | [숫자 카드](https://swexpertacademy.com/main/code/problem/problemDetail.do?contestProbId=AV13zZ7KAAACFAYh) | ${expectedAcceptedDate} |`
     );
     // SWEA Difficulty는 풀이 페이지에 없다. Programmers와 같은 처리다.
     expect(committedContent(harness, "swea/README.md")).not.toContain("Difficulty");

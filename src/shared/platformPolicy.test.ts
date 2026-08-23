@@ -64,4 +64,23 @@ describe("platform policy", () => {
       extension: "py"
     });
   });
+
+  it("strips the fragment Programmers sometimes leaves on the problem URL", () => {
+    expect(
+      getPlatformPolicy("programmers").buildProblemUrl({
+        problemId: "12979",
+        url: "https://school.programmers.co.kr/learn/courses/30/lessons/12979#"
+      })
+    ).toBe("https://school.programmers.co.kr/learn/courses/30/lessons/12979");
+  });
+
+  it("has no SWEA problem link without a contest problem id", () => {
+    // 조립할 재료가 없으면 빈 문자열이다. 호출자가 링크 없이 렌더한다.
+    expect(
+      getPlatformPolicy("swea").buildProblemUrl({
+        problemId: "",
+        url: "https://swexpertacademy.com/main/solvingProblem/solvingProblem.do"
+      })
+    ).toBe("");
+  });
 });
