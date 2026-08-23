@@ -1,6 +1,6 @@
 # Fresh Accepted transition은 route-bound immutable event로 캡처한다
 
-> Coalescing window의 의미와 route 변경 시 pending event 폐기 규칙은 [ADR 0037](0037-immediate-accepted-delivery-with-suppression-window.md)에서 바뀌었다. 나머지는 유효하다.
+상태: Accepted. Coalescing window의 의미와 route 변경 시 pending event 폐기 규칙은 [ADR 0037](0037-immediate-accepted-delivery-with-suppression-window.md)에서 바뀌었고 나머지는 유효하다.
 
 결정: Content script는 현재 DOM에 Accepted 상태가 존재한다는 사실이 아니라, Coding Platform adapter가 이번 mutation에서 fresh visible Accepted transition을 확정한 경우에만 `content:accepted_detected` 후보를 만든다. Text와 presentation mutation을 제한하는 구체적인 observation 규칙은 ADR 0022를 따른다.
 

@@ -23,24 +23,6 @@ src/
 └── shared/          # 타입, Coding Platform policy, mapping, runtime message, Solution README/Catalog, storage schema, 순수 로직
 ```
 
-구현 후 루트에는 다음 파일들이 있어야 한다.
-
-```text
-manifest.json
-package.json
-package-lock.json
-vite.config.ts
-vite.content.config.ts
-vite.swea-bridge.config.ts
-tsconfig.json
-vitest.config.ts
-scripts/
-src/
-docs/
-AGENTS.md
-README.md
-```
-
 ## 런타임 컴포넌트
 ### Content Script
 - `https://leetcode.com/problems/*`, `https://school.programmers.co.kr/learn/courses/*/lessons/*`와 `https://swexpertacademy.com/main/solvingProblem/solvingProblem.do*`에서 실행된다.

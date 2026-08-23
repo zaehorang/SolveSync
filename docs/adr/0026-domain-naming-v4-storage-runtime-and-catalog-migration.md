@@ -1,4 +1,6 @@
-# Domain naming v4 storage/runtime and catalog migration
+# Domain naming을 storage v4와 Catalog v2에 함께 반영한다
+
+상태: Accepted.
 
 결정: 표준 코드/domain 용어는 `CONTEXT.md`를 따른다. TypeScript와 runtime/storage naming은 `CodingPlatform`, `codingPlatform`, `SyncDeduplicationKey`, `syncDeduplicationKey`, `acceptedSourceId`, `SyncRepository`, `SyncBranch`, `SyncHistoryEntry`, `RetryBundle`, `ProgrammersAcceptedEditorSnapshot`을 새 계약으로 사용한다. `chrome.storage.local` schema는 v4로 migration하고, runtime message는 Sync History와 Retry Bundle 기준의 namespaced type과 field를 사용한다. Runtime message alias는 compatibility input으로만 유지하고 새 code는 v4 message를 emit한다. Solution Catalog는 v2 schema로 올려 language별 `lastAcceptedSourceId`를 저장하되 실제 파일 경로는 `leetcode/.leetcode-sync/index.json`과 `programmers/.programmers-sync/index.json`을 유지한다. Migration validation은 `your-name/algorithm-solutions` 같은 사용자가 선택한 Sync Repository의 검증 branch에서 수행하며, 특정 repository를 제품 기본값으로 고정하지 않는다.
 
