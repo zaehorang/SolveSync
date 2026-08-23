@@ -1,7 +1,7 @@
 """하네스 공유 정책 테스트.
 
-policy.py는 신뢰 경계다. 커밋하면 안 되는 것과 저장소 사이, 테스트 없는 로직
-코드와 저장소 사이에 서 있는 유일한 것이다. 그에 걸맞게 테스트한다.
+policy.py는 신뢰 경계다. 되돌릴 수 없는 변경과 저장소 사이에 서 있는 유일한
+것이다. 그에 걸맞게 테스트한다.
 """
 
 import os
@@ -34,21 +34,6 @@ class ForbiddenPaths(unittest.TestCase):
         self.assertIsNone(policy.forbidden_path_reason("src/distance.ts"))
 
 
-class LogicSources(unittest.TestCase):
-    def test_logic_directories_are_recognised(self):
-        self.assertTrue(policy.is_logic_source("src/shared/catalog.ts"))
-        self.assertTrue(policy.is_logic_source("src/background/sync.ts"))
-
-    def test_ui_and_tests_are_not_logic_sources(self):
-        self.assertFalse(policy.is_logic_source("src/options/main.ts"))
-        self.assertFalse(policy.is_logic_source("src/content/observe.ts"))
-        self.assertFalse(policy.is_logic_source("src/shared/catalog.test.ts"))
-        self.assertFalse(policy.is_logic_source("docs/PRD.md"))
-
-    def test_sibling_test_path(self):
-        self.assertEqual(policy.sibling_test_path("src/shared/catalog.ts"), "src/shared/catalog.test.ts")
-
-
 class Secrets(unittest.TestCase):
     def test_github_tokens_are_detected(self):
         text = "+const token = 'ghp_" + "a" * 36 + "'"
@@ -77,17 +62,17 @@ class Secrets(unittest.TestCase):
 class BashRules(unittest.TestCase):
     """shell 명령에 붙는 규칙.
 
-    게시와 저장소 밖 경로를 막지 않는 것이 핵심이다. 막으면 이슈 우선 워크플로우와
-    worktree 규칙이 그 자리에서 막힌다. 정확히 하네스가 강제하려는 두 가지다.
+    게시와 저장소 밖 경로를 막지 않는 것이 핵심이다. 막으면 worktree 규칙이 그
+    자리에서 막힌다. 정확히 하네스가 강제하려는 것이다.
     """
 
     def check(self, command, in_main_worktree=False):
         return policy.check_bash(command, WORKTREE, in_main_worktree=in_main_worktree)
 
     def test_denied_command_hidden_behind_an_operator_is_still_caught(self):
-        self.assertIsNotNone(self.check("npm test && npm publish"))
+        self.assertIsNotNone(self.check("npm test && git commit -n -m x"))
         self.assertIsNotNone(self.check("echo hi; git commit --no-verify -m x"))
-        self.assertIsNotNone(self.check("VAR=1 sudo npm publish"))
+        self.assertIsNotNone(self.check("VAR=1 sudo npm install -g x"))
 
     def test_workflow_commands_are_allowed(self):
         self.assertIsNone(self.check("gh issue create --title x --body y"))
@@ -107,9 +92,12 @@ class BashRules(unittest.TestCase):
         self.assertIsNotNone(self.check("git commit --no-verify -m 'feat: x'"))
         self.assertIsNotNone(self.check("git commit -n -m 'feat: x'"))
 
-    def test_global_install_and_publish_are_still_denied(self):
+    def test_global_install_is_denied(self):
         self.assertIsNotNone(self.check("npm install -g something"))
-        self.assertIsNotNone(self.check("npm publish"))
+
+    def test_publishing_the_package_is_not_the_harness_business(self):
+        """하네스는 되돌릴 수 없는 피해만 막는다. private 저장소의 npm publish는 그게 아니다."""
+        self.assertIsNone(self.check("npm publish"))
 
     def test_branch_switching_in_the_main_worktree_is_denied(self):
         for command in (
@@ -177,15 +165,11 @@ class FileWriteRules(unittest.TestCase):
     def test_paths_outside_the_worktree_have_no_relative_form(self):
         self.assertIsNone(policy.relative_to_worktree("/etc/passwd", self.worktree))
 
-    def test_logic_without_a_test_is_denied(self):
-        reason = policy.check_file_write(
-            [str(self.worktree / "src/shared/catalog.ts")], self.worktree
-        )
-        self.assertIsNotNone(reason)
-        self.assertIn("src/shared/catalog.test.ts", reason)
+    def test_logic_sources_are_not_gated_on_a_sibling_test(self):
+        """테스트 관례는 AGENTS.md의 Do로 남기고 gate에서는 뺐다.
 
-    def test_existing_sibling_test_allows_the_edit(self):
-        (self.worktree / "src" / "shared" / "catalog.test.ts").write_text("")
+        파일 존재만 보는 gate는 빈 테스트 파일 하나로 통과하므로 막을 사고가 없었다.
+        """
         self.assertIsNone(
             policy.check_file_write([str(self.worktree / "src/shared/catalog.ts")], self.worktree)
         )
@@ -206,69 +190,61 @@ class BranchName(unittest.TestCase):
     def test_every_documented_branch_type_passes(self):
         """AGENTS.md가 안내하는 형식이 gate를 통과하지 못하면 아무도 커밋하지 못한다."""
         for branch_type in policy.BRANCH_TYPES:
-            branch = f"{branch_type}/issue-19-issue-first-workflow-gate"
+            branch = f"{branch_type}/shrink-harness"
             self.assertIsNone(policy.check_branch_name(branch), branch)
 
-    def test_names_without_an_issue_number_are_rejected(self):
+    def test_names_without_an_issue_number_are_allowed(self):
+        """이슈는 선택이다. 번호를 요구하던 gate는 커밋 시점이라 예방 효과가 없었다."""
         for branch in ("fix/pr-body-accuracy", "docs/swea-platform-contract", "feat/agent-harness-phase1"):
-            self.assertIsNotNone(policy.check_branch_name(branch), branch)
+            self.assertIsNone(policy.check_branch_name(branch), branch)
+
+    def test_names_that_still_carry_an_issue_number_keep_working(self):
+        """살아있는 branch를 깨뜨리지 않는다. 번호는 slug의 일부로 통과한다."""
+        self.assertIsNone(policy.check_branch_name("feat/issue-19-issue-first-workflow-gate"))
 
     def test_unknown_branch_types_are_rejected(self):
-        for branch in ("agent/issue-19-preview", "build/issue-19-bundle", "perf/issue-19-faster"):
+        for branch in ("agent/preview", "build/bundle", "perf/faster"):
             self.assertIsNotNone(policy.check_branch_name(branch), branch)
 
     def test_chore_and_ci_are_allowed(self):
         """맞는 type이 없으면 맞지 않는 type을 억지로 고르게 되고 history 신호가 흐려진다."""
-        self.assertIsNone(policy.check_branch_name("chore/issue-29-cleanup"))
-        self.assertIsNone(policy.check_branch_name("ci/issue-29-github-actions"))
+        self.assertIsNone(policy.check_branch_name("chore/cleanup"))
+        self.assertIsNone(policy.check_branch_name("ci/github-actions"))
 
     def test_missing_slug_is_rejected(self):
-        for branch in ("feat/issue-19-", "feat/issue-19", "feat/issue--slug"):
+        for branch in ("feat/", "feat"):
             self.assertIsNotNone(policy.check_branch_name(branch), branch)
 
     def test_main_is_rejected(self):
         self.assertIsNotNone(policy.check_branch_name("main"))
 
     def test_nested_slug_is_rejected(self):
-        self.assertIsNotNone(policy.check_branch_name("feat/issue-19-slug/extra"))
+        self.assertIsNotNone(policy.check_branch_name("feat/slug/extra"))
 
 
 class BranchNameDiagnosis(unittest.TestCase):
     """차단 사유가 실제 원인을 가리키는가.
 
-    사유를 하나로 뭉뚱그리면 틀린 지시를 하게 된다. `chore/issue-29-x`는 이슈
-    번호가 있는데도 "이슈 번호가 없습니다"를 받았고, 그대로 따르면 이슈를 하나
-    더 만들고 같은 곳에서 다시 막힌다.
+    사유를 하나로 뭉뚱그리면 틀린 지시를 하게 된다. gate가 사람을 잘못된 방향으로
+    보내면 없느니만 못하다.
     """
 
-    def test_bad_type_reason_names_the_type_not_the_issue_number(self):
-        reason = policy.check_branch_name("chore2/issue-29-ci-tests")
+    def test_bad_type_reason_names_the_type(self):
+        reason = policy.check_branch_name("chore2/ci-tests")
         self.assertIn("chore2", reason)
-        self.assertNotIn("이슈 번호가 없습니다", reason)
-
-    def test_missing_issue_number_reason_asks_for_an_issue(self):
-        reason = policy.check_branch_name("fix/pr-body-accuracy")
-        self.assertIn("fix/pr-body-accuracy", reason)
-        self.assertIn("이슈 번호가 없습니다", reason)
 
     def test_missing_type_is_reported_as_a_missing_type(self):
-        reason = policy.check_branch_name("issue-29-no-type")
+        reason = policy.check_branch_name("no-type-here")
         self.assertIn("type이 없습니다", reason)
 
     def test_bad_slug_is_reported_as_a_slug_problem(self):
-        reason = policy.check_branch_name("feat/issue-19-slug/extra")
+        reason = policy.check_branch_name("feat/slug/extra")
         self.assertIn("slug", reason)
 
     def test_every_reason_names_the_expected_form_and_the_workflow_doc(self):
-        for branch in (
-            "main",
-            "issue-29-no-type",
-            "chore2/issue-29-x",
-            "fix/no-number",
-            "feat/issue-19-a/b",
-        ):
+        for branch in ("main", "no-type-here", "chore2/x", "feat/a/b"):
             reason = policy.check_branch_name(branch)
-            self.assertIn("{type}/issue-{번호}-{slug}", reason, branch)
+            self.assertIn("{type}/{slug}", reason, branch)
             self.assertIn("AGENTS.md", reason, branch)
 
 

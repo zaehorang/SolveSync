@@ -23,24 +23,24 @@ SolveSync는 LeetCode, Programmers와 SWEA에서 Accepted 된 풀이를 사용�
 - 사용자에게 보이는 UI 문구는 `docs/UI_GUIDE.md`의 locale 규칙을 따른다. 이 section은 저장소 안에서 개발자끼리 주고받는 글에 대한 규칙이다.
 
 ## Git Workflow
-- **구현과 문서 변경은 GitHub Issue에서 시작한다.** 이슈가 없으면 먼저 만들고 번호를 받은 뒤 branch를 만든다. 조사와 계획의 결과물은 문서 파일이 아니라 이슈 body에 남기는 것이 기본값이다.
-- 계획을 승인받았다고 해서 파일 변경까지 승인된 것은 아니다. 짧은 승인은 다음 한 단계에만 적용한다. 이슈를 만든 뒤 착수 여부를 다시 확인한다.
+- **조사와 계획의 결과물은 문서 파일이 아니라 PR body에 남기는 것이 기본값이다.** 착수 근거, 무엇을 왜 바꿨는지, 어떻게 검증했는지가 여기에 들어간다.
+- **GitHub Issue는 선택이다.** 지금 고치지 않을 것을 기록할 때 만든다. 재현되지 않은 버그, 나중에 할 일, 사용자와 합의가 더 필요한 결정이 그렇다. 지금 바로 고칠 것이라면 이슈 없이 branch를 만들고 PR로 간다. 이슈를 만들었다면 PR body에 `Fixes #<number>`로 잇는다.
+- 계획을 승인받았다고 해서 파일 변경까지 승인된 것은 아니다. 짧은 승인은 다음 한 단계에만 적용한다. 계획을 제시한 뒤 착수 여부를 다시 확인한다.
 - 구현이나 문서 변경을 시작하기 전에 `git status --short --branch`와 현재 branch를 확인한다.
 - `main`에서는 직접 작업하거나 commit하지 않는다. 현재 `main`을 base로 work branch를 만든 뒤 변경한다.
 - **work branch 작업은 `{root}-wt/{slug}` worktree에서 한다.** 주 작업 디렉터리의 branch를 갈아타지 않는다. 다른 세션이나 다른 agent가 그 디렉터리에서 작업 중일 수 있고, branch를 갈아타면 그쪽 작업이 조용히 깨진다. 주 디렉터리는 worktree를 만들고 지우는 용도로 쓴다.
 
   ```bash
-  git worktree add -b feat/issue-20-worktree-isolation-gate ../SolveSync-wt/worktree-isolation-gate main
+  git worktree add -b feat/worktree-isolation-gate ../SolveSync-wt/worktree-isolation-gate main
   ```
 
   이 규칙은 두 층이 강제한다. pre-commit gate가 주 디렉터리에서의 커밋을 막고, `.claude/settings.json`이 배선한 PreToolUse hook이 주 디렉터리에서의 branch 전환을 막는다. 커밋 gate만으로는 이미 남의 branch를 밀어낸 뒤에 막힌다.
-- work branch 이름은 `{type}/issue-{번호}-{slug}` 형식이다. `type`은 `feat`, `fix`, `docs`, `test`, `refactor`, `chore`, `ci` 중 하나이고 `slug`는 kebab-case다. 예: `feat/issue-19-issue-first-workflow-gate`.
-- 이 형식은 pre-commit gate가 강제한다. 이슈 번호가 없거나 다른 접두사를 쓰면 커밋이 막힌다. 우회용 접두사는 두지 않는다. 막히면 이슈를 만들고 branch를 다시 만든다.
-- 예외는 없다. 오타 수정도 이슈에서 시작한다. 이슈 하나에 작은 변경을 묶는 것은 괜찮다.
+- work branch 이름은 `{type}/{slug}` 형식이다. `type`은 `feat`, `fix`, `docs`, `test`, `refactor`, `chore`, `ci` 중 하나이고 `slug`는 kebab-case다. 예: `chore/shrink-harness`. 이슈가 있으면 `chore/issue-56-shrink-harness`처럼 slug에 번호를 넣어도 된다.
+- 이 형식은 pre-commit gate가 강제한다. 목록에 없는 접두사를 쓰거나 type이 없으면 커밋이 막힌다. 우회용 접두사는 두지 않는다.
 - `main`과 `origin/main`이 어긋나 있으면 그대로 진행하지 말고 base 상태를 먼저 정리한다. 사용자 변경이 섞여 있으면 되돌리지 말고 현재 작업과의 관계를 확인한다.
 - 이미 `main`에 현재 작업의 미커밋 변경이 있다면 버리지 않는다. 작업 범위가 명확하면 새 work branch로 함께 가져가고, 다른 작업과 섞여 있으면 사용자에게 확인한다.
 - 변경 전달은 work branch에서 검증한 뒤 Pull Request를 통해 수행한다. `main`으로 직접 push하거나 직접 merge하는 흐름을 사용하지 않는다.
-- PR body에는 착수 근거가 된 이슈를 `Fixes #<number>` 또는 적절한 issue link로 포함한다.
+- PR body에는 무엇을 왜 바꿨는지와 어떻게 검증했는지를 남긴다. 근거가 된 이슈가 있으면 `Fixes #<number>` 또는 적절한 issue link로 함께 포함한다.
 - commit, push, PR 생성처럼 저장소나 GitHub 상태를 바꾸는 게시 단계는 사용자가 해당 작업에서 요청하거나 승인한 범위에서 수행한다.
 - 이 section의 development work branch와 제품이 사용자의 Sync Repository에 만드는 Sync Branch는 서로 다른 개념이다. 제품의 Sync Branch 자동 생성 금지 규칙은 그대로 유지한다.
 
@@ -62,10 +62,10 @@ SolveSync는 LeetCode, Programmers와 SWEA에서 Accepted 된 풀이를 사용�
 git config core.hooksPath harness/hooks
 ```
 
-- 이 설정이 있으면 commit마다 `npm run typecheck`, `npm test`, `npm run build` 전체와 secret scan, 금지 경로, `main` branch 차단, work branch 이름의 이슈 번호 검사, 주 worktree 차단이 실행된다. `harness/`를 건드리는 commit에서는 `harness/tests`도 함께 돈다.
-- `.claude/settings.json`이 `harness/hooks/claude_pretooluse.py`를 PreToolUse에 배선한다. 대화형 세션에는 금지 경로, 테스트 선행, `--no-verify` 차단, 주 디렉터리 branch 전환 차단이 도구 호출 전에 적용된다. 게시(`git push`, `gh pr`, `gh issue`)와 저장소 밖 경로는 막지 않는다 — 대화형 세션에서는 그것이 정상 작업이다.
+- 이 설정이 있으면 commit마다 `npm run typecheck`, `npm test`, `npm run build` 전체와 secret scan, 금지 경로, `main` branch 차단, work branch 이름 검사, 주 worktree 차단이 실행된다. `harness/`를 건드리는 commit에서는 `harness/tests`도 함께 돈다.
+- `.claude/settings.json`이 `harness/hooks/claude_pretooluse.py`를 PreToolUse에 배선한다. 대화형 세션에는 금지 경로, gate 우회 차단, 주 디렉터리 branch 전환 차단이 도구 호출 전에 적용된다. 게시(`git push`, `gh pr`, `gh issue`)와 저장소 밖 경로는 막지 않는다 — 대화형 세션에서는 그것이 정상 작업이다.
 - **pre-commit이 최후 방어선이다.** 누가 커밋하든, 어떤 도구를 거쳤든 걸린다. PreToolUse는 그보다 앞서는 조기 경보이므로, 둘 중 하나만 남는다면 pre-commit이 남아야 한다.
-- `src/shared`와 `src/background`의 로직 파일은 같은 디렉터리에 `<모듈>.test.ts`가 있어야 작성할 수 있다. 이건 기존 테스트 관례를 그대로 규칙으로 만든 것이다.
+- **gate는 되돌릴 수 없는 것만 막는다.** secret 유출, 남의 worktree 파괴, 산출물 커밋처럼 조용히 일어나고 되돌리기 비싼 것이 대상이다. "제대로 된 순서로 일해라" 같은 프로세스 훈육은 gate가 아니라 이 문서의 산문 규칙으로 둔다. 파일 존재만 검사하는 gate는 빈 파일 하나로 통과하므로 보호 장치처럼 보이면서 아무것도 막지 않는다.
 - gate를 `--no-verify`로 우회하지 않는다. 막히면 막은 이유를 고친다.
 - **gate는 base branch에 있어야 동작한다.** worktree는 base branch에서 분기하므로, gate가 없는 base에서 만든 worktree에는 commit gate가 없다. git은 `core.hooksPath`가 없는 디렉터리를 가리켜도 경고하지 않고 조용히 hook을 건너뛴다.
 - 규칙을 고칠 때는 `harness/tests/test_policy.py`를 함께 고친다. `policy.py`는 신뢰 경계이고, 죽은 분기를 남기면 보호 장치처럼 보이는데 아무것도 하지 않는 코드가 된다.
@@ -84,6 +84,7 @@ git config core.hooksPath harness/hooks
 - 기존 module boundary와 local helper를 우선 사용한다.
 - business rule은 가능한 `src/shared` 또는 `src/background` orchestration에 두고 UI 코드는 얇게 유지한다.
 - shared pure logic, path, README, index, storage, error normalization을 바꾸면 Vitest 테스트를 함께 추가하거나 갱신한다.
+- `src/shared`와 `src/background`의 로직 파일은 같은 디렉터리에 `<모듈>.test.ts`를 둔다. 버그 수정은 재현 테스트를 먼저 작성하고 통과시키는 순서로 진행한다.
 - 외부 API error는 사용자에게 보여주기 전에 normalized error로 변환한다.
 - Chrome MV3 service worker의 장기 in-memory state를 source of truth로 쓰지 않는다.
 - `content_scripts` bundle은 classic script로 실행된다. content entry와 SWEA MAIN world bridge build 결과에 static ESM `import`가 남지 않게 한다.
