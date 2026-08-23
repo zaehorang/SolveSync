@@ -8,7 +8,7 @@
 - 목표 채널: Chrome Web Store Public
 - 현재 기준 버전: `0.1.0`
 
-이 문서는 계획이며 아직 실행에 착수하지 않았다. 각 단계는 `AGENTS.md`의 Git Workflow를 따라 이슈에서 시작한다.
+이 문서는 계획이며 아직 실행에 착수하지 않았다. 각 단계는 `AGENTS.md`의 Git Workflow를 따라 work branch와 PR로 진행한다.
 
 ## 1. 목표
 

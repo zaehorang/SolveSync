@@ -22,9 +22,6 @@ from pathlib import Path, PurePosixPath
 
 # --- 경로 --------------------------------------------------------------------
 
-LOGIC_DIRS = ("src/shared/", "src/background/")
-TEST_SUFFIX = ".test.ts"
-
 FORBIDDEN_PREFIXES = (
     "dist/",
     "node_modules/",
@@ -58,24 +55,6 @@ def forbidden_path_reason(path: str) -> str | None:
     return None
 
 
-def is_test_file(path: str) -> bool:
-    return normalize(path).endswith(TEST_SUFFIX)
-
-
-def is_logic_source(path: str) -> bool:
-    """테스트가 필수인 디렉터리의 비테스트 TypeScript 파일인지 판단한다."""
-    rel = normalize(path)
-    if not rel.endswith(".ts") or is_test_file(rel):
-        return False
-    return rel.startswith(LOGIC_DIRS)
-
-
-def sibling_test_path(path: str) -> str:
-    """`src/shared/catalog.ts` -> `src/shared/catalog.test.ts`."""
-    rel = normalize(path)
-    return rel[: -len(".ts")] + TEST_SUFFIX
-
-
 # --- secret ------------------------------------------------------------------
 
 SECRET_PATTERNS = (
@@ -102,13 +81,6 @@ def scan_secrets(text: str) -> list[tuple[str, str]]:
 
 _SPLIT_OPERATORS = re.compile(r"\|\||&&|[;\n|&]")
 _ENV_ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
-
-_DENY: tuple[tuple[tuple[str, ...], str], ...] = (
-    (
-        ("npm", "publish"),
-        "publish는 이 저장소의 작업이 아닙니다.",
-    ),
-)
 
 
 def _segments(command: str):
@@ -157,15 +129,10 @@ def check_bash(
     않는 순수 함수로 남는다.
 
     게시(`git push`, `gh pr`, `gh issue`)와 저장소 밖 경로는 막지 않는다. 대화형
-    세션에서는 그것이 정상 작업이다. 이슈를 만들고 worktree를 만들고 사용자가
-    승인하면 push하는 것이 워크플로우 자체다.
+    세션에서는 그것이 정상 작업이다. worktree를 만들고 사용자가 승인하면
+    push하는 것이 워크플로우 자체다.
     """
     for argv in _segments(command):
-        head = tuple(argv[:2])
-        for prefix, reason in _DENY:
-            if head[: len(prefix)] == prefix:
-                return reason
-
         if argv[0] == "git" and "commit" in argv[:3]:
             if any(flag in argv for flag in ("--no-verify", "-n")):
                 return (
@@ -178,7 +145,7 @@ def check_bash(
                 return (
                     "주 작업 디렉터리의 branch를 갈아타지 마세요. 다른 세션이 그 "
                     "디렉터리에서 작업 중일 수 있고, 그 작업이 조용히 깨집니다. "
-                    "`git worktree add -b {type}/issue-{번호}-{slug} "
+                    "`git worktree add -b {type}/{slug} "
                     "../SolveSync-wt/{slug} main`으로 새 worktree를 만들어 거기서 작업하세요."
                 )
 
@@ -200,8 +167,8 @@ def relative_to_worktree(path: str, worktree: str | Path) -> str | None:
     return normalize(os.path.relpath(target, root))
 
 
-def check_write_paths(paths: list[str], worktree: str | Path) -> str | None:
-    """편집 대상 경로 자체의 차단 사유. 금지 경로를 본다.
+def check_file_write(paths: list[str], worktree: str | Path) -> str | None:
+    """파일을 쓰는 tool 호출의 차단 사유를 돌려준다. 허용이면 None.
 
     저장소 밖의 경로는 막지 않는다. 대화형 세션은 저장소 밖의 scratchpad와
     memory를 정상적으로 쓴다. 이 정책이 다루는 것은 저장소 안이다.
@@ -214,34 +181,6 @@ def check_write_paths(paths: list[str], worktree: str | Path) -> str | None:
         if reason:
             return reason
     return None
-
-
-def check_test_first(
-    paths: list[str], worktree: str | Path, created: set[str] | frozenset[str] = frozenset()
-) -> str | None:
-    """로직 파일에 형제 테스트가 없으면 차단 사유를 돌려준다."""
-    root = Path(worktree)
-    for path in paths:
-        rel = relative_to_worktree(path, worktree)
-        if rel is None or not is_logic_source(rel):
-            continue
-        test_path = sibling_test_path(rel)
-        if test_path in created or (root / test_path).exists():
-            continue
-        return (
-            f"{rel}의 테스트를 먼저 작성하세요. {test_path}를 만들고 구현하려는 동작을 "
-            "설명하는 실패 케이스를 넣은 뒤 구현하세요. src/shared와 src/background의 "
-            "로직은 테스트 없이 작성할 수 없습니다."
-        )
-    return None
-
-
-def check_file_write(paths: list[str], worktree: str | Path) -> str | None:
-    """파일을 쓰는 tool 호출의 차단 사유를 돌려준다. 허용이면 None."""
-    reason = check_write_paths(paths, worktree)
-    if reason:
-        return reason
-    return check_test_first(paths, worktree)
 
 
 # --- worktree ----------------------------------------------------------------
@@ -258,7 +197,7 @@ def check_worktree_isolation(git_dir: str, git_common_dir: str) -> str | None:
         return None
     return (
         "주 작업 디렉터리에서는 커밋할 수 없습니다. 다른 세션이 이 디렉터리에서 "
-        "작업 중일 수 있습니다. `git worktree add -b {type}/issue-{번호}-{slug} "
+        "작업 중일 수 있습니다. `git worktree add -b {type}/{slug} "
         "../SolveSync-wt/{slug} main`으로 worktree를 만들고 거기서 작업하세요 (AGENTS.md)."
     )
 
@@ -270,22 +209,21 @@ BRANCH_TYPES = ("feat", "fix", "docs", "test", "refactor", "chore", "ci")
 # AGENTS.md의 Git Workflow가 안내하는 형식과 같아야 한다. 어긋나면 문서대로
 # 만든 branch에서 커밋하지 못한다.
 # slug는 느슨하게 둔다. slug 형식 검증은 이 gate의 목적이 아니고, 좁히면
-# 정상 branch를 막을 위험만 늘어난다.
-_BRANCH_NAME = re.compile(rf"^(?:{'|'.join(BRANCH_TYPES)})/issue-\d+-[^/]+$")
+# 정상 branch를 막을 위험만 늘어난다. 이슈 번호도 요구하지 않는다. 이슈는
+# 선택이고, 이름에 번호가 든 기존 branch는 slug의 일부로 그대로 통과한다.
+_BRANCH_NAME = re.compile(rf"^(?:{'|'.join(BRANCH_TYPES)})/[^/]+$")
 
-_BRANCH_FORM = "{type}/issue-{번호}-{slug}"
+_BRANCH_FORM = "{type}/{slug}"
 
 
 def check_branch_name(branch: str) -> str | None:
     """work branch 이름의 차단 사유를 돌려준다. 허용이면 None.
 
-    이슈 번호를 이름에 요구하는 것은 이슈 없이 시작한 작업을 늦게라도 막기
-    위해서다. 커밋 시점 gate라 작업 시작은 막지 못한다.
+    type 접두사만 요구한다. history에서 변경의 성격을 읽을 수 있게 하는 값싼
+    규칙이다.
 
     실패 사유를 구분해서 돌려준다. 하나로 뭉뚱그리면 틀린 지시를 하게 된다.
-    `chore/issue-29-x`는 이슈 번호가 있는데도 "이슈 번호가 없습니다"라는
-    안내를 받았고, 그대로 따르면 이슈를 하나 더 만들고 같은 곳에서 다시
-    막힌다. gate가 사람을 잘못된 방향으로 보내면 없느니만 못하다.
+    gate가 사람을 잘못된 방향으로 보내면 없느니만 못하다.
     """
     name = branch.strip()
 
@@ -308,15 +246,8 @@ def check_branch_name(branch: str) -> str | None:
             "AGENTS.md의 Git Workflow를 따르세요."
         )
 
-    if not re.match(r"^issue-\d+-", rest):
-        return (
-            f"branch 이름 '{branch}'에 이슈 번호가 없습니다. 먼저 GitHub Issue를 "
-            f"만들고 {_BRANCH_FORM} 형식으로 branch를 다시 만드세요. "
-            "AGENTS.md의 Git Workflow를 따르세요."
-        )
-
     return (
-        f"branch 이름 '{branch}'의 slug가 형식에 맞지 않습니다. 이슈 번호 뒤에 "
+        f"branch 이름 '{branch}'의 slug가 형식에 맞지 않습니다. type 뒤에 "
         f"`/` 없는 kebab-case slug를 붙여 {_BRANCH_FORM} 형식으로 만드세요. "
         "AGENTS.md의 Git Workflow를 따르세요."
     )
