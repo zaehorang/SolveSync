@@ -42,14 +42,30 @@ def git(*args: str) -> str:
 
 
 def added_lines(patch: str) -> str:
-    """patch에서 추가된 줄만 남긴다.
+    """patch에서 추가된 줄의 내용만 남긴다.
 
     삭제된 줄까지 보면 base에 이미 있던 secret을 지우는 커밋이 차단된다. 정리하는
     쪽을 막는 gate는 사람을 잘못된 방향으로 보낸다.
+
+    hunk 안인지 보고 판단한다. prefix만 보면 `++counter;` 같은 소스 줄이 `+++`로
+    시작해 파일 header와 함께 버려지고, 그 줄에 secret이 있어도 통과한다.
+
+    combined diff는 부모 수만큼 marker column을 쓴다. hunk header의 `@` 개수가 그
+    폭을 알려주므로 폭을 따로 넘겨받지 않는다.
     """
-    return "\n".join(
-        line[1:] for line in patch.splitlines() if line.startswith("+") and not line.startswith("+++")
-    )
+    contents: list[str] = []
+    width = 0
+    for line in patch.splitlines():
+        if line.startswith("@@"):
+            width = len(line) - len(line.lstrip("@")) - 1
+            continue
+        if width == 0 or line.startswith("diff "):
+            # hunk 밖이다. `diff --git`, index와 `+++ b/...` header가 여기 걸린다.
+            width = 0
+            continue
+        if "+" in line[:width]:
+            contents.append(line[width:])
+    return "\n".join(contents)
 
 
 def main() -> None:
@@ -79,15 +95,17 @@ def main() -> None:
         changed = [
             p
             for p in git(
-                "diff-tree", "--no-commit-id", "--name-only", "-r", "--diff-filter=ACMR", sha
+                "diff-tree", "--no-commit-id", "--name-only", "-r", "-c", "--diff-filter=ACMR", sha
             ).splitlines()
             if p
         ]
         problems += [f"{short}: {reason}" for reason in policy.check_staged_paths(changed)]
 
-        # merge 커밋은 기본적으로 patch를 내지 않는다. 내용은 부모 커밋에서 이미 봤다.
+        # merge 커밋은 `-c` 없이는 경로도 patch도 내지 않는다. 충돌을 해결하면서
+        # 어느 부모에도 없던 값을 새로 적을 수 있으므로 그 구간을 봐야 한다.
+        # 일반 커밋에서 `-c`는 아무것도 바꾸지 않는다.
         secrets = policy.scan_secrets(
-            added_lines(git("diff-tree", "--no-commit-id", "-p", "-U0", "-r", sha))
+            added_lines(git("diff-tree", "--no-commit-id", "-p", "-U0", "-r", "-c", sha))
         )
         if secrets:
             labels = ", ".join(sorted({label for label, _ in secrets}))
