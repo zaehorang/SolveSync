@@ -120,9 +120,9 @@ Coding Platform 문제 page
 ## Coding Platform 공통/전용 경계
 - 공통 sync orchestration은 setup, Auto Sync, duplicate, in-flight lock, GitHub commit, retry, Sync History를 처리한다.
 - Content detection controller는 observer, 현재 route lifecycle, first-event coalescing과 message emission을 담당한다.
-- Coding Platform adapter는 URL parsing, Accepted signal 판정과 source 수집을 담당한다.
+- Coding Platform adapter는 URL parsing, Accepted signal 판정과 source 수집을 담당한다. Background에서는 `src/background/sourceResolver.ts`가 그 자리이고, `acceptedSourceId` 생성도 여기 있다.
 - Coding Platform policy는 root path, Solution README path, Solution Catalog path, marker, initial Solution README title, commit message prefix를 제공한다.
-- background orchestration은 DOM selector나 사이트별 결과 문구를 알면 안 된다.
+- background orchestration은 DOM selector나 사이트별 결과 문구를 알면 안 된다. `sync.ts`는 resolver가 돌려준 결과만 다룬다.
 - content Coding Platform adapter는 GitHub commit 방법을 알면 안 된다.
 
 이 section은 **module 책임의 경계**만 정한다. Accepted event 계약, Sync Deduplication Key 구성, trust boundary, 검증 골격처럼 플랫폼이 공통으로 지키는 계약은 [Coding Platform 연동 계약](platforms/README.md)이 source of truth이고, 플랫폼 전용 계약은 각 플랫폼 문서가 갖는다.
