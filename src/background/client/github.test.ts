@@ -220,7 +220,7 @@ describe("GitHub background client", () => {
           content: "# updated\n"
         }
       ],
-      message: "solve: leetcode 0001 two sum in swift #2"
+      message: "solve: leetcode 0001 two sum in swift (rev 2)"
     }));
     const fetchImpl = mockFetch(
       jsonResponse(refResponse("refs/heads/main", "base-sha")),
@@ -245,7 +245,7 @@ describe("GitHub background client", () => {
         owner: "octo",
         name: "algorithms",
         branchName: "main",
-        message: "solve: leetcode 0001 two sum in swift #1",
+        message: "solve: leetcode 0001 two sum in swift (rev 1)",
         files: [
           {
             path: "leetcode/README.md",
@@ -263,12 +263,12 @@ describe("GitHub background client", () => {
       requestMethods(fetchImpl).filter((method) => method === "PATCH")
     ).toHaveLength(2);
     expect(requestBody(fetchImpl, 5)).toMatchObject({
-      message: "solve: leetcode 0001 two sum in swift #1",
+      message: "solve: leetcode 0001 two sum in swift (rev 1)",
       tree: "first-tree-sha",
       parents: ["base-sha"]
     });
     expect(requestBody(fetchImpl, 12)).toMatchObject({
-      message: "solve: leetcode 0001 two sum in swift #2",
+      message: "solve: leetcode 0001 two sum in swift (rev 2)",
       tree: "retry-tree-sha",
       parents: ["latest-sha"]
     });
@@ -299,7 +299,7 @@ describe("GitHub background client", () => {
         language: "swift",
         solutionRevisionNumber: 1
       })
-    ).toBe("solve: leetcode 1 Two Sum in swift #1");
+    ).toBe("solve: leetcode 1 Two Sum in swift (rev 1)");
 
     expect(
       buildGitHubCommitMessage({
@@ -309,7 +309,23 @@ describe("GitHub background client", () => {
         language: "swift",
         solutionRevisionNumber: 3
       })
-    ).toBe("solve: programmers 120804 두 수의 곱 구하기 in swift #3");
+    ).toBe("solve: programmers 120804 두 수의 곱 구하기 in swift (rev 3)");
+  });
+
+  it("never puts a bare #n in the commit message", () => {
+    // `#n`은 GitHub이 같은 저장소의 issue/PR 참조로 해석한다. Sync Repository에
+    // issue가 생기면 과거 commit이 무관한 issue에 달라붙고 되돌리려면 history
+    // rewrite가 필요하다. 제목에 `#`가 들어와도 revision suffix로 새지 않는지 함께 본다.
+    for (const title of ["Two Sum", "Design HashMap #1"]) {
+      expect(
+        buildGitHubCommitMessage({
+          frontendId: "1",
+          title,
+          language: "swift",
+          solutionRevisionNumber: 2
+        })
+      ).not.toMatch(/#\d+$/u);
+    }
   });
 
   it("keeps the original problem number and title casing", () => {
@@ -322,7 +338,7 @@ describe("GitHub background client", () => {
         language: "swift",
         solutionRevisionNumber: 1
       })
-    ).toBe("solve: leetcode 26 Remove Duplicates from Sorted Array in swift #1");
+    ).toBe("solve: leetcode 26 Remove Duplicates from Sorted Array in swift (rev 1)");
   });
 
   it("keeps punctuation that the path slug would drop", () => {
@@ -333,7 +349,7 @@ describe("GitHub background client", () => {
         language: "python3",
         solutionRevisionNumber: 2
       })
-    ).toBe("solve: leetcode 167 Two Sum II - Input Array Is Sorted in python3 #2");
+    ).toBe("solve: leetcode 167 Two Sum II - Input Array Is Sorted in python3 (rev 2)");
   });
 
   it("falls back to platform formatting for non-numeric problem ids", () => {
@@ -344,7 +360,7 @@ describe("GitHub background client", () => {
         language: "swift",
         solutionRevisionNumber: 1
       })
-    ).toBe("solve: leetcode daily_challenge Daily Challenge in swift #1");
+    ).toBe("solve: leetcode daily_challenge Daily Challenge in swift (rev 1)");
   });
 
   it("rejects invalid Solution Revision Numbers in solve commit messages", () => {

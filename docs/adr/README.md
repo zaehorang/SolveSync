@@ -2,7 +2,7 @@
 
 설계 결정과 tradeoff의 source of truth다. 새 ADR은 [TEMPLATE.md](TEMPLATE.md)에서 시작한다. 모든 ADR은 제목 다음에 `상태:` 줄을 갖는다. 구현이 ADR과 어긋나면 어느 쪽이 맞는지 먼저 판단하고, 결정이 바뀐 것이면 새 ADR을 쓴다. 기존 ADR을 조용히 고쳐 과거 결정을 덮어쓰지 않는다.
 
-**다음에 쓸 번호는 0039이다.** 아래 "번호 구멍"을 참고한다.
+**다음에 쓸 번호는 0040이다.** 아래 "번호 구멍"을 참고한다.
 
 ## 목록
 
@@ -42,6 +42,7 @@
 | 0036 | [Content route key는 adapter가 확정한다](0036-adapter-resolved-content-route-key.md) | Accepted |
 | 0037 | [Accepted event는 감지 즉시 전달하고 window는 억제에만 쓴다](0037-immediate-accepted-delivery-with-suppression-window.md) | Accepted |
 | 0038 | [Chrome Web Store Public 배포를 진행한다](0038-chrome-web-store-public-release.md) | Accepted |
+| 0039 | [Solution Revision Number는 `#n` 대신 `(rev n)`으로 표기한다](0039-revision-suffix-avoids-issue-autolink.md) | Accepted |
 
 ## 번호 구멍
 

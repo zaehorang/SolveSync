@@ -646,6 +646,12 @@ export function createGitHubClient(options: GitHubClientOptions): GitHubClient {
   return new GitHubClient(options);
 }
 
+/** Solution Revision Number를 `#n`이 아니라 `(rev n)`으로 쓰는 이유.
+ *
+ * GitHub은 commit message의 `#n`을 같은 저장소의 issue/PR n번 참조로 해석한다.
+ * Sync Repository에 issue가 생기는 순간 과거 commit들이 무관한 issue에 참조로
+ * 달라붙고, 되돌리려면 history rewrite가 필요하다. 표기만 바꿔서 피한다.
+ */
 export function buildGitHubCommitMessage(
   input: BuildGitHubCommitMessageInput
 ): string {
@@ -659,10 +665,11 @@ export function buildGitHubCommitMessage(
   return `solve: ${policy.commitPlatformLabel} ${toCommitProblemNumber(
     codingPlatform,
     input.frontendId
-  )} ${toCommitTitle(input.title)} in ${input.language} #${
+  )} ${toCommitTitle(input.title)} in ${input.language} (rev ${
     input.solutionRevisionNumber
-  }`;
+  })`;
 }
+
 
 /** commit message에 쓰는 문제 번호.
  *
