@@ -57,7 +57,13 @@ def main() -> None:
     if isolation_problem:
         fail(isolation_problem)
 
-    staged = [p for p in git("diff", "--cached", "--name-only", "--diff-filter=ACMR").splitlines() if p]
+    # `-z`로 받는다. quotePath 기본값에서 비ASCII 경로는 C-style로 quote되어 돌아오고
+    # 그러면 금지 경로 prefix 검사를 그냥 지나간다.
+    staged = [
+        p
+        for p in git("diff", "--cached", "--name-only", "-z", "--diff-filter=ACMR").split("\0")
+        if p
+    ]
     if not staged:
         fail("staged 변경이 없습니다.")
 

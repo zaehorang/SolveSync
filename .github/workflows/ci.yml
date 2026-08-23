@@ -22,6 +22,9 @@ jobs:
     steps:
       - name: 저장소 checkout
         uses: actions/checkout@v6
+        with:
+          # ci_gate가 base와의 merge base를 봐야 한다. 얕은 clone에는 그 커밋이 없다.
+          fetch-depth: 0
 
       - name: Node.js 설정
         uses: actions/setup-node@v6
@@ -33,6 +36,21 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: "3.14"
+
+      # hook은 clone마다 사람이 켜는 opt-in이라 한 번도 돌지 않은 커밋이 올라올 수
+      # 있다. 되돌릴 수 없는 둘(secret, 산출물 경로)만 여기서 다시 본다.
+      - name: 하네스 CI gate
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          # push 범위 전체의 시작점. 마지막 커밋만 보면 한 번에 올라간 앞 커밋들을 놓친다.
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          if [ -n "$BASE_REF" ]; then
+            git fetch --no-tags origin "$BASE_REF"
+            python3 harness/ci_gate.py FETCH_HEAD
+          else
+            python3 harness/ci_gate.py "$BEFORE_SHA"
+          fi
 
       - name: npm 의존성 설치
         run: npm ci
