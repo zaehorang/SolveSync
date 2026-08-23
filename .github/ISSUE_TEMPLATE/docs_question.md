@@ -9,7 +9,7 @@ labels: documentation
 >
 > 개인 GitHub 계정 설정 대행, token 값 검토, private repository와 platform session
 > 문제의 대리 디버깅은 지원 범위 밖입니다. 자세한 경계는 [README의 GitHub Support
-> Boundary](../../README.md#github-support-boundary)에 있습니다.
+> Boundary](https://github.com/zaehorang/SolveSync#github-support-boundary)에 있습니다.
 
 ## 어떤 문서의 어느 부분인가요
 

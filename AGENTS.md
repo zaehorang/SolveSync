@@ -47,7 +47,7 @@ SolveSync는 LeetCode, Programmers와 SWEA에서 Accepted 된 풀이를 사용�
 ## Guardrails
 `harness/`는 이 저장소를 망가뜨리는 변경을 막는 gate다. 자동으로 일해주는 도구가 아니다. 구현은 Claude Code 대화형 세션에서 하고, `harness/`는 그 작업이 규칙을 벗어나지 못하게만 한다.
 
-구조는 다섯 파일이 전부다. `policy.py`가 규칙을 갖고 나머지는 각 시점에 그것을 붙이는 얇은 adapter다.
+구조는 여섯 파일이 전부다. `policy.py`가 규칙을 갖고 나머지는 각 시점에 그것을 붙이는 얇은 adapter다.
 
 | 파일 | 역할 |
 |---|---|
@@ -56,6 +56,7 @@ SolveSync는 LeetCode, Programmers와 SWEA에서 Accepted 된 풀이를 사용�
 | `harness/hooks/claude_pretooluse.py` | Claude Code 도구 호출 시점 gate |
 | `harness/ci_gate.py` | CI 시점 gate. hook이 설치되지 않은 checkout을 위한 그물 |
 | `harness/tests/test_policy.py` | 규칙 테스트 |
+| `harness/tests/test_ci_gate.py` | CI gate 회귀 테스트. 임시 저장소로 git 출력 해석을 고정한다 |
 
 설치는 한 줄이다. 저장소를 새로 clone하면 실행한다.
 
@@ -70,7 +71,7 @@ git config core.hooksPath harness/hooks
 - **gate는 되돌릴 수 없는 것만 막는다.** secret 유출, 남의 worktree 파괴, 산출물 커밋처럼 조용히 일어나고 되돌리기 비싼 것이 대상이다. "제대로 된 순서로 일해라" 같은 프로세스 훈육은 gate가 아니라 이 문서의 산문 규칙으로 둔다. 파일 존재만 검사하는 gate는 빈 파일 하나로 통과하므로 보호 장치처럼 보이면서 아무것도 막지 않는다.
 - gate를 `--no-verify`로 우회하지 않는다. 막히면 막은 이유를 고친다.
 - **gate는 base branch에 있어야 동작한다.** worktree는 base branch에서 분기하므로, gate가 없는 base에서 만든 worktree에는 commit gate가 없다. git은 `core.hooksPath`가 없는 디렉터리를 가리켜도 경고하지 않고 조용히 hook을 건너뛴다.
-- 규칙을 고칠 때는 `harness/tests/test_policy.py`를 함께 고친다. `policy.py`는 신뢰 경계이고, 죽은 분기를 남기면 보호 장치처럼 보이는데 아무것도 하지 않는 코드가 된다.
+- 규칙을 고칠 때는 `harness/tests/`를 함께 고친다. `policy.py`는 신뢰 경계이고, 죽은 분기를 남기면 보호 장치처럼 보이는데 아무것도 하지 않는 코드가 된다.
 
 ## Project Map
 - `src/content`: 문제 페이지 관찰, Accepted 감지, Accepted Editor Snapshot, SWEA MAIN world editor bridge, toast, background messaging.
