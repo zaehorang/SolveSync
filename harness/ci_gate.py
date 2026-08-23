@@ -104,8 +104,13 @@ def main() -> None:
         # merge 커밋은 `-c` 없이는 경로도 patch도 내지 않는다. 충돌을 해결하면서
         # 어느 부모에도 없던 값을 새로 적을 수 있으므로 그 구간을 봐야 한다.
         # 일반 커밋에서 `-c`는 아무것도 바꾸지 않는다.
+        # 경로 문자열도 함께 본다. token을 파일 이름으로 커밋하면 내용 scan에는
+        # 걸리지 않는다. pre-commit은 header가 포함된 diff 전체를 훑어서 잡는다.
         secrets = policy.scan_secrets(
-            added_lines(git("diff-tree", "--no-commit-id", "-p", "-U0", "-r", "-c", sha))
+            "\n".join(
+                [added_lines(git("diff-tree", "--no-commit-id", "-p", "-U0", "-r", "-c", sha))]
+                + changed
+            )
         )
         if secrets:
             labels = ", ".join(sorted({label for label, _ in secrets}))
