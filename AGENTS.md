@@ -47,13 +47,14 @@ SolveSync는 LeetCode, Programmers와 SWEA에서 Accepted 된 풀이를 사용�
 ## Guardrails
 `harness/`는 이 저장소를 망가뜨리는 변경을 막는 gate다. 자동으로 일해주는 도구가 아니다. 구현은 Claude Code 대화형 세션에서 하고, `harness/`는 그 작업이 규칙을 벗어나지 못하게만 한다.
 
-구조는 네 파일이 전부다.
+구조는 다섯 파일이 전부다. `policy.py`가 규칙을 갖고 나머지는 각 시점에 그것을 붙이는 얇은 adapter다.
 
 | 파일 | 역할 |
 |---|---|
 | `harness/policy.py` | 차단 규칙. 순수 함수이고 부수효과가 없다 |
 | `harness/hooks/pre-commit` | commit 시점 gate |
 | `harness/hooks/claude_pretooluse.py` | Claude Code 도구 호출 시점 gate |
+| `harness/ci_gate.py` | CI 시점 gate. hook이 설치되지 않은 checkout을 위한 그물 |
 | `harness/tests/test_policy.py` | 규칙 테스트 |
 
 설치는 한 줄이다. 저장소를 새로 clone하면 실행한다.
@@ -64,6 +65,7 @@ git config core.hooksPath harness/hooks
 
 - 이 설정이 있으면 commit마다 `npm run typecheck`, `npm test`, `npm run build` 전체와 secret scan, 금지 경로, `main` branch 차단, work branch 이름 검사, 주 worktree 차단이 실행된다. `harness/`를 건드리는 commit에서는 `harness/tests`도 함께 돈다.
 - `.claude/settings.json`이 `harness/hooks/claude_pretooluse.py`를 PreToolUse에 배선한다. 대화형 세션에는 금지 경로, gate 우회 차단, 주 디렉터리 branch 전환 차단이 도구 호출 전에 적용된다. 게시(`git push`, `gh pr`, `gh issue`)와 저장소 밖 경로는 막지 않는다 — 대화형 세션에서는 그것이 정상 작업이다.
+- `.github/workflows/ci.yml`이 `harness/ci_gate.py`를 PR과 `main` push에서 실행한다. `core.hooksPath`는 clone마다 사람이 켜는 opt-in이고 git은 설정이 없으면 경고 없이 hook을 건너뛰므로, pre-commit이 한 번도 돌지 않은 커밋이 올라올 수 있다. CI가 다시 보는 것은 되돌릴 수 없는 둘, secret과 산출물 경로뿐이다. branch 이름처럼 되돌릴 수 있는 것은 다시 보지 않는다.
 - **pre-commit이 최후 방어선이다.** 누가 커밋하든, 어떤 도구를 거쳤든 걸린다. PreToolUse는 그보다 앞서는 조기 경보이므로, 둘 중 하나만 남는다면 pre-commit이 남아야 한다.
 - **gate는 되돌릴 수 없는 것만 막는다.** secret 유출, 남의 worktree 파괴, 산출물 커밋처럼 조용히 일어나고 되돌리기 비싼 것이 대상이다. "제대로 된 순서로 일해라" 같은 프로세스 훈육은 gate가 아니라 이 문서의 산문 규칙으로 둔다. 파일 존재만 검사하는 gate는 빈 파일 하나로 통과하므로 보호 장치처럼 보이면서 아무것도 막지 않는다.
 - gate를 `--no-verify`로 우회하지 않는다. 막히면 막은 이유를 고친다.

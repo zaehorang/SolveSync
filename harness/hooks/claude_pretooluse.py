@@ -3,7 +3,7 @@
 
 저장소의 `.claude/settings.json`에 등록된다. 대화형 Claude Code 세션에 하네스
 정책을 붙이는 유일한 경로다. 이것이 없으면 대화형 세션에는 금지 경로 차단도,
-테스트 선행 gate도, 주 디렉터리 branch 전환 차단도 커밋 시점까지 전혀 없다.
+gate 우회 차단도, 주 디렉터리 branch 전환 차단도 커밋 시점까지 전혀 없다.
 
 이 스크립트 안에서 무슨 일이 생기든 결과는 deny다. 죽으면 열리는 gate는 gate가
 아니다.
@@ -22,7 +22,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import policy  # noqa: E402
 
 # 파일을 쓰는 tool만 경로를 검사한다. Read도 `file_path`를 갖고 있으므로 key만
-# 보고 판단하면 읽기까지 테스트 선행 gate에 막힌다.
+# 보고 판단하면 `dist/` 아래를 읽는 것까지 금지 경로로 막힌다. 금지 경로는 쓰기와
+# 커밋을 막는 규칙이지 읽기를 막는 규칙이 아니다.
 WRITE_TOOLS = ("Write", "Edit", "MultiEdit", "NotebookEdit")
 PATH_KEYS = ("file_path", "notebook_path")
 
