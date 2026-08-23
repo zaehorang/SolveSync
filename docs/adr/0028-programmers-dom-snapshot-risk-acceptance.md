@@ -1,4 +1,6 @@
-# Programmers DOM Snapshot Risk Acceptance
+# Programmers DOM Snapshot의 residual risk를 수용한다
+
+상태: Accepted.
 
 결정: v1은 Programmers Accepted 제출을 동기화할 때 현재 페이지 DOM의 Accepted Editor Snapshot을 solution source로 계속 사용한다. 별도 사용자 confirmation gate, 일반 수동 sync, Programmers 비공식 제출 상세 API 의존은 추가하지 않는다.
 

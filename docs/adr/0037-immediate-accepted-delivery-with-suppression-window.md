@@ -1,5 +1,7 @@
 # Accepted event는 감지 즉시 전달하고 window는 억제에만 쓴다
 
+상태: Accepted.
+
 결정: Content script는 fresh Accepted event를 확정하는 즉시 background로 전달한다. Coalescing window는 전달을 미루는 지연 창이 아니라, 같은 render burst의 후속 signal을 무시하는 **억제 창**이다. 창은 첫 signal 시점에 열리고 `ACCEPTED_COALESCING_WINDOW_MS` 동안 유지된다. 창 안의 후속 signal은 event를 만들지 않으며 창을 연장하지도 않는다.
 
 남는 비동기 구간은 SWEA뿐이다. SWEA는 editor code가 MAIN world bridge에서 도착해야 event를 완성할 수 있으므로([ADR 0035](0035-main-world-editor-bridge-for-swea.md)) bridge 응답까지만 기다린다.

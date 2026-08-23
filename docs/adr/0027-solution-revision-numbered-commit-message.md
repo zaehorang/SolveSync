@@ -1,5 +1,7 @@
 # Solution Revision Number를 commit message에 포함한다
 
+상태: Accepted.
+
 결정: 같은 Coding Platform, problem, supported language의 Solution File이 Sync Branch에 실제 반영될 때마다 Solution Revision Number를 증가시키고, commit message 끝에 `#n` suffix로 포함한다. Solution Catalog는 v3 schema로 올려 language entry에 `solutionRevisionNumber`를 저장한다. Solution File은 계속 같은 path를 overwrite하고, Popup, Toast, Solution README에는 Solution Revision Number를 표시하지 않는다.
 
 이유: 같은 문제/언어의 Solution File은 최신 풀이로 overwrite하므로 파일 경로만 보면 몇 번째 반영인지 알 수 없다. commit message에 revision 번호를 두면 Git commit history에서 최신 풀이 갱신 흐름을 간단히 추적할 수 있고, README와 Popup UI는 기존처럼 현재 상태에 집중할 수 있다. Solution Catalog에 language별 번호를 저장하면 다음 commit message를 결정적으로 계산할 수 있다.

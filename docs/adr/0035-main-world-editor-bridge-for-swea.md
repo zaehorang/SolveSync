@@ -1,5 +1,7 @@
 # SWEA editor code는 MAIN world bridge로 읽는다
 
+상태: Accepted.
+
 결정: SWEA 풀이 페이지의 solution code는 isolated content script가 직접 DOM에서 읽지 않고, `world: "MAIN"`으로 주입한 별도 bridge script가 editor instance에서 읽어 `window.postMessage`로 전달한다. Bridge는 code string만 전달하며 nonce로 묶인 단발 request/response만 수행한다.
 
 이유: SWEA는 기존 두 플랫폼의 추출 경로가 모두 막혀 있다. 2026-08-14 로그인 상태의 실제 Chrome에서 확인한 사실이다.

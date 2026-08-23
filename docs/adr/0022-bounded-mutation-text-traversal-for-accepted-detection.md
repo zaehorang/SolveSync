@@ -1,5 +1,7 @@
 # Accepted 감지는 mutation 범위의 bounded text traversal을 사용한다
 
+상태: Accepted.
+
 결정: Content script는 Coding Platform DOM class selector나 page 전체 text scan 대신, `MutationObserver`가 전달한 변경 node 범위 안에서 제한된 leaf text 후보를 검사해 Accepted event를 감지한다.
 
 `childList` mutation은 같은 record의 `addedNodes`만 bounded traversal하고 `mutation.target` 전체 subtree와 `removedNodes`를 재탐색하지 않는다. `characterData` mutation은 `characterDataOldValue: true`로 받은 이전 text와 현재 target text를 비교해 non-Accepted → Accepted 전환만 인정한다. 여러 text node의 조합은 같은 mutation에서 추가된 node 안으로 제한한다. Candidate 자신이나 조상이 `hidden` 또는 `aria-hidden="true"`이면 제외하며 traversal depth, text length, candidate count와 joined leaf count cap을 유지한다.
