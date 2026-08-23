@@ -23,6 +23,22 @@ src/
 └── shared/          # 타입, Coding Platform policy, mapping, runtime message, Solution README/Catalog, storage schema, 순수 로직
 ```
 
+### Module 의존성
+```mermaid
+flowchart LR
+  content[content] -->|runtime message| background[background]
+  options[options] -->|runtime message| background
+  popup[popup] -->|runtime message| background
+  background --> client[background/client]
+  client --> github[GitHub API]
+  client --> leetcode[LeetCode API]
+  content -. import .-> shared[shared]
+  background -. import .-> shared
+  options -. import .-> shared
+  popup -. import .-> shared
+  client -. import .-> shared
+```
+
 ## 런타임 컴포넌트
 ### Content Script
 - `https://leetcode.com/problems/*`, `https://school.programmers.co.kr/learn/courses/*/lessons/*`와 `https://swexpertacademy.com/main/solvingProblem/solvingProblem.do*`에서 실행된다.
