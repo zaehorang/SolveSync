@@ -87,8 +87,8 @@ describe("README managed block", () => {
     );
     const table = renderManagedReadmeTable(catalog);
 
-    expect(table.indexOf("| 20 | Newest")).toBeLessThan(table.indexOf("| 30 | Middle"));
-    expect(table.indexOf("| 30 | Middle")).toBeLessThan(table.indexOf("| 10 | Oldest"));
+    expect(table.indexOf("| 20 | [Newest]")).toBeLessThan(table.indexOf("| 30 | [Middle]"));
+    expect(table.indexOf("| 30 | [Middle]")).toBeLessThan(table.indexOf("| 10 | [Oldest]"));
   });
 
   it("breaks same-day ties by problem number so re-renders are stable", () => {
@@ -102,16 +102,93 @@ describe("README managed block", () => {
     );
     const table = renderManagedReadmeTable(catalog);
 
-    expect(table.indexOf("| 100 | Earlier Number")).toBeLessThan(
-      table.indexOf("| 200 | Later Number")
+    expect(table.indexOf("| 100 | [Earlier Number]")).toBeLessThan(
+      table.indexOf("| 200 | [Later Number]")
     );
+  });
+
+  it("links the title to the problem page", () => {
+    const table = renderManagedReadmeTable(solutionCatalog);
+
+    expect(table).toContain("[Two Sum](https://leetcode.com/problems/two-sum/)");
+  });
+
+  it("drops the language query Programmers leaves on the problem URL", () => {
+    // Catalog의 url은 Accepted를 감지한 순간 보고 있던 page URL이라 그때의 언어가
+    // `?language=python3`로 남는다. 문제를 가리키는 데 필요한 부분이 아니다.
+    const catalog = mergeSolutionCatalogEntry(
+      createEmptySolutionCatalog(),
+      {
+        problemId: "12985",
+        frontendId: "12985",
+        title: "예상 대진표",
+        titleSlug: "12985_예상_대진표",
+        difficulty: "-",
+        url: "https://school.programmers.co.kr/learn/courses/30/lessons/12985?language=cpp",
+        acceptedSourceId: "programmers:12985:cpp:1",
+        language: "cpp"
+      },
+      "programmers/cpp/12985_예상_대진표.cpp",
+      "2026-08-23T04:00:00.000Z",
+      "2026-08-23"
+    );
+
+    expect(renderManagedReadmeTable(catalog, "programmers")).toContain(
+      "[예상 대진표](https://school.programmers.co.kr/learn/courses/30/lessons/12985)"
+    );
+  });
+
+  it("builds a SWEA problem link from the contest problem id", () => {
+    // SWEA는 Accepted를 감지하는 page가 문제와 무관한 solvingProblem.do라
+    // Catalog의 url이 모든 문제에서 같다. 저장된 url로는 링크를 만들 수 없다.
+    const catalog = mergeSolutionCatalogEntry(
+      createEmptySolutionCatalog(),
+      {
+        problemId: "AV5LrsUaDxcDFAXc",
+        frontendId: "1859",
+        title: "백만 장자 프로젝트",
+        titleSlug: "1859_백만_장자_프로젝트",
+        difficulty: "-",
+        url: "https://swexpertacademy.com/main/solvingProblem/solvingProblem.do",
+        acceptedSourceId: "swea:AV5LrsUaDxcDFAXc:python3:1",
+        language: "python3"
+      },
+      "swea/python/1859_백만_장자_프로젝트.py",
+      "2026-08-18T04:00:00.000Z",
+      "2026-08-18"
+    );
+
+    expect(renderManagedReadmeTable(catalog, "swea")).toContain(
+      "[백만 장자 프로젝트](https://swexpertacademy.com/main/code/problem/problemDetail.do?contestProbId=AV5LrsUaDxcDFAXc)"
+    );
+  });
+
+  it("renders a plain title when there is no usable problem URL", () => {
+    const catalog = mergeSolutionCatalogEntry(
+      createEmptySolutionCatalog(),
+      {
+        problemId: "1",
+        frontendId: "1",
+        title: "Two Sum",
+        titleSlug: "two-sum",
+        difficulty: "Easy",
+        url: "",
+        acceptedSourceId: "100",
+        language: "swift"
+      },
+      "leetcode/swift/0001_two_sum.swift",
+      "2026-05-27T04:00:00.000Z",
+      "2026-05-27"
+    );
+
+    expect(renderManagedReadmeTable(catalog)).toContain("| 1 | Two Sum | Easy |");
   });
 
   it("renders the expected columns and links", () => {
     const table = renderManagedReadmeTable(solutionCatalog);
 
     expect(table).toContain("| # | Title | Difficulty | Solved | Languages |");
-    expect(table).toContain("| 1 | Two Sum | Easy | 2026-05-27 |");
+    expect(table).toContain("| 1 | [Two Sum](https://leetcode.com/problems/two-sum/) | Easy | 2026-05-27 |");
     expect(table).toContain("[Swift](swift/0001_two_sum.swift)");
     expect(table).toContain("[Python3](python/0002_add_two_numbers.py)");
   });
@@ -136,7 +213,7 @@ describe("README managed block", () => {
     const table = renderManagedReadmeTable(javaCatalog);
     const twoSumRow = table
       .split("\n")
-      .find((line) => line.includes("| 1 | Two Sum"));
+      .find((line) => line.includes("| 1 | [Two Sum]"));
 
     expect(twoSumRow).toContain(
       "[Swift](swift/0001_two_sum.swift) · [Java](java/0001_two_sum.java)"
@@ -214,7 +291,7 @@ describe("README managed block", () => {
 
     expect(table).toContain("| # | Title | Solved | Languages |");
     expect(table).not.toContain("Difficulty");
-    expect(table).toContain("| 120804 | 두 수의 곱 구하기 | 2026-05-27 |");
+    expect(table).toContain("| 120804 | [두 수의 곱 구하기](https://school.programmers.co.kr/learn/courses/30/lessons/120804) | 2026-05-27 |");
     expect(table).toContain("[Swift](swift/120804_두_수의_곱_구하기.swift)");
     expect(readme).toContain("# Programmers Solutions");
     expect(readme).toContain(PROGRAMMERS_README_TABLE_START_MARKER);

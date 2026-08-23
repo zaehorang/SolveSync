@@ -121,7 +121,7 @@ Coding Platform 문제 page
 - 공통 sync orchestration은 setup, Auto Sync, duplicate, in-flight lock, GitHub commit, retry, Sync History를 처리한다.
 - Content detection controller는 observer, 현재 route lifecycle, first-event coalescing과 message emission을 담당한다.
 - Coding Platform adapter는 URL parsing, Accepted signal 판정과 source 수집을 담당한다. Background에서는 `src/background/sourceResolver.ts`가 그 자리이고, `acceptedSourceId` 생성도 여기 있다.
-- Coding Platform policy는 root path, Solution README path, Solution Catalog path, marker, initial Solution README title, commit message prefix를 제공한다.
+- Coding Platform policy는 root path, Solution README path, Solution Catalog path, marker, initial Solution README title, commit message prefix, 문제 page URL 조립 규칙을 제공한다.
 - background orchestration은 DOM selector나 사이트별 결과 문구를 알면 안 된다. `sync.ts`는 resolver가 돌려준 결과만 다룬다.
 - content Coding Platform adapter는 GitHub commit 방법을 알면 안 된다.
 
@@ -255,6 +255,10 @@ README 생성 규칙:
 - row는 problem-level first accepted date 내림차순으로 정렬한다. 최근에 푼 문제가 위에 온다.
   date는 day 단위라 같은 날 푼 문제는 numeric problem id 오름차순으로 정렬해 순서를 고정한다.
   Solution Catalog의 `problems` 배열 자체는 numeric problem id 오름차순을 유지하며, 날짜 정렬은 README 렌더 시점에만 적용한다.
+- Title cell은 Coding Platform policy가 정한 문제 page URL로 link를 건다. 조립할 수 없으면 link 없이 제목만 표시한다.
+  - LeetCode는 Catalog의 problem URL을 그대로 쓴다.
+  - Programmers는 Catalog의 problem URL에서 query와 fragment를 떼어낸다. Accepted 감지 시점의 `?language=`가 남아 있다.
+  - SWEA는 Accepted를 감지하는 page가 문제와 무관해 Catalog의 problem URL이 모든 문제에서 같다. problem id(`contestProbId`)로 problem detail URL을 조립한다.
 - Solved cell은 Solution Catalog의 problem-level first accepted date를 표시한다.
 - Languages cell은 존재하는 solution path를 registry 순서로 나열하고 Solution README 기준 상대 link를 건다.
 

@@ -102,7 +102,7 @@ function renderProblemRow(
 ): string {
   const cells = [
     renderProblemNumber(problem.frontendId),
-    escapeMarkdownTableCell(problem.title),
+    renderProblemTitle(problem, policy),
     ...(policy.readmeIncludesDifficulty
       ? [escapeMarkdownTableCell(problem.difficulty)]
       : []),
@@ -111,6 +111,28 @@ function renderProblemRow(
   ];
 
   return renderTableRow(cells);
+}
+
+/** 제목 cell. 문제 page URL이 있으면 링크를 건다.
+ *
+ * link text 안의 `[`, `]`를 escape한다. SWEA 제목은 `[모의 SW 역량테스트] 등산로
+ * 조성`처럼 대괄호로 시작하는 경우가 흔하다. CommonMark는 균형 잡힌 대괄호를
+ * 허용하지만 escape해두면 파서 해석에 기대지 않아도 된다.
+ */
+function renderProblemTitle(
+  problem: SolutionCatalogProblem,
+  policy: PlatformPolicy
+): string {
+  const title = escapeMarkdownTableCell(problem.title);
+  const url = policy.buildProblemUrl(problem);
+
+  if (url.length === 0) {
+    return title;
+  }
+
+  const linkText = title.replace(/\[/g, "\\[").replace(/\]/g, "\\]");
+
+  return `[${linkText}](${encodeMarkdownLinkDestination(url)})`;
 }
 
 function renderTableRow(cells: string[]): string {

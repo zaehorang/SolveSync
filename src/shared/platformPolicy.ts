@@ -14,6 +14,16 @@ export interface ReadmeMarkers {
   end: string;
 }
 
+/** Solution README에서 문제 제목에 걸 링크의 재료.
+ *
+ * Catalog에 저장된 `url`을 그대로 쓸 수 없는 Coding Platform이 있어서 problem id도
+ * 함께 받는다.
+ */
+export interface ProblemUrlInput {
+  problemId: string;
+  url: string;
+}
+
 export interface PlatformPolicy {
   codingPlatform: CodingPlatform;
   rootFolder: string;
@@ -24,6 +34,17 @@ export interface PlatformPolicy {
   initialReadmeTitle: string;
   readmeIncludesDifficulty: boolean;
   commitPlatformLabel: string;
+  /** 링크로 쓸 수 없으면 빈 문자열을 반환한다. 호출자가 링크 없이 렌더한다. */
+  buildProblemUrl(problem: ProblemUrlInput): string;
+}
+
+/** query와 fragment를 떼어낸다.
+ *
+ * Programmers 문제 page URL에는 그때 보고 있던 언어가 `?language=python3`로
+ * 남고 `#`만 붙는 경우도 있다. 문제를 가리키는 데 필요한 부분이 아니다.
+ */
+function stripQueryAndFragment(url: string): string {
+  return url.split(/[?#]/u)[0] ?? "";
 }
 
 function buildLanguagePathPolicies(
@@ -57,7 +78,8 @@ export const PLATFORM_POLICIES = {
     },
     initialReadmeTitle: "LeetCode Solutions",
     readmeIncludesDifficulty: true,
-    commitPlatformLabel: "leetcode"
+    commitPlatformLabel: "leetcode",
+    buildProblemUrl: (problem) => problem.url
   },
   programmers: {
     codingPlatform: "programmers",
@@ -71,7 +93,8 @@ export const PLATFORM_POLICIES = {
     },
     initialReadmeTitle: "Programmers Solutions",
     readmeIncludesDifficulty: false,
-    commitPlatformLabel: "programmers"
+    commitPlatformLabel: "programmers",
+    buildProblemUrl: (problem) => stripQueryAndFragment(problem.url)
   },
   swea: {
     codingPlatform: "swea",
@@ -85,7 +108,14 @@ export const PLATFORM_POLICIES = {
     },
     initialReadmeTitle: "SW Expert Academy Solutions",
     readmeIncludesDifficulty: false,
-    commitPlatformLabel: "swea"
+    commitPlatformLabel: "swea",
+    /** SWEA는 Accepted를 감지하는 page가 문제와 무관한 `solvingProblem.do`라
+     *  Catalog의 `url`이 모든 문제에서 같다. problem id가 곧 `contestProbId`이므로
+     *  링크는 그것으로 조립한다. */
+    buildProblemUrl: (problem) =>
+      problem.problemId.length === 0
+        ? ""
+        : `https://swexpertacademy.com/main/code/problem/problemDetail.do?contestProbId=${problem.problemId}`
   }
 } as const satisfies Record<CodingPlatform, PlatformPolicy>;
 
