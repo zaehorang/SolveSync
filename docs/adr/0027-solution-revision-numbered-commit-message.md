@@ -1,6 +1,6 @@
 # Solution Revision Number를 commit message에 포함한다
 
-상태: Accepted.
+상태: Accepted. suffix 표기는 0039가 `(rev n)`으로 바꿨다.
 
 결정: 같은 Coding Platform, problem, supported language의 Solution File이 Sync Branch에 실제 반영될 때마다 Solution Revision Number를 증가시키고, commit message 끝에 `#n` suffix로 포함한다. Solution Catalog는 v3 schema로 올려 language entry에 `solutionRevisionNumber`를 저장한다. Solution File은 계속 같은 path를 overwrite하고, Popup, Toast, Solution README에는 Solution Revision Number를 표시하지 않는다.
 

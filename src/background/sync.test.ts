@@ -131,7 +131,7 @@ describe("background sync orchestrator", () => {
 
     expect(harness.github.commits).toHaveLength(1);
     expect(harness.github.commits[0]).toMatchObject({
-      message: "solve: leetcode 1 Two Sum in swift #1"
+      message: "solve: leetcode 1 Two Sum in swift (rev 1)"
     });
     expect(await harness.storage.hasProcessedSyncDeduplicationKey(syncDeduplicationKey)).toBe(true);
     await expect(historyStatuses(harness.storage)).resolves.toEqual(["synced"]);
@@ -240,7 +240,7 @@ describe("background sync orchestrator", () => {
     expect(harness.github.commits).toHaveLength(1);
     expect(await harness.storage.hasProcessedSyncDeduplicationKey(programmersSyncDeduplicationKey)).toBe(true);
     expect(harness.github.commits[0]).toMatchObject({
-      message: "solve: programmers 120804 두 수의 곱 구하기 in swift #1"
+      message: "solve: programmers 120804 두 수의 곱 구하기 in swift (rev 1)"
     });
     expect(harness.github.commits[0]?.files.map((file) => file.path)).toEqual([
       "programmers/swift/120804_두_수의_곱_구하기.swift",
@@ -350,7 +350,7 @@ describe("background sync orchestrator", () => {
     expect(harness.github.commits).toHaveLength(2);
     const secondCommit = harness.github.commits[1];
     expect(secondCommit).toMatchObject({
-      message: "solve: programmers 120804 두 수의 곱 구하기 in python3 #1"
+      message: "solve: programmers 120804 두 수의 곱 구하기 in python3 (rev 1)"
     });
     expect(secondCommit?.files.map((file) => file.path)).toEqual([
       "programmers/python/120804_두_수의_곱_구하기.py",
@@ -443,7 +443,7 @@ describe("background sync orchestrator", () => {
 
     expect(harness.github.commits).toHaveLength(1);
     expect(harness.github.commits[0]).toMatchObject({
-      message: "solve: leetcode 1 Two Sum in swift #2"
+      message: "solve: leetcode 1 Two Sum in swift (rev 2)"
     });
     expect(committedJson(harness, "leetcode/.leetcode-sync/index.json")).toMatchObject({
       version: 4,
@@ -481,7 +481,7 @@ describe("background sync orchestrator", () => {
 
     expect(harness.github.commits).toHaveLength(1);
     expect(harness.github.commits[0]).toMatchObject({
-      message: "solve: leetcode 1 Two Sum in python3 #1"
+      message: "solve: leetcode 1 Two Sum in python3 (rev 1)"
     });
     expect(harness.github.commits[0]?.files[0]).toMatchObject({
       path: "leetcode/python/0001_two_sum.py"
@@ -538,7 +538,7 @@ describe("background sync orchestrator", () => {
       await harness.storage.hasProcessedSyncDeduplicationKey(sweaSyncDeduplicationKey)
     ).toBe(true);
     expect(harness.github.commits[0]).toMatchObject({
-      message: "solve: swea 1234 숫자 카드 in python3 #1"
+      message: "solve: swea 1234 숫자 카드 in python3 (rev 1)"
     });
     expect(harness.github.commits[0]?.files.map((file) => file.path)).toEqual([
       "swea/python/1234_숫자_카드.py",
@@ -720,7 +720,7 @@ describe("background sync orchestrator", () => {
     expect(harness.leetcode.fetchProblemMetadata).not.toHaveBeenCalled();
     expect(harness.github.commits).toHaveLength(1);
     expect(harness.github.commits[0]).toMatchObject({
-      message: "solve: leetcode 1 Two Sum in swift #1"
+      message: "solve: leetcode 1 Two Sum in swift (rev 1)"
     });
     expect(await harness.storage.hasProcessedSyncDeduplicationKey(syncDeduplicationKey)).toBe(true);
     await expect(harness.storage.getRetryBundle("retry-1")).resolves.toBeNull();
@@ -750,7 +750,7 @@ describe("background sync orchestrator", () => {
 
     expect(harness.github.commits).toHaveLength(1);
     expect(harness.github.commits[0]).toMatchObject({
-      message: "solve: leetcode 1 Two Sum in swift #2"
+      message: "solve: leetcode 1 Two Sum in swift (rev 2)"
     });
     expect(committedJson(harness, "leetcode/.leetcode-sync/index.json")).toMatchObject({
       version: 4,
@@ -778,7 +778,7 @@ describe("background sync orchestrator", () => {
     expect(await harness.storage.hasProcessedSyncDeduplicationKey(programmersSyncDeduplicationKey)).toBe(true);
     await expect(harness.storage.getRetryBundle("retry-programmers")).resolves.toBeNull();
     expect(harness.github.commits[0]).toMatchObject({
-      message: "solve: programmers 120804 두 수의 곱 구하기 in swift #1"
+      message: "solve: programmers 120804 두 수의 곱 구하기 in swift (rev 1)"
     });
     expect(harness.github.commits[0]?.files.map((file) => file.path)).toEqual([
       "programmers/swift/120804_두_수의_곱_구하기.swift",
