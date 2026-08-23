@@ -4,7 +4,7 @@
 
 `CLAUDE.md`는 이 파일을 가리키는 symlink다. codex는 `AGENTS.md`를, Claude Code는 `CLAUDE.md`를 읽지만 실체는 하나다. 어느 이름으로 열어 편집해도 같은 파일이 바뀐다. 규칙을 두 파일로 나누면 반드시 어긋나므로 복사본을 만들지 않는다.
 
-SolveSync는 LeetCode, Programmers와 SWEA에서 Accepted 된 풀이를 사용자가 선택한 GitHub 저장소로 동기화하는 local unpacked Chrome extension이다.
+SolveSync는 LeetCode, Programmers와 SWEA에서 Accepted 된 풀이를 사용자가 선택한 GitHub 저장소로 동기화하는 Chrome extension이다. 배포는 Chrome Web Store와 GitHub Release ZIP 두 경로다([ADR 0038](docs/adr/0038-chrome-web-store-public-release.md)).
 
 ## Source of Truth
 - 제품 범위, 사용자 흐름, 성공 기준은 `docs/PRD.md`를 따른다.
@@ -12,6 +12,8 @@ SolveSync는 LeetCode, Programmers와 SWEA에서 Accepted 된 풀이를 사용�
 - 런타임 구조, 데이터 흐름, storage, messaging, error model은 `docs/ARCHITECTURE.md`를 따른다.
 - Options, Popup, Toast UI와 문구/접근성 규칙은 `docs/UI_GUIDE.md`를 따른다.
 - 수동 검증 절차는 `docs/MANUAL_VALIDATION.md`를 따른다.
+- Coding Platform별 route 출처, Accepted 감지 방식, solution code source, `acceptedSourceId` 형식, 오류 코드는 `docs/platforms/`를 따른다. 공통 계약과 플랫폼 사이의 차이는 `docs/platforms/README.md`에 있고, 플랫폼 문서는 공통과 다른 것만 적는다.
+- 도메인 용어의 정의와 표기는 `CONTEXT.md`를 따른다.
 - `docs/investigations/`는 source of truth가 아니다. 아직 재현되지 않은 증상, 원인 가설과 재현 시 수집할 근거만 기록한다.
 - 이 파일과 `docs/`가 충돌하면 먼저 관련 `docs/`를 확인하고, 실제 정책 변경이 필요하면 해당 문서를 source of truth로 수정한다.
 
@@ -80,6 +82,7 @@ git config core.hooksPath harness/hooks
 - `src/options`: GitHub Device Flow/App 설치, Sync Repository/Sync Branch 선택, branch 생성, Auto Sync, connection test UI.
 - `src/popup`: Auto Sync toggle, 최근 Sync History, 실패 상세, retry UI.
 - `src/shared`: 타입, Coding Platform policy, message union, language/path mapping, Solution README/Catalog, storage schema, error normalization.
+- `docs/platforms`: Coding Platform 연동 계약. adapter나 감지 로직을 바꾸기 전에 읽는다.
 
 ## Do
 - 변경 전에 관련 `docs/` 문서를 먼저 읽고, docs와 구현이 어긋나면 사용자에게 명확히 알린다.
@@ -122,6 +125,14 @@ npm test
 npm run build
 ```
 
+`harness/`를 바꿨으면 함께 돌린다. CI가 실행하는 것과 같은 명령이다.
+
+```bash
+python3 -m unittest discover -s harness/tests -t harness
+```
+
+Chrome Web Store 제출용 ZIP은 `npm run package:chrome`이 만든다. `dist` 내용만 담고 필수/금지 경로를 검증한다.
+
 변경 범위가 작으면 관련 Vitest 파일을 먼저 실행해도 된다. 최종 build는 content IIFE bundle 검증까지 포함한다.
 
 Node는 `package.json`의 `engines`가 하한을 정한다. `.github/workflows/ci.yml`은 그 하한 버전을 고정해서 돌리므로 로컬이 더 새 버전이어도 CI가 하한을 검증한다. 하한을 올릴 때는 두 곳을 함께 바꾼다.
@@ -131,6 +142,7 @@ Node는 `package.json`의 `engines`가 하한을 정한다. `.github/workflows/c
 - architecture, storage, runtime message, API boundary 변경: `docs/ARCHITECTURE.md`와 `docs/adr/` 확인.
 - UI layout, copy, locale, accessibility 변경: `docs/UI_GUIDE.md` 확인.
 - sync flow 또는 browser 검증 영향: `docs/MANUAL_VALIDATION.md` 갱신 필요 여부 확인.
+- Coding Platform 감지, adapter, 오류 코드 변경: `docs/platforms/`의 해당 플랫폼 문서와 README 표 확인.
 - commit message를 작성할 때는 `feat:`, `fix:`, `docs:`, `test:`, `refactor:`, `chore:`, `ci:` 같은 conventional commits 형식을 사용한다. branch type과 같은 목록이다.
 
 ## When Stuck
