@@ -4,6 +4,10 @@
  * 이 값은 Sync Deduplication Key의 구성요소다. 한 글자만 바뀌어도 기존 사용자의
  * 중복 방지가 깨져서 이미 동기화한 풀이가 다시 commit된다. 그래서 "동작이 같다"가
  * 아니라 "문자열이 같다"로 확인한다.
+ *
+ * hash 자리도 전체 문자열로 고정한다. 형식만 보면 hash 구현이 다른 7자리 값을
+ * 내놓아도 통과하는데, 그때 깨지는 것이 정확히 이 테스트가 지키려는 것이다.
+ * 여기가 실패하면 값을 새로 적기 전에 왜 달라졌는지부터 확인한다.
  */
 
 import { describe, expect, it } from "vitest";
@@ -62,38 +66,35 @@ function acceptedSourceIdOf(
 
 describe("Accepted Source ID는 문자열이 고정되어 있다", () => {
   it("Programmers는 lessonId, 지원 언어, code hash를 잇는다", () => {
-    expect(acceptedSourceIdOf(resolveProgrammersSource(programmersPayload()))).toMatch(
-      /^programmers:120804:python3:[0-9a-z]{7}$/
+    expect(acceptedSourceIdOf(resolveProgrammersSource(programmersPayload()))).toBe(
+      "programmers:120804:python3:0bid2d7"
     );
   });
 
   it("Programmers 미지원 언어는 unsupported 자리를 쓴다", () => {
     expect(
       acceptedSourceIdOf(resolveProgrammersSource(programmersPayload({ language: "brainfuck" })))
-    ).toMatch(/^programmers:120804:unsupported:[0-9a-z]{7}$/);
+    ).toBe("programmers:120804:unsupported:0bid2d7");
   });
 
   it("SWEA는 contestProbId, 지원 언어, code hash를 잇는다", () => {
-    expect(acceptedSourceIdOf(resolveSweaSource(sweaPayload()))).toMatch(
-      /^swea:AV134DPqAA8CFAYh:python3:[0-9a-z]{7}$/
+    expect(acceptedSourceIdOf(resolveSweaSource(sweaPayload()))).toBe(
+      "swea:AV134DPqAA8CFAYh:python3:0bid2d7"
     );
   });
 
   it("SWEA 미지원 언어는 unsupported 자리를 쓴다", () => {
-    expect(acceptedSourceIdOf(resolveSweaSource(sweaPayload({ language: "Z" })))).toMatch(
-      /^swea:AV134DPqAA8CFAYh:unsupported:[0-9a-z]{7}$/
+    expect(acceptedSourceIdOf(resolveSweaSource(sweaPayload({ language: "Z" })))).toBe(
+      "swea:AV134DPqAA8CFAYh:unsupported:0bid2d7"
     );
   });
 
-  it("같은 code는 같은 값을, 다른 code는 다른 값을 만든다", () => {
-    const first = acceptedSourceIdOf(resolveProgrammersSource(programmersPayload()));
-    const again = acceptedSourceIdOf(resolveProgrammersSource(programmersPayload()));
-    const changed = acceptedSourceIdOf(
-      resolveProgrammersSource(programmersPayload({ code: `${CODE}# 한 줄 더\n` }))
-    );
-
-    expect(again).toBe(first);
-    expect(changed).not.toBe(first);
+  it("code가 달라지면 hash 자리도 달라진다", () => {
+    expect(
+      acceptedSourceIdOf(
+        resolveProgrammersSource(programmersPayload({ code: `${CODE}# 한 줄 더\n` }))
+      )
+    ).toBe("programmers:120804:python3:04uxv42");
   });
 
   it("같은 문제와 언어라면 두 플랫폼의 값이 서로 섞이지 않는다", () => {
