@@ -198,7 +198,7 @@ def check_worktree_isolation(git_dir: str, git_common_dir: str) -> str | None:
     return (
         "주 작업 디렉터리에서는 커밋할 수 없습니다. 다른 세션이 이 디렉터리에서 "
         "작업 중일 수 있습니다. `git worktree add -b {type}/{slug} "
-        "../SolveSync-wt/{slug} main`으로 worktree를 만들고 거기서 작업하세요 (AGENTS.md)."
+        "../SolveSync-wt/{slug} main`으로 worktree를 만들고 거기서 작업하세요 (CLAUDE.md)."
     )
 
 
@@ -206,7 +206,7 @@ def check_worktree_isolation(git_dir: str, git_common_dir: str) -> str | None:
 
 BRANCH_TYPES = ("feat", "fix", "docs", "test", "refactor", "chore", "ci")
 
-# AGENTS.md의 Git Workflow가 안내하는 형식과 같아야 한다. 어긋나면 문서대로
+# CLAUDE.md의 Git Workflow가 안내하는 형식과 같아야 한다. 어긋나면 문서대로
 # 만든 branch에서 커밋하지 못한다.
 # slug는 느슨하게 둔다. slug 형식 검증은 이 gate의 목적이 아니고, 좁히면
 # 정상 branch를 막을 위험만 늘어난다. 이슈 번호도 요구하지 않는다. 이슈는
@@ -236,20 +236,20 @@ def check_branch_name(branch: str) -> str | None:
     if not separator:
         return (
             f"branch 이름 '{branch}'에 type이 없습니다. {_BRANCH_FORM} 형식으로 "
-            f"다시 만드세요 (type: {types}). AGENTS.md의 Git Workflow를 따르세요."
+            f"다시 만드세요 (type: {types}). CLAUDE.md의 Git Workflow를 따르세요."
         )
 
     if prefix not in BRANCH_TYPES:
         return (
             f"branch type '{prefix}'는 쓸 수 없습니다. {types} 중에서 고르고 "
             f"{_BRANCH_FORM} 형식으로 branch를 다시 만드세요. "
-            "AGENTS.md의 Git Workflow를 따르세요."
+            "CLAUDE.md의 Git Workflow를 따르세요."
         )
 
     return (
         f"branch 이름 '{branch}'의 slug가 형식에 맞지 않습니다. type 뒤에 "
         f"`/` 없는 kebab-case slug를 붙여 {_BRANCH_FORM} 형식으로 만드세요. "
-        "AGENTS.md의 Git Workflow를 따르세요."
+        "CLAUDE.md의 Git Workflow를 따르세요."
     )
 
 
