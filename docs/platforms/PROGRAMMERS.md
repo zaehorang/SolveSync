@@ -61,7 +61,7 @@ Missing lesson, title 또는 language와 empty code는 commit하지 않고 `prog
 3. SPA로 다른 문제에 이동해 **같은 modal root가 재사용되는지**와 Accepted의 text/visibility mutation 순서를 기록한다. Attribute-only hidden → visible 전환인 경우에도 현재 `lessonId`, title, language와 path로 sync가 정확히 한 번 생성되는지 확인한다.
 4. 같은 문제에서 실제로 선택 가능한 두 번째 지원 언어로 Accepted를 만든다. 기본 검증 조합은 Swift와 Python3다.
 5. 두 solution file이 존재하고 `programmers/README.md`에 Difficulty column 없이 같은 문제 한 행과 단일 `Languages` cell에 두 link가 표시되는지 확인한다.
-6. `programmers/.programmers-sync/index.json`이 v4이며 두 language entry를 보존하고, 각 언어의 첫 commit message가 `#1`을 포함하는지 확인한다.
+6. `programmers/.programmers-sync/index.json`이 v5이며 두 language entry를 보존하고, 각 언어의 첫 commit message가 `(rev 1)`을 포함하는지 확인한다.
 
 ## Investigation notes (비계약)
 

@@ -147,15 +147,7 @@ describe("background sync orchestrator", () => {
       `| 1 | [Two Sum](https://leetcode.com/problems/two-sum/) | Easy | ${expectedAcceptedDate} |`
     );
     expect(committedJson(harness, "leetcode/.leetcode-sync/index.json")).toMatchObject({
-      version: 4,
-      activity: {
-        days: {
-          [expectedAcceptedDate]: {
-            acceptedCount: 1,
-            newProblemCount: 1
-          }
-        }
-      },
+      version: 5,
       problems: [
         {
           firstAcceptedDate: expectedAcceptedDate,
@@ -215,7 +207,7 @@ describe("background sync orchestrator", () => {
     expect(readme).toContain(
       "[Swift](swift/0001_two_sum.swift) · [Python3](python/0001_two_sum.py)"
     );
-    expect(catalog.version).toBe(4);
+    expect(catalog.version).toBe(5);
     expect(catalog.problems[0]?.languages.swift?.solutionPath).toBe(
       "leetcode/swift/0001_two_sum.swift"
     );
@@ -258,15 +250,7 @@ describe("background sync orchestrator", () => {
       "Difficulty"
     );
     expect(committedJson(harness, "programmers/.programmers-sync/index.json")).toMatchObject({
-      version: 4,
-      activity: {
-        days: {
-          [expectedAcceptedDate]: {
-            acceptedCount: 1,
-            newProblemCount: 1
-          }
-        }
-      },
+      version: 5,
       problems: [
         {
           difficulty: "-",
@@ -323,7 +307,7 @@ describe("background sync orchestrator", () => {
     expect(
       committedJson(harness, "programmers/.programmers-sync/index.json")
     ).toMatchObject({
-      version: 4,
+      version: 5,
       problems: [{ frontendId: "120803", difficulty: "-" }, { frontendId: "120804" }]
     });
   });
@@ -370,15 +354,7 @@ describe("background sync orchestrator", () => {
         )?.content ?? "{}"
       )
     ).toMatchObject({
-      version: 4,
-      activity: {
-        days: {
-          [expectedAcceptedDate]: {
-            acceptedCount: 2,
-            newProblemCount: 1
-          }
-        }
-      },
+      version: 5,
       problems: [
         {
           languages: {
@@ -446,7 +422,7 @@ describe("background sync orchestrator", () => {
       message: "solve: leetcode 1 Two Sum in swift (rev 2)"
     });
     expect(committedJson(harness, "leetcode/.leetcode-sync/index.json")).toMatchObject({
-      version: 4,
+      version: 5,
       problems: [
         {
           languages: {
@@ -487,7 +463,7 @@ describe("background sync orchestrator", () => {
       path: "leetcode/python/0001_two_sum.py"
     });
     expect(committedJson(harness, "leetcode/.leetcode-sync/index.json")).toMatchObject({
-      version: 4,
+      version: 5,
       problems: [
         {
           languages: {
@@ -753,7 +729,7 @@ describe("background sync orchestrator", () => {
       message: "solve: leetcode 1 Two Sum in swift (rev 2)"
     });
     expect(committedJson(harness, "leetcode/.leetcode-sync/index.json")).toMatchObject({
-      version: 4,
+      version: 5,
       problems: [
         {
           languages: {
@@ -1405,6 +1381,7 @@ function makeV2CatalogWithSwiftEntry(
 }
 
 function makeProgrammersCatalogWithPreviousProblem(): unknown {
+  // 이미 Sync Repository에 있는 v4 파일을 흉내낸다. v5는 activity를 읽지 않고 버린다.
   return {
     version: 4,
     activity: {

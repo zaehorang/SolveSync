@@ -8,7 +8,7 @@ SolveSync는 LeetCode, Programmers와 SWEA에서 Accepted 된 풀이를 GitHub �
 ## 도메인 Naming 계약
 표준 제품/domain 용어는 `CONTEXT.md`를 따른다. 사용자-facing 문서와 UI는 Coding Platform, Accepted Submission, Accepted Editor Snapshot, Sync Deduplication Key, Sync Repository, Sync Branch, Solution File, Solution Revision Number, Solution Catalog, Solution README, Sync History, Retry Bundle을 기준으로 쓴다.
 
-TypeScript, runtime message, storage schema는 같은 용어 체계를 사용한다. 현재 storage schema는 GitHub App 인증을 분리한 v5이고, Solution Catalog는 다중 언어 key를 허용하는 v4에서 `lastAcceptedSourceId`와 language별 `solutionRevisionNumber`를 저장한다. Solution Catalog 실제 파일 경로는 `leetcode/.leetcode-sync/index.json`과 `programmers/.programmers-sync/index.json`을 유지한다.
+TypeScript, runtime message, storage schema는 같은 용어 체계를 사용한다. 현재 storage schema는 GitHub App 인증을 분리한 v5이고, Solution Catalog는 다중 언어 key를 허용하는 v5에서 `lastAcceptedSourceId`와 language별 `solutionRevisionNumber`를 저장한다. Solution Catalog 실제 파일 경로는 `leetcode/.leetcode-sync/index.json`과 `programmers/.programmers-sync/index.json`을 유지한다.
 
 ## 해결하려는 문제
 사용자는 여러 언어로 LeetCode, Programmers와 SWEA 문제를 푼다. 수동으로 GitHub에 풀이를 반영하면 번거롭고 누락되기 쉽다. 기존 LeetCode-to-GitHub 확장은 풀이 sync 자체는 가능하지만, Programmers 흐름, 원하는 저장소 구조, 다중 언어 경로, Swift Xcode 빌드 제약을 함께 맞추기 어렵다.
