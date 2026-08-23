@@ -252,7 +252,9 @@ README 생성 규칙:
 - LeetCode는 number, title, difficulty, solved date, 단일 Languages 컬럼을 생성한다.
 - Programmers는 신뢰할 수 있는 Difficulty source가 없으므로 number, title, solved date,
   단일 Languages 컬럼만 생성한다. Catalog의 `difficulty: "-"`는 v4 호환성을 위해 유지한다.
-- row는 numeric problem id 오름차순으로 정렬한다.
+- row는 problem-level first accepted date 내림차순으로 정렬한다. 최근에 푼 문제가 위에 온다.
+  date는 day 단위라 같은 날 푼 문제는 numeric problem id 오름차순으로 정렬해 순서를 고정한다.
+  Solution Catalog의 `problems` 배열 자체는 numeric problem id 오름차순을 유지하며, 날짜 정렬은 README 렌더 시점에만 적용한다.
 - Solved cell은 Solution Catalog의 problem-level first accepted date를 표시한다.
 - Languages cell은 존재하는 solution path를 registry 순서로 나열하고 Solution README 기준 상대 link를 건다.
 

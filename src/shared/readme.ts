@@ -23,7 +23,7 @@ export function renderManagedReadmeTable(
 ): string {
   const policy = getPlatformPolicy(codingPlatform);
   const rows = [...solutionCatalog.problems]
-    .sort(compareSolutionCatalogProblems)
+    .sort(compareReadmeRows)
     .map((problem) => renderProblemRow(problem, policy));
 
   const headers = policy.readmeIncludesDifficulty
@@ -34,6 +34,28 @@ export function renderManagedReadmeTable(
     : ["---:", "---", "---", "---"];
 
   return [renderTableRow(headers), renderTableRow(alignments), ...rows].join("\n");
+}
+
+/** README 표의 행 순서.
+ *
+ * Catalog의 `problems` 배열은 문제 번호 오름차순으로 두고(diff를 작게 유지한다)
+ * 날짜 정렬은 렌더 시점에만 한다. 정렬 키를 Solved cell이 실제로 보여주는
+ * first accepted date로 잡아야 표가 자기모순 없이 읽힌다. last accepted date로
+ * 잡으면 재제출한 옛 문제가 위로 올라오는데 표시된 날짜는 그대로라 정렬이
+ * 깨져 보인다.
+ *
+ * first accepted date는 day 단위라 같은 날 푼 문제가 묶인다. tiebreak를 문제
+ * 번호로 고정해야 재렌더마다 순서가 흔들려 의미 없는 commit이 생기지 않는다.
+ */
+function compareReadmeRows(
+  left: SolutionCatalogProblem,
+  right: SolutionCatalogProblem
+): number {
+  if (left.firstAcceptedDate !== right.firstAcceptedDate) {
+    return left.firstAcceptedDate < right.firstAcceptedDate ? 1 : -1;
+  }
+
+  return compareSolutionCatalogProblems(left, right);
 }
 
 export function mergeReadmeManagedBlock(
