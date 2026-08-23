@@ -46,14 +46,71 @@ const solutionCatalog = mergeSolutionCatalogEntry(
   "2026-05-27"
 );
 
+function withProblem(
+  catalog: Parameters<typeof mergeSolutionCatalogEntry>[0],
+  frontendId: string,
+  title: string,
+  acceptedDate: string
+) {
+  return mergeSolutionCatalogEntry(
+    catalog,
+    {
+      problemId: frontendId,
+      frontendId,
+      title,
+      titleSlug: `slug-${frontendId}`,
+      difficulty: "Easy",
+      url: `https://leetcode.com/problems/slug-${frontendId}/`,
+      acceptedSourceId: `source-${frontendId}`,
+      language: "swift"
+    },
+    `leetcode/swift/${frontendId}.swift`,
+    `${acceptedDate}T04:00:00.000Z`,
+    acceptedDate
+  );
+}
+
 describe("README managed block", () => {
-  it("renders rows sorted by numeric problem id", () => {
+  it("renders rows newest solved first", () => {
+    // 표는 풀이 기록이므로 최근에 푼 문제가 위에 온다. 정렬 키는 Solved cell이
+    // 실제로 보여주는 first accepted date여야 표가 자기모순 없이 읽힌다.
+    const catalog = withProblem(
+      withProblem(
+        withProblem(createEmptySolutionCatalog(), "10", "Oldest", "2026-05-01"),
+        "20",
+        "Newest",
+        "2026-07-01"
+      ),
+      "30",
+      "Middle",
+      "2026-06-01"
+    );
+    const table = renderManagedReadmeTable(catalog);
+
+    expect(table.indexOf("| 20 | Newest")).toBeLessThan(table.indexOf("| 30 | Middle"));
+    expect(table.indexOf("| 30 | Middle")).toBeLessThan(table.indexOf("| 10 | Oldest"));
+  });
+
+  it("breaks same-day ties by problem number so re-renders are stable", () => {
+    // first accepted date는 day 단위라 같은 날 푼 문제가 묶인다. tiebreak가
+    // 없으면 재렌더마다 순서가 흔들려 의미 없는 diff가 생긴다.
+    const catalog = withProblem(
+      withProblem(createEmptySolutionCatalog(), "200", "Later Number", "2026-05-01"),
+      "100",
+      "Earlier Number",
+      "2026-05-01"
+    );
+    const table = renderManagedReadmeTable(catalog);
+
+    expect(table.indexOf("| 100 | Earlier Number")).toBeLessThan(
+      table.indexOf("| 200 | Later Number")
+    );
+  });
+
+  it("renders the expected columns and links", () => {
     const table = renderManagedReadmeTable(solutionCatalog);
 
     expect(table).toContain("| # | Title | Difficulty | Solved | Languages |");
-    expect(table.indexOf("| 1 | Two Sum")).toBeLessThan(
-      table.indexOf("| 2 | Add Two Numbers")
-    );
     expect(table).toContain("| 1 | Two Sum | Easy | 2026-05-27 |");
     expect(table).toContain("[Swift](swift/0001_two_sum.swift)");
     expect(table).toContain("[Python3](python/0002_add_two_numbers.py)");
