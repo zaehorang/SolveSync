@@ -92,12 +92,12 @@ def main() -> None:
     problems: list[str] = []
     for sha in commits:
         short = sha[:9]
-        # `-z`로 받는다. quotePath 기본값에서 비ASCII 경로는 `"dist/\355..."`처럼
+        # `--root`가 없으면 루트 커밋은 경로도 patch도 내지 않는다. `-z`로 받는다. quotePath 기본값에서 비ASCII 경로는 `"dist/\355..."`처럼
         # C-style로 quote되어 돌아오고, 그러면 `dist/` prefix 검사를 그냥 지나간다.
         changed = [
             p
             for p in git(
-                "diff-tree", "--no-commit-id", "--name-only", "-r", "-c", "-z",
+                "diff-tree", "--no-commit-id", "--name-only", "-r", "-c", "-z", "--root",
                 "--diff-filter=ACMR", sha,
             ).split("\0")
             if p
@@ -111,7 +111,7 @@ def main() -> None:
         # 걸리지 않는다. pre-commit은 header가 포함된 diff 전체를 훑어서 잡는다.
         secrets = policy.scan_secrets(
             "\n".join(
-                [added_lines(git("diff-tree", "--no-commit-id", "-p", "-U0", "-r", "-c", sha))]
+                [added_lines(git("diff-tree", "--no-commit-id", "-p", "-U0", "-r", "-c", "--root", sha))]
                 + changed
             )
         )
