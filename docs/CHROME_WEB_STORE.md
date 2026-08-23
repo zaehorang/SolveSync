@@ -184,7 +184,7 @@ GitHub App client ID와 slug는 공개 build 설정이다. client secret, privat
 작업:
 
 1. `docs/PRD.md`의 unpacked preview와 v2 Store release 서술을 현재 배포 목표에 맞게 갱신한다.
-2. ADR 0010을 보존하고 Chrome Web Store 배포 진행을 기록하는 후속 ADR을 추가한다.
+2. [ADR 0038](adr/0038-chrome-web-store-public-release.md)이 Store 배포 결정을 갖는다. 진행 중 결정이 또 바뀌면 새 번호로 쓰고 0038을 supersede한다.
 3. `docs/UI_GUIDE.md`의 About/Security copy 기준을 Store release에 맞게 갱신한다.
 4. Options의 `local unpacked Chrome extension` 문구를 제거한다.
 5. backend, local storage, Retry Bundle disclosure는 실제 동작과 일치하게 유지한다.
@@ -340,7 +340,7 @@ http://
 - 정식 release candidate build
 - 사용자가 소유한 별도 test repository
 - 실제 풀이 branch와 분리된 test Sync Branch
-- 로그인된 GitHub, LeetCode, Programmers 계정
+- 로그인된 GitHub 계정과 지원 Coding Platform 계정 전부(LeetCode, Programmers, SWEA)
 
 필수 시나리오:
 
@@ -350,10 +350,11 @@ http://
 4. LeetCode 지원 언어 Accepted sync
 5. Programmers 같은 문제의 서로 다른 두 언어 Accepted sync
 6. 두 solution file과 단일 README row/Catalog 확인
-7. GitHub 연결 해제·재연결 후 repository/branch 설정 보존
-8. retry 가능한 실패와 Retry Bundle 동작 확인
-9. Popup, Options, Toast에 secret이 표시되지 않는지 확인
-10. Chrome extension error와 content script import error가 없는지 확인
+7. SWEA Accepted sync. MAIN world bridge가 화면 밖으로 스크롤된 줄까지 포함한 code를 돌려주는지 확인한다. 이 경로가 깨져도 다른 플랫폼은 멀쩡하므로 따로 보지 않으면 드러나지 않는다
+8. GitHub 연결 해제·재연결 후 repository/branch 설정 보존
+9. retry 가능한 실패와 Retry Bundle 동작 확인
+10. Popup, Options, Toast에 secret이 표시되지 않는지 확인
+11. Chrome extension error와 content script import error가 없는지 확인
 
 완료 조건:
 

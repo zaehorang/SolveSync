@@ -1,4 +1,4 @@
-# Domain naming을 storage/runtime과 Catalog v4에 함께 반영한다
+# Domain naming을 storage v4와 Catalog v2에 함께 반영한다
 
 상태: Accepted.
 

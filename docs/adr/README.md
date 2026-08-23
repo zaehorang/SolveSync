@@ -32,7 +32,7 @@
 | 0022 | [Accepted 감지는 mutation 범위의 bounded text traversal을 사용한다](0022-bounded-mutation-text-traversal-for-accepted-detection.md) | Accepted |
 | 0023 | [Content script는 별도 IIFE bundle로 빌드한다](0023-separate-iife-content-script-bundle.md) | Accepted |
 | 0024 | [Coding Platform adapter와 shared sync core를 분리한다](0024-coding-platform-adapters-and-shared-sync-core.md) | Accepted |
-| 0026 | [Domain naming을 storage/runtime과 Catalog v4에 함께 반영한다](0026-domain-naming-v4-storage-runtime-and-catalog-migration.md) | Accepted |
+| 0026 | [Domain naming을 storage v4와 Catalog v2에 함께 반영한다](0026-domain-naming-v4-storage-runtime-and-catalog-migration.md) | Accepted |
 | 0027 | [Solution Revision Number를 commit message에 포함한다](0027-solution-revision-numbered-commit-message.md) | Accepted |
 | 0028 | [Programmers DOM Snapshot의 residual risk를 수용한다](0028-programmers-dom-snapshot-risk-acceptance.md) | Accepted |
 | 0029 | [Public GitHub App Device Flow와 local token refresh 사용](0029-public-github-app-device-flow-with-local-token-refresh.md) | Accepted |
