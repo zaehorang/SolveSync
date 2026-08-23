@@ -6,10 +6,10 @@ import type {
 } from "./types";
 import { isPlainRecord, isSupportedLanguage } from "./types";
 
-export const SOLUTION_CATALOG_VERSION = 4;
-const LEGACY_SOLUTION_CATALOG_V1_VERSION = 1;
-const LEGACY_SOLUTION_CATALOG_V2_VERSION = 2;
-const LEGACY_SOLUTION_CATALOG_V3_VERSION = 3;
+export const SOLUTION_CATALOG_VERSION = 5;
+const LEGACY_SOLUTION_CATALOG_VERSIONS = [1, 2, 3, 4];
+/** v3부터 language entry가 Solution Revision Number를 갖는다. 그 이전은 다시 센다. */
+const FIRST_REVISION_AWARE_CATALOG_VERSION = 3;
 
 export interface SolutionCatalogLanguageEntry {
   solutionPath: string;
@@ -37,19 +37,9 @@ export interface SolutionCatalogProblem {
   languages: SolutionCatalogLanguageMap;
 }
 
-export interface SolutionCatalogActivityDay {
-  acceptedCount: number;
-  newProblemCount: number;
-}
-
-export interface SolutionCatalogActivity {
-  days: Record<string, SolutionCatalogActivityDay>;
-}
-
 export interface SolutionCatalog {
   version: typeof SOLUTION_CATALOG_VERSION;
   problems: SolutionCatalogProblem[];
-  activity: SolutionCatalogActivity;
 }
 
 export interface SolutionCatalogAcceptedSourceInput extends ProblemMetadata {
@@ -69,10 +59,7 @@ export class MalformedSolutionCatalogError extends Error {
 export function createEmptySolutionCatalog(): SolutionCatalog {
   return {
     version: SOLUTION_CATALOG_VERSION,
-    problems: [],
-    activity: {
-      days: {}
-    }
+    problems: []
   };
 }
 
@@ -168,13 +155,7 @@ export function mergeSolutionCatalogEntryWithResult(
 
   const nextCatalog: SolutionCatalog = {
     version: SOLUTION_CATALOG_VERSION,
-    problems: [...otherProblems, nextProblem].sort(compareSolutionCatalogProblems),
-    activity: mergeActivity(
-      catalog.activity,
-      acceptedDate,
-      !isDuplicateAcceptedSource,
-      existingProblem === undefined
-    )
+    problems: [...otherProblems, nextProblem].sort(compareSolutionCatalogProblems)
   };
 
   return {
@@ -191,8 +172,7 @@ export function isSolutionCatalog(value: unknown): value is SolutionCatalog {
   return (
     value.version === SOLUTION_CATALOG_VERSION &&
     Array.isArray(value.problems) &&
-    value.problems.every(isSolutionCatalogProblem) &&
-    isSolutionCatalogActivity(value.activity)
+    value.problems.every(isSolutionCatalogProblem)
   );
 }
 
@@ -242,21 +222,20 @@ function normalizeSolutionCatalog(value: unknown): SolutionCatalog | null {
 
   if (
     !isPlainRecord(value) ||
-    (value.version !== LEGACY_SOLUTION_CATALOG_V1_VERSION &&
-      value.version !== LEGACY_SOLUTION_CATALOG_V2_VERSION &&
-      value.version !== LEGACY_SOLUTION_CATALOG_V3_VERSION)
+    !LEGACY_SOLUTION_CATALOG_VERSIONS.includes(value.version as number)
   ) {
     return null;
   }
 
-  if (!Array.isArray(value.problems) || !isSolutionCatalogActivity(value.activity)) {
+  if (!Array.isArray(value.problems)) {
     return null;
   }
 
+  // v5에서 activity를 지웠으므로 legacy 파일이 무엇을 담고 있든 읽지 않고 버린다.
   const problems = value.problems.map((problem) =>
     normalizeSolutionCatalogProblem(
       problem,
-      value.version === LEGACY_SOLUTION_CATALOG_V3_VERSION
+      (value.version as number) >= FIRST_REVISION_AWARE_CATALOG_VERSION
     )
   );
 
@@ -266,8 +245,7 @@ function normalizeSolutionCatalog(value: unknown): SolutionCatalog | null {
 
   return {
     version: SOLUTION_CATALOG_VERSION,
-    problems: (problems as SolutionCatalogProblem[]).sort(compareSolutionCatalogProblems),
-    activity: value.activity
+    problems: (problems as SolutionCatalogProblem[]).sort(compareSolutionCatalogProblems)
   };
 }
 
@@ -306,29 +284,6 @@ function isSolutionCatalogProblem(value: unknown): value is SolutionCatalogProbl
     typeof value.firstAcceptedDate === "string" &&
     typeof value.lastAcceptedDate === "string" &&
     isSolutionCatalogLanguageMap(value.languages)
-  );
-}
-
-function isSolutionCatalogActivity(
-  value: unknown
-): value is SolutionCatalogActivity {
-  if (!isPlainRecord(value) || !isPlainRecord(value.days)) {
-    return false;
-  }
-
-  return Object.entries(value.days).every(
-    ([date, day]) => typeof date === "string" && isActivityDay(day)
-  );
-}
-
-function isActivityDay(value: unknown): value is SolutionCatalogActivityDay {
-  if (!isPlainRecord(value)) {
-    return false;
-  }
-
-  return (
-    isNonNegativeInteger(value.acceptedCount) &&
-    isNonNegativeInteger(value.newProblemCount)
   );
 }
 
@@ -403,37 +358,6 @@ function isLanguageEntry(value: unknown): value is SolutionCatalogLanguageEntry 
     typeof value.firstAcceptedDate === "string" &&
     typeof value.lastAcceptedDate === "string"
   );
-}
-
-function mergeActivity(
-  activity: SolutionCatalogActivity,
-  acceptedDate: IsoDateString,
-  shouldIncrementAccepted: boolean,
-  shouldIncrementNewProblem: boolean
-): SolutionCatalogActivity {
-  const days = { ...activity.days };
-
-  if (!shouldIncrementAccepted && !shouldIncrementNewProblem) {
-    return { days };
-  }
-
-  const existingDay = days[acceptedDate] ?? {
-    acceptedCount: 0,
-    newProblemCount: 0
-  };
-
-  days[acceptedDate] = {
-    acceptedCount:
-      existingDay.acceptedCount + (shouldIncrementAccepted ? 1 : 0),
-    newProblemCount:
-      existingDay.newProblemCount + (shouldIncrementNewProblem ? 1 : 0)
-  };
-
-  return { days };
-}
-
-function isNonNegativeInteger(value: unknown): value is number {
-  return typeof value === "number" && Number.isInteger(value) && value >= 0;
 }
 
 function isPositiveInteger(value: unknown): value is number {

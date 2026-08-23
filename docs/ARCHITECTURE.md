@@ -224,7 +224,7 @@ Sync Repository는 Coding Platform 폴더를 먼저 두고 그 내부를 언어�
 
 v1은 Solution README를 항상 갱신한다. README 갱신을 끄는 설정이나 mode는 제공하지 않는다.
 
-Solution Catalog는 v4 schema를 사용한다. v1-v3 catalog는 읽을 때 v4로 normalize하며 실제 파일 경로는 호환성을 위해 유지한다.
+Solution Catalog는 v5 schema를 사용한다. v1-v4 catalog는 읽을 때 v5로 normalize하며 실제 파일 경로는 호환성을 위해 유지한다.
 - LeetCode: `leetcode/.leetcode-sync/index.json`
 - Programmers: `programmers/.programmers-sync/index.json`
 - SWEA: `swea/.swea-sync/index.json`
@@ -241,7 +241,6 @@ Catalog entry는 다음 정보를 저장한다.
 - last synced time
 - language별 last accepted source id
 - problem/language별 first accepted date와 last accepted date
-- date별 accepted count와 new problem count activity
 
 README 생성 규칙:
 - managed marker 밖 내용은 보존한다.

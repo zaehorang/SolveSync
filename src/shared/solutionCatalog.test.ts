@@ -25,11 +25,8 @@ const twoSumSwift = {
 describe("Solution Catalog", () => {
   it("creates an empty versioned catalog", () => {
     expect(createEmptySolutionCatalog()).toEqual({
-      version: 4,
-      problems: [],
-      activity: {
-        days: {}
-      }
+      version: 5,
+      problems: []
     });
   });
 
@@ -62,16 +59,6 @@ describe("Solution Catalog", () => {
       firstAcceptedDate: "2026-05-27",
       lastAcceptedDate: "2026-05-28"
     });
-    expect(second.activity.days).toEqual({
-      "2026-05-27": {
-        acceptedCount: 1,
-        newProblemCount: 1
-      },
-      "2026-05-28": {
-        acceptedCount: 1,
-        newProblemCount: 0
-      }
-    });
   });
 
   it("preserves another language for the same problem", () => {
@@ -103,13 +90,9 @@ describe("Solution Catalog", () => {
       firstAcceptedDate: "2026-05-28",
       lastAcceptedDate: "2026-05-28"
     });
-    expect(withPython.activity.days["2026-05-28"]).toEqual({
-      acceptedCount: 1,
-      newProblemCount: 0
-    });
   });
 
-  it("does not increment activity for the same problem language accepted source id", () => {
+  it("does not consume a revision for the same problem language accepted source id", () => {
     const first = mergeSolutionCatalogEntry(
       createEmptySolutionCatalog(),
       twoSumSwift,
@@ -125,12 +108,6 @@ describe("Solution Catalog", () => {
       "2026-05-28"
     );
 
-    expect(second.activity.days).toEqual({
-      "2026-05-27": {
-        acceptedCount: 1,
-        newProblemCount: 1
-      }
-    });
     expect(second.problems[0]?.languages.swift).toMatchObject({
       lastSyncedAt: syncedAt,
       firstAcceptedDate: "2026-05-27",
@@ -150,8 +127,75 @@ describe("Solution Catalog", () => {
     expect(parseSolutionCatalogJson(JSON.stringify(catalog))).toEqual(catalog);
     expect(() => parseSolutionCatalogJson("{")).toThrow(MalformedSolutionCatalogError);
     expect(() =>
-      parseSolutionCatalogJson(JSON.stringify({ version: 2, problems: [] }))
+      parseSolutionCatalogJson(JSON.stringify({ version: 99, problems: [] }))
     ).toThrow(MalformedSolutionCatalogError);
+    expect(() =>
+      parseSolutionCatalogJson(JSON.stringify({ version: 2, problems: [{}] }))
+    ).toThrow(MalformedSolutionCatalogError);
+  });
+
+  it("drops the activity block when reading a v4 catalog", () => {
+    // v4까지 date별 accepted count를 저장했지만 읽는 곳이 없었다. v5에서 지웠으므로
+    // 기존 파일이 갖고 있어도 통과시키고 버린다.
+    const parsed = parseSolutionCatalogJson(
+      JSON.stringify({
+        version: 4,
+        problems: [
+          {
+            problemId: "1",
+            frontendId: "1",
+            title: "Two Sum",
+            titleSlug: "two-sum",
+            difficulty: "Easy",
+            url: "https://leetcode.com/problems/two-sum/",
+            lastSyncedAt: syncedAt,
+            firstAcceptedDate: acceptedDate,
+            lastAcceptedDate: acceptedDate,
+            languages: {
+              swift: {
+                solutionPath: "leetcode/swift/0001_two_sum.swift",
+                lastAcceptedSourceId: "100",
+                solutionRevisionNumber: 3,
+                lastSyncedAt: syncedAt,
+                firstAcceptedDate: acceptedDate,
+                lastAcceptedDate: acceptedDate
+              }
+            }
+          }
+        ],
+        activity: {
+          days: { "2026-05-27": { acceptedCount: 1, newProblemCount: 1 } }
+        }
+      })
+    );
+
+    expect(parsed).toEqual({
+      version: 5,
+      problems: [
+        {
+          problemId: "1",
+          frontendId: "1",
+          title: "Two Sum",
+          titleSlug: "two-sum",
+          difficulty: "Easy",
+          url: "https://leetcode.com/problems/two-sum/",
+          lastSyncedAt: syncedAt,
+          firstAcceptedDate: acceptedDate,
+          lastAcceptedDate: acceptedDate,
+          languages: {
+            swift: {
+              solutionPath: "leetcode/swift/0001_two_sum.swift",
+              lastAcceptedSourceId: "100",
+              // v3부터 저장한 번호다. migration이 1로 되돌리면 commit message가 뒤로 간다.
+              solutionRevisionNumber: 3,
+              lastSyncedAt: syncedAt,
+              firstAcceptedDate: acceptedDate,
+              lastAcceptedDate: acceptedDate
+            }
+          }
+        }
+      ]
+    });
   });
 
   it("normalizes v1 lastSubmissionId entries to the current catalog schema", () => {
@@ -192,7 +236,7 @@ describe("Solution Catalog", () => {
     );
 
     expect(parsed).toMatchObject({
-      version: 4,
+      version: 5,
       problems: [
         {
           languages: {
@@ -245,7 +289,7 @@ describe("Solution Catalog", () => {
     );
 
     expect(parsed).toMatchObject({
-      version: 4,
+      version: 5,
       problems: [
         {
           languages: {
@@ -296,7 +340,7 @@ describe("Solution Catalog", () => {
       })
     );
 
-    expect(parsed.version).toBe(4);
+    expect(parsed.version).toBe(5);
     expect(parsed.problems[0]?.languages.swift?.solutionPath).toBe(
       "leetcode/swift/0001_two_sum.swift"
     );
@@ -416,6 +460,6 @@ describe("Solution Catalog", () => {
     expect(serialized).toContain("lastAcceptedSourceId");
     expect(serialized).toContain("solutionRevisionNumber");
     expect(serialized).not.toContain("lastSubmissionId");
-    expect(catalog.version).toBe(4);
+    expect(catalog.version).toBe(5);
   });
 });

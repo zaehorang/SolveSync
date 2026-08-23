@@ -21,7 +21,7 @@ describe("GitHub tree payload files", () => {
     ]);
     expect(files[0]?.content).toBe("class Solution {}");
     expect(files[2]?.content).toBe(
-      '{\n  "version": 4,\n  "problems": [],\n  "activity": {\n    "days": {}\n  }\n}\n'
+      '{\n  "version": 5,\n  "problems": []\n}\n'
     );
   });
 });
