@@ -36,7 +36,7 @@ Language preference:
 Implementation rules:
 - 사용자에게 보이는 문자열은 i18n key 기반으로 관리한다.
 - Options, Popup, Toast 안에 영어와 한국어 hard-coded 문구가 섞여 있으면 안 된다.
-- GitHub, LeetCode, Programmers, Auto Sync와 programming language 이름은 번역하지 않아도 된다.
+- GitHub, LeetCode, Programmers, SWEA, Auto Sync와 programming language 이름은 번역하지 않아도 된다.
 - `document.documentElement.lang`은 실제 표시 locale에 맞춰 `en` 또는 `ko`로 설정한다.
 
 ## Options Page

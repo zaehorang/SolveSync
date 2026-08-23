@@ -65,13 +65,13 @@ Connection test는 commit을 만들지 않아야 한다. Branch는 사용자의 
 
 ## 5. Coding Platform 검증
 
-공통 build, extension load와 GitHub 연결이 끝나면 각 Coding Platform 문서의 자동·수동 검증을 실행한다.
+공통 build, extension load와 GitHub 연결이 끝나면 [공통 수동 검증 골격](platforms/README.md#검증-공통-계약)을 각 Coding Platform에서 실행하고, 이어서 플랫폼 문서의 추가 절차를 실행한다.
 
 - LeetCode [자동 검증](platforms/LEETCODE.md#자동-검증)과 [수동 검증](platforms/LEETCODE.md#수동-검증)
 - Programmers [자동 검증](platforms/PROGRAMMERS.md#자동-검증)과 [수동 검증](platforms/PROGRAMMERS.md#수동-검증)
 - SWEA [자동 검증](platforms/SWEA.md#자동-검증)과 [수동 검증](platforms/SWEA.md#수동-검증). 감지부터 commit까지와 Run·임시저장·컴파일 오류·오답의 non-Accepted 경로를 2026-08-18 실제 제출로 확인했다. 결과는 [확인된 전제](platforms/SWEA.md#확인된-전제)에 있다.
 
-각 문서는 platform login, Accepted happy path, stale Accepted/Run/Wrong Answer 회귀, 두 번째 Accepted revision과 SPA route 검증을 소유한다. 모든 지원 언어를 실제 계정으로 반복 제출하지 않으며, 특정 Coding Platform의 label이나 editor 추출 회귀가 의심될 때만 해당 언어를 추가로 수동 검증한다.
+골격(플랫폼 login, Accepted happy path, Run/실패 제출 회귀, 두 번째 Solution Revision, route 이동)은 [Coding Platform 연동 계약](platforms/README.md)이 소유하고, 각 플랫폼 문서는 그 골격에서 벗어나는 절차만 소유한다. 모든 지원 언어를 실제 계정으로 반복 제출하지 않으며, 특정 Coding Platform의 label이나 editor 추출 회귀가 의심될 때만 해당 언어를 추가로 수동 검증한다.
 
 기존 Sync Repository 마이그레이션은 정상 Accepted sync에서도 그대로 일어난다. LeetCode v3
 Catalog와 언어별 개별 column README 또는 Difficulty column이 남은 Programmers README는
@@ -82,11 +82,11 @@ solution link, 날짜와 marker 밖 수동 내용이 유지되고, 같은 Catalo
 
 ## 6. 저장소 파일 정리
 
-1. 선택한 test branch에 유효한 LeetCode와 Programmers Solution Catalog를 준비하고, Solution README managed marker 내부는 legacy 표 형식으로 만든다. marker 앞뒤에는 줄바꿈과 trailing space를 포함한 식별 가능한 수동 내용을 둔다.
+1. 선택한 test branch에 유효한 LeetCode, Programmers와 SWEA Solution Catalog를 준비하고, Solution README managed marker 내부는 legacy 표 형식으로 만든다. marker 앞뒤에는 줄바꿈과 trailing space를 포함한 식별 가능한 수동 내용을 둔다.
 2. Options에서 해당 Sync Repository와 Sync Branch가 선택되었는지 확인한다. 둘 중 하나를 선택하지 않은 상태에서는 정리 button이 disabled인지 확인한다.
 3. `Clean up now` 또는 `지금 정리하기`를 누르고 진행 중 button이 disabled이며 `aria-live="polite"` 영역에 현재 locale의 진행 상태가 표시되는지 확인한다.
-4. GitHub에서 `chore: README 표 형식을 정리한다` commit이 정확히 하나 생성되었는지 확인한다. 파일 목록에는 실제로 달라진 `leetcode/README.md`와 `programmers/README.md`만 있어야 하며 Solution File과 Solution Catalog는 없어야 한다.
-5. 두 Solution README의 managed marker 내부가 현재 플랫폼별 표 형식으로 바뀌고 marker 앞뒤의 수동 bytes, 기존 solution link와 날짜가 보존되는지 확인한다. 선택한 Sync Branch 외 branch는 변하지 않고 새 branch도 생성되지 않아야 한다.
+4. GitHub에서 `chore: README 표 형식을 정리한다` commit이 정확히 하나 생성되었는지 확인한다. 파일 목록에는 실제로 달라진 `leetcode/README.md`, `programmers/README.md`와 `swea/README.md`만 있어야 하며 Solution File과 Solution Catalog는 없어야 한다. 정리 대상 Coding Platform 목록은 `cleanupRepository`가 갖고 있으므로 Coding Platform을 추가하면 여기도 함께 확인한다.
+5. 각 Solution README의 managed marker 내부가 현재 플랫폼별 표 형식으로 바뀌고 marker 앞뒤의 수동 bytes, 기존 solution link와 날짜가 보존되는지 확인한다. 선택한 Sync Branch 외 branch는 변하지 않고 새 branch도 생성되지 않아야 한다.
 6. 같은 action을 다시 실행해 Options에 변경 없음 상태가 표시되고 두 번째 commit이 생성되지 않는지 확인한다.
 7. Catalog 하나를 잠시 malformed JSON으로 만든 test branch에서 실행해 현재 locale의 실패 상태가 표시되고 정리 commit이 생성되지 않는지 확인한다. 검증 뒤 Catalog를 복구한다.
 

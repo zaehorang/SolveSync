@@ -12,12 +12,13 @@ SolveSync는 Accepted solution sync를 위해 다음 데이터를 처리할 수 
 - Auto Sync, language preference, connection status 같은 extension 설정
 - LeetCode Accepted Submission metadata와 solution code
 - Programmers Accepted Editor Snapshot의 problem metadata, language, solution code
-- LeetCode/Programmers problem page URL
+- SWEA Accepted Editor Snapshot의 problem metadata, language, solution code
+- 지원 Coding Platform의 problem page URL
 - Sync History
 - Retry Bundle
 - Sync Deduplication Key와 in-flight lock 같은 중복 방지 상태
 
-SolveSync는 LeetCode/Programmers 문제 설명 전문을 저장하지 않습니다.
+SolveSync는 지원 Coding Platform의 문제 설명 전문을 저장하지 않습니다.
 
 ## 저장 위치
 
@@ -32,6 +33,7 @@ SolveSync는 다음 대상과 통신합니다.
 - GitHub web/API endpoints: Device Flow 로그인, token refresh, GitHub App 설치, 사용자가 선택한 Sync Repository/Sync Branch의 Solution File, Solution README, Solution Catalog commit에 사용합니다.
 - LeetCode GraphQL endpoint: 로그인된 브라우저 세션에서 Accepted Submission metadata와 solution code를 조회하기 위해 사용합니다.
 - Programmers page: Accepted 직후 현재 editor의 Accepted Editor Snapshot을 읽기 위해 사용합니다.
+- SWEA page: Accepted 직후 현재 editor의 Accepted Editor Snapshot을 읽기 위해 사용합니다. Editor code는 page와 같은 world에서 실행되는 bridge로만 읽을 수 있으며, bridge가 주고받는 값은 code string뿐입니다. token, cookie와 session 값은 bridge protocol에 넣지 않습니다.
 
 Solution code는 사용자가 선택한 Sync Repository/Sync Branch로 GitHub sync commit을 만들기 위해서만 전송됩니다.
 
