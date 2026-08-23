@@ -1,6 +1,6 @@
 # SWEA 연동 계약
 
-> **Description**: SW Expert Academy 전용 route, Accepted 신호, MAIN world editor bridge, 오류와 검증 계약을 정의한다. 공통 runtime과 sync 경계는 [ARCHITECTURE.md](../ARCHITECTURE.md)를 따른다.
+> **Description**: SW Expert Academy 전용 route, Accepted 신호, MAIN world editor bridge, 오류와 검증 계약을 정의한다. 공통 계약은 [Coding Platform 연동 계약](README.md)을 따른다.
 
 ## 관찰 기준
 
@@ -15,7 +15,7 @@
 - 문제 식별자는 DOM의 `input#contestProbId`에만 있다. Route key는 `swea:{contestProbId}`이며 URL이 아니라 adapter가 확정한다([ADR 0036](../adr/0036-adapter-resolved-content-route-key.md)).
 - `#contestProbId`를 읽지 못하면 어떤 문제인지 알 수 없으므로 unsupported page로 처리하고 event를 만들지 않는다.
 - 제목은 `h3.problem_title`이고 형식은 `{문제 번호}. {제목}`이다.
-- Difficulty(`D1`~`D7`)는 풀이 페이지에 없고 `problemDetail.do`에만 있다. **Difficulty를 가져오지 않는다.** 이것 때문에 추가 요청을 만들지 않는다. Catalog에는 `-`로 저장하고 Solution README에서는 column을 표시하지 않는다. Programmers와 같은 처리다.
+- Difficulty(`D1`~`D7`)는 풀이 페이지에 없고 `problemDetail.do`에만 있다. **Difficulty를 가져오지 않는다.** 이것 때문에 추가 요청을 만들지 않는다.
 - 지원 대상은 Problem 경로 하나다. Contest Problem, User Problem, Code Battle, 모의 테스트는 범위 밖이다.
 
 ## 식별자와 파일명
@@ -124,13 +124,10 @@ Isolated world에서는 code를 읽을 수 없다. 세 경로가 모두 막혀 �
 
 **SWEA는 Swift를 제공하지 않는다.** [ADR 0009](../adr/0009-swift-solutions-outside-xcode-build-folder.md)의 Xcode build source folder 제약은 SWEA 경로에 적용될 일이 없다. 다른 플랫폼의 alias가 SWEA 경로로 새어 들어오지 않는지는 registry 테스트가 확인한다.
 
-미등록 언어는 commit하지 않고 `unsupported_language`로 기록한다.
-
 ## Accepted Source ID와 trust boundary
 
-- SWEA는 공식 Accepted Source ID를 노출하지 않으므로 `acceptedSourceId`를 `swea:{contestProbId}:{language}:{codeHash}` 형식의 deterministic value로 만든다. Programmers와 같은 방식이다.
-- MAIN world script는 page script와 같은 world에서 실행되므로 page가 bridge protocol을 관찰하고 위조 응답을 보낼 수 있다. 다만 어느 방식이든 SWEA solution source는 page가 제어하는 값이므로 신뢰 수준은 Programmers의 Accepted Editor Snapshot과 같다. [ADR 0028](../adr/0028-programmers-dom-snapshot-risk-acceptance.md)의 필수 control을 그대로 적용한다.
-- 이 trust boundary는 secret이나 write destination으로 확장되지 않는다. GitHub API 호출은 background service worker에서만 수행하며 write 대상은 사용자가 선택한 Sync Repository와 Sync Branch로 제한한다.
+- `acceptedSourceId`는 `swea:{contestProbId}:{language}:{codeHash}`다. SWEA는 공식 ID를 노출하지 않는다.
+- MAIN world script는 page script와 같은 world에서 실행되므로 page가 bridge protocol을 관찰하고 위조 응답을 보낼 수 있다. 다만 어느 방식이든 SWEA solution source는 page가 제어하는 값이므로 신뢰 수준은 Programmers의 Accepted Editor Snapshot과 같다.
 
 ## 오류 계약
 
@@ -147,7 +144,7 @@ Missing `contestProbId`/title/language와 empty code는 commit하지 않고 `swe
 - `src/shared/platformPolicy.test.ts`, `src/shared/paths.test.ts`: `swea` policy와 Solution File 경로
 - `src/background/sync.test.ts`: commit message, Solution Catalog/README projection, unsupported language, extract failure
 
-대표 검증은 `npm test -- src/content/swea.test.ts src/background/sync.test.ts`로 실행하고, release 전에는 `npm run typecheck`, `npm test`, `npm run build`를 모두 실행한다.
+대표 검증은 `npm test -- src/content/swea.test.ts src/background/sync.test.ts`로 실행한다.
 
 ## 확인된 전제
 
@@ -180,7 +177,7 @@ route 전환도 같은 날 확인했다. 1206 풀이 window를 닫고 같은 URL
 
 ## 수동 검증
 
-[공통 수동 검증](../MANUAL_VALIDATION.md)을 먼저 완료하고, 사용자가 선택한 test repository/test branch에서 다음을 실행한다.
+[공통 수동 검증 골격](README.md#검증-공통-계약)을 먼저 실행하고 다음을 추가로 확인한다. SWEA는 골격의 route 이동과 code 확보 방식이 다른 두 플랫폼과 달라 아래가 핵심이다.
 
 기준 문제 두 개를 고정한다. 같은 문제로 반복해야 결과를 이전 실행과 비교할 수 있다. 문제를 바꾸면 이 문서의 실측값도 함께 갱신한다.
 
@@ -191,16 +188,13 @@ route 전환도 같은 날 확인했다. 1206 풀이 window를 닫고 같은 URL
 
 두 가지를 미리 알고 시작한다.
 
-- **같은 code를 다시 제출하면 commit이 생기지 않는다.** `acceptedSourceId`에 code hash가 들어가므로 dedup key가 같아진다. 정상 동작이다. 새 commit을 만들려면 marker 한 줄을 바꾼다. 두 경우의 결과가 서로 달라야 감지와 중복 방지가 모두 살아 있다는 증거가 된다.
+- **같은 code를 다시 제출하면 commit이 생기지 않는다.** dedup key에 code hash가 들어가기 때문이며 정상 동작이다. 새 commit을 만들려면 marker 한 줄을 바꾼다.
 - **SWEA Python 제출에서 `import sys`가 컴파일 오류로 거부된다**(2026-08-18 관찰). 검증용 풀이는 `input()`으로 작성한다.
 
-1. SWEA에 로그인하고 `problemDetail.do`의 `문제 풀기`로 풀이 window를 연다. Toast가 뜨는지와 무관하게 **DevTools에서 `#contestProbId`, `h3.problem_title`, `select#sel_lang` 값을 먼저 기록한다.**
-2. Python 3로 Accepted 제출을 만든다. Toast, Sync History와 GitHub commit이 정확히 하나인지 확인한다.
-3. **commit된 code가 화면 밖으로 스크롤된 줄을 포함해 제출한 code 전체와 일치하는지 확인한다.** 최소 40줄 이상인 풀이로 확인한다.
-4. 이때 alert layer가 새 node 추가였는지 기존 node의 visibility 전환이었는지 기록한다([확인된 전제](#확인된-전제) 3번의 회귀 확인이다).
-5. **Accepted layer가 뜨자마자 곧바로 `확인`을 누른다.** toast를 기다리지 않는다. Sync History와 GitHub commit이 그대로 하나 생기는지 확인한다. 이때 page가 리로드되는지도 함께 기록한다([조사 메모](../investigations/SWEA_ACCEPTED_LAYER_CONFIRM_UNLOADS_PAGE.md)).
-6. 실패 제출을 만든다. 새 toast, Sync History와 commit이 없어야 한다.
-7. Code를 구별 가능하게 수정한 뒤 두 번째 Accepted 제출을 만든다. 두 번째 Solution Revision commit이 정확히 하나인지 확인한다.
-8. 같은 URL에서 다른 문제를 연 뒤 Accepted를 만든다. 현재 `contestProbId`와 제목으로 sync가 정확히 한 번 생성되는지 확인한다.
-9. JAVA로 Accepted를 만든다. 같은 문제의 Solution README 행에 두 언어가 함께 보이는지 확인한다.
-10. Extension을 재로드하지 않은 채 풀이 window를 새로 열어 bridge가 다시 주입되는지 확인한다.
+1. `problemDetail.do`의 `문제 풀기`로 풀이 window를 연다. Toast와 무관하게 **DevTools에서 `#contestProbId`, `h3.problem_title`, `select#sel_lang` 값을 먼저 기록한다.**
+2. **commit된 code가 화면 밖으로 스크롤된 줄을 포함해 제출한 code 전체와 일치하는지 확인한다.** 최소 40줄 이상인 풀이로 확인한다. isolated world에서 읽을 수 있는 값은 잘리거나 낡아 있으므로 이것이 bridge가 실제로 동작했다는 증거다.
+3. Accepted layer가 새 node 추가였는지 기존 node의 visibility 전환이었는지 기록한다([확인된 전제](#확인된-전제) 3번의 회귀 확인이다).
+4. **Accepted layer가 뜨자마자 곧바로 `확인`을 누른다.** toast를 기다리지 않는다. Sync History와 GitHub commit이 그대로 하나 생기는지 확인한다. page가 리로드되는지도 함께 기록한다([조사 메모](../investigations/SWEA_ACCEPTED_LAYER_CONFIRM_UNLOADS_PAGE.md)).
+5. 같은 URL에서 다른 문제를 연 뒤 Accepted를 만든다. URL이 동일한데도 현재 `contestProbId`와 제목으로 sync가 정확히 한 번 생성되는지 확인한다.
+6. JAVA로 Accepted를 만든다. 같은 문제의 Solution README 행에 두 언어가 함께 보이는지 확인한다.
+7. Extension을 재로드하지 않은 채 풀이 window를 새로 열어 bridge가 다시 주입되는지 확인한다.

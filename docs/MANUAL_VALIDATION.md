@@ -65,13 +65,13 @@ Connection test는 commit을 만들지 않아야 한다. Branch는 사용자의 
 
 ## 5. Coding Platform 검증
 
-공통 build, extension load와 GitHub 연결이 끝나면 각 Coding Platform 문서의 자동·수동 검증을 실행한다.
+공통 build, extension load와 GitHub 연결이 끝나면 [공통 수동 검증 골격](platforms/README.md#검증-공통-계약)을 각 Coding Platform에서 실행하고, 이어서 플랫폼 문서의 추가 절차를 실행한다.
 
 - LeetCode [자동 검증](platforms/LEETCODE.md#자동-검증)과 [수동 검증](platforms/LEETCODE.md#수동-검증)
 - Programmers [자동 검증](platforms/PROGRAMMERS.md#자동-검증)과 [수동 검증](platforms/PROGRAMMERS.md#수동-검증)
 - SWEA [자동 검증](platforms/SWEA.md#자동-검증)과 [수동 검증](platforms/SWEA.md#수동-검증). 감지부터 commit까지와 Run·임시저장·컴파일 오류·오답의 non-Accepted 경로를 2026-08-18 실제 제출로 확인했다. 결과는 [확인된 전제](platforms/SWEA.md#확인된-전제)에 있다.
 
-각 문서는 platform login, Accepted happy path, stale Accepted/Run/Wrong Answer 회귀, 두 번째 Accepted revision과 SPA route 검증을 소유한다. 모든 지원 언어를 실제 계정으로 반복 제출하지 않으며, 특정 Coding Platform의 label이나 editor 추출 회귀가 의심될 때만 해당 언어를 추가로 수동 검증한다.
+골격(플랫폼 login, Accepted happy path, Run/실패 제출 회귀, 두 번째 Solution Revision, route 이동)은 [Coding Platform 연동 계약](platforms/README.md)이 소유하고, 각 플랫폼 문서는 그 골격에서 벗어나는 절차만 소유한다. 모든 지원 언어를 실제 계정으로 반복 제출하지 않으며, 특정 Coding Platform의 label이나 editor 추출 회귀가 의심될 때만 해당 언어를 추가로 수동 검증한다.
 
 기존 Sync Repository 마이그레이션은 정상 Accepted sync에서도 그대로 일어난다. LeetCode v3
 Catalog와 언어별 개별 column README 또는 Difficulty column이 남은 Programmers README는

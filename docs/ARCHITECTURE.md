@@ -143,11 +143,7 @@ Coding Platform 문제 page
 - background orchestration은 DOM selector나 사이트별 결과 문구를 알면 안 된다.
 - content Coding Platform adapter는 GitHub commit 방법을 알면 안 된다.
 
-플랫폼 전용 계약은 다음 문서가 source of truth다.
-
-- [LeetCode 연동](platforms/LEETCODE.md)
-- [Programmers 연동](platforms/PROGRAMMERS.md)
-- [SWEA 연동](platforms/SWEA.md)
+이 section은 **module 책임의 경계**만 정한다. Accepted event 계약, Sync Deduplication Key 구성, trust boundary, 검증 골격처럼 플랫폼이 공통으로 지키는 계약은 [Coding Platform 연동 계약](platforms/README.md)이 source of truth이고, 플랫폼 전용 계약은 각 플랫폼 문서가 갖는다.
 
 ## GitHub 연동
 - Sync Repository는 코드 기본값이 아니라 Options에서 사용자가 선택한 값이다.
@@ -355,13 +351,13 @@ Coding Platform 전용 source error는 [LeetCode 오류 계약](platforms/LEETCO
 Toast는 짧은 메시지만 보여준다. Popup은 상세 메시지와 retry 가능 여부를 보여준다.
 
 ## 테스트 전략
-일반 테스트는 Vitest와 in-memory adapter만 사용한다. 실제 GitHub, LeetCode, Programmers 네트워크나 사용자 secret에 의존하지 않는다.
+일반 테스트는 Vitest와 in-memory adapter만 사용한다. 실제 GitHub나 Coding Platform 네트워크, 사용자 secret에 의존하지 않는다.
 
 - language/path, Solution Catalog, Solution README, storage, error 같은 pure logic은 빠른 단위 테스트로 검증한다.
 - sync orchestration은 외부 API를 mock하고 최종 commit payload를 검증한다.
 - GitHub 인증 변경의 대표 happy path는 연결 해제 후 auth만 삭제되고 repository/branch 설정이 재연결 뒤에도 유지되는지 확인한다.
 - 다중 언어의 대표 happy path는 같은 문제의 서로 다른 지원 언어가 각각 solution file로 저장되고 하나의 README row와 Catalog problem entry에 함께 남는지 확인한다.
-- Content detection controller는 stale Accepted 무시, 동일 render burst coalescing, first immutable event 보존과 SPA route reset을 순수 단위 테스트로 검증한다. 플랫폼별 detector와 source extraction 검증은 각 platform 문서를 따른다.
-- 실제 Device Flow 승인과 GitHub App 설치는 `docs/MANUAL_VALIDATION.md`, 실제 Coding Platform Accepted 제출은 각 platform 문서의 최소 release smoke로 확인한다.
+- Content detection controller는 stale Accepted 무시, 동일 render burst 억제, immutable event 보존과 route reset을 순수 단위 테스트로 검증한다. 플랫폼별 detector와 source extraction 검증은 [Coding Platform 연동 계약](platforms/README.md)과 각 플랫폼 문서를 따른다.
+- 실제 Device Flow 승인과 GitHub App 설치는 `docs/MANUAL_VALIDATION.md`, 실제 Coding Platform Accepted 제출은 [공통 수동 검증 골격](platforms/README.md#검증-공통-계약)과 각 플랫폼 문서의 추가 절차로 확인한다.
 
 모든 지원 언어와 실패 조합을 실제 계정이나 브라우저 E2E로 반복하지 않는다. 실제 GitHub repository를 자동 테스트 대상이나 코드 기본값으로 고정하지 않으며, read-only GitHub smoke script도 기본 test suite에 두지 않는다.
