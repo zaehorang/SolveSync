@@ -2,6 +2,12 @@
 
 > **Description**: SW Expert Academy 전용 route, Accepted 신호, MAIN world editor bridge, 오류와 검증 계약을 정의한다. 공통 계약은 [Coding Platform 연동 계약](README.md)을 따른다.
 
+## 검증 기준 문제
+
+1206 View (`AV134DPqAA8CFAYh`). 문제당 제출 상한이 99회이므로 풀사이클 실행 횟수를 아껴 쓴다. `acceptedSourceId`에 code hash가 들어가 반복 제출 시 code를 매번 다르게 만들어야 한다.
+
+바꾸면 이전 캡처와의 비교가 끊기므로 [`e2e/capture/baseProblems.ts`](../../e2e/capture/baseProblems.ts)와 함께 고친다.
+
 ## 관찰 기준
 
 관찰 강도 표기는 [공통 계약의 구분](README.md#관찰과-가정을-구분한다)을 따른다. 이 문서의 DOM 사실은 2026-08-14 로그인 상태의 실제 Chrome 관찰에서 출발했고, **2026-08-18 문제 1206을 실제로 Accepted 제출해 감지부터 GitHub commit까지 전 구간을 실증했다.** 판정 결과는 [확인된 전제](#확인된-전제)에 있다.

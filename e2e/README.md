@@ -24,6 +24,29 @@ npm run build   # dist/를 그대로 로드하므로 최신 빌드가 필요하�
 npm run e2e
 ```
 
+## 캡처
+
+Sealed E2E의 입력이 되는 실제 DOM을 만든다. 플랫폼당 성공 1회 + 실패 1회가 필요하며, **두 신호가 겹치지 않는 것을 실측해야** "실패는 event 0회"가 진짜 검증이 된다.
+
+```bash
+# 1회: Verification Profile에 세 플랫폼 로그인
+CAPTURE_PLATFORM=leetcode npm run e2e:capture   # 열리면 로그인만 하고 닫는다
+
+# 캡처
+CAPTURE_PLATFORM=programmers CAPTURE_OUTCOME=accepted npm run e2e:capture
+CAPTURE_PLATFORM=programmers CAPTURE_OUTCOME=rejected npm run e2e:capture
+```
+
+브라우저가 뜨고 recorder가 무장된 뒤 제출을 만들면, 변화가 4초 이상 멎을 때 `e2e/fixtures/{platform}/{outcome}.json`에 저장된다.
+
+**확장 없이 뜬다.** 확장이 켜진 채로 실제 제출을 하면 진짜 sync가 돌아 실사용 Sync Repository에 commit이 생기고 processed Sync Deduplication Key까지 남는다. 나중에 같은 문제를 실제로 풀었을 때 commit이 조용히 안 생긴다.
+
+**제출은 자동화하지 않았다.** 제출 버튼 selector는 실제 page를 보고 확정해야 한다. 추측한 selector를 코드에 박는 것이 이 계층이 없애려는 문제 그 자체다.
+
+### 남기지 않는 것
+
+redaction은 회수 경로에 박혀 있고 저장 직전에 한 번 더 검사한다. 새면 저장하지 않고 멈춘다. 규칙은 [`capture/redact.ts`](capture/redact.ts)에 있고 [`capture/redact.test.ts`](capture/redact.test.ts)가 고정한다.
+
 ## 상태
 
 하네스 배선은 동작한다. 확장이 로드되고 실제 도메인 URL에서 content script가 주입되는 것까지 확인한다.
