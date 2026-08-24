@@ -7,7 +7,7 @@
     "node": ">=24"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p e2e/tsconfig.json",
     "test": "vitest run",
     "build": "npm run build:extension && npm run build:content && npm run build:swea-bridge && npm run verify:build",
     "build:extension": "vite build",
@@ -17,6 +17,7 @@
     "verify:build": "node scripts/verify_extension_build.mjs"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@types/chrome": "^0.1.42",
     "@types/node": "^25.9.1",
     "typescript": "^6.0.3",

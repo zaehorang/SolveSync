@@ -28,7 +28,20 @@ VITE_GITHUB_APP_SLUG= npm run package:chrome
 npm run package:chrome
 ```
 
-`npm run build`는 GitHub App 공개 설정이 없는 checkout에서도 manifest 선언과 content IIFE 검증을 포함하여 통과해야 한다. 설정을 비운 두 `package:chrome` 명령은 각각 `VITE_GITHUB_APP_CLIENT_ID`, `VITE_GITHUB_APP_SLUG` 변수명을 포함한 release packaging 오류와 함께 non-zero로 종료해야 한다. 마지막 `npm run package:chrome`은 `.env.local`의 두 공개 설정을 bundle에서 확인하고 Chrome ZIP을 만들어야 한다. `npm run typecheck`와 `npm test`도 통과해야 한다. 일반 테스트는 실제 GitHub나 Coding Platform 네트워크, 사용자 secret을 사용하지 않는다.
+`npm run build`는 GitHub App 공개 설정이 없는 checkout에서도 manifest 선언과 content IIFE 검증을 포함하여 통과해야 한다. 설정을 비운 두 `package:chrome` 명령은 각각 `VITE_GITHUB_APP_CLIENT_ID`, `VITE_GITHUB_APP_SLUG` 변수명을 포함한 release packaging 오류와 함께 non-zero로 종료해야 한다. 마지막 `npm run package:chrome`은 `.env.local`의 두 공개 설정을 bundle에서 확인하고 Chrome ZIP을 만들어야 한다. `npm run typecheck`와 `npm test`도 통과해야 한다. Vitest suite는 실제 GitHub나 Coding Platform 네트워크, 사용자 secret을 사용하지 않는다.
+
+### 이 체크리스트가 자동 검증으로 옮겨간 범위
+
+검증 계층이 생기면서 아래는 사람이 매번 하지 않아도 된다. 계층 정의는 [Coding Platform 연동 계약](platforms/README.md#검증-공통-계약)에 있다.
+
+| 이전에 사람이 하던 것 | 이제 덮는 계층 |
+|---|---|
+| 확장 로드 후 content script가 실제로 주입되는지 | Sealed E2E |
+| SWEA MAIN world bridge 왕복과 화면 밖 줄 포함 code 추출 | Sealed E2E |
+| commit이 Solution File·Solution README·Solution Catalog를 함께 바꾸는지 | GitHub write |
+| 플랫폼 page의 selector가 아직 유효한지 | Contract Check |
+
+**여전히 사람이 해야 하는 것.** GitHub Device Flow 승인과 App 설치, Chrome Web Store packaging 확인, 그리고 아래 절들의 UI 확인이다. 실제 Accepted 제출은 풀사이클 계층이 담당하지만 실행 승인은 사람이 한다.
 
 ## 2. Extension Load
 

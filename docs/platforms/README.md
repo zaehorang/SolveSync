@@ -17,14 +17,60 @@
 | 항목 | LeetCode | Programmers | SWEA |
 |---|---|---|---|
 | Route 출처 | URL `/problems/{titleSlug}` | URL `/learn/courses/{courseId}/lessons/{lessonId}` | **DOM** `input#contestProbId`. 모든 문제가 같은 URL을 쓴다 |
-| Accepted 감지 | text bounded traversal | presentation root visibility lifecycle | text bounded traversal |
-| Accepted 신호 | `Accepted`, `Accepted {n} / {m} testcases passed` | 정확히 `정답입니다!` | `축하합니다. Pass입니다.` 접두사 |
+| 전이 판정 | mutation 기반, 무상태 | presentation 상태기계, 유상태 | mutation 기반, 무상태 |
+| 문구 판정 | 결과 text 선별 후 pattern. 정확 일치는 조건부 | **정확 일치** `정답입니다!` | **접두사 일치** `축하합니다. Pass입니다.` |
 | Solution code source | GraphQL Accepted Submission detail | `textarea#code.value` | MAIN world bridge의 `getValue()` |
 | `acceptedSourceId` | submission ID (플랫폼 공식) | `programmers:{lessonId}:{language}:{codeHash}` | `swea:{contestProbId}:{language}:{codeHash}` |
 | Difficulty | 있음 | 없음 | 없음. 풀이 페이지에 없고 가져오지 않는다 |
 | 지원 언어 | language registry 전체 | language registry 전체 | `cpp`, `java`, `python3` 셋뿐 |
 | 오류 코드 | `leetcode_auth_required`, `leetcode_fetch_failed` | `programmers_extract_failed` | `swea_extract_failed` |
 | Retry 가능 | fetch 실패만 가능 | 불가 | 불가 |
+
+## Accepted 감지가 갈리는 세 층
+
+위 표의 감지 관련 행은 성질이 서로 다른 세 층이다. 층을 뭉뚱그리면 "Programmers는 특이하다" 같은 말밖에 남지 않아서, 새 플랫폼을 붙일 때 무엇을 결정해야 하는지 알 수 없다.
+
+### 층 1 — 무엇을 Accepted 문구로 보는가
+
+| | 판정 |
+|---|---|
+| LeetCode | 결과 text 후보인지 먼저 거른 뒤 pattern 일치. 정확 일치 `Accepted`는 허용된 후보에서만 |
+| Programmers | 정확히 `정답입니다!` |
+| SWEA | `축하합니다. Pass입니다.` 접두사. 뒤에 붙는 부가 문구는 허용 |
+
+LeetCode만 선별 단계가 하나 더 있다. 문제 page에 `Accepted Submissions`, `Acceptance Rate` 같은 일반 copy가 널려 있어 단어 일치만으로는 결과 text와 구분되지 않기 때문이다. 나머지 둘은 결과 문구가 고유해서 선별이 필요 없다.
+
+### 층 2 — 언제 새로운 Accepted로 치는가
+
+여기가 세 플랫폼을 가르는 진짜 축이다.
+
+**LeetCode, SWEA — mutation 기반, 상태를 저장하지 않는다.** 이번 mutation의 `childList.addedNodes`에 Accepted 문구가 있거나, `characterData` 변경에서 이전 값이 Accepted가 아니었는데 지금 Accepted가 된 경우에만 signal이다. 이미 화면에 있는 Accepted는 보지 않는다.
+
+**Programmers — presentation 상태기계, 상태를 저장한다.** 등록한 presentation root의 상태를 `inactive`와 `acceptedVisible`로 기억하고 `inactive → acceptedVisible` 전이에서만 signal을 만든다. 닫히면 `inactive`로 돌아가 re-arm한다.
+
+이 차이의 원인은 **Programmers가 같은 result modal node를 재사용한다**는 관찰이다. node가 재사용되면 두 번째 Accepted에서 새 node 추가가 없을 수 있고, mutation 기반 판정은 그 순간 감지를 통째로 놓친다. 상태를 드는 쪽이 더 정교해서가 아니라, 안 들어도 되면 안 드는 편이 stale 판정 위험이 없어서 낫다.
+
+### 층 3 — signal 직후 code를 어디서 가져오는가
+
+| | source | 동기성 |
+|---|---|---|
+| LeetCode | content는 가져오지 않는다. background가 GraphQL로 조회 | 해당 없음 |
+| Programmers | `textarea#code.value` | 동기 |
+| SWEA | MAIN world bridge의 `getValue()` | **비동기** |
+
+Accepted event 전달이 동기인지 비동기인지가 여기서 갈린다. 셋 중 SWEA만 기다리며, 나머지 둘의 동기 전달은 유지해야 하는 계약이다. 전달이 밀리면 page가 그 사이에 사라졌을 때 event가 통째로 없어진다([ADR 0037](../adr/0037-immediate-accepted-delivery-with-suppression-window.md)).
+
+## 관찰과 가정을 구분한다
+
+플랫폼 문서의 DOM 사실은 관찰 날짜와 함께 적되, **무엇을 보고 적었는지**도 함께 남긴다. 셋은 강도가 다르다.
+
+| 강도 | 뜻 |
+|---|---|
+| **실증** | 실제 계정 제출로 그 순간의 동작을 확인했다 |
+| **post-state 관찰** | 결과가 나타난 뒤의 DOM 상태만 확인했다. 나타나는 과정의 mutation 순서는 모른다 |
+| **가정** | page script 독해나 유사 사례에서 추론했다. 확인한 적 없다 |
+
+구현이 여러 경우를 동시에 대비하고 있다면 그것은 대개 어느 쪽인지 모른다는 뜻이므로, 그 사실을 문서에 적는다. 확인되지 않은 것을 확인된 것처럼 적으면 검증 계층이 그 문장을 근거로 fixture를 만들고, 틀린 fixture가 통과하는 상태가 된다.
 
 Route 출처가 URL인가 DOM인가가 세 플랫폼을 가르는 근본 축이고 나머지 차이는 대부분 거기서 파생된다. Route key를 adapter가 확정하는 이유가 이것이다([ADR 0036](../adr/0036-adapter-resolved-content-route-key.md)).
 
@@ -93,6 +139,19 @@ SWEA를 추가할 때 사용자 대상 문서가 통째로 빠졌다. 목록이 
 | `CONTEXT.md` | 새 도메인 용어가 생겼다면 |
 
 ## 검증 공통 계약
+
+검증은 네 계층이다. 각 계층이 **잡지 못하는 것**을 함께 적는 이유는, 적지 않으면 "테스트가 통과했다"가 무엇을 보장하는지 답할 수 없기 때문이다.
+
+| | 계층 | 무엇을 본다 | 실제 제출 | GitHub write | 실행 | 잡지 못하는 것 |
+|---|---|---|---|---|---|---|
+| A | Sealed E2E | fixture page에서 감지가 Sync History까지 도달하는가 | 없음 | 없음 | 매 PR | 캡처 이후 플랫폼이 바꾼 것 |
+| B | GitHub write | 합성 event가 올바른 commit·Solution README·Solution Catalog가 되는가 | 없음 | **있음** | 매 PR | 실제 인증 경로 |
+| C | Contract Check | 실제 page의 DOM이 아직 Adapter의 전제와 맞는가 | 없음 | 없음 | 주기적 | **Accepted 결과 DOM.** 제출해야 나타난다 |
+| D | 풀사이클 | 실제 Accepted가 실제 commit이 되는가 | **있음** | **있음** | 릴리스 전 | 자주 못 돈다. 그 사이는 A·B·C가 메운다 |
+
+A와 B는 자격증명 유무로 갈린다. A는 secret이 없어 fork PR에서도 돌고, B는 Verification Repository 쓰기 권한만 가진 token을 쓴다. C와 D는 Verification Profile의 로그인 세션이 필요해 CI에 배선하지 않는다.
+
+전 계층 공통으로 잡지 못하는 것이 하나 있다. **릴리스와 릴리스 사이에 플랫폼이 DOM을 바꾸면 어느 계층도 즉시 알지 못한다.** 이건 테스트가 아니라 관측의 영역이다.
 
 플랫폼 문서의 자동 검증은 해당 플랫폼의 Vitest 파일을 가리킨다. Release 전에는 저장소 루트에서 전체를 실행한다.
 

@@ -4,8 +4,11 @@
 
 ## Route와 Accepted 감지
 
+> **관찰 강도: 가정.** 이 절의 DOM 계약은 **실제 제출로 확인된 적이 없고 관찰 일자 기록도 없다.** 세 플랫폼 중 근거가 가장 약하다. Accepted 결과 panel의 실제 구조, 결과 text가 node 추가로 오는지 text 교체로 오는지, 결과 panel이 재사용되는지 전부 미확인이다. Live E2E 실제 제출로 실증한 뒤 이 경고를 관찰 강도 표기로 교체한다.
+
+
 - 지원 route는 `/problems/{titleSlug}`다. Accepted 후보마다 현재 URL에서 `titleSlug`를 다시 추출한다.
-- 짧은 결과 text인 `Accepted`와 `Accepted {passed} / {total} testcases passed`를 Accepted 신호로 사용한다.
+- 짧은 결과 text인 `Accepted`와 `Accepted {passed} / {total} testcases passed`를 Accepted 신호로 사용한다. 세 플랫폼 중 유일하게 **결과 text 후보인지 선별하는 단계가 하나 더 있다.** 문제 page에 `Acceptance Rate` 같은 일반 copy가 많아 단어 일치만으로는 결과와 구분되지 않기 때문이다.
 - `Wrong Answer`, `Runtime Error`, `Compile Error`, `Time Limit Exceeded`, `Memory Limit Exceeded`, `Pending`, `Judging`, `Not Accepted`가 포함된 결과는 제외한다.
 - `Accepted Submissions`, `Accepted Solutions`, `Acceptance Rate` 같은 일반 page copy는 제외한다.
 - DOM은 Accepted event 감지에만 사용하고 solution code나 problem metadata의 source of truth로 사용하지 않는다.

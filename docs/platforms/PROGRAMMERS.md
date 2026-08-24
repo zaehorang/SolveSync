@@ -10,11 +10,25 @@
 - 정확한 `정답입니다!`를 Accepted text 신호로 사용한다.
 - `통과`, `채점 결과`, `합계: 100.0 / 100.0`은 보조 결과 text일 뿐이며 단독 Accepted trigger로 사용하지 않는다.
 - Programmers가 같은 result modal을 재사용하므로 새 child node만으로 lifecycle을 판단하지 않는다. 등록된 presentation root의 hidden 또는 non-Accepted 상태가 visible Accepted로 전환될 때 fresh Accepted event를 만든다.
-- 2026-08-04 실제 Chrome post-state 관찰 기준 visibility owner는 `div#modal-dialog.modal.fade`이며 내부 `h4.modal-title`이 `정답입니다!`를 표시한다. Content adapter는 `#modal-dialog`만 presentation root로 등록하고, root 자체의 visibility와 내부 `.modal-title`의 정확한 Accepted title만 확인한다.
+- **[post-state 관찰 2026-08-04]** visibility owner는 `div#modal-dialog.modal.fade`이며 내부 `h4.modal-title`이 `정답입니다!`를 표시한다. Content adapter는 `#modal-dialog`만 presentation root로 등록하고, root 자체의 visibility와 내부 `.modal-title`의 정확한 Accepted title만 확인한다.
+- **이 관찰이 말하지 않는 것.** post-state 관찰은 결과가 나타난 뒤의 DOM만 본 것이다. 나타나는 **과정**은 확인된 적이 없다. 그래서 구현은 fresh Accepted text와 root의 visibility attribute 변경 중 **어느 쪽이 와도** 상태를 다시 읽도록 두 경로를 모두 열어 두었다. 두 경로를 다 대비한다는 사실 자체가 어느 쪽인지 모른다는 뜻이다.
+- **[가정]** 실패 제출도 같은 presentation root를 사용하며 title만 다르다. 구현은 title이 정확히 `정답입니다!`가 아니면 `inactive`로 읽어 이 가정에 의존한다. 별도 root를 쓴다면 실패 modal이 등록되지 않아 다음 Accepted의 전이 판정이 어긋날 수 있다.
 - `inactive → acceptedVisible`은 event 1회, `acceptedVisible → acceptedVisible`은 event 0회다. `acceptedVisible → inactive`는 event를 만들지 않고 다음 Accepted를 위해 re-arm한다.
 - Modal을 닫은 뒤 실제 두 번째 `inactive → acceptedVisible` 전환은 새 event다.
 - Attribute 관찰은 [ADR 0022](../adr/0022-bounded-mutation-text-traversal-for-accepted-detection.md)에 따라 adapter가 등록한 presentation root와 visibility 관련 attribute로 제한한다. Page 전체의 `class`나 `style` mutation을 관찰하거나 stale title을 포함한 큰 subtree를 다시 검색하지 않는다.
 - Observer callback은 같은 batch가 끝난 현재 DOM state를 즉시 판정한다. 700ms fixed window는 first event coalescing 전용이며 title confirmation이나 delayed DOM reread에 사용하지 않는다. Accepted, close, Wrong Answer와 second Accepted의 실제 mutation 순서는 수동 검증에서 계속 확인한다.
+
+### 실증으로 확정해야 할 것
+
+아래는 현재 미확인이며 Live E2E 실제 제출로만 답할 수 있다. fixture를 만들 때 이 값들을 함께 기록한다.
+
+1. 첫 Accepted에서 `#modal-dialog`가 새로 만들어지는가, 이미 있던 node가 보이게 되는가.
+2. `정답입니다!`가 node 추가로 오는가, 기존 text 교체로 오는가.
+3. 닫은 뒤 두 번째 Accepted에서 같은 node가 재사용되는가.
+4. 실패 제출이 같은 root를 쓰는가.
+5. title 변경과 visibility 변경이 같은 mutation batch인가, 갈라지는가.
+
+5번이 가장 미묘하다. 갈라지는 경우 어느 순서든 결국 전이가 잡히도록 짜여 있으나 실측한 적은 없다.
 
 ## Accepted Editor Snapshot
 
@@ -28,7 +42,7 @@ Fresh Accepted를 확정한 즉시 다음 값을 한 번 읽어 immutable `Progr
 
 동일 render burst의 후속 signal은 억제되며, 그 사이 editor가 바뀌어도 이미 전달한 first snapshot에 섞이지 않는다.
 
-2026-05-27 실제 Chrome 검증 기준으로 editor는 CodeMirror 계열로 렌더링되며 code source는 `textarea#code.value`다. `.cm-line` 같은 rendered line DOM은 화면에 보이는 줄만 반영할 수 있으므로 source of truth로 사용하지 않는다. `textarea#code`가 없거나 `value`가 비어 있으면 extraction failure다.
+**[post-state 관찰 2026-05-27]** editor는 CodeMirror 계열로 렌더링되며 code source는 `textarea#code.value`다. SWEA에서 `textarea#textSource`가 존재하지만 editor 변경을 반영하지 않는 사례가 확인됐으므로, **이 textarea가 editor 변경 후에도 갱신되는지는 별도로 실측해야 한다.** 존재 확인만으로는 부족하다. `.cm-line` 같은 rendered line DOM은 화면에 보이는 줄만 반영할 수 있으므로 source of truth로 사용하지 않는다. `textarea#code`가 없거나 `value`가 비어 있으면 extraction failure다.
 
 Title은 page metadata/title/heading 후보에서 추출하고, language는 현재 선택된 language control에서 추출한다. Content script isolated world에서 editor source 접근이 막힐 때만 page-world bridge를 사용한다. Bridge는 code string만 전달하고 token, cookie와 session 값은 다루지 않는다.
 
