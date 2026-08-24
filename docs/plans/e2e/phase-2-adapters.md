@@ -41,32 +41,46 @@
 
 ## 인터페이스
 
+**실제 계약은 [`src/content/platforms/types.ts`](../../../src/content/platforms/types.ts)에 있다.** 아래는 그 요약이며, 둘이 다르면 코드가 맞다.
+
 ```ts
-// src/content/platforms/types.ts
 export interface PlatformAdapter {
   readonly platform: CodingPlatform;
-  resolveRoute(url: URL, doc: ContentPageDocument): PlatformRoute | null;
-  createObservation(doc: AcceptedDetectionDocument, route: PlatformRoute): PlatformObservation;
+  resolveRoute(url: URL, doc: PlatformPageDocument): ResolvedRoute | null;
+}
+
+export interface ResolvedRoute {
+  readonly platform: CodingPlatform;
+  readonly key: string;
+  observe(doc: PlatformObservationDocument): PlatformObservation;
 }
 
 export interface PlatformObservation {
-  targets(): ObserveTarget[];
+  targets(): readonly ObserveTarget[];
   detect(records: readonly MutationRecord[]): AcceptedSignal | null;
-  buildMessage(signal: AcceptedSignal): AcceptedDetectedMessage | Promise<AcceptedDetectedMessage>;
+}
+
+export interface AcceptedSignal {
+  readonly detectedAt: string;
+  toMessage(): AcceptedDetectedMessage | Promise<AcceptedDetectedMessage>;
 }
 ```
 
 ### 설계 판단
 
-**route key는 `PlatformRoute`의 필드다.** 별도 `routeKey()` 메서드를 두면 route와 key가 어긋날 여지가 생긴다.
+**플랫폼별 데이터를 closure에 가둔다.** `ResolvedRoute`가 key와 `observe()`만 내보내고 route 데이터는 안에 남는다. `AcceptedSignal`이 `toMessage()`를 들고 있고 snapshot은 안에 남는다. 그래서 controller가 플랫폼별 타입을 알 필요가 없고, 제네릭도 캐스트도 나오지 않는다.
 
-**`detect`와 `buildMessage`를 합치지 않는다.** 합치면 억제된 burst에서도 SWEA bridge 요청이 나가고, Programmers는 억제 중에도 visibility lifecycle state가 전진해야 re-arm(7번)이 맞다. **판정은 항상, 조립은 억제 통과 시에만**이다.
+부수 효과가 더 중요하다. **"조립 시점에 DOM을 다시 읽지 않는다"(ADR 0034)가 주석이 아니라 구조로 보장된다.** `toMessage()`가 접근할 수 있는 것은 detect 시점에 closure가 캡처한 값뿐이다.
 
-**`retarget` 필드를 두지 않는다.** controller가 `detect()` 후 `targets()`를 다시 읽어 이전과 다르면 재관측한다. Programmers root 교체가 유일한 사용처였는데 필드 없이 처리된다.
+**route key는 `ResolvedRoute`의 필드다.** 별도 `routeKey()` 메서드를 두면 route와 key가 어긋날 여지가 생긴다.
 
-**adapter와 observation을 합치지 않는다.** adapter는 무상태 공장, observation은 route 하나의 수명이다. route가 바뀌면 controller가 observation을 **새로 만든다.** 그래서 "route 변경 시 state 폐기"가 reset 메서드의 완전성에 기대지 않고 구조로 보장된다.
+**판정과 조립을 분리한다.** `detect`는 억제 여부와 무관하게 매 batch 호출되고, `toMessage`는 억제를 통과했을 때만 호출된다. 합치면 억제된 burst에서도 SWEA bridge 요청이 나가고, Programmers는 억제 중에도 visibility lifecycle state가 전진해야 re-arm(7번)이 맞다.
 
-**`buildMessage`가 `Message | Promise<Message>`인 이유가 11번이다.** controller의 `resolveMaybePromise`가 값이 Promise가 아니면 동기로 호출한다. SWEA만 비동기다.
+**`targets()`에 변경 플래그를 두지 않는다.** controller가 `detect()` 후 `targets()`를 다시 읽어 이전과 다르면 재관측한다. Programmers root 교체가 유일한 사용처였는데 필드 없이 처리된다.
+
+**route가 바뀌면 observation을 새로 만든다.** reset 메서드를 두지 않는 이유다. 새로 만들면 "route 변경 시 state 폐기"가 reset의 완전성에 기대지 않고 구조로 보장된다.
+
+**`toMessage()`가 `Message | Promise<Message>`인 이유가 보존 목록 11번이다.** controller의 `resolveMaybePromise`가 값이 Promise가 아니면 동기로 호출한다. SWEA만 비동기다.
 
 ## controller 최종 형태
 
@@ -78,13 +92,13 @@ if (signal === null || suppressed) return;
 
 openSuppressionWindow();
 const generation = routeGeneration;
-resolveMaybePromise(observation.buildMessage(signal), (message) => {
+resolveMaybePromise(signal.toMessage(), (message) => {
   if (generation !== routeGeneration) return;   // 4번
   deliver(message, currentRouteKey);            // 3번
 });
 ```
 
-route가 바뀌면 `observation`을 새로 만들고 `targets()`로 재관측한다. **"이전 page가 Programmers였으면 target을 정리한다" 류의 분기 3개가 여기서 사라진다.**
+route가 바뀌면 `resolveRoute`로 새 `ResolvedRoute`를 받아 `observe()`로 관찰을 새로 만들고 `targets()`로 재관측한다. **"이전 page가 Programmers였으면 target을 정리한다" 류의 분기 3개가 여기서 사라진다.**
 
 ## 이름 정리
 
@@ -95,9 +109,9 @@ route가 바뀌면 `observation`을 새로 만들고 `targets()`로 재관측한
 | `acceptedDetectionController.ts` | `acceptedEventController.ts` | 감지는 Adapter가 한다. 이 파일이 소유하는 건 억제 창·route generation·전달 |
 | `detector.ts` | `mutationText.ts` | 남는 것이 generic text 순회뿐 |
 | `defaultTimeoutScheduler` | `scheduler.ts`로 분리 | 순회와 무관하다 |
-| `ContentPageContext` | `PlatformRoute` | route다. context가 아니다 |
-| `resolveContentPage` | registry의 `resolveRoute` | |
-| `createContentRouteKey` | `PlatformRoute.key` 필드 | |
+| `ContentPageContext` | `ResolvedRoute` | route다. context가 아니다 |
+| `resolveContentPage` | `platforms/index.ts`의 `resolveRoute` | 이미 스캐폴딩에 있다 |
+| `createContentRouteKey` | `ResolvedRoute.key` 필드 | |
 | `mutationListHasAccepted(m, platform)` | `mutationListMatchesText(m, predicate)` | 플랫폼 파라미터 제거. 순회는 한 곳에 남고 판정 술어만 구현체가 넘긴다 |
 | `AcceptedDetectionPlatform` | **삭제.** `CodingPlatform` 사용 | `types.ts:5`와 완전히 같은 정의의 중복 |
 | `programmersAcceptedPresentation.ts` | `platforms/programmers.ts`에 흡수 | 구현체가 생기면 분리 이유가 없다 |
