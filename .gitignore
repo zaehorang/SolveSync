@@ -24,3 +24,6 @@ coverage/
 test-results/
 playwright-report/
 blob-report/
+
+# Playwright 산출물
+test-results/

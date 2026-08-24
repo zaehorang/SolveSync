@@ -14,7 +14,8 @@
     "build:content": "vite build --config vite.content.config.ts",
     "build:swea-bridge": "vite build --config vite.swea-bridge.config.ts",
     "package:chrome": "npm run build && node scripts/package_chrome.mjs",
-    "verify:build": "node scripts/verify_extension_build.mjs"
+    "verify:build": "node scripts/verify_extension_build.mjs",
+    "e2e": "playwright test"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",
