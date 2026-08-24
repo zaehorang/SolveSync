@@ -7,6 +7,8 @@ import { defineConfig } from "@playwright/test";
  */
 export default defineConfig({
   testDir: "e2e",
+  // Vitest가 도는 `*.test.ts`를 Playwright가 다시 집지 않게 한다.
+  testMatch: "**/*.spec.ts",
   // 확장 로드와 service worker 기동이 있어 단위 테스트보다 느리다.
   timeout: 30_000,
   // 같은 프로필과 같은 Verification Repository를 여럿이 동시에 쓰면

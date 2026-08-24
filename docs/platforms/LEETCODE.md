@@ -14,6 +14,14 @@
 - DOM은 Accepted event 감지에만 사용하고 solution code나 problem metadata의 source of truth로 사용하지 않는다.
 - Non-Accepted 경로에서는 GraphQL source 조회 자체를 시작하지 않는다.
 
+## 검증 기준 문제
+
+`https://leetcode.com/problems/two-sum/`.
+
+`acceptedSourceId`가 플랫폼 공식 submission ID라 같은 code를 다시 제출해도 새 값이 나온다. 세 플랫폼 중 유일하게 Sync Deduplication Key 오염을 걱정하지 않아도 되는 경우다. Page 구조도 가장 안정적이다.
+
+바꾸면 이전 캡처와의 비교가 끊기므로 [`e2e/capture/baseProblems.ts`](../../e2e/capture/baseProblems.ts)와 함께 고친다.
+
 ## Accepted Submission source
 
 - Background는 content event의 `titleSlug`를 기준으로 현재 브라우저 로그인 session을 사용해 problem metadata와 최신 Accepted Submission detail을 조회한다.

@@ -30,6 +30,14 @@
 
 5번이 가장 미묘하다. 갈라지는 경우 어느 순서든 결국 전이가 잡히도록 짜여 있으나 실측한 적은 없다.
 
+## 검증 기준 문제
+
+`https://school.programmers.co.kr/learn/courses/30/lessons/120804` (두 수의 곱 구하기, 코딩테스트 입문).
+
+풀이가 한 줄이라 캡처에 잡히는 noise가 적다. `acceptedSourceId`에 code hash가 들어가므로 **반복 제출할 때는 code를 매번 다르게 만들어야 한다.** 같으면 중복으로 걸러져 commit이 생기지 않고, 그 통과는 거짓이다.
+
+바꾸면 이전 캡처와의 비교가 끊기므로 [`e2e/capture/baseProblems.ts`](../../e2e/capture/baseProblems.ts)와 함께 고친다.
+
 ## Accepted Editor Snapshot
 
 Fresh Accepted를 확정한 즉시 다음 값을 한 번 읽어 immutable `ProgrammersAcceptedEditorSnapshot`으로 만든다.
