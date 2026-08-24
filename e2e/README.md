@@ -30,7 +30,7 @@ Sealed E2E의 입력이 되는 실제 DOM을 만든다. 플랫폼당 성공 1회
 
 ```bash
 # 1회: Verification Profile에 세 플랫폼 로그인
-CAPTURE_PLATFORM=leetcode npm run e2e:capture   # 열리면 로그인만 하고 닫는다
+npm run e2e:login
 
 # 캡처
 CAPTURE_PLATFORM=programmers CAPTURE_OUTCOME=accepted npm run e2e:capture
@@ -55,6 +55,17 @@ redaction은 회수 경로에 박혀 있고 저장 직전에 한 번 더 검사�
 - 구축 계획: [`docs/plans/e2e/`](../docs/plans/e2e/)
 
 아직 없는 것: 캡처 fixture 기반 Sealed E2E, GitHub write 계층, Contract Check, 풀사이클.
+
+## Verification Profile은 실제 Chrome으로 띄운다
+
+Playwright 번들 Chromium을 기본 설정으로 띄우면 **LeetCode 로그인이 Cloudflare Turnstile에 막힌다**(Error 600010). 원인은 두 가지 자동화 신호다.
+
+- `--enable-automation` 기본 인자가 `navigator.webdriver`를 켠다.
+- 번들 Chromium 자체가 흔한 자동화 지문이다.
+
+그래서 `channel: "chrome"`으로 실제 Chrome을 쓰고 `ignoreDefaultArgs: ["--enable-automation"]`와 `--disable-blink-features=AutomationControlled`를 준다. 이러면 `navigator.webdriver`가 `false`가 되고 로그인 폼이 정상적으로 뜬다.
+
+Sealed E2E는 이 조건이 필요 없다. 실제 플랫폼을 상대하지 않기 때문이며, CI에는 Chrome이 없으므로 [`support/extension.ts`](support/extension.ts)는 계속 번들 Chromium을 쓴다.
 
 ## headless에서 확장을 로드하려면 채널을 명시해야 한다
 
