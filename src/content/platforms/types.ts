@@ -46,6 +46,24 @@ export interface AcceptedSignal {
   toMessage(): AcceptedDetectedMessage | Promise<AcceptedDetectedMessage>;
 }
 
+/** 이번 batch를 판정하는 시점의 값. route key가 같아도 URL은 다를 수 있고,
+ * 시각은 조립 시점이 아니라 전이 확정 시점이어야 한다 (ADR 0034). */
+export interface DetectContext {
+  readonly pageUrl: string;
+  /** 전이를 확정한 시각. signal을 만들 때만 호출한다. mutation batch마다
+   * 부르면 신호가 없는 대부분의 batch에서도 시각을 만들게 된다. */
+  now(): string;
+}
+
+/** 이 관찰이 어떤 경위로 만들어졌는가.
+ *
+ * 같은 플랫폼 안에서의 route 이동과 다른 플랫폼에서의 진입은 presentation
+ * state를 다르게 다뤄야 한다. 현재 Programmers만 이 값을 구분하며 나머지는
+ * 무시한다. `otherPlatform`에서 진입 batch를 판정하지 않는 것이 현재 동작이고,
+ * 그것이 `docs/investigations/`의 SPA 복귀 누락 후보와 닿아 있다. 리팩터링에서
+ * 무심코 바꾸지 않기 위해 계약으로 드러낸다. */
+export type RouteTransition = "startup" | "samePlatform" | "otherPlatform";
+
 /** route 하나에 대한 관찰. route가 바뀌면 controller가 새로 만든다.
  *
  * reset 메서드를 두지 않는 이유가 이것이다. 새로 만들면 "route 변경 시
@@ -55,7 +73,10 @@ export interface PlatformObservation {
   targets(): readonly ObserveTarget[];
   /** 억제 여부와 무관하게 매 batch 호출된다. Programmers의 visibility
    * lifecycle이 억제 중에도 전진해야 re-arm이 맞기 때문이다. */
-  detect(records: readonly MutationRecord[]): AcceptedSignal | null;
+  detect(
+    records: readonly MutationRecord[],
+    context: DetectContext
+  ): AcceptedSignal | null;
 }
 
 /** 확정된 route. key와 관찰 생성만 밖으로 내보내고 플랫폼별 route 데이터는
@@ -64,7 +85,10 @@ export interface ResolvedRoute {
   readonly platform: CodingPlatform;
   /** 이 값이 바뀌면 controller가 관찰을 폐기하고 새로 만든다. */
   readonly key: string;
-  observe(doc: PlatformObservationDocument): PlatformObservation;
+  observe(
+    doc: PlatformObservationDocument,
+    transition: RouteTransition
+  ): PlatformObservation;
 }
 
 export interface PlatformAdapter {

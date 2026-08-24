@@ -1,13 +1,24 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { startAcceptedEventController } from "./acceptedEventController";
+import { mutationListMatchesText } from "./mutationText";
+import { createPlatformAdapters } from "./platforms";
 import {
-  createContentRouteKey,
+  createSweaAdapter,
   extractSweaProblemTitle,
   extractSweaRawLanguage,
-  resolveContentPage,
-  startAcceptedDetectionController
-} from "./acceptedDetectionController";
-import { isSweaAcceptedResultText, mutationListHasAccepted } from "./detector";
+  isSweaAcceptedCandidate,
+  isSweaAcceptedResultText
+} from "./platforms/swea";
+
+/** 순회는 공통이고 판정만 SWEA 것을 쓴다. */
+function mutationListHasAccepted(mutations: readonly MutationRecord[]): boolean {
+  return mutationListMatchesText(mutations, isSweaAcceptedCandidate);
+}
+
+function resolveSweaRoute(url: URL, doc: Pick<Document, "querySelector">) {
+  return createSweaAdapter().resolveRoute(url, doc);
+}
 import { requestSweaEditorCode } from "./sweaBridgeClient";
 import { readSweaEditorCode } from "./sweaEditorBridge";
 import {
@@ -42,42 +53,39 @@ describe("SWEA Accepted text", () => {
     );
 
     expect(
-      mutationListHasAccepted([childListMutation([layer])], "swea")
+      mutationListHasAccepted([childListMutation([layer])])
     ).toBe(true);
     expect(
-      mutationListHasAccepted(
-        [childListMutation([elementNode([textNode(FAILED_TEXT)])])],
-        "swea"
-      )
+      mutationListHasAccepted([childListMutation([elementNode([textNode(FAILED_TEXT)])])])
     ).toBe(false);
   });
 });
 
 describe("SWEA page identity", () => {
   it("route key를 URL이 아니라 #contestProbId에서 확정한다", () => {
-    const page = resolveContentPage(new URL(SOLVING_URL), sweaDocument());
+    const route = resolveSweaRoute(new URL(SOLVING_URL), sweaDocument());
 
-    expect(page).toEqual({ platform: "swea", contestProbId: "AV13zZ7KAAACFAYh" });
-    expect(createContentRouteKey(page)).toBe("swea:AV13zZ7KAAACFAYh");
+    expect(route?.platform).toBe("swea");
+    expect(route?.key).toBe("swea:AV13zZ7KAAACFAYh");
   });
 
   it("#contestProbId가 없으면 unsupported page다", () => {
     // 어떤 문제인지 모르는 상태에서는 event를 만들지 않는다.
     expect(
-      resolveContentPage(new URL(SOLVING_URL), sweaDocument({ contestProbId: "" }))
-    ).toEqual({ platform: "unsupported" });
+      resolveSweaRoute(new URL(SOLVING_URL), sweaDocument({ contestProbId: "" }))
+    ).toBeNull();
     expect(
-      resolveContentPage(new URL(SOLVING_URL), { querySelector: () => null })
-    ).toEqual({ platform: "unsupported" });
+      resolveSweaRoute(new URL(SOLVING_URL), { querySelector: () => null })
+    ).toBeNull();
   });
 
   it("풀이 페이지가 아닌 SWEA 경로는 unsupported다", () => {
     expect(
-      resolveContentPage(
+      resolveSweaRoute(
         new URL("https://swexpertacademy.com/main/talk/talkList.do"),
         sweaDocument()
       )
-    ).toEqual({ platform: "unsupported" });
+    ).toBeNull();
   });
 });
 
@@ -445,7 +453,7 @@ function createSweaControllerHarness(
   let callback: MutationCallback | null = null;
   const pendingFlushes: Array<() => void> = [];
 
-  startAcceptedDetectionController({
+  startAcceptedEventController({
     documentRef,
     getCurrentUrl: () => SOLVING_URL,
     sendAcceptedMessage: (message) => sentMessages.push(message),
@@ -465,10 +473,12 @@ function createSweaControllerHarness(
         pendingFlushes.length = 0;
       }
     },
-    requestSweaEditorCode: () =>
-      options.rejectBridge === true
-        ? Promise.reject(new Error("bridge unavailable"))
-        : Promise.resolve(options.code === undefined ? "code\n" : options.code)
+    adapters: createPlatformAdapters({
+      requestSweaEditorCode: () =>
+        options.rejectBridge === true
+          ? Promise.reject(new Error("bridge unavailable"))
+          : Promise.resolve(options.code === undefined ? "code\n" : options.code)
+    })
   });
 
   return {

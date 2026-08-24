@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { PLATFORM_ADAPTERS, resolveRoute } from "./index";
+import { createPlatformAdapters, resolveRoute } from "./index";
 import type { PlatformAdapter, PlatformObservation, ResolvedRoute } from "./types";
 
 const emptyDocument = { querySelector: () => null };
@@ -49,7 +49,7 @@ describe("resolveRoute", () => {
   });
 
   it("세 Coding Platform이 모두 등록되어 있다", () => {
-    expect(PLATFORM_ADAPTERS.map((adapter) => adapter.platform)).toEqual([
+    expect(createPlatformAdapters().map((adapter) => adapter.platform)).toEqual([
       "leetcode",
       "programmers",
       "swea"

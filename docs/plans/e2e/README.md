@@ -23,19 +23,21 @@ SWEA 실증에서 문서가 "관찰 사실"로 적어둔 항목 하나가 틀린
 ```
 Phase 1 (캡처)  ─┐
                  ├─→ Phase 3 (하네스) ─→ Phase 4 (플랫폼 3 병렬)
-Phase 2 (Adapter)┘
+Phase 2 (완료)  ─┘
 ```
+
+Phase 2가 끝났다. 세 Coding Platform Adapter가 `src/content/platforms/`에 있고 controller에 플랫폼 분기가 없다. Phase 4의 병렬은 이제 성립한다.
 
 | | 파일 | 담당 | 선행 |
 |---|---|---|---|
 | 1 | [phase-1-capture.md](phase-1-capture.md) | 에이전트 1 + 사람(로그인) | 없음 |
-| 2 | [phase-2-adapters.md](phase-2-adapters.md) | 에이전트 1 | 없음 |
+| 2 | **완료** | — | — |
 | 3 | [phase-3-harness.md](phase-3-harness.md) | 에이전트 1 | Phase 1, 2 |
 | 4 | [phase-4-platforms.md](phase-4-platforms.md) | 에이전트 3 (병렬) | Phase 3 |
 
 Phase 1과 2는 파일이 겹치지 않아(`e2e/` vs `src/content/`) 실제로 병렬이다.
 
-**Phase 4의 병렬은 Phase 2가 끝나야 성립한다.** 지금은 세 플랫폼 로직이 하나의 controller 파일에 들어 있어서, 세 에이전트가 같은 파일을 동시에 고치게 된다.
+**Phase 4의 병렬은 Phase 2가 끝나야 성립했다.** 이전에는 세 플랫폼 로직이 하나의 controller 파일에 있어 세 에이전트가 같은 파일을 고쳐야 했다.
 
 ## 확정된 결정
 

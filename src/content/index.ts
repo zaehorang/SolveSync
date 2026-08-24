@@ -8,10 +8,8 @@ import {
   type RuntimeMessage
 } from "../shared";
 import type { SyncStatusMessage } from "../shared/messages";
-import {
-  resolveContentPage,
-  startAcceptedDetectionController
-} from "./acceptedDetectionController";
+import { startAcceptedEventController } from "./acceptedEventController";
+import { createPlatformAdapters, resolveRoute } from "./platforms";
 import { createSweaBridgeNonce, requestSweaEditorCode } from "./sweaBridgeClient";
 import { ContentToast, createToastModel } from "./toast";
 
@@ -35,7 +33,13 @@ export function resolveContentToastLocale(
 }
 
 export function startContentScript(): void {
-  const page = resolveContentPage(new URL(window.location.href), document);
+  const adapters = createPlatformAdapters({
+    requestSweaEditorCode: () =>
+      requestSweaEditorCode({
+        windowRef: window,
+        createNonce: createSweaBridgeNonce
+      })
+  });
   const toast = new ContentToast(document, sendToastAction);
   let toastRenderSequence = 0;
 
@@ -44,16 +48,12 @@ export function startContentScript(): void {
     surface: "content"
   });
 
-  startAcceptedDetectionController({
+  startAcceptedEventController({
     documentRef: document,
     getCurrentUrl: () => window.location.href,
     sendAcceptedMessage: sendRuntimeMessage,
     createObserver: (callback) => new MutationObserver(callback),
-    requestSweaEditorCode: () =>
-      requestSweaEditorCode({
-        windowRef: window,
-        createNonce: createSweaBridgeNonce
-      })
+    adapters
   });
 
   chrome.runtime.onMessage.addListener((rawMessage) => {
@@ -69,7 +69,9 @@ export function startContentScript(): void {
     return false;
   });
 
-  console.debug(`${APP_NAME} content script loaded`, { page });
+  console.debug(`${APP_NAME} content script loaded`, {
+    route: resolveRoute(new URL(window.location.href), document, adapters)?.key ?? null
+  });
 }
 
 async function showSyncStatusToast(

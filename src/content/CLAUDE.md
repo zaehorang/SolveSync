@@ -12,12 +12,15 @@ Coding Platform 문제 page를 관찰해 Accepted event와 사용자 toast feedb
 ## Common changes
 - 플랫폼 감지 변경 → [`platforms/`](platforms/)의 해당 구현체와 플랫폼 문서를 함께 갱신한다. controller와 공통 순회 helper는 건드리지 않는다.
 - SWEA editor source 변경 → [`sweaEditorBridge.ts`](sweaEditorBridge.ts), [`sweaBridgeProtocol.ts`](sweaBridgeProtocol.ts)과 bridge test를 확인한다.
+- 새 Coding Platform 추가 → [`platforms/`](platforms/)에 구현체를 만들고 [`platforms/index.ts`](platforms/index.ts)에 한 줄 추가한다. 다른 파일은 건드리지 않는다.
 - toast 변경 → [`toast.ts`](toast.ts)를 수정하고 UI locale과 action별 model test를 갱신한다.
 
 ```bash
 npx vitest run src/content
 npm run build
 ```
+
+공통 계약이 세 구현체에 모두 걸리는지는 [`platforms/contract.test.ts`](platforms/contract.test.ts)가 본다. 플랫폼 고유 동작은 각 구현체 test가 맡는다.
 
 ## Non-obvious
 - 주의: `content_scripts`는 classic script다. content entry와 SWEA bridge build 결과에 static ESM `import`가 남으면 안 된다.

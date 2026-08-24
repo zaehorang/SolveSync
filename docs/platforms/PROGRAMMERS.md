@@ -59,12 +59,12 @@ Missing lesson, title 또는 language와 empty code는 commit하지 않고 `prog
 
 ## 자동 검증
 
-- `src/content/detector.test.ts`: route와 bounded Accepted text 판정
-- `src/content/programmersAcceptedPresentation.test.ts`: modal baseline, visibility lifecycle와 root replacement
-- `src/content/index.test.ts`: controller coalescing, immutable snapshot, second Accepted와 SPA route reset
+- `src/content/platforms/programmers.test.ts`: route와 Accepted text 판정, modal baseline, visibility lifecycle, root replacement, payload 조립
+- `src/content/platforms/contract.test.ts`: 세 Coding Platform Adapter가 공통으로 지키는 계약
+- `src/content/acceptedEventController.test.ts`: 억제 창, immutable snapshot, second Accepted와 SPA route reset
 - Background/shared 관련 Vitest: Accepted Source ID, extraction failure, multi-language Solution Catalog/README projection
 
-대표 검증은 `npm test -- src/content/detector.test.ts src/content/programmersAcceptedPresentation.test.ts src/content/index.test.ts`로 실행한다.
+대표 검증은 `npm test -- src/content/platforms src/content/acceptedEventController.test.ts`로 실행한다.
 
 ## 수동 검증
 

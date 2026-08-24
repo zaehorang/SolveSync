@@ -35,6 +35,7 @@
 Vitest에서 다음을 검증한다.
 
 - 지원/비지원 route와 `titleSlug` parsing
+- `src/content/platforms/leetcode.test.ts`가 route와 Accepted 결과 text 판정을 덮고, `src/content/platforms/contract.test.ts`가 세 Adapter 공통 계약을 덮는다.
 - Accepted 결과 text와 제외 pattern
 - `childList.addedNodes`와 non-Accepted → Accepted `characterData` transition
 - stale Accepted target에 Run, Wrong Answer, panel close 또는 unrelated node가 추가돼도 event 0회
