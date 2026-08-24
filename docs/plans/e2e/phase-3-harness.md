@@ -70,15 +70,29 @@ export interface PlatformE2EDriver {
 - **실행마다 고유 branch**(`e2e/{run_id}`)를 하네스가 만들고 끝나면 지운다. 동시 PR이 서로를 밟지 않는다. 제품이 branch를 만드는 것이 아니므로 자동 생성 금지 규칙은 그대로다.
 - 검증 대상: commit이 Solution File·Solution README·Solution Catalog를 함께 바꾸는가, 문제 번호·제목·code가 payload와 맞는가.
 
-## 미해결 — 착수 직후 실물로 정한다
+## 진행 상황
 
-1. **token 주입 방법.** `chrome.storage.local`에 auth state 직접 쓰기 vs `BackgroundRuntimeOptions.authManager` 주입. 후자는 프로덕션 번들이 아닌 것을 로드하게 되어 "테스트 전용 변형 금지"와 충돌한다. **전자를 택하되 storage schema 계약 테스트를 붙이는 쪽이 현재 판단**이나, 실제로 심어 보고 확정한다.
-2. **`--headless=new`에서 MV3 확장 로드가 CI에서 안정적인가.** 불안정하면 xvfb headed로 간다.
+**하네스 배선은 끝났다.** `e2e/support/`와 `e2e/harness.spec.ts`가 있고 CI에 비차단 job으로 붙어 있다. 남은 것은 아래 둘이다.
+
+- Sealed E2E spec — Phase 1의 캡처 fixture가 있어야 쓸 수 있다.
+- GitHub write 계층 — Verification Repository와 token이 있어야 쓸 수 있다.
+
+## 해결된 미해결 항목
+
+**headless MV3 확장 로드는 안정적이다.** 단 조건이 있다.
+
+Playwright의 `headless: true` 기본값은 `chromium_headless_shell` 바이너리를 쓰는데 **그 바이너리는 확장을 지원하지 않는다.** service worker가 영영 기동하지 않고 timeout으로만 드러나서 원인이 보이지 않는다. `channel: "chromium"`을 명시해 정식 Chromium을 쓰면 뜬다.
+
+xvfb는 필요 없다. 로컬에서 3개 spec이 5초 안에 끝난다.
+
+## 남은 미해결 — 착수 직후 실물로 정한다
+
+**token 주입 방법.** `chrome.storage.local`에 auth state 직접 쓰기 vs `BackgroundRuntimeOptions.authManager` 주입. 후자는 프로덕션 번들이 아닌 것을 로드하게 되어 "테스트 전용 변형 금지"와 충돌한다. **전자를 택하되 storage schema 계약 테스트를 붙이는 쪽이 현재 판단**이나, 실제로 심어 보고 확정한다.
 
 ## CI
 
-- Sealed E2E와 GitHub write를 **별도 job**으로 배선한다.
-- 초기에는 머지를 막지 않는 상태로 시작하고 안정화 후 필수로 승격한다.
+- 하네스는 `e2e` job으로 배선돼 있고 `continue-on-error: true`다. 안정화 후 필수로 승격한다.
+- 정식 Chromium을 받아야 한다(`npx playwright install --with-deps chromium`).
 - Sealed E2E는 secret 없이 돌아야 한다. fork PR에서도 도는 것이 두 계층을 합치지 않는 이유다.
 - GitHub write는 fine-grained token을 Actions secret으로 받는다. fork PR에서는 secret이 없어 자동 차단된다.
 

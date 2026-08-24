@@ -66,3 +66,35 @@ jobs:
 
       - name: Extension build
         run: npm run build
+
+  e2e:
+    name: 검증 하네스
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # 안정화될 때까지 머지를 막지 않는다. 확장 로드와 service worker 기동은
+    # 단위 테스트보다 환경에 민감하다.
+    continue-on-error: true
+
+    steps:
+      - name: 저장소 checkout
+        uses: actions/checkout@v6
+
+      - name: Node.js 설정
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: npm 의존성 설치
+        run: npm ci
+
+      # headless 기본 바이너리(chromium_headless_shell)는 확장을 지원하지
+      # 않는다. 정식 Chromium 채널을 받아야 MV3 확장이 뜬다.
+      - name: Chromium 설치
+        run: npx playwright install --with-deps chromium
+
+      - name: Extension build
+        run: npm run build
+
+      - name: 하네스 검증
+        run: npm run e2e

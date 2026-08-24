@@ -17,12 +17,25 @@ e2e/
 └── support/     # 확장 로드, route 가로채기, Verification Profile 부트스트랩
 ```
 
+## 실행
+
+```bash
+npm run build   # dist/를 그대로 로드하므로 최신 빌드가 필요하다
+npm run e2e
+```
+
 ## 상태
 
-**스캐폴딩만 있다.** 실행 가능한 spec은 아직 없다.
+하네스 배선은 동작한다. 확장이 로드되고 실제 도메인 URL에서 content script가 주입되는 것까지 확인한다.
 
 - 드라이버 계약: [`drivers/types.ts`](drivers/types.ts)
 - 구축 계획: [`docs/plans/e2e/`](../docs/plans/e2e/)
+
+아직 없는 것: 캡처 fixture 기반 Sealed E2E, GitHub write 계층, Contract Check, 풀사이클.
+
+## headless에서 확장을 로드하려면 채널을 명시해야 한다
+
+Playwright의 `headless: true` 기본값은 `chromium_headless_shell`을 쓰는데 **그 바이너리는 확장을 지원하지 않는다.** service worker가 기동하지 않고 timeout으로만 드러나 원인이 보이지 않는다. `channel: "chromium"`을 명시한다.
 
 ## 절대 남기지 않을 것
 
