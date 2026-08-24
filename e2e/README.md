@@ -37,6 +37,8 @@ CAPTURE_PLATFORM=programmers CAPTURE_OUTCOME=accepted npm run e2e:capture
 CAPTURE_PLATFORM=programmers CAPTURE_OUTCOME=rejected npm run e2e:capture
 ```
 
+세 탭이 뜬다. 로그인을 마치고 브라우저를 닫으면 세션이 `.verification-profile/`에 남는다. SWEA는 `/main/identity/anonymous/loginPage.do`로 연다 — `/main/login.do`도 200을 주지만 본문이 비어 있어 빈 화면만 뜬다.
+
 브라우저가 뜨고 recorder가 무장된 뒤 제출을 만들면, 변화가 4초 이상 멎을 때 `e2e/fixtures/{platform}/{outcome}.json`에 저장된다.
 
 **확장 없이 뜬다.** 확장이 켜진 채로 실제 제출을 하면 진짜 sync가 돌아 실사용 Sync Repository에 commit이 생기고 processed Sync Deduplication Key까지 남는다. 나중에 같은 문제를 실제로 풀었을 때 commit이 조용히 안 생긴다.

@@ -83,9 +83,9 @@ mutation record만 찍으면 `class` 하나 바뀐 것만 남아 재생이 불�
 ## 작업
 
 1. ~~`e2e/support/profile.ts` — Verification Profile 부트스트랩~~ **완료.** `.verification-profile/`(gitignore됨), 확장 없이 headed 실행. 실제 Chrome을 쓰고 자동화 신호를 끈다 — 번들 Chromium 기본 설정으로는 LeetCode 로그인이 Cloudflare Turnstile에 막힌다.
-2. 사람이 세 플랫폼 로그인 (`npm run e2e:login`).
+2. 사람이 세 플랫폼 로그인 (`npm run e2e:login`). SWEA 로그인 경로는 `/main/identity/anonymous/loginPage.do`다 — `/main/login.do`는 200을 주면서 본문이 비어 빈 화면만 뜬다.
 3. `e2e/capture/` — 캡처 스크립트. 플랫폼별 기록 대상 분기, redaction 내장.
-4. 기준 문제 확정. SWEA는 1206(`AV134DPqAA8CFAYh`). Programmers와 LeetCode는 이번에 정한다. 실사용 풀이와 겹치지 않는 문제로 고른다.
+4. 기준 문제 확정. SWEA는 1206(`AV134DPqAA8CFAYh`). Programmers와 LeetCode는 이번에 정한다. 실사용 풀이와 겹치지 않는 문제로 고른다. **SWEA는 `solvingProblem.do?contestProbId=`로 바로 진입되는지 실측한다** — 비로그인으로는 둘 다 302라 확인이 안 됐다. 안 되면 `code/problem/problemDetail.do?contestProbId=`에서 클릭해 들어가는 경로로 바꾼다.
 5. 정답 코드를 `e2e/fixtures/solutions/`에 둔다. SWEA Python은 `import sys`가 컴파일 오류로 거부되므로 `input()`으로 쓴다(2026-08-18 관찰).
 6. 플랫폼당 성공 1회 + 실패 1회 실행.
 7. `e2e/fixtures/{platform}/`에 동결하고 캡처 일자·page·조건을 기록한다.

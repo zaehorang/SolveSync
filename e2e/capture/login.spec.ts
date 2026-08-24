@@ -15,10 +15,13 @@ import { test } from "@playwright/test";
 import { BASE_PROBLEMS } from "./baseProblems";
 import { openVerificationProfile } from "../support/profile";
 
+/** SWEA의 로그인 페이지는 `/main/login.do`가 아니다. 그 경로는 200을 주지만
+ * 본문이 비어 있어(`Content-Length: 0`) 빈 화면만 뜬다. 메인 페이지의
+ * `login()`이 실제로 보내는 곳은 아래 경로다. */
 const LOGIN_URLS = [
   "https://leetcode.com/accounts/login/",
   "https://school.programmers.co.kr/intro",
-  "https://swexpertacademy.com/main/login.do"
+  "https://swexpertacademy.com/main/identity/anonymous/loginPage.do"
 ];
 
 test.describe("Verification Profile", () => {
