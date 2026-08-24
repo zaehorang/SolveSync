@@ -14,6 +14,7 @@ SolveSync는 LeetCode, Programmers와 SWEA에서 Accepted 된 풀이를 사용�
 - 수동 검증 절차는 `docs/MANUAL_VALIDATION.md`를 따른다.
 - Coding Platform별 route 출처, Accepted 감지 방식, solution code source, `acceptedSourceId` 형식, 오류 코드는 `docs/platforms/`를 따른다. 공통 계약과 플랫폼 사이의 차이는 `docs/platforms/README.md`에 있고, 플랫폼 문서는 공통과 다른 것만 적는다.
 - 도메인 용어의 정의와 표기는 `CONTEXT.md`를 따른다.
+- `docs/plans/`는 source of truth가 아니다. 진행 중인 다단계 작업의 실행 계획만 담는다. 계획과 `docs/`가 다르면 `docs/`가 맞다. 계획이 정책 변경을 요구하면 해당 source of truth를 먼저 고친 뒤 계획을 따른다. 작업이 끝나면 해당 계획 파일을 지운다.
 - `docs/investigations/`는 source of truth가 아니다. 아직 재현되지 않은 증상, 원인 가설과 재현 시 수집할 근거만 기록한다.
 - 이 파일과 `docs/`가 충돌하면 먼저 관련 `docs/`를 확인하고, 실제 정책 변경이 필요하면 해당 문서를 source of truth로 수정한다.
 

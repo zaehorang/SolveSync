@@ -1,0 +1,10 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    // `src/shared`의 타입을 그대로 쓰므로 vite의 ImportMeta 확장이 필요하다.
+    // root tsconfig의 `types`를 통째로 덮어쓰면 그것이 빠진다.
+    "types": ["node", "@playwright/test", "vite/client"]
+  },
+  "include": ["."],
+  "exclude": ["fixtures"]
+}

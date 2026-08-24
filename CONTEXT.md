@@ -51,3 +51,35 @@ _Avoid_: Sync record, platform catalog, processed submission
 **Retry Bundle**:
 GitHub commit 실패를 다시 시도하기 위해 로컬에 임시 보관되는 동기화 데이터 묶음. Retry 가능한 실패에만 존재하며 solution code가 포함될 수 있다.
 _Avoid_: Retry payload, backup, sync history, permanent cache
+
+**Coding Platform Adapter**:
+한 Coding Platform의 관찰과 해석만 담당하는 구현체. Content에서는 route 확정, fresh Accepted 전이 판정과 Accepted event payload 조립을 담당하고, Background에서는 source 조회와 `acceptedSourceId` 생성을 담당한다. 공통 orchestration(억제 창, route lifecycle, GitHub commit)은 Adapter 밖에 있다.
+_Avoid_: Platform handler, detector, plugin, strategy
+
+**Accepted Signal**:
+Coding Platform Adapter가 fresh Accepted 전이를 확정한 그 시점에 한 번 캡처한 불변 snapshot. Accepted event payload를 조립하는 유일한 입력이며, 조립 단계에서 DOM을 다시 읽지 않는다는 계약을 이 값이 대신한다.
+_Avoid_: Detection result, accepted state, snapshot
+
+**Sealed E2E**:
+빌드된 확장을 실제 Chrome에 로드하되 Coding Platform 페이지 요청을 캡처 기반 로컬 fixture로 가로채 수행하는 자동 검증. 네트워크를 타지 않고 자격증명이 필요 없어 매 Pull Request에서 실행한다. 검증하는 것은 배선이지 플랫폼의 현재 DOM이 아니다.
+_Avoid_: Mock e2e, offline test, integration test
+
+**Live E2E**:
+Verification Profile로 실제 Coding Platform 페이지를 열어 수행하는 검증. Contract Check와 실제 제출을 포함한 풀사이클이 여기 속한다. 자격증명이 필요하므로 CI에 배선하지 않는다.
+_Avoid_: Real test, production test, smoke test
+
+**Contract Check**:
+제출하지 않고 실제 문제 페이지에서 Coding Platform Adapter가 의존하는 DOM 도달 가능성만 확인하는 Live E2E. 제출 상한과 계정 기록을 쓰지 않아 자주 실행할 수 있다. Accepted 결과 DOM은 제출이 있어야 나타나므로 이 검증의 범위 밖이다.
+_Avoid_: Selector test, health check, monitoring
+
+**Platform E2E Driver**:
+검증 하네스 쪽의 플랫폼별 구현체. fixture, 기준 문제 URL, Contract Check 단언, 제출 조작을 제공한다. 제품 번들에 포함되지 않으며 제출 버튼처럼 제품이 쓰지 않는 selector는 여기에만 존재한다.
+_Avoid_: Test adapter, platform helper, page object
+
+**Verification Repository**:
+검증이 commit을 만드는 전용 GitHub 저장소. 사용자의 Sync Repository와 분리된 별개 저장소이며 검증 외의 용도로 쓰지 않는다.
+_Avoid_: Test repository, sync repository, sandbox
+
+**Verification Profile**:
+Live E2E가 사용하는 전용 Chrome user data directory. 사용자의 상시 프로필과 분리하며, SolveSync의 Sync Deduplication Key 상태가 확장 설치 단위로 저장되므로 이 분리가 실사용 동기화 오염을 막는 유일한 수단이다.
+_Avoid_: Test profile, browser profile, headless profile

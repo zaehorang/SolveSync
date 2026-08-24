@@ -18,9 +18,14 @@ src/
 ├── background/      # sync orchestration, Coding Platform source resolver, 외부 API write
 │   └── client/      # LeetCode GraphQL, GitHub Sync Repository/Sync Branch/Git Data API 실행 코드
 ├── content/         # 문제 페이지 관찰, Accepted Editor Snapshot, SWEA MAIN world bridge, toast UI
+│   └── platforms/   # Coding Platform Adapter 구현체. route 확정, 전이 판정, payload 조립
 ├── options/         # GitHub Device Flow, App 설치, Sync Repository/Sync Branch, connection test UI
 ├── popup/           # Auto Sync 토글, Sync History, failure, Retry Bundle UI
 └── shared/          # 타입, Coding Platform policy, mapping, runtime message, Solution README/Catalog, storage schema, 순수 로직
+
+e2e/                 # 검증 하네스. src/ 밖이라 확장 번들에 포함되지 않는다
+├── drivers/         # Platform E2E Driver. fixture, 기준 문제, 제출 조작
+└── fixtures/        # 실제 page에서 캡처한 sanitized DOM
 ```
 
 ### Module 의존성
@@ -46,7 +51,9 @@ flowchart LR
 - Content bundle에는 static ESM `import`가 남으면 안 되며 `npm run build`의 build verification이 이를 검사한다.
 - SWEA 풀이 페이지에는 `world: "MAIN"` bridge bundle `dist/content/sweaEditorBridge.js`를 함께 주입한다. 같은 이유로 별도 IIFE build이며 같은 검증을 받는다([ADR 0035](adr/0035-main-world-editor-bridge-for-swea.md)).
 - 일반 `npm run build`는 manifest 선언과 content IIFE를 검증하며 GitHub App 공개 설정이 없는 개발용 build도 허용한다. Release용 `npm run package:chrome`은 Vite의 production 환경에서 `VITE_GITHUB_APP_CLIENT_ID`와 `VITE_GITHUB_APP_SLUG`를 읽고, trim한 값이 하나라도 비어 있거나 placeholder이면 해당 변수명을 포함한 오류로 packaging을 중단한다. 두 공개 설정이 bundle에 포함된 경우에만 Chrome ZIP을 만든다.
-- Content detection controller가 `MutationObserver`, route lifecycle, coalescing과 message emission을 소유한다. Content entry는 controller 시작과 toast wiring만 담당한다.
+- Content event controller가 `MutationObserver`, route lifecycle, 억제 창과 message emission을 소유한다. Content entry는 controller 시작과 toast wiring만 담당한다.
+- 플랫폼별 판정은 controller가 아니라 Coding Platform Adapter가 소유한다. Adapter는 route를 확정하고, 관찰 대상을 정하고, 이번 mutation이 fresh Accepted 전이인지 판정하고, Accepted Signal에서 event payload를 조립한다. Controller에는 플랫폼 분기가 없다.
+- Adapter를 나눈 이유는 세 플랫폼의 전이 판정이 파라미터가 아니라 **방식**으로 다르기 때문이다. 상세는 [Coding Platform 연동 계약](platforms/README.md#accepted-감지가-갈리는-세-층)을 따른다.
 - Accepted 감지는 현재 DOM에 Accepted 상태가 존재하는지가 아니라, Coding Platform adapter가 이번 mutation에서 fresh visible Accepted transition을 확정했는지를 기준으로 한다.
 - Route key는 URL이 아니라 adapter가 확정한다([ADR 0036](adr/0036-adapter-resolved-content-route-key.md)). URL로 식별 가능한 플랫폼의 adapter는 계속 URL을 parsing한다.
 - Text signal 탐색은 ADR 0022에 따라 mutation 범위 안에서 bounded traversal한다. 플랫폼별 presentation state가 필요하면 같은 observer에 adapter가 등록한 presentation root를 추가 target으로 등록하고 그 root의 visibility attribute만 관찰한다.
@@ -136,7 +143,7 @@ Coding Platform 문제 page
 ## Coding Platform 공통/전용 경계
 - 공통 sync orchestration은 setup, Auto Sync, duplicate, in-flight lock, GitHub commit, retry, Sync History를 처리한다.
 - Content detection controller는 observer, 현재 route lifecycle, first-event coalescing과 message emission을 담당한다.
-- Coding Platform adapter는 URL parsing, Accepted signal 판정과 source 수집을 담당한다. Background에서는 `src/background/sourceResolver.ts`가 그 자리이고, `acceptedSourceId` 생성도 여기 있다.
+- Coding Platform Adapter는 route 확정, Accepted 전이 판정과 source 수집을 담당한다. Content에서는 `src/content/platforms/`가, Background에서는 `src/background/sourceResolver.ts`가 그 자리이고 `acceptedSourceId` 생성도 여기 있다.
 - Coding Platform policy는 root path, Solution README path, Solution Catalog path, marker, initial Solution README title, commit message prefix, 문제 page URL 조립 규칙을 제공한다.
 - background orchestration은 DOM selector나 사이트별 결과 문구를 알면 안 된다. `sync.ts`는 resolver가 돌려준 결과만 다룬다.
 - content Coding Platform adapter는 GitHub commit 방법을 알면 안 된다.
@@ -354,7 +361,7 @@ Coding Platform 전용 source error는 [LeetCode 오류 계약](platforms/LEETCO
 Toast는 짧은 메시지만 보여준다. Popup은 상세 메시지와 retry 가능 여부를 보여준다.
 
 ## 테스트 전략
-일반 테스트는 Vitest와 in-memory adapter만 사용한다. 실제 GitHub나 Coding Platform 네트워크, 사용자 secret에 의존하지 않는다.
+Vitest suite는 in-memory adapter만 사용한다. 실제 GitHub나 Coding Platform 네트워크, 사용자 secret에 의존하지 않는다. 브라우저와 네트워크가 필요한 검증은 아래 검증 계층으로 분리한다.
 
 - language/path, Solution Catalog, Solution README, storage, error 같은 pure logic은 빠른 단위 테스트로 검증한다.
 - sync orchestration은 외부 API를 mock하고 최종 commit payload를 검증한다.
@@ -363,4 +370,27 @@ Toast는 짧은 메시지만 보여준다. Popup은 상세 메시지와 retry �
 - Content detection controller는 stale Accepted 무시, 동일 render burst 억제, immutable event 보존과 route reset을 순수 단위 테스트로 검증한다. 플랫폼별 detector와 source extraction 검증은 [Coding Platform 연동 계약](platforms/README.md)과 각 플랫폼 문서를 따른다.
 - 실제 Device Flow 승인과 GitHub App 설치는 `docs/MANUAL_VALIDATION.md`, 실제 Coding Platform Accepted 제출은 [공통 수동 검증 골격](platforms/README.md#검증-공통-계약)과 각 플랫폼 문서의 추가 절차로 확인한다.
 
-모든 지원 언어와 실패 조합을 실제 계정이나 브라우저 E2E로 반복하지 않는다. 실제 GitHub repository를 자동 테스트 대상이나 코드 기본값으로 고정하지 않으며, read-only GitHub smoke script도 기본 test suite에 두지 않는다.
+모든 지원 언어와 실패 조합을 실제 계정이나 브라우저 E2E로 반복하지 않는다. 대표 조합만 확인한다.
+
+### 검증 계층
+
+Vitest 밖의 검증은 네 계층이다. 계층 정의와 각 계층이 잡지 못하는 것은 [Coding Platform 연동 계약](platforms/README.md#검증-공통-계약)이 source of truth다.
+
+- **Sealed E2E**와 **GitHub write**는 매 Pull Request에서 실행한다.
+- **Contract Check**와 **풀사이클**은 Verification Profile의 로그인 세션이 필요해 CI에 배선하지 않는다.
+
+### GitHub write 계층에 대한 정책 변경
+
+이전 정책은 "실제 GitHub repository를 자동 테스트 대상으로 고정하지 않으며 GitHub smoke script를 기본 test suite에 두지 않는다"였다. GitHub write 계층이 이 규칙에 걸리므로 범위를 좁혀 다시 정한다.
+
+**유지되는 것.** 제품 코드는 GitHub repository나 branch를 기본값으로 고정하지 않는다. 이건 제품 규칙이며 그대로다. Vitest suite도 GitHub 네트워크를 타지 않는다.
+
+**바뀌는 것.** 검증 하네스는 Verification Repository를 대상으로 실제 commit을 만들 수 있다. 이 계층이 없으면 commit payload, Solution README projection과 Solution Catalog projection이 실제 GitHub에서 맞는지를 릴리스 전 풀사이클까지 아무도 확인하지 않는다.
+
+**대신 지키는 제약.**
+
+- 대상은 Verification Repository로 한정한다. 사용자의 Sync Repository를 쓰지 않는다.
+- token은 Verification Repository 한 곳에만 쓰기 권한을 가진 fine-grained token이며, 유출 시 피해가 그 저장소 안에서 닫힌다.
+- 실행마다 고유 branch를 하네스가 만들고 끝나면 지운다. 동시 실행이 서로를 밟지 않는다. **제품이 branch를 만드는 것이 아니므로 자동 생성 금지 규칙은 그대로다.**
+- 이 계층은 확장 options page에서 runtime message를 보내 orchestration을 태운다. `content:accepted_detected`가 sender를 검사하지 않는 현재 성질에 의존하므로, 나중에 sender 검증을 조이면 이 계층을 함께 고쳐야 한다.
+- Sealed E2E는 secret 없이 돌아야 한다. 두 계층을 합치지 않는 이유가 이것이다.
