@@ -1,12 +1,30 @@
 import { describe, expect, it } from "vitest";
 
+import { mutationListMatchesText } from "../mutationText";
 import {
-  extractProgrammersRouteFromPathname,
+  acceptedChildListMutation,
+  makeDetectionDocument
+} from "../__fixtures__/dom";
+import {
+  elementNode,
+  mutationRecord,
+  nestedElement,
+  textNode,
+  type TestCandidateNode
+} from "../__fixtures__/mutation";
+import {
+  createLeetCodeAdapter,
   extractTitleSlugFromPathname,
   isAcceptedResultText,
-  isProgrammersAcceptedResultText,
-  mutationListHasAccepted
-} from "./detector";
+  isLeetCodeAcceptedCandidate
+} from "./leetcode";
+
+const emptyDocument = { querySelector: () => null };
+
+/** 순회는 공통이고 판정만 LeetCode 것을 쓴다. */
+function mutationListHasAccepted(mutations: readonly MutationRecord[]): boolean {
+  return mutationListMatchesText(mutations, isLeetCodeAcceptedCandidate);
+}
 
 describe("LeetCode content detector", () => {
   it("extracts the title slug from LeetCode problem paths", () => {
@@ -248,143 +266,45 @@ describe("LeetCode content detector", () => {
   });
 });
 
-describe("Programmers content detector", () => {
-  it("extracts course and lesson ids from Programmers lesson paths", () => {
-    expect(
-      extractProgrammersRouteFromPathname("/learn/courses/30/lessons/120804")
-    ).toEqual({
-      courseId: "30",
-      lessonId: "120804"
-    });
-    expect(
-      extractProgrammersRouteFromPathname("/learn/courses/30/lessons/120804?foo=bar")
-    ).toEqual({
-      courseId: "30",
-      lessonId: "120804"
-    });
-    expect(extractProgrammersRouteFromPathname("/learn/courses/30")).toBeNull();
+describe("LeetCode adapter", () => {
+  const pageUrl = "https://leetcode.com/problems/two-sum/";
+
+  function resolve(url: string) {
+    return createLeetCodeAdapter().resolveRoute(new URL(url), emptyDocument);
+  }
+
+  it("route를 URL에서 확정하고 다른 host와 다른 경로는 받지 않는다", () => {
+    expect(resolve(pageUrl)?.key).toBe("leetcode:two-sum");
+    expect(resolve("https://leetcode.com/problems/valid-parentheses/submissions/")?.key).toBe(
+      "leetcode:valid-parentheses"
+    );
+    expect(resolve("https://leetcode.com/contest/weekly-contest-400/")).toBeNull();
+    expect(resolve("https://example.com/problems/two-sum/")).toBeNull();
   });
 
-  it("detects the Programmers accepted modal text", () => {
-    const mutation = mutationRecord({
-      target: textNode("채점 결과"),
-      addedNodes: [elementNode([textNode("정답입니다!")])]
+  it("solution code 없이 Accepted message를 만든다", async () => {
+    const route = resolve(pageUrl);
+    const signal = route
+      ?.observe(makeDetectionDocument({}), "startup")
+      .detect([acceptedChildListMutation("Accepted")], {
+        pageUrl,
+        now: () => "2026-01-01T00:00:00.000Z"
+      });
+
+    expect(signal).not.toBeNull();
+
+    const message = await Promise.resolve(signal?.toMessage());
+
+    expect(message).toEqual({
+      type: "content:accepted_detected",
+      payload: {
+        codingPlatform: "leetcode",
+        titleSlug: "two-sum",
+        pageUrl,
+        detectedAt: "2026-01-01T00:00:00.000Z"
+      }
     });
-
-    expect(isProgrammersAcceptedResultText("정답입니다!")).toBe(true);
-    expect(mutationListHasAccepted([mutation], "programmers")).toBe(true);
-  });
-
-  it("does not treat Programmers result summary text as accepted", () => {
-    const passed = mutationRecord({
-      target: textNode("실행 결과"),
-      addedNodes: [elementNode([textNode("통과")])]
-    });
-    const summary = mutationRecord({
-      target: textNode("채점 결과"),
-      addedNodes: [elementNode([textNode("합계: 100.0 / 100.0")])]
-    });
-
-    expect(isProgrammersAcceptedResultText("통과")).toBe(false);
-    expect(isProgrammersAcceptedResultText("채점 결과")).toBe(false);
-    expect(isProgrammersAcceptedResultText("합계: 100.0 / 100.0")).toBe(false);
-    expect(isProgrammersAcceptedResultText("결과: 정답입니다!")).toBe(false);
-    expect(mutationListHasAccepted([passed], "programmers")).toBe(false);
-    expect(mutationListHasAccepted([summary], "programmers")).toBe(false);
-  });
-
-  it("does not reuse a stale accepted modal when code execution adds 통과", () => {
-    const mutation = mutationRecord({
-      target: elementNode([
-        elementNode([textNode("정답입니다!")]),
-        elementNode([textNode("실행 결과")])
-      ]),
-      addedNodes: [elementNode([textNode("통과")])]
-    });
-
-    expect(mutationListHasAccepted([mutation], "programmers")).toBe(false);
-  });
-
-  it("detects a Korean Accepted phrase split across new sibling nodes", () => {
-    const mutation = mutationRecord({
-      target: elementNode([]),
-      addedNodes: [textNode("정답입니다"), textNode("!")]
-    });
-
-    expect(mutationListHasAccepted([mutation], "programmers")).toBe(true);
+    // code는 background가 GraphQL로 조회한다. payload에 자리 자체가 없어야 한다.
+    expect(Object.hasOwn(message?.payload ?? {}, "code")).toBe(false);
   });
 });
-
-interface TestCandidateNode {
-  nodeType: number;
-  textContent: string | null;
-  childNodes?: TestCandidateNode[];
-  getAttribute?(name: string): string | null;
-  parentElement?: TestCandidateNode | null;
-  nodeName?: string;
-  tagName?: string;
-}
-
-function textNode(textContent: string): TestCandidateNode {
-  return {
-    nodeType: 3,
-    textContent,
-    parentElement: null
-  };
-}
-
-function elementNode(
-  childNodes: TestCandidateNode[],
-  options: {
-    attrs?: Record<string, string>;
-    tagName?: string;
-    textContent?: string;
-  } = {}
-): TestCandidateNode {
-  const tagName = options.tagName ?? "div";
-  const attrs = options.attrs ?? {};
-  const node: TestCandidateNode = {
-    nodeType: 1,
-    textContent:
-      options.textContent ?? childNodes.map((child) => child.textContent ?? "").join(""),
-    childNodes,
-    parentElement: null,
-    nodeName: tagName.toUpperCase(),
-    tagName: tagName.toUpperCase(),
-    getAttribute(name: string) {
-      return attrs[name] ?? null;
-    }
-  };
-
-  for (const child of childNodes) {
-    child.parentElement = node;
-  }
-
-  return node;
-}
-
-function nestedElement(depth: number, childNodes: TestCandidateNode[]): TestCandidateNode {
-  let node = elementNode(childNodes);
-
-  for (let index = 0; index < depth; index += 1) {
-    node = elementNode([node]);
-  }
-
-  return node;
-}
-
-function mutationRecord(input: {
-  type?: "childList" | "characterData";
-  target: TestCandidateNode;
-  addedNodes?: TestCandidateNode[];
-  removedNodes?: TestCandidateNode[];
-  oldValue?: string | null;
-}): MutationRecord {
-  return {
-    type: input.type ?? "childList",
-    target: input.target,
-    addedNodes: input.addedNodes ?? [],
-    removedNodes: input.removedNodes ?? [],
-    oldValue: input.oldValue ?? null
-  } as unknown as MutationRecord;
-}

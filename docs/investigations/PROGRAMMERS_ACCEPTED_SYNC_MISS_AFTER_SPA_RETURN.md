@@ -25,7 +25,7 @@ Programmers 문제 route에서 content observer가 시작됨
 → 이미 visible인 Accepted가 startup baseline처럼 흡수되어 sync event 누락
 ```
 
-현재 의심 지점은 `startAcceptedDetectionController`의 non-Programmers → Programmers route 진입 분기다. 이 분기는 presentation root를 reset/rebind한 뒤 callback을 종료한다. 실제 수정 전에는 현재 구현이 여전히 같은 구조인지 먼저 확인한다.
+현재 의심 지점은 다른 Coding Platform에서 Programmers route로 진입할 때다. 그 batch는 presentation root만 잡고 판정하지 않는다. Coding Platform Adapter 도입 후에는 `RouteTransition`의 `otherPlatform`이 이 동작을 담고 있으며, `src/content/platforms/types.ts`에 그 이유가 적혀 있다. 리팩터링에서 동작을 바꾸지 않았다.
 
 ## 이 상황과 구분할 것
 
@@ -69,7 +69,7 @@ observer가 살아 있는 unsupported route
 - `docs/adr/0022-bounded-mutation-text-traversal-for-accepted-detection.md`
 - `docs/adr/0034-fresh-accepted-transition-and-immutable-event.md`
 - `docs/platforms/PROGRAMMERS.md`
-- `src/content/acceptedDetectionController.ts`
-- `src/content/programmersAcceptedPresentation.ts`
+- `src/content/acceptedEventController.ts`
+- `src/content/platforms/programmers.ts`
 - `src/content/index.test.ts`
-- `src/content/programmersAcceptedPresentation.test.ts`
+- `src/content/platforms/programmers.test.ts`
