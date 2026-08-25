@@ -51,7 +51,9 @@ test.describe("GitHub write 계층", () => {
   // 확장 기동에 더해 GitHub 왕복이 여러 번 있다.
   test.setTimeout(120_000);
 
-  for (const driver of DRIVERS) {
+  // 합성 payload가 없는 플랫폼은 이 계층을 돌지 않는다. LeetCode가 그렇다 —
+  // source 조회가 플랫폼 세션을 요구해 합성 event로는 GitHub까지 닿지 못한다.
+  for (const driver of DRIVERS.filter((candidate) => candidate.syntheticPayload)) {
     test(`${driver.platform} Accepted payload가 Verification Repository에 commit된다`, async () => {
       if (config === null) {
         return;
@@ -80,7 +82,12 @@ test.describe("GitHub write 계층", () => {
           }
         });
 
-        const payload = driver.syntheticPayload();
+        const payload = driver.syntheticPayload?.();
+
+        if (payload === undefined) {
+          throw new Error("합성 payload가 없는 드라이버는 여기 오지 않는다.");
+        }
+
         const outcome = await requireRuntimeData<AcceptedSyncOutcome>(page, {
           type: "content:accepted_detected",
           payload

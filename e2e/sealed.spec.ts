@@ -75,7 +75,10 @@ for (const driver of DRIVERS) {
 
         // GitHub를 설정하지 않았으므로 여기까지 온 것이 정상 경로다.
         expect(entry.status).toBe("setup_required");
-        expect(entry.problemTitle ?? "").not.toBe("");
+
+        // 문제를 식별할 수 있어야 한다. `problemTitle`을 보지 않는 이유는
+        // **LeetCode payload에 제목이 없기 때문이다** — 제목은 background가
+        // GraphQL로 조회한다. 세 플랫폼에 공통으로 있는 것은 titleSlug다.
         expect(entry.titleSlug).not.toBe("");
       } finally {
         await extension.close();
