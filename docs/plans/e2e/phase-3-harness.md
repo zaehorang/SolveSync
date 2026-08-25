@@ -123,7 +123,9 @@ export interface PlatformE2EDriver {
 
 - Sealed E2E spec — Phase 1의 캡처 fixture가 있어야 쓸 수 있다. **Phase 1이 선행이며 그때까지 이 Phase는 닫지 않는다.**
 
-GitHub write 계층은 `E2E_GITHUB_TOKEN`과 `E2E_GITHUB_REPOSITORY`가 없으면 spec이 스스로 건너뛴다. **실제 Verification Repository를 상대로 한 번은 돌려 초록을 봐야 한다.** 그 전까지 이 계층은 "배선됐다"이지 "동작한다"가 아니다.
+**GitHub write 계층은 실제로 돌았다.** 2026-08-25, `zaehorang/solvesync-verification`(private, Contents write만 가진 fine-grained token)을 상대로 SWEA 합성 payload가 commit이 되는 것을 확인했다. 실행 branch는 끝나고 지워졌고 default branch는 그대로다. 같은 값이 저장소 Actions secret(`E2E_GITHUB_TOKEN`)과 variable(`E2E_GITHUB_REPOSITORY`)에 들어가 CI에서도 돈다.
+
+설정이 없으면 spec이 스스로 건너뛴다. fork PR이 그렇다.
 
 ## 해결된 미해결 항목
 
@@ -154,7 +156,7 @@ fine-grained token에는 refresh token이 없다. `accessTokenExpiresAt`을 먼 
 - [ ] 가상 스크롤 상태에서 화면 밖 줄을 포함한 전체 code가 bridge를 통해 전달된다.
 - [ ] bridge 미주입 시 `swea_extract_failed`로 수렴한다.
 - [ ] Sealed E2E가 Sync History entry로 판정하며 실제 네트워크를 타지 않는다.
-- [x] GitHub write가 Verification Repository의 고유 branch에 commit을 만들고 끝나면 지운다. (배선 완료. 실제 저장소로 한 번 돌려야 닫힌다)
+- [x] GitHub write가 Verification Repository의 고유 branch에 commit을 만들고 끝나면 지운다.
 - [ ] Sealed E2E가 secret 없이 통과한다.
 - [x] 미해결 2건의 답이 PR body에 기록되고 그 결과로 실행 방식이 확정된다.
 - [ ] 각 계층이 잡지 못하는 것이 문서에 남는다.
