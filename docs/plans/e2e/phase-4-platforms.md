@@ -54,7 +54,7 @@ SWEA의 bridge 세 항목(왕복, 가상 스크롤 밖 줄, 미주입 시 `swea_
 | 계층 | 확인할 것 |
 |---|---|
 | Sealed | 결과 panel 감지, `Acceptance Rate`·`Accepted Submissions` 일반 copy에서 event 0회, SPA 이동 후 현재 `titleSlug` |
-| Contract Check | `/problems/{titleSlug}`가 공개라 **로그인 불필요.** 가장 싸게 자주 돌릴 수 있다 |
+| Contract Check | **완료.** `/problems/{titleSlug}`가 공개라 로그인 불필요. 단 headed로만 된다 — headless는 Cloudflare가 막는다 |
 | 풀사이클 | 기준 문제 자동 제출 → GraphQL source 조회까지 실증 |
 
 - **Sealed의 종료점은 Sync History 도달까지다.** code가 DOM이 아니라 background GraphQL에서 오므로 그 아래는 `src/background/client/leetcode.test.ts`가 덮는다. 셋 중 Sealed가 가장 얇은 것이 정상이며, `codeSource`가 `none`인 것으로 인터페이스에 이미 드러나 있다.

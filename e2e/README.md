@@ -82,6 +82,30 @@ redaction은 회수 경로에 박혀 있고 저장 직전에 한 번 더 검사�
 
 그 자유도가 판정 text까지 번지면 **우리가 상상한 DOM으로 우리 adapter를 검증하는 순환**이 되어 통과해도 아무것도 보장하지 않는다. 그래서 판정 text는 드라이버에 상수로 두되 [`support/capturedResult.ts`](support/capturedResult.ts)가 그 값이 캡처에 실재하는지 재생 전에 확인한다. 플랫폼이 문구를 바꿔 새 캡처가 들어오면 이 확인이 먼저 깨진다.
 
+## Contract Check
+
+실제 page를 열어 **Adapter가 의존하는 것이 아직 거기 있는지**만 본다. 제출하지 않으므로 되돌릴 것이 없고 자주 돌릴 수 있다.
+
+```bash
+npm run e2e:contract
+```
+
+- **CI에 배선하지 않는다.** 실제 네트워크를 타고, 플랫폼이 느린 날 매 PR이 빨개지면 아무도 안 보게 된다.
+- **headed로 돈다.** headless로는 LeetCode의 Cloudflare가 `Just a moment...` 확인 화면만 내주고 실제 page가 오지 않는다(2026-08-25 실측). 사람의 기계에서 도는 계층이다.
+- **확장을 켜지 않는다.** 확장이 켜진 채로 실제 page를 열면 진짜 sync가 돌 수 있다.
+- `assertContract`가 없는 플랫폼은 건너뛴다. 로그인 세션이 있어야 문제 page가 열려 아직 실제 page를 재지 못한 곳들이다.
+
+### LeetCode가 확인하는 것
+
+이 플랫폼의 Adapter에는 **selector가 하나도 없다.** route는 URL에서, 판정은 mutation 안의 text에서, code는 background GraphQL에서 온다. 그래서 확인할 것도 selector 도달이 아니라 **판정 규칙이 실제 page의 문구와 아직 맞물려 있는가**다.
+
+1. route가 실제 URL에서 확정되는가 (SPA가 `/description/`을 덧붙인다)
+2. page가 진짜로 떴는가 — 아니면 아래 단언들이 전부 공허하게 통과한다
+3. `Acceptance Rate` copy가 아직 있고, 여전히 결과가 아닌 것으로 분류되는가
+4. 제출 전 page에 결과 형식 text가 없는가
+
+2번 guard는 이미 값을 했다. 개발 중 headless로 돌던 동안 **차단 화면을 실제 page로 착각하는 대신** 무엇을 봤는지 제목과 함께 실패로 알려줬다.
+
 ## GitHub write 계층
 
 확장 options page에서 `content:accepted_detected`를 보내 **플랫폼 page 없이** orchestration 전 구간을 태우고, Verification Repository에 실제로 생긴 commit을 GitHub API로 밖에서 확인한다. 여기서 실패하면 원인이 GitHub 경로 하나로 좁혀진다.

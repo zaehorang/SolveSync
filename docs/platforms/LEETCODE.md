@@ -76,6 +76,8 @@ Vitest에서 다음을 검증한다.
 
 `e2e/sealed.spec.ts` + `e2e/drivers/leetcode.ts`가 프로덕션 빌드 산출물을 실제 Chrome에 로드해 캡처에서 온 `Judging... → Accepted` 제자리 교체가 Sync History까지 도달하는지 본다. 뼈대 page에 `Acceptance Rate`·`Accepted 23,208,748/40M` 같은 일반 copy를 함께 두어 그것이 판정으로 걸리지 않는 것도 같은 실행에서 본다.
 
+`e2e/contract.spec.ts`는 실제 `/problems/two-sum/`을 열어 판정 규칙이 실제 page 문구와 아직 맞물리는지 본다. 이 플랫폼은 공개 route라 로그인이 필요 없어 셋 중 가장 싸게 자주 돌릴 수 있다. **headed로만 된다** — headless는 Cloudflare가 막는다(2026-08-25 실측).
+
 **GitHub write 계층은 이 플랫폼을 돌지 않는다.** code도 제목도 background가 GraphQL로 조회하고 그 조회에는 플랫폼 로그인 세션과 실제 제출 기록이 필요해, 합성 payload로는 `leetcode_fetch_failed`로 끝난다(2026-08-25 실측). 그 경로는 풀사이클이 실증한다.
 - GraphQL metadata/Accepted Submission parsing과 submission ID 기반 deduplication
 - auth/fetch 실패 normalization
