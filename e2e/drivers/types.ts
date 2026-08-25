@@ -51,8 +51,13 @@ export interface PlatformE2EDriver {
 
   /** GitHub write 계층이 확장 options page에서 보낼 합성 payload.
    *
-   * 플랫폼 page 없이 orchestration 전 구간을 태운다. */
-  syntheticPayload(): AcceptedDetectedPayload;
+   * 플랫폼 page 없이 orchestration 전 구간을 태운다.
+   *
+   * **없을 수 있다.** LeetCode payload에는 code도 제목도 없고 background가
+   * GraphQL로 조회하는데, 그 조회에는 플랫폼 로그인 세션과 실제 제출 기록이
+   * 필요하다. 합성 payload로는 `leetcode_fetch_failed`로 끝난다. 그 플랫폼의
+   * GitHub write 경로는 풀사이클이 실증한다. */
+  syntheticPayload?(): AcceptedDetectedPayload;
 
   /** Contract Check와 풀사이클이 여는 기준 문제 URL.
    *

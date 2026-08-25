@@ -93,6 +93,7 @@ E2E_GITHUB_REPOSITORY=owner/verification-repository
 E2E_GITHUB_TOKEN=...
 ```
 
+- 합성 payload가 없는 플랫폼은 이 계층을 돌지 않는다. **LeetCode가 그렇다** — source 조회가 플랫폼 세션을 요구해 합성 event로는 GitHub까지 닿지 못한다. 그 경로는 풀사이클이 실증한다.
 - 환경 변수가 없으면 **spec이 스스로 건너뛴다.** fork PR에는 secret이 없어 자동으로 그렇게 되고, Sealed 계층만 남아 그대로 통과한다.
 - 대상은 전용 **Verification Repository**다. 기본값을 두지 않아 설정 실수로 실사용 Sync Repository를 쓸 경로 자체가 없다.
 - token은 그 저장소 한 곳에만 쓰기 권한을 가진 fine-grained token이다.
@@ -108,7 +109,7 @@ auth session은 `chrome.storage.local`에 직접 심는다. `BackgroundRuntimeOp
 
 ## 상태
 
-하네스 배선, Sealed E2E, GitHub write 계층이 동작한다. 확장이 로드되고, 캡처에서 온 판정 text가 Sync History까지 도달하고, 합성 event가 Verification Repository의 commit이 되는 것까지 확인한다. 드라이버는 SWEA 하나가 채워져 있고 나머지 둘은 Phase 4다.
+하네스 배선, Sealed E2E, GitHub write 계층이 동작한다. 확장이 로드되고, 캡처에서 온 판정 text가 Sync History까지 도달하고, 합성 event가 Verification Repository의 commit이 되는 것까지 확인한다. 세 플랫폼 드라이버가 모두 Sealed를 통과한다.
 
 - 드라이버 계약: [`drivers/types.ts`](drivers/types.ts)
 - 구축 계획: [`docs/plans/e2e/`](../docs/plans/e2e/)
