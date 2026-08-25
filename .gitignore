@@ -19,7 +19,9 @@ artifacts/
 coverage/
 
 # Live E2E Verification Profile. 로그인 세션이 들어 있어 절대 커밋하지 않는다.
-.verification-profile/
+# 슬래시를 붙이지 않는다. worktree에서는 주 디렉터리의 프로필을 symlink로
+# 걸어 쓰는데, symlink는 디렉터리가 아니라서 디렉터리 패턴에 걸리지 않는다.
+.verification-profile
 playwright-report/
 blob-report/
 

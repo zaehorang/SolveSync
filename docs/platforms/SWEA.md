@@ -17,7 +17,8 @@
 ## Route와 page identity
 
 - 풀이 페이지는 `https://swexpertacademy.com/main/solvingProblem/solvingProblem.do`이고 **모든 문제가 같은 URL을 쓰며 query string이 없다.**
-- GET으로 직접 열면 anonymous error page로 redirect된다. `problemDetail.do`의 `문제 풀기` action이 POST로 여는 별도 window에서만 render된다. SPA route 전환이 아니라 새 document load다.
+- `problemDetail.do`의 `문제 풀기` action이 POST로 별도 window를 연다. SPA route 전환이 아니라 새 document load다.
+- **[실증 2026-08-25]** 로그인 세션이 있으면 `solvingProblem.do?contestProbId={id}`를 GET으로 직접 열어도 정상 render된다. 이전 서술("GET으로 직접 열면 anonymous error page로 redirect된다")은 **비로그인 상태의 관찰**이었다. redirect의 원인은 GET이라는 것이 아니라 세션이 없다는 것이다. 캡처 자동화가 이 경로로 진입한다.
 - 문제 식별자는 DOM의 `input#contestProbId`에만 있다. Route key는 `swea:{contestProbId}`이며 URL이 아니라 adapter가 확정한다([ADR 0036](../adr/0036-adapter-resolved-content-route-key.md)).
 - `#contestProbId`를 읽지 못하면 어떤 문제인지 알 수 없으므로 unsupported page로 처리하고 event를 만들지 않는다.
 - 제목은 `h3.problem_title`이고 형식은 `{문제 번호}. {제목}`이다.
@@ -65,6 +66,8 @@ layer 전체 text에는 버튼 label `확인`과 `닫기`가 뒤에 붙지만 **
 
 두 경우 모두 toast와 event가 생기지 않는 것을 확인했다.
 
+**[재확인 2026-08-25]** 캡처가 위 문구를 그대로 다시 관찰했다. Accepted layer는 `축하합니다. Pass입니다.제출이 완료되었습니다.확인닫기`, 오답 layer는 `오답채점용 input 파일로 채점한 결과 fail 입니다.(오답 :  10개의 테스트케이스 중 0개가 맞았습니다.)확인닫기`로 2026-08-18 실측값과 문자 단위로 같았다. 둘 다 `childList` **node 추가**로 왔다(전제 3의 회귀 확인). 근거는 [`e2e/fixtures/swea/`](../../e2e/fixtures/swea/)다.
+
 **Accepted layer와 실패 layer는 구조가 다르다.** 실패 layer에는 `오답`, `제출 오류` 같은 title이 메시지 앞에 붙지만 Accepted layer에는 없다.
 
 이 비대칭이 접두사 판정을 위협하지는 않는다. `.txt` 안에서 title과 메시지는 `<br>`로 나뉜 **별도 text node**이고, `collectLeafTexts`는 개별 text node를 각각 후보로 넣기 때문이다. join한 문자열은 거기에 더해질 뿐이다. 실측한 실패 layer의 `.txt` 자식 구조는 다음과 같다.
@@ -83,6 +86,35 @@ SWEA가 Accepted layer에도 같은 방식으로 title을 붙이면 `축하합�
 다만 이 내성은 후보 생성 방식에 의존한다. 후보를 join된 문자열만으로 바꾸면 조용히 사라지므로, title node가 붙은 Accepted layer 변형을 회귀 fixture에 포함한다.
 
 제출 버튼을 누르면 채점 전에 확인용 layer(`제출 가능 횟수가 1회 감소합니다. 정말로 제출하시겠습니까?`)가 먼저 뜬다. 이것도 native dialog가 아니라 DOM layer다. 감지에는 영향이 없지만 자동화에서는 이 단계를 넘겨야 채점이 시작된다.
+
+## 자동화가 알아야 할 것
+
+제품 계약은 아니고 Live E2E 자동화가 이 page를 다룰 때 필요한 실측값이다. 전부 2026-08-25 로그인 상태에서 확인했다.
+
+**세션이 브라우저 종료를 넘기지 못한다.** SWEA의 `SESSION` 쿠키는 `Expires`/`Max-Age` 없이 발급되는 진짜 session cookie다. 다른 두 플랫폼처럼 "한 번 로그인해 두고 나중에 캡처"하는 2단계 흐름이 통하지 않는다 — 로그인 창을 닫는 순간 세션이 사라진다. 그래서 로그인과 캡처를 같은 브라우저 프로세스 안에서 끝내야 한다([`e2e/capture/captureSweaSession.spec.ts`](../../e2e/capture/captureSweaSession.spec.ts)).
+
+**제출하지 않고 코드를 실행할 수 있다.** 문제 page의 TEST 영역이다. page 안내문 그대로 *"Test는 채점을 하는 것이 아니며 정답 여부를 알려주지 않습니다"* — 제출 횟수를 쓰지 않는다. 제출 상한이 99회이므로 틀린 코드를 제출로 확인하는 것이 실제로 비싸다.
+
+| 요소 | selector |
+| --- | --- |
+| 입력 | `textarea#scs_input` |
+| 출력 | `div#scs_output` |
+| 실행 | `id` 없는 `a`, text `Run` (`onclick="return onRun();"`) |
+| 초기화 | `id` 없는 `a`, text `Clear` (`onTestReset()`) |
+| 컴파일만 | `a#btnf_compile` (`onEditCompile()`) |
+| 채점 제출 | `a#btnf_proposal` (`onEditSubmit()`) |
+
+출력은 `#scs_output` 안에 `li`로 쌓이고 **최신이 위**다. 종류가 셋이다.
+
+| class | 내용 |
+| --- | --- |
+| `li.message` | 진행 로그(`성공적으로 컴파일 되었습니다`, `실행이 완료되었습니다`) |
+| `li.print_msg` | 프로그램 표준출력. 실제 값은 자식 `span.text`에 있다 |
+| `li.error_msg` | 컴파일 오류와 Runtime error |
+
+`span.text`의 줄바꿈은 `<br>`이라 `textContent`로 읽으면 줄이 뭉개진다. `innerText`로 읽어야 한다. 실행이 끝났는지는 `li.error_msg`가 떴거나 `li.message`에 `실행이 완료`가 떴는지로 본다 — 단순히 비어 있지 않은지만 보면 `실행을 시작합니다`가 뜬 시점에 먼저 걸린다.
+
+**sandbox가 `import`와 `open`을 막는다.** `import sys`든 `import os`든 컴파일 오류로 거부되고, `open`은 `허용하지 않는 라이브러리가 사용되었습니다`로 거부된다. 표준입력을 읽는 수단은 `input()`뿐이다. 주석 안의 `import`는 통과하므로 문자열 스캔이 아니다.
 
 ## Accepted Editor Snapshot
 

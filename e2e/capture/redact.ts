@@ -6,6 +6,8 @@
  * solution code 원문은 애초에 회수하지 않고 줄 수·길이·해시로만 남긴다.
  * alert layer의 UI 문구는 사용자 데이터가 아니므로 보존한다.
  */
+import type { Recording } from "./recorder";
+
 const SENSITIVE_ATTRIBUTES = [
   "value",
   "data-value",
@@ -28,6 +30,40 @@ const SENSITIVE_PATTERNS: ReadonlyArray<{ label: string; pattern: RegExp }> = [
 
 export const REDACTED = "[REDACTED]";
 
+/** 실행 시점에만 알 수 있는 비밀 문자열. 계정 정보가 여기 들어온다.
+ *
+ * 패턴으로는 잡을 수 없다 — 아이디는 형태가 정해져 있지 않다. SWEA는 로그인하면
+ * header에 사용자 이름을 그리므로 계정 문자열이 캡처 DOM에 그대로 섞여 들어올 수
+ * 있다. 값을 알고 있을 때만 지울 수 있으므로 caller가 `.env`에서 읽어 등록한다.
+ * 이 module은 값을 보관만 하고 어디에도 찍지 않는다. */
+const registeredSecrets: { label: string; pattern: RegExp }[] = [];
+
+/** 정규식 특수문자를 글자 그대로 매칭되게 만든다. 비밀번호에는 무엇이든 온다. */
+function escapeForRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/** 지울 비밀 문자열을 등록한다. 캡처를 시작하기 전에 부른다.
+ *
+ * 너무 짧은 값은 무시한다. 두 글자짜리를 전역 치환하면 무관한 DOM 텍스트가 통째로
+ * 망가져 캡처가 쓸모없어진다. 그 정도로 짧으면 캡처에 섞여도 식별 정보가 되지 못한다. */
+export function registerSecrets(values: readonly string[]): void {
+  registeredSecrets.length = 0;
+
+  for (const value of values) {
+    const trimmed = value.trim();
+
+    if (trimmed.length < 3) {
+      continue;
+    }
+
+    registeredSecrets.push({
+      label: "account",
+      pattern: new RegExp(escapeForRegExp(trimmed), "g")
+    });
+  }
+}
+
 export interface CodeDigest {
   readonly lineCount: number;
   readonly length: number;
@@ -47,7 +83,7 @@ export function digestCode(code: string): CodeDigest {
 export function redactText(value: string): string {
   let result = value;
 
-  for (const { pattern } of SENSITIVE_PATTERNS) {
+  for (const { pattern } of [...SENSITIVE_PATTERNS, ...registeredSecrets]) {
     result = result.replace(pattern, REDACTED);
   }
 
@@ -77,12 +113,49 @@ export function redactHtml(html: string): string {
   return redactText(result);
 }
 
+/** node 하나의 html·text를 redact한다. */
+function redactNode<T extends { html?: string; text?: string }>(node: T): T {
+  return {
+    ...node,
+    html: node.html === undefined ? undefined : redactHtml(node.html),
+    text: node.text === undefined ? undefined : redactText(node.text)
+  };
+}
+
+/** Recording 전체를 구조화된 상태에서 redact한다.
+ *
+ * **JSON.stringify 이후 문자열에 `redactHtml`을 걸지 않는다.** JSON 안에서
+ * 따옴표는 `\"`로 escape돼 있는데, `redactHtml`의 attribute 정규식은 raw
+ * HTML의 `attr="..."` 형태를 가정한다. escape를 모르는 정규식이 JSON
+ * 문자열 중간에서 매칭·치환되면 escape가 깨져 JSON 자체가 깨진다(실측 —
+ * LeetCode capture가 이 경로에서 SyntaxError로 통째로 실패했다). node의
+ * html·text 필드가 아직 원문 문자열일 때, 즉 JSON으로 직렬화하기 전에
+ * redact한다. */
+export function redactRecording(recording: Recording): Recording {
+  return {
+    ...recording,
+    batches: recording.batches.map((batch) => ({
+      ...batch,
+      mutations: batch.mutations.map((mutation) => ({
+        ...mutation,
+        oldValue: mutation.oldValue === undefined || mutation.oldValue === null ? mutation.oldValue : redactText(mutation.oldValue),
+        target: redactNode(mutation.target),
+        addedNodes: mutation.addedNodes.map(redactNode),
+        removedNodes: mutation.removedNodes.map(redactNode)
+      }))
+    })),
+    dialogs: recording.dialogs.map((dialog) => ({ ...dialog, message: redactText(dialog.message) }))
+  };
+}
+
 /** 남으면 안 되는 것이 남았는지 되본다. 저장 직전에 부른다. */
 export function findLeaks(value: string): string[] {
-  return SENSITIVE_PATTERNS.filter(({ pattern }) => {
-    pattern.lastIndex = 0;
-    return pattern.test(value);
-  }).map(({ label }) => label);
+  return [...SENSITIVE_PATTERNS, ...registeredSecrets]
+    .filter(({ pattern }) => {
+      pattern.lastIndex = 0;
+      return pattern.test(value);
+    })
+    .map(({ label }) => label);
 }
 
 /** 내용 복원이 목적이 아니므로 짧고 단순한 해시로 충분하다. */
