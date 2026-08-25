@@ -55,6 +55,7 @@ SolveSync는 LeetCode, Programmers와 SWEA에서 Accepted 된 풀이를 사용�
 - 변경 전달은 work branch에서 검증한 뒤 Pull Request를 통해 수행한다. `main`으로 직접 push하거나 직접 merge하는 흐름을 사용하지 않는다.
 - PR body에는 무엇을 왜 바꿨는지와 어떻게 검증했는지를 남긴다. 근거가 된 이슈가 있으면 `Fixes #<number>` 또는 적절한 issue link로 함께 포함한다.
 - commit, push, PR 생성처럼 저장소나 GitHub 상태를 바꾸는 게시 단계는 사용자가 해당 작업에서 요청하거나 승인한 범위에서 수행한다.
+- `gh pr merge`와 `git worktree remove`는 주 디렉터리에서 실행한다. worktree 안에서 부르면 `'main' is already used by worktree`로 막힌다.
 - 이 section의 development work branch와 제품이 사용자의 Sync Repository에 만드는 Sync Branch는 서로 다른 개념이다. 제품의 Sync Branch 자동 생성 금지 규칙은 그대로 유지한다.
 
 ## Guardrails
@@ -70,6 +71,7 @@ module을 수정하기 전에 가장 가까운 `CLAUDE.md`를 먼저 읽는다. 
 ## Do
 - 변경 전에 관련 `docs/` 문서를 먼저 읽고, docs와 구현이 어긋나면 사용자에게 명확히 알린다.
 - 플랫폼 page의 동작·제약·selector를 조사하기 전에 `docs/platforms/`를 grep한다. 이미 실측된 사실이 수동 검증 절 안에 들어 있을 수 있다.
+- 치환 기반 편집(`sed`, python `str.replace`)은 반영됐는지 확인한다. 조용히 no-op되면 그 뒤 디버깅이 전부 엉뚱한 곳을 판다.
 - diff는 작고 테스트 가능하게 유지한다.
 - 기존 module boundary와 local helper를 우선 사용한다.
 - business rule은 가능한 `src/shared` 또는 `src/background` orchestration에 두고 UI 코드는 얇게 유지한다.
