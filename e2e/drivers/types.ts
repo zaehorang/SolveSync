@@ -12,19 +12,34 @@ import type { Page } from "@playwright/test";
 
 import type { AcceptedDetectedPayload, CodingPlatform } from "../../src/shared";
 
-/** Sealed E2E가 실제 도메인 URL로 fulfill할 캡처 기반 page.
+export type SealedOutcome = "accepted" | "rejected";
+
+/** Sealed E2E가 실제 도메인 URL로 fulfill할 page와 결과 재생.
  *
- * 손으로 지은 fixture를 쓰지 않는다. adapter와 fixture를 같은 사람이
- * 상상해서 만들면 둘이 함께 틀리고, 그때 테스트는 통과한다. */
+ * **캡처는 DOM snapshot이 아니라 mutation 기록이다.** 게다가 mutation의
+ * `target`에 node 경로가 없어(`{kind, name}`뿐) 기록을 그대로 되감을 수 없다.
+ * 그래서 fixture가 주는 것은 **실제 page에서 온 판정 text**이고, 뼈대는
+ * 드라이버가 최소한으로 짓는다. 상상한 값이 판정에 들어가지 않는 것이
+ * 이 분담의 목적이므로 `resultText`는 반드시 캡처에 실재해야 하고,
+ * 공통 spec이 그것을 먼저 확인한 뒤에야 재생한다.
+ */
 export interface SealedFixture {
   /** manifest match가 걸려야 하므로 실제 도메인이다. */
   readonly url: string;
-  /** 제출 전 상태. */
-  readonly idle: string;
-  /** Accepted 결과가 나타난 상태. */
-  readonly accepted: string;
-  /** 실패 결과가 나타난 상태. event가 0회여야 한다. */
-  readonly rejected: string;
+
+  /** 최소 뼈대. Adapter가 route를 확정하는 데 필요한 element만 담는다. */
+  html(): string;
+
+  /** 캡처에서 온 판정 text. `e2e/fixtures/{platform}/{outcome}.json`에
+   * 실재하는 문자열이어야 한다. */
+  resultText(outcome: SealedOutcome): string;
+
+  /** 그 text를 실제 page가 하던 방식으로 나타나게 한다.
+   *
+   * 플랫폼마다 방식이 다르다 — SWEA는 node 추가, LeetCode는 대기 text의
+   * 제자리 교체, Programmers는 내용과 visibility가 서로 다른 batch로 온다.
+   * **Programmers에서 두 batch를 하나로 합치면 판정이 성립하지 않는다.** */
+  showResult(page: Page, outcome: SealedOutcome): Promise<void>;
 }
 
 export interface PlatformE2EDriver {

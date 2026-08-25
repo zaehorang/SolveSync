@@ -117,11 +117,13 @@ export interface PlatformE2EDriver {
 
 ## 진행 상황
 
-**하네스 배선과 GitHub write 계층이 끝났다.** `e2e/support/`, `e2e/harness.spec.ts`, `e2e/auth-seed.spec.ts`, `e2e/github-write.spec.ts`가 있고 CI에 비차단 job으로 붙어 있다. 드라이버 등록은 `e2e/drivers/index.ts`이고 SWEA 드라이버가 write 계층이 쓰는 부분(`syntheticPayload`, `liveUrl`)을 채운다.
+**하네스 배선, Sealed E2E, GitHub write 계층이 끝났다.** `e2e/support/`, `e2e/harness.spec.ts`, `e2e/auth-seed.spec.ts`, `e2e/github-write.spec.ts`가 있고 CI에 비차단 job으로 붙어 있다. 드라이버 등록은 `e2e/drivers/index.ts`이고 SWEA 드라이버가 write 계층이 쓰는 부분(`syntheticPayload`, `liveUrl`)을 채운다.
 
-남은 것은 하나다.
+### Sealed E2E가 fixture를 쓰는 방식
 
-- Sealed E2E spec — Phase 1이 끝나 fixture가 있으므로 더 이상 막혀 있지 않다.
+캡처는 DOM snapshot이 아니라 mutation 기록이고 `target`에 node 경로가 없어 **그대로 되감을 수 없다.** `SealedFixture`를 그에 맞게 바꿨다 — 드라이버가 최소 뼈대 page를 짓고, **판정 text만 캡처에서 온다.** 그 text가 캡처에 실재하는지는 공통 spec이 재생 전에 확인하므로(`e2e/support/capturedResult.ts`) 상상한 문자열이 판정에 들어갈 수 없다.
+
+`swea Sealed E2E`가 이 구조로 돈다. Phase 4의 세 에이전트는 `fixture()`만 채운다.
 
 **GitHub write 계층은 실제로 돌았다.** 2026-08-25, `zaehorang/solvesync-verification`(private, Contents write만 가진 fine-grained token)을 상대로 SWEA 합성 payload가 commit이 되는 것을 확인했다. 실행 branch는 끝나고 지워졌고 default branch는 그대로다. 같은 값이 저장소 Actions secret(`E2E_GITHUB_TOKEN`)과 variable(`E2E_GITHUB_REPOSITORY`)에 들어가 CI에서도 돈다.
 
@@ -152,11 +154,14 @@ fine-grained token에는 refresh token이 없다. `accessTokenExpiresAt`을 먼 
 
 - [x] 빌드된 `dist/`를 unpacked로 로드해 실제 도메인 URL에서 content script 주입이 확인된다.
 - [x] **테스트 전용 manifest 변형 없이** 프로덕션 빌드 산출물을 그대로 검증한다.
-- [ ] SWEA MAIN world bridge 왕복이 실제 Chrome에서 검증된다.
-- [ ] 가상 스크롤 상태에서 화면 밖 줄을 포함한 전체 code가 bridge를 통해 전달된다.
-- [ ] bridge 미주입 시 `swea_extract_failed`로 수렴한다.
-- [ ] Sealed E2E가 Sync History entry로 판정하며 실제 네트워크를 타지 않는다.
+- [ ] Sealed E2E가 Sync History entry로 판정하며 실제 네트워크를 타지 않는다. → **SWEA로 완료.** 나머지 둘은 Phase 4.
+
+SWEA bridge 세 항목은 **Phase 4로 넘긴다.** Sealed fixture로 덮을 수 없다 — 캡처가 solution code를 의도적으로 회수하지 않았고(정책), 가상 스크롤은 실제 CodeMirror가 있어야 성립한다. 뼈대에 가짜 editor를 심으면 검증 대상이 CodeMirror가 아니라 우리가 지은 stub이 된다.
+
+- ~~SWEA MAIN world bridge 왕복이 실제 Chrome에서 검증된다.~~ → Phase 4 (SWEA)
+- ~~가상 스크롤 상태에서 화면 밖 줄을 포함한 전체 code가 bridge를 통해 전달된다.~~ → Phase 4 (SWEA)
+- ~~bridge 미주입 시 `swea_extract_failed`로 수렴한다.~~ → Phase 4 (SWEA)
 - [x] GitHub write가 Verification Repository의 고유 branch에 commit을 만들고 끝나면 지운다.
-- [ ] Sealed E2E가 secret 없이 통과한다.
+- [x] Sealed E2E가 secret 없이 통과한다.
 - [x] 미해결 2건의 답이 PR body에 기록되고 그 결과로 실행 방식이 확정된다.
 - [ ] 각 계층이 잡지 못하는 것이 문서에 남는다.
