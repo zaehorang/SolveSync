@@ -30,7 +30,7 @@ Phase 1이 끝났다([PR #77](https://github.com/zaehorang/SolveSync/pull/77)). 
 
 캡처가 드러낸 것들이다. 각 플랫폼 문서에 근거와 함께 적혀 있다.
 
-- **Programmers는 결과 내용과 visibility가 서로 다른 batch로 온다.** batch N에서 `.modal-title`이 채워지지만 root는 아직 `display: none`이고, batch N+1에서 visibility만 바뀐다. **재생 spec이 두 batch를 하나로 합치면 판정이 성립하지 않는다.** 구현이 `state`를 batch 사이에 들고 가는 덕에 통과하는 구조다.
+- **Programmers는 결과 내용과 visibility가 서로 다른 batch로 온다.** batch N에서 `.modal-title`이 채워지지만 root는 아직 `display: none`이고, batch N+1에서 visibility만 바뀐다. **재생 spec은 두 batch를 합치지 않는다.** 합쳐도 통과하지만(2026-08-25 실측) 그 통과는 `state`를 batch 사이에 들고 가지 않는 구현도 함께 통과시킨다. 실제 page가 하는 대로 나눠야 그 구조를 검증한다.
 - **LeetCode 판정은 node 추가가 아니라 대기 text의 제자리 교체다.** 그리고 page에는 `Accepted 23,208,748/40M` 같은 통계 copy가 있어 문자열 검색으로 판정을 찾으면 안 된다.
 - **SWEA는 `childList` node 추가**이고 layer 전체 text의 맨 앞에 Accepted 접두사가 온다.
 
