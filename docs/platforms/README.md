@@ -149,6 +149,10 @@ SWEA를 추가할 때 사용자 대상 문서가 통째로 빠졌다. 목록이 
 | C | Contract Check | 실제 page의 DOM이 아직 Adapter의 전제와 맞는가 | 없음 | 없음 | 주기적 | **Accepted 결과 DOM.** 제출해야 나타난다 |
 | D | 풀사이클 | 실제 Accepted가 실제 commit이 되는가 | **있음** | **있음** | 릴리스 전 | 자주 못 돈다. 그 사이는 A·B·C가 메운다 |
 
+B는 **LeetCode를 돌지 않는다.** 그 플랫폼은 code도 제목도 background가 GraphQL로 조회하고 그 조회에 플랫폼 로그인 세션과 실제 제출 기록이 필요해, 합성 event로는 GitHub까지 닿지 못한다. 그 경로는 D가 실증한다.
+
+C와 D는 **headed로만 된다.** headless는 LeetCode의 Cloudflare가 막고(`Just a moment...`), 확장이 필요한 D는 실제 Chrome이 `--load-extension`을 받지 않아 Chromium으로 내려간다(2026-08-26 실측).
+
 A와 B는 자격증명 유무로 갈린다. A는 secret이 없어 fork PR에서도 돌고, B는 Verification Repository 쓰기 권한만 가진 token을 쓴다. C와 D는 Verification Profile의 로그인 세션이 필요해 CI에 배선하지 않는다.
 
 전 계층 공통으로 잡지 못하는 것이 하나 있다. **릴리스와 릴리스 사이에 플랫폼이 DOM을 바꾸면 어느 계층도 즉시 알지 못한다.** 이건 테스트가 아니라 관측의 영역이다.

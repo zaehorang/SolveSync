@@ -136,7 +136,7 @@ function sanitize<T>(value: T, code: string): T {
 
 /** editor가 실제로 무엇을 들고 있는지 본다.
  *
- * Programmers의 `textarea#code`가 editor 변경 뒤에도 갱신되는지가 Phase 1의
+ * Programmers의 `textarea#code`가 editor 변경 뒤에도 갱신되는지가 캡처의
  * 미해결 질문이다. 존재 확인만으로는 부족해서 값을 직접 잰다. code 원문은
  * 남기지 않고 길이와 줄 수만 남긴다. */
 async function probeCodeSource(page: Page, expected: string) {
