@@ -96,5 +96,10 @@ jobs:
       - name: Extension build
         run: npm run build
 
+      # secret이 없으면 GitHub write 계층은 스스로 건너뛴다. fork PR에는
+      # secret이 주입되지 않으므로 Sealed 계층만 남고 그대로 통과한다.
       - name: 하네스 검증
+        env:
+          E2E_GITHUB_TOKEN: ${{ secrets.E2E_GITHUB_TOKEN }}
+          E2E_GITHUB_REPOSITORY: ${{ vars.E2E_GITHUB_REPOSITORY }}
         run: npm run e2e
