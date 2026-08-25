@@ -45,6 +45,8 @@ SolveSync는 LeetCode, Programmers와 SWEA에서 Accepted 된 풀이를 사용�
 
   단 `package-lock.json`을 바꾸는 branch에서는 symlink를 쓰지 않는다. 주 디렉터리의 의존성을 조용히 쓰게 되어 lock 변경을 검증하지 못한다. 그때는 `npm ci`를 돌린다.
 
+  worktree에 symlink로 거는 것은 `.gitignore` 패턴에 슬래시를 붙이지 않는다. 슬래시는 디렉터리만 잡는데 symlink는 디렉터리가 아니라 그대로 untracked로 뜬다. `node_modules`와 `.verification-profile`이 여기 해당하고, 후자는 로그인 세션이 들어 있어 실제로 위험했다.
+
   이 규칙은 두 층이 강제한다. pre-commit gate가 주 디렉터리에서의 커밋을 막고, `.claude/settings.json`이 배선한 PreToolUse hook이 주 디렉터리에서의 branch 전환을 막는다. 커밋 gate만으로는 이미 남의 branch를 밀어낸 뒤에 막힌다.
 - work branch 이름은 `{type}/{slug}` 형식이다. `type`은 `feat`, `fix`, `docs`, `test`, `refactor`, `chore`, `ci` 중 하나이고 `slug`는 kebab-case다. 예: `chore/shrink-harness`. 이슈가 있으면 `chore/issue-56-shrink-harness`처럼 slug에 번호를 넣어도 된다.
 - 이 형식은 pre-commit gate가 강제한다. 목록에 없는 접두사를 쓰거나 type이 없으면 커밋이 막힌다. 우회용 접두사는 두지 않는다.
@@ -63,10 +65,11 @@ pre-commit은 typecheck·test·build와 저장소 보호 규칙을 실행하는 
 ## Module Context
 module을 수정하기 전에 가장 가까운 `CLAUDE.md`를 먼저 읽는다. 각 문서는 소유 책임, 대표 변경 절차, 비직관적 규칙과 의존 방향만 담는다.
 
-대상: [`src/shared`](src/shared/CLAUDE.md), [`src/background`](src/background/CLAUDE.md), [`src/content`](src/content/CLAUDE.md), [`src/options`](src/options/CLAUDE.md), [`src/popup`](src/popup/CLAUDE.md), [`harness`](harness/CLAUDE.md).
+대상: [`src/shared`](src/shared/CLAUDE.md), [`src/background`](src/background/CLAUDE.md), [`src/content`](src/content/CLAUDE.md), [`src/options`](src/options/CLAUDE.md), [`src/popup`](src/popup/CLAUDE.md), [`harness`](harness/CLAUDE.md), [`e2e`](e2e/CLAUDE.md).
 
 ## Do
 - 변경 전에 관련 `docs/` 문서를 먼저 읽고, docs와 구현이 어긋나면 사용자에게 명확히 알린다.
+- 플랫폼 page의 동작·제약·selector를 조사하기 전에 `docs/platforms/`를 grep한다. 이미 실측된 사실이 수동 검증 절 안에 들어 있을 수 있다.
 - diff는 작고 테스트 가능하게 유지한다.
 - 기존 module boundary와 local helper를 우선 사용한다.
 - business rule은 가능한 `src/shared` 또는 `src/background` orchestration에 두고 UI 코드는 얇게 유지한다.

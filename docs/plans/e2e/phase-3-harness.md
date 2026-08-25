@@ -7,6 +7,51 @@
 
 플랫폼별 spec을 세 번 쓰지 않도록 **공통 spec + 드라이버 주입** 구조를 세우고, SWEA 드라이버 하나로 그 구조가 실제로 도는 것을 증명한다. Phase 4의 세 에이전트는 드라이버만 채운다.
 
+## Phase 1이 넘긴 것
+
+Phase 1이 끝났다([PR #77](https://github.com/zaehorang/SolveSync/pull/77)). Sealed E2E의 입력이 준비돼 있으므로 여기서부터는 만들어 쓰지 말고 있는 것을 쓴다.
+
+### fixture
+
+`e2e/fixtures/{platform}/{accepted,rejected}.json` 여섯 개다. 각각 실제 제출 한 번의 mutation 기록이고, `recording.batches[].mutations`와 `watchedBefore`/`watchedAfter`가 들어 있다. 들여쓰기 없는 단일 줄 JSON이다 — mutation이 6천 건대라 pretty-print 구조 overhead만으로 파일이 두 배 넘게 불어난다.
+
+| fixture | 담긴 판정 |
+| --- | --- |
+| `leetcode/accepted` | `Judging...` → `Accepted` (`characterData`) |
+| `leetcode/rejected` | `Pending...` → `Wrong Answer` (`characterData`) |
+| `programmers/accepted` | `.modal-title` = `정답입니다!` |
+| `programmers/rejected` | `.modal-title` = `틀렸습니다!` |
+| `swea/accepted` | `축하합니다. Pass입니다.제출이 완료되었습니다.` |
+| `swea/rejected` | `오답채점용 input 파일로 채점한 결과 fail 입니다....` |
+
+**fixture에 solution code 원문은 없다.** 회수 경로 자체가 막혀 있고 저장 직전 검사가 한 번 더 본다. 재생 spec을 쓸 때 code를 fixture에서 꺼내려 하지 말고 `e2e/fixtures/solutions/`를 쓴다.
+
+### 재생할 때 반드시 알아야 할 것
+
+캡처가 드러낸 것들이다. 각 플랫폼 문서에 근거와 함께 적혀 있다.
+
+- **Programmers는 결과 내용과 visibility가 서로 다른 batch로 온다.** batch N에서 `.modal-title`이 채워지지만 root는 아직 `display: none`이고, batch N+1에서 visibility만 바뀐다. **재생 spec이 두 batch를 하나로 합치면 판정이 성립하지 않는다.** 구현이 `state`를 batch 사이에 들고 가는 덕에 통과하는 구조다.
+- **LeetCode 판정은 node 추가가 아니라 대기 text의 제자리 교체다.** 그리고 page에는 `Accepted 23,208,748/40M` 같은 통계 copy가 있어 문자열 검색으로 판정을 찾으면 안 된다.
+- **SWEA는 `childList` node 추가**이고 layer 전체 text의 맨 앞에 Accepted 접두사가 온다.
+
+### 캡처를 다시 돌려야 할 때
+
+```bash
+CAPTURE_PLATFORM=leetcode CAPTURE_OUTCOME=accepted npm run e2e:capture
+npm run e2e:capture:swea   # SWEA는 로그인과 캡처를 한 세션에서 끝낸다
+```
+
+SWEA는 `.env`에 `E2E_SWEA_ID`/`E2E_SWEA_PASSWORD`가 있으면 로그인까지 자동이고, 없으면 사람이 로그인할 때까지 기다린다. `.env`는 `.gitignore`에 있다. LeetCode·Programmers는 Verification Profile에 쿠키가 남아 `npm run e2e:login`을 한 번만 하면 된다.
+
+**제출 전에 두 개의 문이 있다.** editor가 넣으려던 code를 실제로 들고 있는지 확인하고, SWEA는 채점 제출 없이 먼저 실행해 예제 입출력과 대조한다. 둘 중 하나라도 어긋나면 제출하지 않는다. 이 문들이 실제로 잘못된 제출을 여러 번 막았으므로 우회하지 않는다.
+
+### 열린 질문
+
+Phase 3을 막지는 않지만 재생 spec을 짤 때 전제로 삼으면 안 되는 것들이다.
+
+- 두 번째 Accepted에서 결과 node가 재사용되는지 — [#78](https://github.com/zaehorang/SolveSync/issues/78)
+- 긴 풀이에서 Programmers `textarea#code`가 잘리지 않는지 — [#79](https://github.com/zaehorang/SolveSync/issues/79)
+
 ## 확인된 이음매
 
 종이 위 추측이 아니라 코드에서 확인한 것들이다. 여기서 벗어나면 다시 확인한다.

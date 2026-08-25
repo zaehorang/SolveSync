@@ -4,8 +4,30 @@
 
 ## Route와 Accepted 감지
 
-> **관찰 강도: 가정.** 이 절의 DOM 계약은 **실제 제출로 확인된 적이 없고 관찰 일자 기록도 없다.** 세 플랫폼 중 근거가 가장 약하다. Accepted 결과 panel의 실제 구조, 결과 text가 node 추가로 오는지 text 교체로 오는지, 결과 panel이 재사용되는지 전부 미확인이다. Live E2E 실제 제출로 실증한 뒤 이 경고를 관찰 강도 표기로 교체한다.
+> **관찰 강도: 실증 2026-08-25.** 기준 문제로 정답·오답을 실제 제출해 캡처했다. 근거는 [`e2e/fixtures/leetcode/`](../../e2e/fixtures/leetcode/)의 `accepted.json`·`rejected.json`이다. 결과 panel이 두 번째 제출에서 재사용되는지는 아직 확인하지 않았다 — 이번 캡처는 정답·오답 각 1회씩이다.
 
+### 실증된 판정 전이
+
+**판정은 대기 text가 제자리에서 바뀌며 온다. node 추가가 아니다.** 두 캡처 모두 `characterData` mutation 하나로 왔다.
+
+| 캡처 | 전이 | mutation |
+| --- | --- | --- |
+| 정답 | `Judging...` → `Accepted` | `characterData` |
+| 오답 | `Pending...` → `Wrong Answer` | `characterData` |
+
+대기 text는 `Pending...`과 `Judging...` 두 가지이고 둘 사이를 오간 뒤 판정으로 바뀐다. 정답 캡처는 `Judging...`에서, 오답 캡처는 `Pending...`에서 넘어갔다. 어느 쪽에서 넘어올지 고정으로 보지 않는다.
+
+**이 page는 조용해지지 않는다.** 제출과 무관하게 `<head>`에 style tag가 계속 삽입돼 idle 상태에서도 초당 약 30개의 mutation이 발생한다. 침묵 기반으로 채점 완료를 판정할 수 없다. 채점 중간에 몇 초씩 조용해지는 polling 간격도 있어 침묵을 완료로 착각하기 쉽다.
+
+**결과 text를 문자열 검색으로 찾으면 안 된다.** 문제 page에는 `Accepted 23,208,748/40M` 같은 통계 copy가 있어 제출 전부터 `Accepted`가 DOM에 들어 있다. 실제로 이 방식으로 캡처했을 때 판정이 오기 전에 신호가 걸려 `Judging...` 상태에서 멈춘 fixture가 만들어졌다. 위 표의 **전이**를 봐야 한다. 이 판정 방식은 캡처 도구([`e2e/capture/runCapture.ts`](../../e2e/capture/runCapture.ts)의 `verdictArrived`)에 그대로 들어 있다.
+
+**page에 Monaco editor가 둘 있다.** `monaco.editor.getEditors()`가 2개를 돌려주고 순서는 보장되지 않는다(실측 2026-08-25). `[0]`을 풀이 editor로 가정하면 엉뚱한 editor에 코드가 들어가 이전 내용이 그대로 제출된다 — 컴파일되는 풀이가 `Compile Error`로 돌아온 캡처가 실제로 나왔다. **크기로 고르는 것도 안 된다.** page 로드 직후에는 아직 배치되지 않아 두 editor가 25px과 0px로 나온다. 구분자는 model의 language다 — 풀이 editor는 선택한 언어(`cpp`)이고 다른 하나는 테스트케이스 입력이라 `plaintext`다. 제품 content script는 LeetCode에서 code를 읽지 않으므로(GraphQL이 source of truth) 이 문제는 캡처 자동화에만 해당한다.
+
+**제출 결과 panel은 제출한 code를 다시 그린다.** 판정 text가 오는 바로 그 node 안에 `Code` section이 있고 거기에 방금 제출한 source가 줄 번호와 함께 렌더된다. 그 panel을 통째로 버리면 판정도 함께 사라지므로, 캡처는 제출한 code의 줄을 redaction 대상으로 등록해 UI 문구는 남기고 code만 지운다. page의 hydration `<script>`에도 직전 제출 code가 JSON으로 들어 있어 함께 버린다.
+
+**editor에 쓴 값이 나중에 덮어써진다.** page가 뜬 뒤에도 저장해 둔 직전 풀이를 editor에 복원하는데, 그 복원이 우리가 쓴 값보다 늦게 오면 editor가 조용히 예전 code로 돌아간다. 써 넣고 되읽어 값이 유지되는지 확인해야 한다.
+
+이것은 adapter가 결과 text 후보를 한 번 더 선별하는 이유이기도 하다. 아래 규칙이 그 선별이다.
 
 - 지원 route는 `/problems/{titleSlug}`다. Accepted 후보마다 현재 URL에서 `titleSlug`를 다시 추출한다.
 - 짧은 결과 text인 `Accepted`와 `Accepted {passed} / {total} testcases passed`를 Accepted 신호로 사용한다. 세 플랫폼 중 유일하게 **결과 text 후보인지 선별하는 단계가 하나 더 있다.** 문제 page에 `Acceptance Rate` 같은 일반 copy가 많아 단어 일치만으로는 결과와 구분되지 않기 때문이다.

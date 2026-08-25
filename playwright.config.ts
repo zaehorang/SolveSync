@@ -1,10 +1,22 @@
 import { defineConfig } from "@playwright/test";
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
 
 /** 검증 하네스 설정.
  *
  * 확장을 unpacked로 로드해야 하므로 각 spec이 직접 persistent context를
  * 띄운다. Playwright의 기본 browser fixture는 쓰지 않는다.
  */
+
+// SWEA 자동 로그인이 쓰는 계정 정보를 `.env`에서 읽는다. `engines`가 Node
+// `>=24`라 `process.loadEnvFile`을 의존성 없이 쓸 수 있다. 파일이 없어도
+// 실패하지 않는다 — 자격증명이 없으면 수동 로그인 대기로 떨어진다.
+const envFile = resolve(import.meta.dirname, ".env");
+
+if (existsSync(envFile)) {
+  process.loadEnvFile(envFile);
+}
+
 export default defineConfig({
   testDir: "e2e",
   // Vitest가 도는 `*.test.ts`를 Playwright가 다시 집지 않게 한다.
