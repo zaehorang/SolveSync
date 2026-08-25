@@ -15,8 +15,11 @@ e2e/
 ├── capture/     # 캡처 도구. 플랫폼별 제출 driver, recorder, redaction
 ├── drivers/     # Platform E2E Driver. 플랫폼별 fixture, 기준 문제, 제출 조작
 ├── fixtures/    # 실제 page에서 캡처한 sanitized DOM과 검증용 풀이
-└── support/     # 확장 로드, route 가로채기, Verification Profile, 자격증명
+└── support/     # 확장 로드, route 가로채기, 확장 page 메시징,
+                 # Verification Profile, Verification Repository, 자격증명
 ```
+
+드라이버는 [`drivers/index.ts`](drivers/index.ts)에 등록한 것만 spec이 돈다. 새 플랫폼은 드라이버 파일 하나와 거기 한 줄로 붙는다.
 
 ## 실행
 
@@ -67,16 +70,40 @@ redaction은 회수 경로에 박혀 있고 저장 직전에 한 번 더 검사�
 
 그래서 editor·`<script>`·`<style>` 안의 mutation은 기록하지 않고, 그것들을 품은 바깥 wrapper가 직렬화될 때는 복제본에서 해당 subtree를 비우며, 제출한 code의 특징적인 줄은 redaction 대상으로 등록한다. **새 플랫폼을 추가하면 이 세 경로를 다시 확인한다.** 저장 직전 검사가 마지막 문이지만, 그것에만 기대지 않는다.
 
+## GitHub write 계층
+
+확장 options page에서 `content:accepted_detected`를 보내 **플랫폼 page 없이** orchestration 전 구간을 태우고, Verification Repository에 실제로 생긴 commit을 GitHub API로 밖에서 확인한다. 여기서 실패하면 원인이 GitHub 경로 하나로 좁혀진다.
+
+설정은 캡처용 자격증명과 같은 자리, `.env`에 둔다. `playwright.config.ts`가 읽고 견본은 [`.env.example`](../.env.example)에 있다. **`.env`는 worktree 안에 있어야 한다** — 주 디렉터리에 두면 조용히 무시된다.
+
+```bash
+E2E_GITHUB_REPOSITORY=owner/verification-repository
+E2E_GITHUB_TOKEN=...
+```
+
+- 환경 변수가 없으면 **spec이 스스로 건너뛴다.** fork PR에는 secret이 없어 자동으로 그렇게 되고, Sealed 계층만 남아 그대로 통과한다.
+- 대상은 전용 **Verification Repository**다. 기본값을 두지 않아 설정 실수로 실사용 Sync Repository를 쓸 경로 자체가 없다.
+- token은 그 저장소 한 곳에만 쓰기 권한을 가진 fine-grained token이다.
+- 실행마다 `e2e/{uuid}` branch를 하네스가 만들고 끝나면 지운다. 동시 PR이 서로를 밟지 않는다. **제품이 만드는 branch가 아니므로 자동 생성 금지 규칙은 그대로다.**
+
+### 두 가지 전제에 기대고 있다
+
+`content:accepted_detected`는 **sender가 content script인지 검사하지 않는다.** `externally_connectable`이 없어 외부 web page는 못 보내지만 같은 확장의 어느 context든 보낼 수 있다. 나중에 sender 검증을 조이면 이 계층도 함께 고쳐야 한다.
+
+auth session은 `chrome.storage.local`에 직접 심는다. `BackgroundRuntimeOptions.authManager` 주입은 프로덕션이 아닌 번들을 로드하게 되어 이 계층의 전제를 깨기 때문이다. 대가는 **storage schema가 바뀌면 하네스가 조용히 어긋난다**는 것이고, [`auth-seed.spec.ts`](auth-seed.spec.ts)가 제품 parser로 그것을 막는다. secret 없이 돈다.
+
+이 계층이 잡지 못하는 것은 **실제 인증 경로**다. Device Flow와 token refresh는 세션을 심어 건너뛰므로 풀사이클이 실증한다.
+
 ## 상태
 
-하네스 배선은 동작한다. 확장이 로드되고 실제 도메인 URL에서 content script가 주입되는 것까지 확인한다.
+하네스 배선과 GitHub write 계층이 동작한다. 확장이 로드되고, 실제 도메인 URL에서 content script가 주입되고, 합성 event가 Verification Repository의 commit이 되는 것까지 확인한다.
 
 - 드라이버 계약: [`drivers/types.ts`](drivers/types.ts)
 - 구축 계획: [`docs/plans/e2e/`](../docs/plans/e2e/)
 
 세 플랫폼의 정답·오답 fixture 여섯 개가 `fixtures/`에 있다. 각 fixture가 담고 있는 판정과 재생할 때 주의할 점은 [Phase 3 계획](../docs/plans/e2e/phase-3-harness.md#phase-1이-넘긴-것)에 정리돼 있다.
 
-아직 없는 것: fixture 기반 Sealed E2E, GitHub write 계층, Contract Check, 풀사이클.
+아직 없는 것: fixture 기반 Sealed E2E, Contract Check, 풀사이클.
 
 ## Verification Profile은 실제 Chrome으로 띄운다
 

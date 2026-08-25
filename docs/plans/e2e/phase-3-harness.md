@@ -117,10 +117,15 @@ export interface PlatformE2EDriver {
 
 ## 진행 상황
 
-**하네스 배선은 끝났다.** `e2e/support/`와 `e2e/harness.spec.ts`가 있고 CI에 비차단 job으로 붙어 있다. 남은 것은 아래 둘이다.
+**하네스 배선과 GitHub write 계층이 끝났다.** `e2e/support/`, `e2e/harness.spec.ts`, `e2e/auth-seed.spec.ts`, `e2e/github-write.spec.ts`가 있고 CI에 비차단 job으로 붙어 있다. 드라이버 등록은 `e2e/drivers/index.ts`이고 SWEA 드라이버가 write 계층이 쓰는 부분(`syntheticPayload`, `liveUrl`)을 채운다.
 
-- Sealed E2E spec — Phase 1의 캡처 fixture가 있어야 쓸 수 있다.
-- GitHub write 계층 — Verification Repository와 token이 있어야 쓸 수 있다.
+남은 것은 하나다.
+
+- Sealed E2E spec — Phase 1이 끝나 fixture가 있으므로 더 이상 막혀 있지 않다.
+
+**GitHub write 계층은 실제로 돌았다.** 2026-08-25, `zaehorang/solvesync-verification`(private, Contents write만 가진 fine-grained token)을 상대로 SWEA 합성 payload가 commit이 되는 것을 확인했다. 실행 branch는 끝나고 지워졌고 default branch는 그대로다. 같은 값이 저장소 Actions secret(`E2E_GITHUB_TOKEN`)과 variable(`E2E_GITHUB_REPOSITORY`)에 들어가 CI에서도 돈다.
+
+설정은 캡처용 자격증명과 같은 자리, worktree의 `.env`에 둔다. 없으면 spec이 스스로 건너뛴다 — fork PR이 그렇다.
 
 ## 해결된 미해결 항목
 
@@ -130,9 +135,11 @@ Playwright의 `headless: true` 기본값은 `chromium_headless_shell` 바이너�
 
 xvfb는 필요 없다. 로컬에서 3개 spec이 5초 안에 끝난다.
 
-## 남은 미해결 — 착수 직후 실물로 정한다
+**token 주입은 `chrome.storage.local` 직접 쓰기로 확정했다.**
 
-**token 주입 방법.** `chrome.storage.local`에 auth state 직접 쓰기 vs `BackgroundRuntimeOptions.authManager` 주입. 후자는 프로덕션 번들이 아닌 것을 로드하게 되어 "테스트 전용 변형 금지"와 충돌한다. **전자를 택하되 storage schema 계약 테스트를 붙이는 쪽이 현재 판단**이나, 실제로 심어 보고 확정한다.
+`BackgroundRuntimeOptions.authManager` 주입은 프로덕션이 아닌 번들을 로드하게 되어 이 계층의 전제를 깬다. 대신 심은 session이 제품 parser를 통과하는지를 `auth-seed.spec.ts`가 `settings:read`로 고정한다 — schema가 바뀌면 하네스가 조용히 어긋나는 대신 그 단언이 먼저 깨진다. secret 없이 돈다.
+
+fine-grained token에는 refresh token이 없다. `accessTokenExpiresAt`을 먼 미래로 두어 `getAccessToken`의 refresh 분기에 닿지 않게 하고, parser가 빈 문자열을 거부하므로 `refreshToken`에는 쓰이지 않는 placeholder를 넣는다.
 
 ## CI
 
@@ -143,13 +150,13 @@ xvfb는 필요 없다. 로컬에서 3개 spec이 5초 안에 끝난다.
 
 ## 완료 조건
 
-- [ ] 빌드된 `dist/`를 unpacked로 로드해 실제 도메인 URL에서 content script 주입이 확인된다.
-- [ ] **테스트 전용 manifest 변형 없이** 프로덕션 빌드 산출물을 그대로 검증한다.
+- [x] 빌드된 `dist/`를 unpacked로 로드해 실제 도메인 URL에서 content script 주입이 확인된다.
+- [x] **테스트 전용 manifest 변형 없이** 프로덕션 빌드 산출물을 그대로 검증한다.
 - [ ] SWEA MAIN world bridge 왕복이 실제 Chrome에서 검증된다.
 - [ ] 가상 스크롤 상태에서 화면 밖 줄을 포함한 전체 code가 bridge를 통해 전달된다.
 - [ ] bridge 미주입 시 `swea_extract_failed`로 수렴한다.
 - [ ] Sealed E2E가 Sync History entry로 판정하며 실제 네트워크를 타지 않는다.
-- [ ] GitHub write가 Verification Repository의 고유 branch에 commit을 만들고 끝나면 지운다.
+- [x] GitHub write가 Verification Repository의 고유 branch에 commit을 만들고 끝나면 지운다.
 - [ ] Sealed E2E가 secret 없이 통과한다.
-- [ ] 미해결 2건의 답이 PR body에 기록되고 그 결과로 실행 방식이 확정된다.
+- [x] 미해결 2건의 답이 PR body에 기록되고 그 결과로 실행 방식이 확정된다.
 - [ ] 각 계층이 잡지 못하는 것이 문서에 남는다.
