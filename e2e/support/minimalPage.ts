@@ -1,6 +1,6 @@
 /** 하네스 배선 확인용 최소 page.
  *
- * **실제 SWEA page가 아니다.** 캡처 기반 fixture는 Phase 1이 만들고
+ * **실제 SWEA page가 아니다.** 캡처 기반 fixture는 `capture/`가 만들고
  * `e2e/fixtures/`에 들어간다. 여기서 확인하는 것은 manifest match가 걸리고
  * content bundle이 실제 Chrome에서 로드되는가뿐이다.
  */

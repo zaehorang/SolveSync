@@ -21,6 +21,7 @@ import {
   readDryRunSample,
   readSolution
 } from "./capture/drivers";
+import { ensureSweaLogin } from "./capture/sweaLogin";
 import { DRIVERS } from "./drivers";
 import {
   openExtensionPage,
@@ -31,6 +32,7 @@ import {
 import { openVerificationProfile } from "./support/profile";
 import {
   createRunBranch,
+  sweepStaleRunBranches,
   deleteRunBranch,
   fetchSyncRepository,
   readFileAtRef,
@@ -46,6 +48,15 @@ const only = process.env.E2E_LIVE_PLATFORM?.trim();
  * Programmers와 SWEA는 `acceptedSourceId`에 code hash가 들어간다. 코드가
  * 같으면 두 번째 실행이 중복으로 걸러져 commit이 생기지 않고, **그 통과는
  * 거짓이다.** */
+/** 채점 출력 비교 전 표시상의 차이를 없앤다.
+ *
+ * SWEA의 TEST 결과 패널은 숫자 사이 공백을 **비분리 공백(U+00A0)** 으로
+ * 그린다(2026-08-26 실측). 예제 파일은 일반 공백이라 그대로 비교하면 값이
+ * 같은데도 다르다고 나오고, 그러면 dry-run 문이 정상 코드를 막는다. */
+function normalizeJudgeOutput(value: string): string {
+  return value.replace(/\u00a0/g, " ").replace(/\r\n/g, "\n").trim();
+}
+
 const COMMENT_PREFIX: Record<string, string> = {
   py: "#",
   swift: "//",
@@ -60,6 +71,18 @@ test.describe("풀사이클", () => {
 
   // 실제 채점은 오래 걸린다. LeetCode는 대기열에 들어가기도 한다.
   test.setTimeout(10 * 60 * 1000);
+
+  test.beforeAll(async () => {
+    if (config === null) {
+      return;
+    }
+
+    const swept = await sweepStaleRunBranches(config);
+
+    if (swept.length > 0) {
+      console.info(`[full-cycle] 끊긴 실행이 남긴 branch ${swept.length}개를 치웠다.`);
+    }
+  });
 
   for (const driver of DRIVERS) {
     test(`${driver.platform} 실제 Accepted가 실제 commit이 된다`, async () => {
@@ -120,6 +143,15 @@ test.describe("풀사이클", () => {
 
         const page = await context.newPage();
 
+        // SWEA의 `SESSION` 쿠키는 만료 기한 없이 발급되는 진짜 session
+        // cookie라 브라우저 프로세스가 끝나면 사라진다. 다른 둘과 달리
+        // "미리 로그인해 두기"가 통하지 않아 실행마다 여기서 로그인한다.
+        // 자격증명은 `.env`에서만 오고 값은 어디에도 찍지 않는다.
+        if (driver.platform === "swea") {
+          await ensureSweaLogin(page);
+          console.info("[full-cycle] SWEA 로그인 완료");
+        }
+
         await captureDriver.open(page);
         console.info("[full-cycle] 문제 page 열림");
 
@@ -153,10 +185,14 @@ test.describe("풀사이클", () => {
           const sample = await readDryRunSample(driver.platform);
           const output = await captureDriver.dryRun(page, sample.input);
 
+          // 무엇이 달랐는지 함께 남긴다. 이건 우리 검증용 코드의 출력이지
+          // 사용자 데이터가 아니다.
           expect(
-            output.trim(),
-            "dry-run 출력이 예제와 다르다. 제출하지 않는다."
-          ).toBe(sample.expected);
+            normalizeJudgeOutput(output),
+            `dry-run 출력이 예제와 다르다. 제출하지 않는다. 받은=${JSON.stringify(
+              normalizeJudgeOutput(output).slice(0, 200)
+            )}`
+          ).toBe(normalizeJudgeOutput(sample.expected));
         }
 
         // **제출 앞의 세 번째 문: 로그인.** 로그아웃 상태면 제출 control이
@@ -175,15 +211,43 @@ test.describe("풀사이클", () => {
           if (result !== timedOut) {
             return;
           }
-          const diagnosis = await page.evaluate(() => ({
-            url: location.href,
-            로그인유도: /로그인|log in|sign in/i.test(document.body.innerText)
-          }));
+          const diagnosis = await page.evaluate(() => {
+            const controls = [
+              ...document.querySelectorAll("button,[role='button'],a")
+            ]
+              .filter((element) =>
+                /^(submit|제출)$/i.test(
+                  (element.textContent ?? "").replace(/\s+/g, " ").trim()
+                )
+              )
+              .map((element) => {
+                const rect = element.getBoundingClientRect();
+                const top = document.elementFromPoint(
+                  rect.left + rect.width / 2,
+                  rect.top + rect.height / 2
+                );
+
+                return {
+                  tag: element.tagName.toLowerCase(),
+                  size: `${Math.round(rect.width)}x${Math.round(rect.height)}`,
+                  disabled: (element as HTMLButtonElement).disabled ?? null,
+                  가려짐: !(top === element || element.contains(top))
+                };
+              });
+
+            return {
+              url: location.href,
+              로그인유도: /로그인|log in|sign in/i.test(document.body.innerText),
+              제출control: controls
+            };
+          });
 
           throw new Error(
             diagnosis.로그인유도
               ? `30초 안에 제출하지 못했고 page가 로그인을 요구한다. Verification Profile에 다시 로그인해라 (npm run e2e:login). url=${diagnosis.url}`
-              : `30초 안에 제출하지 못했다. 제출 control의 selector가 바뀌었을 수 있다. url=${diagnosis.url}`
+              : `30초 안에 제출하지 못했다. url=${diagnosis.url} 제출control=${JSON.stringify(
+                  diagnosis.제출control
+                )}`
           );
         });
         console.info("[full-cycle] 제출 버튼 눌림");

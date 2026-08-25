@@ -15,6 +15,8 @@
  */
 import { test } from "@playwright/test";
 
+import { DRIVERS as CAPTURE_DRIVERS } from "./capture/drivers";
+import { ensureSweaLogin } from "./capture/sweaLogin";
 import { DRIVERS } from "./drivers";
 import { openVerificationProfile } from "./support/profile";
 
@@ -41,6 +43,12 @@ test.describe("Contract Check", () => {
       try {
         const page = await context.newPage();
 
+        // SWEA의 `SESSION` 쿠키는 브라우저 프로세스가 끝나면 사라진다. 이
+        // 플랫폼만 실행마다 로그인해야 문제 page가 열린다.
+        if (driver.platform === "swea") {
+          await ensureSweaLogin(page);
+        }
+
         await page.goto(driver.liveUrl(), { waitUntil: "domcontentloaded" });
 
         // headed여도 확인 화면이 한 번 스칠 수 있다. 넘어갈 때까지 기다린다.
@@ -52,8 +60,11 @@ test.describe("Contract Check", () => {
           await page.waitForTimeout(2_000);
         }
 
-        // 사용자 데이터가 그려질 시간을 준다. 클릭하지 않는다.
-        await page.waitForTimeout(5_000);
+        // editor가 뜰 때까지 기다린다. 고정 대기로 두면 느린 날 page가 덜
+        // 그려진 상태를 계약 위반으로 오해한다. 제출 조작은 하지 않는다 —
+        // `open`은 page를 열고 editor를 기다리기만 한다.
+        await CAPTURE_DRIVERS[driver.platform].open(page);
+        await page.waitForTimeout(2_000);
 
         await driver.assertContract?.(page);
       } finally {

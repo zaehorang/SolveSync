@@ -3,7 +3,7 @@
  * 세 플랫폼 중 Sealed E2E의 가치가 가장 크다. 판정이 **computed style에
  * 의존하는 visibility**를 보므로 jsdom으로는 원리상 덮이지 않는다.
  */
-import type { Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 
 import type { AcceptedDetectedPayload } from "../../src/shared/messages";
 import { BASE_PROBLEMS } from "../capture/baseProblems";
@@ -26,9 +26,6 @@ const RESULT_TEXT: Record<SealedOutcome, string> = {
   rejected: "틀렸습니다!"
 };
 
-function notImplemented(what: string): never {
-  throw new Error(`${what}는 실제 page를 보고 확정한다.`);
-}
 
 export const programmersDriver: PlatformE2EDriver = {
   platform: "programmers",
@@ -123,11 +120,87 @@ export const programmersDriver: PlatformE2EDriver = {
     return BASE_PROBLEM.url;
   },
 
-  // `assertContract`를 아직 두지 않는다. 이 플랫폼은 로그인 세션이 있어야
-  // 문제 page가 열려 실제 page를 재지 못했다. 추측한 selector를 여기 박는
-  // 것이 이 계층이 없애려는 문제 그 자체다.
+  /** Adapter가 의존하는 셋을 본다. 제출하지 않으므로 결과 modal의 **내용**은
+   * 볼 수 없다 — 그건 풀사이클의 몫이다. 여기서 답하는 것은 "판정이 걸릴
+   * 자리와 code 출처가 아직 있는가"다. */
+  async assertContract(page: Page): Promise<void> {
+    const state = await page.evaluate(() => {
+      const root = document.querySelector("#modal-dialog");
+      const style = root === null ? null : getComputedStyle(root);
+      const textarea = document.querySelector<HTMLTextAreaElement>("textarea#code");
 
-  async submit(_page: Page, _code: string): Promise<void> {
-    notImplemented("Programmers 자동 제출");
-  }
+      return {
+        rootPresent: root !== null,
+        rootDisplay: style?.display ?? null,
+        // 제출 전에는 **속이 비어 있다**(2026-08-26 실측: `innerHTML.length`가
+        // 0이다). `.modal-title`은 결과가 올 때 함께 만들어진다. 그래서 여기서
+        // 그 존재를 요구하면 안 된다 — adapter도 판정 시점에만 읽는다.
+        acceptedTitleVisible:
+          root?.querySelector(".modal-title")?.textContent?.trim() ===
+          "정답입니다!",
+        codeLength: textarea?.value.length ?? -1,
+        // adapter의 후보 목록을 그대로 따라간다(`extractProgrammersRawLanguage`).
+        // 하나만 보면 **실제 page가 쓰는 것이 그 하나가 아닐 때** 계약이
+        // 멀쩡한데도 실패한다 — 실제로 이 page는 여섯 번째 후보인
+        // `[data-language].active`를 쓴다(2026-08-26 실측).
+        language: (() => {
+          const selectors = [
+            'select[name="language"]',
+            "select#language",
+            'select[name="language_id"]',
+            'input[name="language"]',
+            '[data-language][aria-selected="true"]',
+            "[data-language].active"
+          ];
+
+          for (const selector of selectors) {
+            const node = document.querySelector(selector);
+
+            if (node === null) {
+              continue;
+            }
+
+            const value =
+              node.getAttribute("data-language") ??
+              (node as HTMLInputElement).value ??
+              node.textContent;
+
+            if (typeof value === "string" && value.trim().length > 0) {
+              return `${selector} → ${value.trim()}`;
+            }
+          }
+
+          return null;
+        })()
+      };
+    });
+
+    // presentation root는 **이미 존재하던 node**다. 캡처 첫 batch부터
+    // `present: true`이고 `display: none`으로 대기한다. 사라지면 판정이
+    // 걸릴 자리가 없다.
+    expect(state.rootPresent, "`#modal-dialog`가 없다.").toBe(true);
+    expect(
+      state.acceptedTitleVisible,
+      "제출 전인데 Accepted title이 이미 있다. 첫 전이가 성립하지 않는다."
+    ).toBe(false);
+
+    // 제출 전이므로 숨어 있어야 한다. 보이는 상태로 시작하면 첫 전이가
+    // `inactive → acceptedVisible`이 되지 않는다.
+    expect(
+      state.rootDisplay,
+      "제출 전인데 `#modal-dialog`가 보인다. 전이 판정의 전제가 깨진다."
+    ).toBe("none");
+
+    // code 출처. 값이 editor와 함께 갱신되는 것은 캡처가 실증했다.
+    expect(
+      state.codeLength,
+      "`textarea#code`가 없거나 비어 있다. extraction failure로 간다."
+    ).toBeGreaterThan(0);
+
+    expect(
+      state.language ?? "",
+      "언어를 읽을 수 있는 element가 후보 목록에 하나도 없다."
+    ).not.toBe("");
+  },
+
 };

@@ -160,12 +160,9 @@ auth session은 `chrome.storage.local`에 직접 심는다. `BackgroundRuntimeOp
 
 하네스 배선, Sealed E2E, GitHub write 계층이 동작한다. 확장이 로드되고, 캡처에서 온 판정 text가 Sync History까지 도달하고, 합성 event가 Verification Repository의 commit이 되는 것까지 확인한다. 세 플랫폼 드라이버가 모두 Sealed를 통과한다.
 
-- 드라이버 계약: [`drivers/types.ts`](drivers/types.ts)
-- 구축 계획: [`docs/plans/e2e/`](../docs/plans/e2e/)
+드라이버 계약은 [`drivers/types.ts`](drivers/types.ts)에 있고, 세 플랫폼의 정답·오답 fixture 여섯 개가 `fixtures/`에 있다. 각 fixture가 담은 판정과 재생할 때 주의할 점은 해당 플랫폼 문서를 따른다.
 
-세 플랫폼의 정답·오답 fixture 여섯 개가 `fixtures/`에 있다. 각 fixture가 담고 있는 판정과 재생할 때 주의할 점은 [Phase 3 계획](../docs/plans/e2e/phase-3-harness.md#phase-1이-넘긴-것)에 정리돼 있다.
-
-아직 없는 것: Contract Check, 풀사이클. 둘 다 Verification Profile의 로그인 세션이 필요해 CI에 배선하지 않는다.
+**네 계층이 모두 세 플랫폼에서 통과한다**(2026-08-26). CI가 도는 것은 Sealed와 GitHub write 둘이고, Contract Check와 풀사이클은 로그인 세션과 headed 브라우저가 필요해 사람이 돌린다.
 
 ## Verification Profile은 실제 Chrome으로 띄운다
 

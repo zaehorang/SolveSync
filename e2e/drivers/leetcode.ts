@@ -27,9 +27,6 @@ const RESULT_TEXT: Record<SealedOutcome, string> = {
   rejected: "Wrong Answer"
 };
 
-function notImplemented(what: string): never {
-  throw new Error(`${what}는 실제 page를 보고 확정한다.`);
-}
 
 /** 판정이 보는 것과 같은 단위로 page text를 모은다.
  *
@@ -175,7 +172,4 @@ export const leetcodeDriver: PlatformE2EDriver = {
     );
   },
 
-  async submit(_page: Page, _code: string): Promise<void> {
-    notImplemented("LeetCode 자동 제출");
-  }
 };

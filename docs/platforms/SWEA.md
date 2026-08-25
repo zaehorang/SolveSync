@@ -185,6 +185,18 @@ Missing `contestProbId`/title/language와 empty code는 commit하지 않고 `swe
 
 대표 검증은 `npm test -- src/content/swea.test.ts src/background/sync.test.ts`로 실행한다.
 
+`e2e/`의 검증 계층이 덮는 것은 이렇다.
+
+- `sealed.spec.ts` + `drivers/swea.ts`: 캡처에서 온 결과 layer text가 Sync History까지 도달하고, 실패 text에서는 event가 0회다. 네트워크를 타지 않는다.
+- `github-write.spec.ts`: 합성 payload가 Verification Repository의 commit이 된다.
+- `contract.spec.ts`: 실제 page에 `input#contestProbId`, `h3.problem_title`, `select#sel_lang`, `.CodeMirror` host와 그 위의 editor instance가 아직 있다. **실행마다 로그인한다** — `SESSION` 쿠키가 브라우저 프로세스와 함께 사라진다.
+- `full-cycle.spec.ts`: 실제 제출 → 실제 commit. **MAIN world bridge 왕복이 여기서 실증된다** — SWEA code는 bridge로만 오고, 실행마다 붙는 nonce 주석이 commit된 파일에서 확인된다(2026-08-26).
+
+**아직 덮이지 않은 것 둘.** 계층이 없어서가 아니라 조건을 만들지 않아서다.
+
+- 가상 스크롤 밖 줄을 포함한 `getValue()`. 현재 검증용 풀이가 49줄이라 화면 밖으로 나가지 않는다. 60줄 이상 풀이로 풀사이클을 한 번 돌리면 답이 나온다.
+- bridge 미주입 시 `swea_extract_failed` 수렴. bridge는 manifest가 항상 주입하므로 그 상태를 실제 page에서 만들려면 별도 장치가 필요하다.
+
 ## 확인된 전제
 
 구현은 page script 독해에서 나온 전제 7개 위에 세웠다. **2026-08-18 문제 1206을 실제 Accepted 제출해 7개를 모두 확인했다.**

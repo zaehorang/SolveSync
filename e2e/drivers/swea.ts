@@ -1,10 +1,9 @@
 /** SWEA Platform E2E Driver.
  *
- * Phase 3은 GitHub write 계층이 쓰는 부분만 채운다. Sealed fixture와 실제
- * page 조작은 Phase 1의 캡처와 Phase 4의 실측이 있어야 하고, 추측한 selector를
- * 여기 박는 것이 이 검증 계층이 없애려는 문제 그 자체다.
+ * 실제 page 조작은 `e2e/capture/drivers.ts`가 갖는다. 제출 selector를 두 곳에
+ * 두면 하나가 조용히 낡는다.
  */
-import type { Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 
 import type { AcceptedDetectedPayload } from "../../src/shared/messages";
 import { BASE_PROBLEMS } from "../capture/baseProblems";
@@ -15,7 +14,8 @@ const BASE_PROBLEM = BASE_PROBLEMS.swea;
 /** 기준 문제 1206의 식별자. `baseProblems.ts`의 URL과 같은 문제다. */
 const CONTEST_PROB_ID = "AV134DPqAA8CFAYh";
 
-const PROBLEM_TITLE = "1206. View";
+/** 실제 page의 `h3.problem_title` 그대로다(2026-08-26 실측). */
+const PROBLEM_TITLE = "1206. [S/W 문제해결 기본] 1일차 - View";
 
 /** SWEA 언어 select의 option value. `languageRegistry`가 `Y`를 python3로 읽는다.
  *
@@ -33,9 +33,6 @@ const RESULT_TEXT: Record<SealedOutcome, string> = {
     "오답채점용 input 파일로 채점한 결과 fail 입니다.(오답 :  10개의 테스트케이스 중 0개가 맞았습니다.)확인닫기"
 };
 
-function notImplemented(what: string): never {
-  throw new Error(`${what}는 Phase 4에서 실제 page를 보고 확정한다.`);
-}
 
 export const sweaDriver: PlatformE2EDriver = {
   platform: "swea",
@@ -103,11 +100,55 @@ export const sweaDriver: PlatformE2EDriver = {
     return BASE_PROBLEM.url;
   },
 
-  // `assertContract`를 아직 두지 않는다. 이 플랫폼은 로그인 세션이 있어야
-  // 문제 page가 열려 실제 page를 재지 못했다. 추측한 selector를 여기 박는
-  // 것이 이 계층이 없애려는 문제 그 자체다.
+  /** route identity가 URL이 아니라 DOM에서 온다(ADR 0036). 모든 문제가 같은
+   * URL을 쓰기 때문이다. 그래서 여기서 보는 것들이 사라지면 **어떤 문제인지
+   * 알 수 없어 route 자체가 성립하지 않는다.** */
+  async assertContract(page: Page): Promise<void> {
+    const state = await page.evaluate(() => {
+      const editorHost = document.querySelector(".CodeMirror");
 
-  async submit(_page: Page, _code: string): Promise<void> {
-    notImplemented("SWEA 자동 제출");
-  }
+      return {
+        contestProbId:
+          document.querySelector<HTMLInputElement>("input#contestProbId")?.value ??
+          null,
+        title:
+          document
+            .querySelector<HTMLElement>("h3.problem_title")
+            ?.textContent?.replace(/\s+/g, " ")
+            .trim() ?? null,
+        language:
+          document.querySelector<HTMLSelectElement>("select#sel_lang")?.value ??
+          null,
+        editorHostPresent: editorHost !== null,
+        // MAIN world bridge가 읽는 그 instance다. host element에 붙는다.
+        editorInstance:
+          editorHost !== null &&
+          typeof (editorHost as { CodeMirror?: { getValue?: unknown } }).CodeMirror
+            ?.getValue === "function"
+      };
+    });
+
+    expect(
+      state.contestProbId ?? "",
+      "`input#contestProbId`가 없다. route를 확정할 수 없다."
+    ).toBe(CONTEST_PROB_ID);
+
+    // `{번호}. {제목}` 형식이다. 어긋나면 번호 없이 전체를 제목으로 둔다.
+    expect(
+      state.title ?? "",
+      "`h3.problem_title`이 `{번호}. {제목}` 형식이 아니다."
+    ).toMatch(/^\d+\s*\.\s*.+$/);
+
+    expect(state.language ?? "", "`select#sel_lang`을 읽지 못했다.").not.toBe("");
+
+    expect(state.editorHostPresent, "`.CodeMirror` host가 없다.").toBe(true);
+
+    // bridge는 host element의 `CodeMirror` property에서 `getValue()`를
+    // 부른다. property가 사라지면 code를 못 읽어 `swea_extract_failed`가 된다.
+    expect(
+      state.editorInstance,
+      "`.CodeMirror` host에 editor instance가 없다. bridge가 code를 읽지 못한다."
+    ).toBe(true);
+  },
+
 };

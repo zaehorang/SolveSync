@@ -203,3 +203,47 @@ export async function fetchCommit(
     changedPaths: (body.files ?? []).map((file) => file.filename)
   };
 }
+
+/** 실행이 강제로 끊겨 남은 branch를 치운다.
+ *
+ * 정리는 `finally`에 있지만 test timeout이나 프로세스 강제 종료는 그것을
+ * 건너뛴다(2026-08-26 실측: 그렇게 4개가 남아 있었다). 그래서 시작할 때 한 번
+ * 쓸어낸다.
+ *
+ * **나이 제한을 둔다.** 지금 도는 다른 실행의 branch를 지우면 그 실행이
+ * 조용히 깨진다. 로컬과 CI가 같은 저장소를 쓰므로 실제로 겹칠 수 있다. */
+export async function sweepStaleRunBranches(
+  config: VerificationRepositoryConfig,
+  olderThanMs = 2 * 60 * 60 * 1000
+): Promise<string[]> {
+  const branches = (await requireOk(
+    await callGitHub(config, `/repos/${config.owner}/${config.name}/branches?per_page=100`),
+    "branch 목록 조회"
+  )) as { name: string; commit: { sha: string } }[];
+
+  const swept: string[] = [];
+  const deadline = Date.now() - olderThanMs;
+
+  for (const branch of branches) {
+    if (!branch.name.startsWith(RUN_BRANCH_PREFIX)) {
+      continue;
+    }
+
+    const commit = (await requireOk(
+      await callGitHub(
+        config,
+        `/repos/${config.owner}/${config.name}/commits/${branch.commit.sha}`
+      ),
+      "commit 시각 조회"
+    )) as { commit: { committer: { date: string } } };
+
+    if (Date.parse(commit.commit.committer.date) > deadline) {
+      continue;
+    }
+
+    await deleteRunBranch(config, branch.name);
+    swept.push(branch.name);
+  }
+
+  return swept;
+}

@@ -78,6 +78,8 @@ Vitest에서 다음을 검증한다.
 
 `e2e/contract.spec.ts`는 실제 `/problems/two-sum/`을 열어 판정 규칙이 실제 page 문구와 아직 맞물리는지 본다. 이 플랫폼은 공개 route라 로그인이 필요 없어 셋 중 가장 싸게 자주 돌릴 수 있다. **headed로만 된다** — headless는 Cloudflare가 막는다(2026-08-25 실측).
 
+`e2e/full-cycle.spec.ts`가 실제 제출 → GraphQL source 조회 → 실제 commit을 실증한다(2026-08-26). commit된 code에 실행마다 붙는 nonce가 들어 있어 stale Accepted 재사용이면 그 자리에서 드러난다.
+
 **GitHub write 계층은 이 플랫폼을 돌지 않는다.** code도 제목도 background가 GraphQL로 조회하고 그 조회에는 플랫폼 로그인 세션과 실제 제출 기록이 필요해, 합성 payload로는 `leetcode_fetch_failed`로 끝난다(2026-08-25 실측). 그 경로는 풀사이클이 실증한다.
 - GraphQL metadata/Accepted Submission parsing과 submission ID 기반 deduplication
 - auth/fetch 실패 normalization

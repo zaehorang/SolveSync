@@ -4,9 +4,8 @@
  * 플랫폼별 spec을 세 번 쓰지 않기 위한 구조이며, 새 Coding Platform은
  * 드라이버 하나로 검증 계층 전체에 붙는다.
  *
- * TODO(Phase 3): 공통 spec과 support를 만든다.
- * TODO(Phase 4): 플랫폼별 구현체를 만든다.
- * `docs/plans/e2e/`를 따른다.
+ * 새 Coding Platform은 이 인터페이스를 구현한 파일 하나와 `index.ts`의 한
+ * 줄로 검증 계층 전체에 붙는다.
  */
 import type { Page } from "@playwright/test";
 
@@ -72,13 +71,4 @@ export interface PlatformE2EDriver {
    * **없을 수 있다.** 아직 채우지 않은 플랫폼은 공통 spec이 건너뛴다. */
   assertContract?(page: Page): Promise<void>;
 
-  /** 풀사이클의 실제 제출. 제품이 쓰지 않는 selector는 여기에만 있다.
-   *
-   * `E2E_LIVE_SUBMIT=1`과 사용자 승인이 있을 때만 호출된다. 실사용 계정에
-   * 영구 기록이 남고 SWEA는 문제당 제출 상한이 99회다.
-   *
-   * Programmers와 SWEA는 `acceptedSourceId`에 code hash가 들어가므로
-   * 반복 실행 시 code가 매번 달라야 한다. 같으면 중복으로 걸러져 commit이
-   * 생기지 않고, 그 통과는 거짓이다. */
-  submit(page: Page, code: string): Promise<void>;
 }
