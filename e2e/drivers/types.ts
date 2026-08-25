@@ -38,7 +38,8 @@ export interface SealedFixture {
    *
    * 플랫폼마다 방식이 다르다 — SWEA는 node 추가, LeetCode는 대기 text의
    * 제자리 교체, Programmers는 내용과 visibility가 서로 다른 batch로 온다.
-   * **Programmers에서 두 batch를 하나로 합치면 판정이 성립하지 않는다.** */
+   * **Programmers에서 두 batch를 합치지 않는다.** 합쳐도 통과하지만 그
+   * 통과는 state를 batch 사이에 들고 가지 않는 구현도 함께 통과시킨다. */
   showResult(page: Page, outcome: SealedOutcome): Promise<void>;
 }
 

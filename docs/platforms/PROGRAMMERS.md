@@ -86,7 +86,9 @@ Missing lesson, title 또는 language와 empty code는 commit하지 않고 `prog
 - `src/content/acceptedEventController.test.ts`: 억제 창, immutable snapshot, second Accepted와 SPA route reset
 - Background/shared 관련 Vitest: Accepted Source ID, extraction failure, multi-language Solution Catalog/README projection
 
-대표 검증은 `npm test -- src/content/platforms src/content/acceptedEventController.test.ts`로 실행한다.
+- `e2e/sealed.spec.ts` + `e2e/drivers/programmers.ts`: 프로덕션 빌드 산출물을 실제 Chrome에 로드해 캡처에서 온 `.modal-title` text가 Sync History까지 도달하는지 본다. **visibility 판정이 computed style에 의존해 Vitest로는 원리상 덮이지 않는 구간이다.** 재생은 캡처대로 두 batch로 나눈다 — 합쳐도 통과하지만 그 통과는 state를 batch 사이에 들고 가지 않는 구현도 함께 통과시킨다.
+
+대표 검증은 `npm test -- src/content/platforms src/content/acceptedEventController.test.ts`로 실행한다. Sealed E2E는 `npm run build && npx playwright test e2e/sealed.spec.ts`다.
 
 ## 수동 검증
 
