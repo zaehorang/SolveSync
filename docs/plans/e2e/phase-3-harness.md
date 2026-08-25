@@ -121,11 +121,11 @@ export interface PlatformE2EDriver {
 
 남은 것은 하나다.
 
-- Sealed E2E spec — Phase 1의 캡처 fixture가 있어야 쓸 수 있다. **Phase 1이 선행이며 그때까지 이 Phase는 닫지 않는다.**
+- Sealed E2E spec — Phase 1이 끝나 fixture가 있으므로 더 이상 막혀 있지 않다.
 
 **GitHub write 계층은 실제로 돌았다.** 2026-08-25, `zaehorang/solvesync-verification`(private, Contents write만 가진 fine-grained token)을 상대로 SWEA 합성 payload가 commit이 되는 것을 확인했다. 실행 branch는 끝나고 지워졌고 default branch는 그대로다. 같은 값이 저장소 Actions secret(`E2E_GITHUB_TOKEN`)과 variable(`E2E_GITHUB_REPOSITORY`)에 들어가 CI에서도 돈다.
 
-설정이 없으면 spec이 스스로 건너뛴다. fork PR이 그렇다.
+설정은 캡처용 자격증명과 같은 자리, worktree의 `.env`에 둔다. 없으면 spec이 스스로 건너뛴다 — fork PR이 그렇다.
 
 ## 해결된 미해결 항목
 
