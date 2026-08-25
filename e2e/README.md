@@ -70,6 +70,18 @@ redaction은 회수 경로에 박혀 있고 저장 직전에 한 번 더 검사�
 
 그래서 editor·`<script>`·`<style>` 안의 mutation은 기록하지 않고, 그것들을 품은 바깥 wrapper가 직렬화될 때는 복제본에서 해당 subtree를 비우며, 제출한 code의 특징적인 줄은 redaction 대상으로 등록한다. **새 플랫폼을 추가하면 이 세 경로를 다시 확인한다.** 저장 직전 검사가 마지막 문이지만, 그것에만 기대지 않는다.
 
+## Sealed E2E
+
+실제 도메인 URL로 **최소 뼈대** page를 띄우고 캡처에서 온 판정 text를 그대로 나타나게 한 뒤, 프로덕션 content script가 그것을 Accepted로 읽어 background까지 보내는지 본다. 관측점은 Sync History다 — `onMessage`를 후킹하면 service worker가 잠들 때 날아가고, storage에 남는 것은 "도달했다"보다 강한 것을 본다.
+
+**GitHub를 설정하지 않고 돌린다.** `setup_required` entry가 남고 거기에 platform·problem이 들어 있다. 네트워크를 타지 않아 secret 없이 fork PR에서도 돈다.
+
+### 왜 뼈대는 짓고 text는 짓지 않는가
+
+캡처는 DOM snapshot이 아니라 **mutation 기록**이고, mutation의 `target`에 node 경로가 없어(`{kind, name}`뿐) 기록을 그대로 되감을 수 없다. 그래서 뼈대는 드라이버가 최소한으로 짓는다.
+
+그 자유도가 판정 text까지 번지면 **우리가 상상한 DOM으로 우리 adapter를 검증하는 순환**이 되어 통과해도 아무것도 보장하지 않는다. 그래서 판정 text는 드라이버에 상수로 두되 [`support/capturedResult.ts`](support/capturedResult.ts)가 그 값이 캡처에 실재하는지 재생 전에 확인한다. 플랫폼이 문구를 바꿔 새 캡처가 들어오면 이 확인이 먼저 깨진다.
+
 ## GitHub write 계층
 
 확장 options page에서 `content:accepted_detected`를 보내 **플랫폼 page 없이** orchestration 전 구간을 태우고, Verification Repository에 실제로 생긴 commit을 GitHub API로 밖에서 확인한다. 여기서 실패하면 원인이 GitHub 경로 하나로 좁혀진다.
@@ -96,14 +108,14 @@ auth session은 `chrome.storage.local`에 직접 심는다. `BackgroundRuntimeOp
 
 ## 상태
 
-하네스 배선과 GitHub write 계층이 동작한다. 확장이 로드되고, 실제 도메인 URL에서 content script가 주입되고, 합성 event가 Verification Repository의 commit이 되는 것까지 확인한다.
+하네스 배선, Sealed E2E, GitHub write 계층이 동작한다. 확장이 로드되고, 캡처에서 온 판정 text가 Sync History까지 도달하고, 합성 event가 Verification Repository의 commit이 되는 것까지 확인한다. 드라이버는 SWEA 하나가 채워져 있고 나머지 둘은 Phase 4다.
 
 - 드라이버 계약: [`drivers/types.ts`](drivers/types.ts)
 - 구축 계획: [`docs/plans/e2e/`](../docs/plans/e2e/)
 
 세 플랫폼의 정답·오답 fixture 여섯 개가 `fixtures/`에 있다. 각 fixture가 담고 있는 판정과 재생할 때 주의할 점은 [Phase 3 계획](../docs/plans/e2e/phase-3-harness.md#phase-1이-넘긴-것)에 정리돼 있다.
 
-아직 없는 것: fixture 기반 Sealed E2E, Contract Check, 풀사이클.
+아직 없는 것: Contract Check, 풀사이클. 둘 다 Verification Profile의 로그인 세션이 필요해 CI에 배선하지 않는다.
 
 ## Verification Profile은 실제 Chrome으로 띄운다
 

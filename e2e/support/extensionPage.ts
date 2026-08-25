@@ -142,3 +142,39 @@ export async function readSyncHistoryEntries(
 
   return Array.isArray(entries) ? (entries as SyncHistoryEntry[]) : [];
 }
+
+/** Sync History에 조건을 만족하는 entry가 나타날 때까지 기다린다.
+ *
+ * 고정 대기로 두면 느린 기계에서 흔들리고 빠른 기계에서 시간을 버린다.
+ * timeout까지 나타나지 않으면 그때까지 쌓인 entry를 함께 보여주며 던진다 —
+ * "없다"만으로는 무엇이 대신 기록됐는지 알 수 없다. */
+export async function waitForSyncHistoryEntry(
+  page: Page,
+  matches: (entry: SyncHistoryEntry) => boolean,
+  timeoutMs = 15_000
+): Promise<SyncHistoryEntry> {
+  const deadline = Date.now() + timeoutMs;
+  let entries: SyncHistoryEntry[] = [];
+
+  while (Date.now() < deadline) {
+    entries = await readSyncHistoryEntries(page);
+
+    const found = entries.find(matches);
+
+    if (found !== undefined) {
+      return found;
+    }
+
+    await page.waitForTimeout(200);
+  }
+
+  throw new Error(
+    `Sync History에 기다리던 entry가 없다. 지금까지: ${JSON.stringify(
+      entries.map((entry) => ({
+        codingPlatform: entry.codingPlatform,
+        status: entry.status,
+        titleSlug: entry.titleSlug
+      }))
+    )}`
+  );
+}

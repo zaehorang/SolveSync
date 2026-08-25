@@ -15,6 +15,10 @@ e2e/fixtures/{platform}/                (Phase 1 산출물 사용)
 docs/platforms/{PLATFORM}.md            (관찰 강도 갱신)
 ```
 
+`SealedFixture`는 Phase 3에서 확정됐다. **최소 뼈대 page는 드라이버가 짓고 판정 text는 캡처에서 온다.** 그 text가 캡처에 실재하는지 공통 spec이 재생 전에 확인하므로 지어낸 문자열은 통과하지 못한다. `e2e/drivers/swea.ts`가 본보기다.
+
+SWEA의 bridge 세 항목(왕복, 가상 스크롤 밖 줄, 미주입 시 `swea_extract_failed`)이 Phase 3에서 여기로 넘어왔다. Sealed fixture로 덮이지 않는다 — 캡처가 code를 회수하지 않고 가상 스크롤은 실제 CodeMirror가 있어야 성립한다.
+
 드라이버 등록만 예외다. `e2e/drivers/index.ts`의 `DRIVERS`에 **자기 것 한 줄만 append한다.** 그 줄이 없으면 공통 spec이 그 플랫폼을 돌지 않는다.
 
 **나머지 공유 파일은 건드리지 않는다.** `e2e/support/`, 공통 spec, `package.json`, `.github/workflows/ci.yml`, `platforms/types.ts`는 Phase 3에서 확정됐다. 부족한 것이 나오면 **직접 고치지 말고 보고한다.** 셋이 각자 고치면 기반이 갈라지고, 그 순간 셋 다 통과하는데 아무것도 검증하지 않는 상태가 된다.
