@@ -123,9 +123,9 @@ export const programmersDriver: PlatformE2EDriver = {
     return BASE_PROBLEM.url;
   },
 
-  async assertContract(_page: Page): Promise<void> {
-    notImplemented("Programmers Contract Check");
-  },
+  // `assertContract`를 아직 두지 않는다. 이 플랫폼은 로그인 세션이 있어야
+  // 문제 page가 열려 실제 page를 재지 못했다. 추측한 selector를 여기 박는
+  // 것이 이 계층이 없애려는 문제 그 자체다.
 
   async submit(_page: Page, _code: string): Promise<void> {
     notImplemented("Programmers 자동 제출");

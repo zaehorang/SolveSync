@@ -65,10 +65,12 @@ export interface PlatformE2EDriver {
    * 실사용 풀이와 겹치지 않아야 Sync Deduplication Key가 오염되지 않는다. */
   liveUrl(): string;
 
-  /** Contract Check. 제출하지 않고 Adapter가 의존하는 DOM 도달 가능성만
-   * 확인한다. selector가 사라졌을 때 어느 플랫폼의 무엇이 깨졌는지
-   * 식별 가능한 형태로 실패해야 한다. */
-  assertContract(page: Page): Promise<void>;
+  /** Contract Check. 제출하지 않고 Adapter가 의존하는 것이 실제 page에
+   * 아직 있는지만 확인한다. 깨졌을 때 어느 플랫폼의 무엇이 사라졌는지
+   * 식별 가능한 형태로 실패해야 한다.
+   *
+   * **없을 수 있다.** 아직 채우지 않은 플랫폼은 공통 spec이 건너뛴다. */
+  assertContract?(page: Page): Promise<void>;
 
   /** 풀사이클의 실제 제출. 제품이 쓰지 않는 selector는 여기에만 있다.
    *
