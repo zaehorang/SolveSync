@@ -15,7 +15,9 @@
  * 때 commit이 조용히 안 생긴다.
  */
 import { chromium, type BrowserContext } from "@playwright/test";
-import { mkdir } from "node:fs/promises";
+import { cp, mkdir, mkdtemp } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -37,15 +39,26 @@ export async function openVerificationProfile(
   await mkdir(VERIFICATION_PROFILE_DIR, { recursive: true });
 
   const distPath = resolve(repoRoot, "dist");
-  const extensionArgs =
-    options.withExtension === true
-      ? [`--disable-extensions-except=${distPath}`, `--load-extension=${distPath}`]
-      : [];
+  const withExtension = options.withExtension === true;
+  const extensionArgs = withExtension
+    ? [`--disable-extensions-except=${distPath}`, `--load-extension=${distPath}`]
+    : [];
 
-  return chromium.launchPersistentContext(VERIFICATION_PROFILE_DIR, {
+  // **실제 Chrome은 `--load-extension`을 더 이상 받지 않는다**(2026-08-25
+  // 실측: service worker가 영영 기동하지 않는다). 확장이 필요한 풀사이클만
+  // Chromium으로 내려간다.
+  //
+  // 그때 원본 프로필을 쓰지 않고 복사본을 쓴다. 한 프로필 디렉터리를 Chrome과
+  // Chromium이 번갈아 열면 프로필이 상해 로그인을 다시 해야 한다. 로그인은
+  // 사람이 하는 일이므로 그 비용이 복사 비용보다 비싸다.
+  const userDataDir = withExtension
+    ? await copyProfile()
+    : VERIFICATION_PROFILE_DIR;
+
+  return chromium.launchPersistentContext(userDataDir, {
     // 번들 Chromium이 아니라 실제 Chrome을 쓴다. Cloudflare는 브라우저
     // 지문을 보고, 번들 Chromium은 그 자체로 흔한 자동화 신호다.
-    channel: "chrome",
+    channel: withExtension ? "chromium" : "chrome",
     headless: options.headless ?? false,
     viewport: null,
     // `--enable-automation`은 navigator.webdriver를 켜고 주소창에 자동화
@@ -53,4 +66,12 @@ export async function openVerificationProfile(
     ignoreDefaultArgs: ["--enable-automation"],
     args: ["--disable-blink-features=AutomationControlled", ...extensionArgs]
   });
+}
+
+async function copyProfile(): Promise<string> {
+  const target = await mkdtemp(join(tmpdir(), "solvesync-profile-"));
+
+  await cp(VERIFICATION_PROFILE_DIR, target, { recursive: true });
+
+  return target;
 }

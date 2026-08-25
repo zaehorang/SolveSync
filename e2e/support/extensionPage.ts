@@ -9,12 +9,12 @@
  * context든 보낼 수 있고, **GitHub write 계층은 그 느슨함에 의존한다.**
  * 나중에 sender 검증을 조이면 이 support도 함께 고쳐야 한다.
  */
-import type { Page } from "@playwright/test";
+import type { BrowserContext, Page } from "@playwright/test";
 
 import { STORAGE_KEYS, STORAGE_SCHEMA_VERSION } from "../../src/shared/storageSchema";
 import type { GitHubAuthSession } from "../../src/shared/storageSchema";
 import type { SyncHistoryEntry } from "../../src/shared/types";
-import type { LoadedExtension } from "./extension";
+
 
 /** page 안에서만 쓰는 확장 API. e2e tsconfig는 chrome 타입을 싣지 않는다.
  *
@@ -42,9 +42,18 @@ export interface RuntimeFailure {
 
 export type RuntimeResponse<T> = RuntimeSuccess<T> | RuntimeFailure;
 
+/** 확장 page를 열 수 있는 최소 표면.
+ *
+ * `LoadedExtension`을 그대로 받지 않는다. 풀사이클은 Verification Profile을
+ * 직접 띄우므로 그 타입을 만들지 않는다. */
+export interface ExtensionPageTarget {
+  readonly context: BrowserContext;
+  extensionId(): Promise<string>;
+}
+
 /** options page를 연다. 제품 번들 그대로이며 테스트 전용 page를 만들지 않는다. */
 export async function openExtensionPage(
-  extension: LoadedExtension
+  extension: ExtensionPageTarget
 ): Promise<Page> {
   const extensionId = await extension.extensionId();
   const page = await extension.context.newPage();

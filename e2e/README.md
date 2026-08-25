@@ -82,6 +82,31 @@ redaction은 회수 경로에 박혀 있고 저장 직전에 한 번 더 검사�
 
 그 자유도가 판정 text까지 번지면 **우리가 상상한 DOM으로 우리 adapter를 검증하는 순환**이 되어 통과해도 아무것도 보장하지 않는다. 그래서 판정 text는 드라이버에 상수로 두되 [`support/capturedResult.ts`](support/capturedResult.ts)가 그 값이 캡처에 실재하는지 재생 전에 확인한다. 플랫폼이 문구를 바꿔 새 캡처가 들어오면 이 확인이 먼저 깨진다.
 
+## 풀사이클
+
+**실제 계정으로 실제 채점 제출을 한다.** 되돌릴 수 없고 계정에 영구 기록이 남는다. SWEA는 문제당 제출 상한이 99회다.
+
+```bash
+npm run e2e:login                                    # 1회. 사람이 세 플랫폼에 로그인
+E2E_LIVE_SUBMIT=1 npm run e2e:full-cycle             # 셋 다
+E2E_LIVE_PLATFORM=swea E2E_LIVE_SUBMIT=1 npm run e2e:full-cycle   # 하나만
+```
+
+이 계층만이 실증하는 것은 **실제 플랫폼 DOM에서 난 실제 Accepted가 실제 GitHub commit이 되는 전 구간**이다. 앞의 세 계층은 각자 그 일부만 본다.
+
+제출은 [`capture/drivers.ts`](capture/drivers.ts)를 그대로 쓴다. selector를 두 곳에 두면 하나가 조용히 낡는다.
+
+### 제출 앞에 문이 넷 있다
+
+제출은 되돌릴 수 없으므로 확인을 전부 제출 앞에 세웠다.
+
+1. **대상 저장소.** 설정을 심은 뒤 되읽어 Verification Repository인지 확인한다. 아니면 제출하지 않는다 — 그 실수는 사용자의 실사용 Sync Repository에 쓴다.
+2. **로그인.** 로그아웃 상태면 editor도 제출 control도 없고 Playwright는 test timeout까지 조용히 기다린다(실측: 10분을 그렇게 썼다). 곧바로 `npm run e2e:login`을 하라고 말하고 멈춘다.
+3. **dry-run.** 채점 없이 먼저 돌려 예제 입출력과 대조한다. SWEA가 여기 해당하고 제출 상한이 있어 값이 가장 크다.
+4. **코드 nonce.** 실행마다 주석 한 줄을 덧붙인다. Programmers와 SWEA는 `acceptedSourceId`에 code hash가 들어가 같은 코드면 두 번째 실행이 중복으로 걸러지고 **그 통과는 거짓이다.**
+
+확장은 이 계층에서만 로드한다. 그리고 **실제 Chrome이 아니라 Chromium으로 내려간다** — 실제 Chrome은 `--load-extension`을 더 이상 받지 않는다(2026-08-25 실측). 그때 프로필은 복사본을 쓴다. 한 프로필을 Chrome과 Chromium이 번갈아 열면 상해서 사람이 다시 로그인해야 한다.
+
 ## Contract Check
 
 실제 page를 열어 **Adapter가 의존하는 것이 아직 거기 있는지**만 본다. 제출하지 않으므로 되돌릴 것이 없고 자주 돌릴 수 있다.
