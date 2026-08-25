@@ -13,6 +13,7 @@ describe("캡처 redaction", () => {
   // 등록한 비밀은 module 상태로 남는다. 테스트끼리 새지 않게 비운다.
   afterEach(() => {
     registerSecrets([]);
+    registerSecrets([], "solution-code");
   });
 
   it("solution code를 원문 없이 줄 수·길이·해시로만 남긴다", () => {
@@ -96,6 +97,19 @@ describe("캡처 redaction", () => {
 
     expect(redactText("abcdef")).toBe("abcdef");
     expect(findLeaks("abcdef")).toEqual([]);
+  });
+
+  it("label이 다르면 서로의 등록을 지우지 않는다", () => {
+    // 계정은 세션 내내 유지되어야 하고 solution code는 캡처마다 바뀐다.
+    // 한쪽을 다시 등록할 때 다른 쪽이 사라지면 그 순간부터 조용히 샌다.
+    registerSecrets(["solvesync-tester"]);
+    registerSecrets(["return seen.find(target);"], "solution-code");
+    registerSecrets(["print(total + 1)"], "solution-code");
+
+    expect(redactText("solvesync-tester님")).toBe(`${REDACTED}님`);
+    expect(redactText("print(total + 1)")).toBe(REDACTED);
+    // 같은 label의 이전 등록은 교체된다.
+    expect(redactText("return seen.find(target);")).toBe("return seen.find(target);");
   });
 
   it("findLeaks가 남은 값을 이름으로 알려준다", () => {

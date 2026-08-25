@@ -21,7 +21,11 @@
 
 **결과 text를 문자열 검색으로 찾으면 안 된다.** 문제 page에는 `Accepted 23,208,748/40M` 같은 통계 copy가 있어 제출 전부터 `Accepted`가 DOM에 들어 있다. 실제로 이 방식으로 캡처했을 때 판정이 오기 전에 신호가 걸려 `Judging...` 상태에서 멈춘 fixture가 만들어졌다. 위 표의 **전이**를 봐야 한다. 이 판정 방식은 캡처 도구([`e2e/capture/runCapture.ts`](../../e2e/capture/runCapture.ts)의 `verdictArrived`)에 그대로 들어 있다.
 
-**page에 Monaco editor가 둘 있다.** `monaco.editor.getEditors()`가 2개를 돌려주고 순서는 보장되지 않는다(실측 2026-08-25). `[0]`을 풀이 editor로 가정하면 엉뚱한 editor에 코드가 들어가 이전 내용이 그대로 제출된다 — 컴파일되는 풀이가 `Compile Error`로 돌아온 캡처가 실제로 나왔다. 화면에서 가장 큰 editor를 풀이 editor로 본다. 제품 content script는 LeetCode에서 code를 읽지 않으므로(GraphQL이 source of truth) 이 문제는 캡처 자동화에만 해당한다.
+**page에 Monaco editor가 둘 있다.** `monaco.editor.getEditors()`가 2개를 돌려주고 순서는 보장되지 않는다(실측 2026-08-25). `[0]`을 풀이 editor로 가정하면 엉뚱한 editor에 코드가 들어가 이전 내용이 그대로 제출된다 — 컴파일되는 풀이가 `Compile Error`로 돌아온 캡처가 실제로 나왔다. **크기로 고르는 것도 안 된다.** page 로드 직후에는 아직 배치되지 않아 두 editor가 25px과 0px로 나온다. 구분자는 model의 language다 — 풀이 editor는 선택한 언어(`cpp`)이고 다른 하나는 테스트케이스 입력이라 `plaintext`다. 제품 content script는 LeetCode에서 code를 읽지 않으므로(GraphQL이 source of truth) 이 문제는 캡처 자동화에만 해당한다.
+
+**제출 결과 panel은 제출한 code를 다시 그린다.** 판정 text가 오는 바로 그 node 안에 `Code` section이 있고 거기에 방금 제출한 source가 줄 번호와 함께 렌더된다. 그 panel을 통째로 버리면 판정도 함께 사라지므로, 캡처는 제출한 code의 줄을 redaction 대상으로 등록해 UI 문구는 남기고 code만 지운다. page의 hydration `<script>`에도 직전 제출 code가 JSON으로 들어 있어 함께 버린다.
+
+**editor에 쓴 값이 나중에 덮어써진다.** page가 뜬 뒤에도 저장해 둔 직전 풀이를 editor에 복원하는데, 그 복원이 우리가 쓴 값보다 늦게 오면 editor가 조용히 예전 code로 돌아간다. 써 넣고 되읽어 값이 유지되는지 확인해야 한다.
 
 이것은 adapter가 결과 text 후보를 한 번 더 선별하는 이유이기도 하다. 아래 규칙이 그 선별이다.
 

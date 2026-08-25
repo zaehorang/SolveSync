@@ -19,7 +19,7 @@ import {
   type CaptureOutcome,
   type PlatformDriver
 } from "./drivers";
-import { findLeaks, redactRecording } from "./redact";
+import { findLeaks, redactRecording, registerSecrets } from "./redact";
 import { resetRecording, waitForQuiet, type Recording } from "./recorder";
 
 const repoRoot = fileURLToPath(new URL("../..", import.meta.url));
@@ -88,19 +88,46 @@ const RESULT_SIGNAL: Partial<Record<CodingPlatform, Record<CaptureOutcome, Resul
   }
 };
 
+/** solution code 원문이 recording에 남았는지 본다.
+ *
+ * recorder가 editor 내부 mutation을 버리므로 정상적으로는 남을 수 없다.
+ * 이건 그 필터가 샜을 때 조용히 통과하지 않게 하는 두 번째 문이다 — editor
+ * DOM 구조가 바뀌어 selector가 빗나가면 필터는 아무 소리 없이 무력해지고,
+ * 그때 남는 것이 하필 사용자 code다.
+ *
+ * 짧은 줄은 보지 않는다. `};`이나 `}` 같은 조각은 어느 page에나 있어 판정에
+ * 쓸 수 없다. 그런 줄만으로 code를 복원할 수도 없다. */
+function findCodeLeak(serialized: string, code: string): string | null {
+  const distinctive = code
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length >= 12 && !line.startsWith("#") && !line.startsWith("//"));
+
+  return distinctive.find((line) => serialized.includes(line)) ?? null;
+}
+
 /** 저장 직전에 한 번 더 본다. redaction이 새면 여기서 멈춘다.
  *
  * redaction 자체는 구조화된 상태(`redactRecording`)에서 이미 끝났다. 여기서는
  * 그 결과를 JSON으로 직렬화한 뒤 검사만 한다 — 직렬화된 텍스트에 `redactHtml`을
  * 다시 걸지 않는다. JSON의 escape된 따옴표를 raw HTML 정규식이 오해해 JSON
  * 자체를 깨뜨린 적이 있다(2026-08-24 실측). */
-function sanitize<T>(value: T): T {
+function sanitize<T>(value: T, code: string): T {
   const serialized = JSON.stringify(value);
   const leaks = findLeaks(serialized);
 
   if (leaks.length > 0) {
     throw new Error(
       `캡처에 남으면 안 되는 값이 있다 (${leaks.join(", ")}). 저장하지 않는다.`
+    );
+  }
+
+  const codeLeak = findCodeLeak(serialized, code);
+
+  if (codeLeak !== null) {
+    throw new Error(
+      `캡처에 solution code 원문이 남았다 (${JSON.stringify(codeLeak)}). ` +
+        "recorder의 strip 대상이나 code redaction이 이 page 구조를 못 잡은 것이다. 저장하지 않는다."
     );
   }
 
@@ -132,26 +159,18 @@ async function probeCodeSource(page: Page, expected: string) {
           monaco?: {
             editor: {
               getEditors(): {
-                getModel(): { getValue(): string };
-                getDomNode(): HTMLElement | null;
+                getModel(): { getValue(): string; getLanguageId(): string };
               }[];
             };
           };
         }
       ).monaco;
       const editors = monaco?.editor.getEditors() ?? [];
-      // editor가 여럿일 때 어느 것을 볼지는 `drivers.ts`의 `setMonacoValue`가
-      // 쓰는 규칙과 같아야 한다. 다르면 쓴 곳과 읽는 곳이 어긋나 검증이 무의미해진다.
-      const area = (editor: (typeof editors)[number]): number => {
-        const rect = editor.getDomNode()?.getBoundingClientRect();
-
-        return rect === undefined ? 0 : rect.width * rect.height;
-      };
-      const rendered =
-        holder?.CodeMirror?.getValue() ??
-        (editors.length > 0
-          ? editors.reduce((best, e) => (area(e) > area(best) ? e : best)).getModel().getValue()
-          : null);
+      // 어느 editor를 볼지는 `drivers.ts`의 `setMonacoValue`와 같은 규칙이어야
+      // 한다. 다르면 쓴 곳과 읽는 곳이 어긋나 검증이 무의미해진다.
+      const solution = editors.filter((e) => e.getModel().getLanguageId() !== "plaintext");
+      const picked = (solution.length > 0 ? solution : editors)[0];
+      const rendered = holder?.CodeMirror?.getValue() ?? picked?.getModel().getValue() ?? null;
 
       return {
         textareaPresent: textarea !== null,
@@ -175,8 +194,8 @@ function assertEditorMatches(codeSource: Awaited<ReturnType<typeof probeCodeSour
   const { expectedLength, expectedLines, editorLength, editorLines } = codeSource;
 
   if (editorLength === null) {
-    // editor 값을 못 읽는 플랫폼(Monaco)은 확인을 건너뛴다. 읽을 수 있는
-    // 곳에서만 막는 것으로도 실제로 났던 사고는 잡힌다.
+    // editor instance를 못 찾은 경우다. 확인할 것이 없으니 넘어간다.
+    // Monaco도 CodeMirror도 없는 page라면 애초에 driver가 먼저 실패한다.
     return;
   }
 
@@ -287,6 +306,19 @@ export async function runCapture(
   await driver.open(page);
   console.info(`[capture] ${problem.label} — ${outcome}`);
 
+  // 플랫폼은 제출 결과 panel에 **제출한 code를 그대로 다시 그린다**(LeetCode
+  // 실측 2026-08-25). 그 panel은 판정 text가 오는 바로 그 node라 통째로 버릴
+  // 수 없다. 그래서 우리가 넣은 code의 특징적인 줄을 redaction 대상으로
+  // 등록해, UI 문구는 남기고 code만 지운다. 짧은 줄은 등록하지 않는다 —
+  // `};` 같은 조각을 전역 치환하면 무관한 문구가 망가진다.
+  registerSecrets(
+    code
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line.length >= 12),
+    "solution-code"
+  );
+
   await driver.writeSolution(page, code);
   const codeSource = await probeCodeSource(page, code);
   console.info(`[capture] code source: ${JSON.stringify(codeSource)}`);
@@ -324,14 +356,17 @@ export async function runCapture(
       : "[capture] 시간 제한에 닿았다. 배경 잡음이 있는 page로 보고 지금까지 기록한 것을 저장한다."
   );
 
-  const payload = sanitize({
-    platform,
-    outcome,
-    problem: problem.label,
-    capturedAt: new Date().toISOString(),
-    codeSource,
-    recording: redactRecording(recording)
-  });
+  const payload = sanitize(
+    {
+      platform,
+      outcome,
+      problem: problem.label,
+      capturedAt: new Date().toISOString(),
+      codeSource,
+      recording: redactRecording(recording)
+    },
+    code
+  );
   const outputDir = resolve(repoRoot, "e2e/fixtures", platform);
 
   await mkdir(outputDir, { recursive: true });

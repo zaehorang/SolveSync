@@ -43,12 +43,20 @@ function escapeForRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-/** 지울 비밀 문자열을 등록한다. 캡처를 시작하기 전에 부른다.
+/** 지울 비밀 문자열을 label 단위로 등록한다. 캡처를 시작하기 전에 부른다.
+ *
+ * 같은 label의 이전 등록은 지우고 새로 넣는다. label이 다르면 서로 건드리지
+ * 않는다 — 계정 정보는 세션 내내 유지되어야 하고, solution code는 캡처마다
+ * 바뀌기 때문이다.
  *
  * 너무 짧은 값은 무시한다. 두 글자짜리를 전역 치환하면 무관한 DOM 텍스트가 통째로
  * 망가져 캡처가 쓸모없어진다. 그 정도로 짧으면 캡처에 섞여도 식별 정보가 되지 못한다. */
-export function registerSecrets(values: readonly string[]): void {
-  registeredSecrets.length = 0;
+export function registerSecrets(values: readonly string[], label = "account"): void {
+  for (let index = registeredSecrets.length - 1; index >= 0; index -= 1) {
+    if (registeredSecrets[index].label === label) {
+      registeredSecrets.splice(index, 1);
+    }
+  }
 
   for (const value of values) {
     const trimmed = value.trim();
@@ -58,7 +66,7 @@ export function registerSecrets(values: readonly string[]): void {
     }
 
     registeredSecrets.push({
-      label: "account",
+      label,
       pattern: new RegExp(escapeForRegExp(trimmed), "g")
     });
   }

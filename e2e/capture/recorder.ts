@@ -87,19 +87,69 @@ export async function armRecorder(page: Page, options: ArmOptions = {}): Promise
       const store = { batches: [] as unknown[], dialogs: [] as unknown[] };
       (window as unknown as Record<string, unknown>)[key] = store;
 
+      /** code editor가 그린 내용은 어떤 경로로도 회수하지 않는다.
+       *
+       * Monaco와 CodeMirror는 code를 `<textarea>`가 아니라 DOM span으로 그린다.
+       * `redactHtml`은 `<textarea>` 내용과 값 attribute만 비우므로 editor가 그린
+       * code는 그대로 통과한다 — 실제로 fixture에 solution code 원문이 남았다
+       * (2026-08-25). 사용자 code가 이 경로로 새면 되돌릴 수 없다.
+       *
+       * mutation target이 editor 안인지만 보는 것으로는 부족하다. `closest`는
+       * 조상만 보는데, editor를 **품고 있는 바깥 wrapper**가 통째로 추가되면
+       * target은 editor 밖이면서 outerHTML에는 code가 전부 들어온다. 실제로 이
+       * 경로로 샜다. 그래서 직렬화 시점에 editor subtree를 비운다. */
+      const EDITOR_SELECTOR = ".monaco-editor, .CodeMirror, textarea#code, textarea#textSource";
+
+      /** 내용을 통째로 버릴 element.
+       *
+       * editor에 더해 `<script>`와 `<style>`도 버린다. LeetCode는 hydration
+       * payload를 `<script>` 안에 JSON으로 심는데 **거기에 직전 제출 code가
+       * 들어 있다**(2026-08-25 실측 — editor를 다 막았는데도 code가 남아서
+       * DOM을 뒤져 보니 `script < body`였다). 화면에 보이지도 않는 곳이라
+       * redaction으로 잡을 생각을 하기 어렵고, page가 무엇을 넣을지 우리가
+       * 통제할 수도 없다. 결과 UI는 script 안에 없으니 통째로 버린다. */
+      const STRIP_SELECTOR = `${EDITOR_SELECTOR}, script, style`;
+
+      const serializeElement = (element: Element): { html: string; text: string } => {
+        const isStripTarget = element.matches(STRIP_SELECTOR);
+
+        if (!isStripTarget && element.querySelector(STRIP_SELECTOR) === null) {
+          return { html: element.outerHTML, text: element.textContent ?? "" };
+        }
+
+        // 버릴 것을 품고 있을 때만 복제한다. 흔치 않은 경로라 비용이 크지 않다.
+        const clone = element.cloneNode(true) as Element;
+
+        if (isStripTarget) {
+          clone.replaceChildren();
+        } else {
+          for (const stripped of Array.from(clone.querySelectorAll(STRIP_SELECTOR))) {
+            stripped.replaceChildren();
+          }
+        }
+
+        return { html: clone.outerHTML, text: clone.textContent ?? "" };
+      };
+
       const describe = (node: Node, htmlLimit = limit): unknown => {
         if (node.nodeType === Node.TEXT_NODE) {
-          return { kind: "text", text: node.textContent ?? "" };
+          // script의 자식 text node가 이 경로로 들어온다. element가 아니라
+          // 요소 단위 strip을 그냥 지나친다.
+          return {
+            kind: "text",
+            text: isInStripped(node) ? "" : (node.textContent ?? "")
+          };
         }
 
         if (node.nodeType === Node.ELEMENT_NODE) {
           const element = node as Element;
+          const { html, text } = serializeElement(element);
 
           return {
             kind: "element",
             name: element.tagName.toLowerCase(),
-            html: element.outerHTML.slice(0, htmlLimit),
-            text: (element.textContent ?? "").slice(0, htmlLimit)
+            html: html.slice(0, htmlLimit),
+            text: text.slice(0, htmlLimit)
           };
         }
 
@@ -159,8 +209,22 @@ export async function armRecorder(page: Page, options: ArmOptions = {}): Promise
       const isInHead = (node: Node): boolean =>
         document.head !== null && document.head.contains(node);
 
+      /** strip 대상 안에서 일어난 mutation은 아예 기록하지 않는다.
+       *
+       * 제출 결과는 editor 안에서도 script 안에서도 일어나지 않으므로 잃는
+       * 신호가 없다. mutation 자체를 버려야 `oldValue`까지 함께 사라진다 —
+       * `oldValue`는 node가 아니라 문자열이라 직렬화 strip이 닿지 않는다. */
+      const isInStripped = (node: Node): boolean => {
+        const element =
+          node.nodeType === Node.ELEMENT_NODE ? (node as Element) : node.parentElement;
+
+        return element !== null && element.closest(STRIP_SELECTOR) !== null;
+      };
+
       new MutationObserver((mutations) => {
-        const relevant = mutations.filter((mutation) => !isInHead(mutation.target));
+        const relevant = mutations.filter(
+          (mutation) => !isInHead(mutation.target) && !isInStripped(mutation.target)
+        );
 
         if (relevant.length === 0) {
           return;

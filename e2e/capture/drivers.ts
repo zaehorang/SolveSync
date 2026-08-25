@@ -55,18 +55,55 @@ async function dismissProgrammersTour(page: Page): Promise<void> {
  * `keyboard.insertText`로 Monaco에 코드를 넣으면 auto-indent-on-newline이
  * 우리가 이미 들여쓴 줄마다 또 들여쓰기를 얹는다. 원본 335자가 841자로
  * 불어나고 중첩이 깊을수록 더 벌어졌다(2026-08-24 실측) — 컴파일이 실패한
- * 원인이었다. LeetCode page는 `window.monaco`를 전역에 노출하므로
- * `getEditors()[0].getModel().setValue()`로 입력 파이프라인을 완전히
- * 우회한다. 이러면 auto-indent도 auto-close-bracket도 거치지 않는다. */
+ * 원인이었다. LeetCode page는 `window.monaco`를 전역에 노출하므로 model에
+ * 직접 `setValue()`해서 입력 파이프라인을 완전히 우회한다. 이러면 auto-indent도
+ * auto-close-bracket도 거치지 않는다. */
 async function setMonacoValue(page: Page, code: string): Promise<void> {
+  // **한 번 쓰고 끝내지 않는다.** LeetCode는 page가 뜬 뒤에도 저장해 둔 직전
+  // 풀이를 editor에 복원한다. 그 복원이 우리가 쓴 값보다 늦게 오면 editor는
+  // 조용히 예전 code로 돌아간다 — 335자를 넣었는데 예전 실행이 남긴 841자가
+  // 그대로 제출 직전까지 남아 있었다(2026-08-25 실측). 써 넣고 잠시 뒤
+  // 되읽어, 값이 유지될 때까지 다시 쓴다.
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    await writeMonacoValue(page, code);
+    await page.waitForTimeout(1500);
+
+    if ((await readMonacoValue(page)) === code) {
+      return;
+    }
+  }
+
+  throw new Error(
+    "Monaco editor에 코드를 고정하지 못했다. page가 저장된 풀이로 계속 되돌리고 있다."
+  );
+}
+
+async function readMonacoValue(page: Page): Promise<string | null> {
+  return page.evaluate(() => {
+    const monaco = (
+      window as unknown as {
+        monaco?: {
+          editor: {
+            getEditors(): { getModel(): { getValue(): string; getLanguageId(): string } }[];
+          };
+        };
+      }
+    ).monaco;
+    const editors = monaco?.editor.getEditors() ?? [];
+    const solution = editors.filter((e) => e.getModel().getLanguageId() !== "plaintext");
+
+    return (solution.length > 0 ? solution : editors)[0]?.getModel().getValue() ?? null;
+  });
+}
+
+async function writeMonacoValue(page: Page, code: string): Promise<void> {
   const applied = await page.evaluate((value) => {
     const monaco = (
       window as unknown as {
         monaco?: {
           editor: {
             getEditors(): {
-              getModel(): { setValue(v: string): void };
-              getDomNode(): HTMLElement | null;
+              getModel(): { setValue(v: string): void; getLanguageId(): string };
             }[];
           };
         };
@@ -84,18 +121,19 @@ async function setMonacoValue(page: Page, code: string): Promise<void> {
     }
 
     // **`[0]`을 쓰지 않는다.** LeetCode page에는 Monaco instance가 둘 있다
-    // (실측 2026-08-25: `editorCount: 2`). 순서는 보장되지 않아서 엉뚱한
-    // editor에 코드를 넣으면 풀이 editor는 이전 내용 그대로 제출된다 —
-    // 컴파일되는 풀이가 Compile Error로 돌아온 적이 있다. 화면에서 가장
-    // 큰 editor를 풀이 editor로 본다.
-    const area = (editor: (typeof editors)[number]): number => {
-      const rect = editor.getDomNode()?.getBoundingClientRect();
+    // (실측 2026-08-25). 순서는 보장되지 않고, 크기로 고르는 것도 안 된다 —
+    // page 로드 직후에는 아직 배치되지 않아 25px과 0px로 나온다. 실제로 크기
+    // 기준이 엉뚱한 editor를 골라 이전 코드가 그대로 제출됐다.
+    //
+    // 구분자는 language다. 풀이 editor의 model은 선택한 언어(`cpp` 등)이고,
+    // 다른 하나는 테스트케이스 입력이라 `plaintext`다.
+    const pick = (list: typeof editors) => {
+      const solution = list.filter((editor) => editor.getModel().getLanguageId() !== "plaintext");
 
-      return rect === undefined ? 0 : rect.width * rect.height;
+      return (solution.length > 0 ? solution : list)[0];
     };
-    const target = editors.reduce((best, editor) => (area(editor) > area(best) ? editor : best));
 
-    target.getModel().setValue(value);
+    pick(editors).getModel().setValue(value);
     return true;
   }, code);
 
