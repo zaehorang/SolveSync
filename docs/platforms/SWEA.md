@@ -197,7 +197,13 @@ Missing `contestProbId`/title/language와 empty code는 commit하지 않고 `swe
 
 **bridge 실패 수렴은 "editor instance가 없을 때"로 검증했다.** `e2e/swea-bridge.spec.ts`가 Sealed 뼈대(`.CodeMirror` host가 없다)에 auth와 settings를 심어 `setup_required`를 지나게 한 뒤, Sync History에 `failed` / `swea_extract_failed`가 남고 `commitSha`와 `solutionPath`가 null인 것을 본다. 재생 전에 bridge가 실제로 응답하는 것(`code: null`)을 먼저 확인하므로 bundle이 통째로 빠지면 그 확인이 먼저 깨진다.
 
-**진짜 bridge 미주입은 아직 덮이지 않았다.** manifest가 항상 주입하므로 그 상태를 실제 page에서 만들려면 별도 장치가 필요하다. 두 조건의 실패 경로가 같다는 것은 코드로만 확인됐다.
+**진짜 bridge 미주입은 이 계층에서 만들지 않는다.** 숙제로 남겨둔 것이 아니라 다른 층이 이미 막고 있어서다.
+
+- `scripts/verify_extension_build.mjs`가 빌드마다 `content/sweaEditorBridge.js`가 `dist/`에 있고 manifest에 `world: MAIN`으로 선언됐는지 확인한다. 주입이 빠지면 런타임까지 가지 않고 빌드에서 걸린다.
+- bridge가 빠지면 SWEA code를 아예 못 가져오므로 풀사이클의 nonce 단언이 실패한다.
+- 미주입과 editor instance 부재는 둘 다 empty code로 수렴해 `resolveSweaSource`의 같은 분기로 들어간다. 갈라지는 로직이 없다.
+
+그래서 여기서 실증한 조건은 "bridge는 살아 있고 editor instance가 없을 때"이고, 그것이 이 계층이 만들 수 있는 조건 전부다. 미주입 쪽 실패 경로가 같다는 것은 코드로만 확인됐다.
 
 ## 확인된 전제
 
