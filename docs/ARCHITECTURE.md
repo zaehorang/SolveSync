@@ -379,6 +379,60 @@ Vitest 밖의 검증은 네 계층이다. 계층 정의와 각 계층이 잡지 
 - **Sealed E2E**와 **GitHub write**는 매 Pull Request에서 실행한다.
 - **Contract Check**와 **풀사이클**은 Verification Profile의 로그인 세션이 필요해 CI에 배선하지 않는다.
 
+#### 각 계층이 태우는 구간
+
+제품의 경로는 `플랫폼 DOM → content script → background orchestration → GitHub commit` 한 줄이다. 계층이 넷인 이유는 이 줄의 **어디를 실제로 태우고 어디를 합성으로 대체하는가**가 다르기 때문이다. 합성으로 대체한 구간은 그 계층이 검증하지 못하는 구간이다.
+
+```mermaid
+flowchart TB
+  subgraph A["A · Sealed E2E — 매 PR · secret 불필요"]
+    direction LR
+    a1["뼈대 page<br/>합성"] --> a2["content script<br/>프로덕션"] --> a3["background<br/>프로덕션"] --> a4["Sync History storage<br/>관측점"]
+  end
+  subgraph B["B · GitHub write — 매 PR · .env 있을 때만"]
+    direction LR
+    b1["options page에서<br/>합성 event"] --> b3["background<br/>프로덕션"] --> b4["Verification Repository<br/>실제 commit"] --> b5["GitHub API로<br/>밖에서 확인"]
+  end
+  subgraph C["C · Contract Check — 주기적 · 사람 · headed"]
+    direction LR
+    c1["실제 page<br/>로그인 세션"] --> c2["Adapter 전제가<br/>아직 맞는가"]
+  end
+  subgraph D["D · 풀사이클 — 릴리스 전 · 사람 · 되돌릴 수 없음"]
+    direction LR
+    d1["실제 page<br/>실제 채점 제출"] --> d2["content script<br/>프로덕션"] --> d3["background<br/>프로덕션"] --> d4["Verification Repository<br/>실제 commit"]
+  end
+  A ~~~ B ~~~ C ~~~ D
+```
+
+B가 content script를 건너뛰는 것이 이 그림의 요점이다. 그래서 B가 실패하면 원인이 GitHub 경로 하나로 좁혀지고, 반대로 B는 감지를 전혀 검증하지 못한다. A가 그 구간을 맡는다. C는 흐름을 태우지 않고 전제만 재며, 넷 중 D만 줄 전체를 실제로 태운다.
+
+#### 언제 도는가
+
+```mermaid
+flowchart TB
+  subgraph AUTO["자동 — 사람이 기억할 필요가 없다"]
+    direction TB
+    commit["git commit"] --> gate["pre-commit gate<br/>branch·경로·secret 정책<br/>typecheck · Vitest · build"]
+    gate --> pr["Pull Request"] --> ci["CI"]
+    ci --> job1["전체 검증<br/>+ 문서 링크 검증"]
+    ci --> job2["검증 하네스"]
+    job2 --> A["A Sealed E2E"]
+    job2 --> B["B GitHub write<br/>secret 없으면 스스로 skip"]
+  end
+  subgraph HUMAN["사람 — headed 브라우저와 로그인 세션이 필요하다"]
+    direction TB
+    ui["플랫폼이 UI를<br/>바꾼 듯할 때"] --> C["C Contract Check"]
+    rel["릴리스 전"] --> D["D 풀사이클"]
+    rel --> M["수동 검증 체크리스트"]
+    dom["플랫폼 DOM이 바뀌어<br/>fixture가 낡으면"] --> cap["캡처"]
+  end
+  cap -.->|"fixture 갱신"| A
+```
+
+캡처는 검증 계층이 아니라 **A의 입력을 만드는 도구**다. 실제 page에서 성공·실패 mutation을 기록해 `e2e/fixtures/`에 남기고, A는 그것을 재생한다. 그래서 A가 보는 것은 언제나 *캡처 시점의* 플랫폼이며, 그 이후 플랫폼이 바꾼 것은 C가 잡는다.
+
+실행 절차와 각 계층의 전제·함정은 [검증 하네스 README](../e2e/README.md)를 따른다.
+
 ### GitHub write 계층에 대한 정책 변경
 
 이전 정책은 "실제 GitHub repository를 자동 테스트 대상으로 고정하지 않으며 GitHub smoke script를 기본 test suite에 두지 않는다"였다. GitHub write 계층이 이 규칙에 걸리므로 범위를 좁혀 다시 정한다.
