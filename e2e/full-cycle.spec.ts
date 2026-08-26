@@ -330,6 +330,15 @@ test.describe("풀사이클", () => {
         // 마지막 줄이라 앞이 잘려도 통과한다 — SWEA editor는 화면에 보이는
         // 줄만 DOM에 그리므로 이것이 실제 위험이다. LeetCode는 code가
         // background GraphQL에서 오므로 여기 해당하지 않는다.
+        //
+        // 전문 비교(`toBe(code)`)로 조이지 않는다. editor는 입력을 조용히
+        // 바꾸고(auto-indent) 그러면 정상 실행이 깨진다. 줄 수는 그 변형을
+        // 견디면서 잘림은 잡는 자리다.
+        //
+        // **SWEA에서만 실제로 돌려봤다**(2026-08-26). Programmers 경로는 code가
+        // `textarea#code`에서 오는데 그쪽이 마지막 빈 줄을 다르게 다루는지
+        // 아직 확인하지 않았다. 다음 Programmers 풀사이클이 여기서 깨지면
+        // 그때가 첫 실측이다.
         if (driver.platform !== "leetcode") {
           expect(
             (committed ?? "").split("\n").length,
