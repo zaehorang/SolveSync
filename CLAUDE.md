@@ -43,6 +43,8 @@ SolveSync는 LeetCode, Programmers와 SWEA에서 Accepted 된 풀이를 사용�
   ln -s {repo-root}/node_modules node_modules
   ```
 
+  `e2e/`를 돌릴 worktree에는 `.env`도 복사한다. `playwright.config.ts`가 `import.meta.dirname` 기준으로 읽어 주 디렉터리에 두면 조용히 무시된다. symlink가 아니라 복사인 이유는 worktree를 지울 때 자격증명 사본도 함께 사라지게 하기 위해서다.
+
   단 `package-lock.json`을 바꾸는 branch에서는 symlink를 쓰지 않는다. 주 디렉터리의 의존성을 조용히 쓰게 되어 lock 변경을 검증하지 못한다. 그때는 `npm ci`를 돌린다.
 
   worktree에 symlink로 거는 것은 `.gitignore` 패턴에 슬래시를 붙이지 않는다. 슬래시는 디렉터리만 잡는데 symlink는 디렉터리가 아니라 그대로 untracked로 뜬다. `node_modules`와 `.verification-profile`이 여기 해당하고, 후자는 로그인 세션이 들어 있어 실제로 위험했다.
@@ -56,6 +58,8 @@ SolveSync는 LeetCode, Programmers와 SWEA에서 Accepted 된 풀이를 사용�
 - PR body에는 무엇을 왜 바꿨는지와 어떻게 검증했는지를 남긴다. 근거가 된 이슈가 있으면 `Fixes #<number>` 또는 적절한 issue link로 함께 포함한다.
 - commit, push, PR 생성처럼 저장소나 GitHub 상태를 바꾸는 게시 단계는 사용자가 해당 작업에서 요청하거나 승인한 범위에서 수행한다.
 - `gh pr merge`와 `git worktree remove`는 주 디렉터리에서 실행한다. worktree 안에서 부르면 `'main' is already used by worktree`로 막힌다.
+- 정리 순서는 **worktree 제거 → branch 삭제**다. worktree가 살아 있으면 `gh pr merge --delete-branch`의 로컬 branch 삭제가 `cannot delete branch ... used by worktree`로 실패한다. 원격 branch는 이미 지워진 뒤라 로컬만 남고, 다음 실행이 낡은 branch를 본다.
+- 정리 명령에 `git checkout main`을 넣지 않는다. 이미 `main`이어도 PreToolUse hook이 branch 전환으로 보고 명령 전체를 막는다.
 - 이 section의 development work branch와 제품이 사용자의 Sync Repository에 만드는 Sync Branch는 서로 다른 개념이다. 제품의 Sync Branch 자동 생성 금지 규칙은 그대로 유지한다.
 
 ## Guardrails
@@ -116,6 +120,14 @@ npm run build
 ```bash
 python3 -m unittest discover -s harness/tests -t harness
 ```
+
+`e2e/`, content script나 `manifest.json`을 바꿨으면 Sealed 계층도 돌린다. CI가 별도 job으로 실행한다.
+
+```bash
+npm run build && npm run e2e
+```
+
+`npm run e2e`는 secret 없이 도는 계층만 실행한다. Contract Check와 풀사이클은 env guard로 스스로 건너뛴다 — 실제 제출이 필요한 계층은 [`e2e/README.md`](e2e/README.md)를 따른다.
 
 Chrome Web Store 제출용 ZIP은 `npm run package:chrome`이 만든다. `dist` 내용만 담고 필수/금지 경로를 검증한다.
 
