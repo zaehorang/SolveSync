@@ -76,6 +76,8 @@ redaction은 회수 경로에 박혀 있고 저장 직전에 한 번 더 검사�
 
 **GitHub를 설정하지 않고 돌린다.** `setup_required` entry가 남고 거기에 platform·problem이 들어 있다. 네트워크를 타지 않아 secret 없이 fork PR에서도 돈다.
 
+[`swea-bridge.spec.ts`](swea-bridge.spec.ts)가 같은 뼈대를 한 번 더 쓴다. **SWEA bridge가 code를 읽지 못할 때 `swea_extract_failed`로 끝나는지**를 보는데, 그러려면 `setup_required` 앞을 지나야 해서 auth와 settings를 심는다. token은 아무 값이어도 된다 — `resolveSweaSource`가 GitHub 호출 앞에서 끝난다. 재생 전에 MAIN world bridge가 실제로 응답하는 것을 먼저 확인한다. 그 확인이 없으면 bridge bundle이 통째로 빠져도 같은 결과가 나와 아무것도 구분하지 못한다.
+
 ### 왜 뼈대는 짓고 text는 짓지 않는가
 
 캡처는 DOM snapshot이 아니라 **mutation 기록**이고, mutation의 `target`에 node 경로가 없어(`{kind, name}`뿐) 기록을 그대로 되감을 수 없다. 그래서 뼈대는 드라이버가 최소한으로 짓는다.

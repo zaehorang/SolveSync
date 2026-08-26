@@ -13,36 +13,108 @@
 #
 # 케이스 수를 10으로 박지 않고 EOF까지 읽는다. dry-run은 예제 3개만 넣기
 # 때문에 10회로 고정하면 거기서 EOF를 만나 죽는다.
+#
+# **이 풀이는 일부러 길다.** SWEA editor는 CodeMirror이고 화면에 보이는 줄만
+# DOM에 그린다. bridge가 DOM이 아니라 editor instance의 `getValue()`를 부르는
+# 덕에 화면 밖 줄도 와야 하는데, 짧은 풀이로는 그 전제가 검증되지 않는다.
+# 그래서 좌우 도달 거리를 상수로 빼고 각 단계를 함수로 갈라 두었다.
 
 
-def read_row(count):
+REACH = 2
+
+
+def read_line():
+    """공백 줄을 건너뛰고 다음 내용 줄을 준다. EOF면 None이다."""
+    while True:
+        try:
+            line = input()
+        except EOFError:
+            return None
+
+        stripped = line.strip()
+
+        if stripped != '':
+            return stripped
+
+
+def read_values(count):
+    """정수 count개를 모을 때까지 줄을 이어 읽는다.
+
+    한 줄에 다 오는 것이 보통이지만 그것을 전제하지 않는다.
+    """
     values = []
+
     while len(values) < count:
-        values += list(map(int, input().split()))
+        line = read_line()
+
+        if line is None:
+            break
+
+        for token in line.split():
+            values.append(int(token))
+
     return values
 
 
-case = 0
+def read_case():
+    """다음 케이스의 높이 목록을 준다. 더 없으면 None이다."""
+    header = read_line()
 
-while True:
-    try:
-        header = input().strip()
-    except EOFError:
-        break
+    if header is None:
+        return None
 
-    if header == '':
-        continue
+    return read_values(int(header))
 
-    count = int(header)
-    heights = read_row(count)
-    case += 1
 
-    # 양끝 두 칸은 항상 높이 0이므로 가운데만 본다. 좌우 2칸 안에서 가장
-    # 높은 건물보다 높은 층수만큼 조망권이 확보된다.
+def tallest_around(heights, index):
+    """index 좌우 REACH칸 중 가장 높은 건물의 높이."""
+    tallest = 0
+    offset = -REACH
+
+    while offset <= REACH:
+        if offset != 0:
+            neighbor = heights[index + offset]
+
+            if neighbor > tallest:
+                tallest = neighbor
+
+        offset += 1
+
+    return tallest
+
+
+def count_view(heights):
+    """조망권이 확보된 세대 수.
+
+    양끝 REACH칸은 항상 높이 0이므로 가운데만 본다. 좌우 REACH칸 안에서 가장
+    높은 건물보다 높은 층수만큼 조망권이 확보된다.
+    """
     total = 0
-    for i in range(2, count - 2):
-        tallest = max(heights[i - 2], heights[i - 1], heights[i + 1], heights[i + 2])
-        if heights[i] > tallest:
-            total += heights[i] - tallest
+    index = REACH
+    limit = len(heights) - REACH
 
-    print(f'#{case} {total}')
+    while index < limit:
+        tallest = tallest_around(heights, index)
+
+        if heights[index] > tallest:
+            total += heights[index] - tallest
+
+        index += 1
+
+    return total
+
+
+def solve():
+    case = 0
+
+    while True:
+        heights = read_case()
+
+        if heights is None:
+            break
+
+        case += 1
+        print(f'#{case} {count_view(heights)}')
+
+
+solve()

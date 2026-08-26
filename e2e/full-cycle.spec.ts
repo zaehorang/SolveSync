@@ -178,6 +178,53 @@ test.describe("풀사이클", () => {
         await captureDriver.writeSolution(page, code);
         console.info("[full-cycle] 코드 입력 완료");
 
+        // **가상 스크롤이 실제로 생겼는지 잰다.** SWEA editor는 CodeMirror이고
+        // 화면에 보이는 줄만 DOM에 그린다. bridge는 DOM이 아니라 editor
+        // instance의 `getValue()`를 부르므로 화면 밖 줄도 와야 하는데, 풀이가
+        // 짧아 전부 렌더되면 그 전제는 검증되지 않은 채 통과한다. 여기서
+        // 렌더된 줄이 전체보다 적은 것을 확인해야 아래의 줄 수 단언이 의미를
+        // 갖는다. code 원문은 남기지 않고 줄 수만 남긴다.
+        if (driver.platform === "swea") {
+          const editorLines = await page.evaluate(() => {
+            const host = document.querySelector(".CodeMirror") as
+              | (Element & { CodeMirror?: { getValue(): string } })
+              | null;
+            const value = host?.CodeMirror?.getValue() ?? null;
+
+            return {
+              total: value === null ? null : value.split("\n").length,
+              rendered: document.querySelectorAll(".CodeMirror-line").length
+            };
+          });
+
+          console.info(
+            `[full-cycle] SWEA editor 줄 수: 전체 ${editorLines.total ?? "?"}, 렌더 ${editorLines.rendered}`
+          );
+
+          // 제출 상한이 99회다. 몇 회를 썼는지 실행마다 남겨 두면 나중에
+          // 남은 여유를 사람이 page를 열지 않고도 안다. selector를 짚지 않고
+          // page 문구에서 읽는다 — 못 읽어도 제출을 막지 않는다.
+          const quota = await page.evaluate(() => {
+            const match = document.body.innerText.match(
+              /제출\s*횟수[^\d]*(\d+)\s*\/\s*(\d+)/
+            );
+
+            return match === null ? null : `${match[1]}/${match[2]}`;
+          });
+
+          console.info(`[full-cycle] SWEA 제출횟수(제출 전): ${quota ?? "읽지 못했다"}`);
+
+          expect(
+            editorLines.total,
+            "editor instance에서 code를 읽지 못했다."
+          ).not.toBeNull();
+
+          expect(
+            editorLines.rendered,
+            `가상 스크롤이 생기지 않았다. 전체 ${editorLines.total ?? "?"}줄이 모두 렌더돼 화면 밖 줄을 검증하지 못한다. 검증용 풀이를 더 길게 만들어라.`
+          ).toBeLessThan(editorLines.total ?? 0);
+        }
+
         // 제출 앞의 두 번째 문. 채점 없이 먼저 돌려 예제와 대조한다.
         // 지원하는 플랫폼만 있다 — SWEA가 여기 해당하고, 제출 상한이 있어
         // 그 값이 가장 크다.
@@ -277,6 +324,18 @@ test.describe("풀사이클", () => {
         // background가 GraphQL로 가져오는 것이 방금 제출한 그 source다.
         // stale Accepted를 재사용하면 여기서 드러난다.
         expect(committed).toContain(nonce);
+
+        // **잘리지 않았는가.** Programmers와 SWEA는 editor snapshot이 그대로
+        // commit되므로 줄 수가 정확히 같아야 한다. nonce 포함만 보면 nonce가
+        // 마지막 줄이라 앞이 잘려도 통과한다 — SWEA editor는 화면에 보이는
+        // 줄만 DOM에 그리므로 이것이 실제 위험이다. LeetCode는 code가
+        // background GraphQL에서 오므로 여기 해당하지 않는다.
+        if (driver.platform !== "leetcode") {
+          expect(
+            (committed ?? "").split("\n").length,
+            "commit된 줄 수가 넣은 코드와 다르다. editor code가 잘렸을 수 있다."
+          ).toBe(code.split("\n").length);
+        }
       } finally {
         await context.close();
         await deleteRunBranch(config, branch.name);
