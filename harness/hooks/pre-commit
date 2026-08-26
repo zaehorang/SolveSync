@@ -59,13 +59,20 @@ def main() -> None:
 
     # `-z`로 받는다. quotePath 기본값에서 비ASCII 경로는 C-style로 quote되어 돌아오고
     # 그러면 금지 경로 prefix 검사를 그냥 지나간다.
-    staged = [
-        p
-        for p in git("diff", "--cached", "--name-only", "-z", "--diff-filter=ACMR").split("\0")
-        if p
-    ]
-    if not staged:
+    def staged_paths(diff_filter: str) -> list[str]:
+        argv = ("diff", "--cached", "--name-only", "-z", f"--diff-filter={diff_filter}")
+        return [p for p in git(*argv).split("\0") if p]
+
+    # 삭제(D)까지 포함한 전체 목록. 삭제만 담은 commit도 정상이고, ACMR로만
+    # 세면 그런 commit이 "변경 없음"으로 막혀 우회 말고는 길이 없다.
+    touched = staged_paths("ACMRD")
+    if not touched:
         fail("staged 변경이 없습니다.")
+
+    # 반면 금지 경로 검사는 tree에 남는 파일만 본다. 지워지는 경로는 금지
+    # 위치에 있어도 사라지는 중이므로 막을 이유가 없다. 아래 secret 검사는
+    # 이 목록이 아니라 diff 본문을 보므로 이 필터의 영향을 받지 않는다.
+    staged = staged_paths("ACMR")
 
     for problem in policy.check_staged_paths(staged):
         fail(problem)
@@ -82,8 +89,9 @@ def main() -> None:
         ("build", ["npm", "run", "build"]),
     ]
     # 하네스를 고치는 커밋에서만 돈다. hook과 정책은 하네스의 신뢰 경계라
-    # 자기 자신을 검증하지 않은 채 커밋되면 안 된다.
-    if any(path.startswith("harness/") for path in staged):
+    # 자기 자신을 검증하지 않은 채 커밋되면 안 된다. 삭제도 하네스를 고치는
+    # 것이므로 `staged`가 아니라 `touched`를 본다.
+    if any(path.startswith("harness/") for path in touched):
         checks.append(
             ("harness 자체 테스트", ["python3", "-m", "unittest", "discover", "-s", "harness/tests", "-t", "harness"])
         )
