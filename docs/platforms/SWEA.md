@@ -191,11 +191,13 @@ Missing `contestProbId`/title/language와 empty code는 commit하지 않고 `swe
 - `github-write.spec.ts`: 합성 payload가 Verification Repository의 commit이 된다.
 - `contract.spec.ts`: 실제 page에 `input#contestProbId`, `h3.problem_title`, `select#sel_lang`, `.CodeMirror` host와 그 위의 editor instance가 아직 있다. **실행마다 로그인한다** — `SESSION` 쿠키가 브라우저 프로세스와 함께 사라진다.
 - `full-cycle.spec.ts`: 실제 제출 → 실제 commit. **MAIN world bridge 왕복이 여기서 실증된다** — SWEA code는 bridge로만 오고, 실행마다 붙는 nonce 주석이 commit된 파일에서 확인된다(2026-08-26).
+- `swea-bridge.spec.ts`: bridge가 code를 읽지 못할 때 `swea_extract_failed`로 끝나고 commit이 생기지 않는다. 네트워크를 타지 않는다.
 
-**아직 덮이지 않은 것 둘.** 계층이 없어서가 아니라 조건을 만들지 않아서다.
+**가상 스크롤 밖 줄도 온다.** 검증용 풀이를 123줄로 늘려 풀사이클을 돌렸더니 editor는 29줄만 렌더한 상태였고, commit된 파일은 123줄 전체였다(2026-08-26 실측, 제출 전 제출횟수 16/99). 풀사이클이 이제 매 실행마다 두 가지를 함께 단언한다 — 렌더된 `.CodeMirror-line` 수가 전체 줄 수보다 적을 것, 그리고 commit된 줄 수가 넣은 코드와 같을 것. 풀이가 짧아져 전부 렌더되면 첫 단언이 먼저 깨져 알려준다.
 
-- 가상 스크롤 밖 줄을 포함한 `getValue()`. 현재 검증용 풀이가 49줄이라 화면 밖으로 나가지 않는다. 60줄 이상 풀이로 풀사이클을 한 번 돌리면 답이 나온다.
-- bridge 미주입 시 `swea_extract_failed` 수렴. bridge는 manifest가 항상 주입하므로 그 상태를 실제 page에서 만들려면 별도 장치가 필요하다.
+**bridge 실패 수렴은 "editor instance가 없을 때"로 검증했다.** `e2e/swea-bridge.spec.ts`가 Sealed 뼈대(`.CodeMirror` host가 없다)에 auth와 settings를 심어 `setup_required`를 지나게 한 뒤, Sync History에 `failed` / `swea_extract_failed`가 남고 `commitSha`와 `solutionPath`가 null인 것을 본다. 재생 전에 bridge가 실제로 응답하는 것(`code: null`)을 먼저 확인하므로 bundle이 통째로 빠지면 그 확인이 먼저 깨진다.
+
+**진짜 bridge 미주입은 아직 덮이지 않았다.** manifest가 항상 주입하므로 그 상태를 실제 page에서 만들려면 별도 장치가 필요하다. 두 조건의 실패 경로가 같다는 것은 코드로만 확인됐다.
 
 ## 확인된 전제
 
@@ -208,7 +210,7 @@ Missing `contestProbId`/title/language와 empty code는 commit하지 않고 `swe
 | 3 | layer가 기존 node의 visibility 변경이 아니라 새 node 추가로 나타난다 | 확인. 첫 신호가 `childList` 추가였고 이후 attribute 변경이 뒤따른다 |
 | 4 | 제출 전후로 page reload나 form navigation이 없다 | 확인. AJAX로만 처리된다 |
 | 5 | 실패 제출 문구가 Accepted 신호와 겹치지 않는다 | 확인. 컴파일 오류와 채점 실패 모두 실제 제출로 확인했고 commit이 생기지 않았다 |
-| 6 | MAIN world bridge가 화면 밖 줄을 포함해 전체 code를 반환한다 | 확인. 27줄만 렌더된 상태에서 55줄 전부를 돌려줬고 commit된 파일도 53줄 전체였다 |
+| 6 | MAIN world bridge가 화면 밖 줄을 포함해 전체 code를 반환한다 | 확인. 27줄만 렌더된 상태에서 55줄 전부를 돌려줬고 commit된 파일도 53줄 전체였다. 2026-08-26 풀사이클이 29줄 렌더 / 123줄 commit으로 자동 재확인한다 |
 | 7 | `.CodeMirror` expando로 instance에 도달할 수 있다 | 확인 |
 
 전제 3이 이 구현의 분기점이었다. 기존 node의 visibility 전환이었다면 ADR 0022의 bounded mutation text traversal로는 감지되지 않아 Programmers 같은 presentation root tracker가 필요했다.

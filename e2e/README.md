@@ -76,6 +76,8 @@ redaction은 회수 경로에 박혀 있고 저장 직전에 한 번 더 검사�
 
 **GitHub를 설정하지 않고 돌린다.** `setup_required` entry가 남고 거기에 platform·problem이 들어 있다. 네트워크를 타지 않아 secret 없이 fork PR에서도 돈다.
 
+[`swea-bridge.spec.ts`](swea-bridge.spec.ts)가 같은 뼈대를 한 번 더 쓴다. **SWEA bridge가 code를 읽지 못할 때 `swea_extract_failed`로 끝나는지**를 보는데, 그러려면 `setup_required` 앞을 지나야 해서 auth와 settings를 심는다. token은 아무 값이어도 된다 — `resolveSweaSource`가 GitHub 호출 앞에서 끝난다. 재생 전에 MAIN world bridge가 실제로 응답하는 것을 먼저 확인한다. 그 확인이 없으면 bridge bundle이 통째로 빠져도 같은 결과가 나와 아무것도 구분하지 못한다.
+
 ### 왜 뼈대는 짓고 text는 짓지 않는가
 
 캡처는 DOM snapshot이 아니라 **mutation 기록**이고, mutation의 `target`에 node 경로가 없어(`{kind, name}`뿐) 기록을 그대로 되감을 수 없다. 그래서 뼈대는 드라이버가 최소한으로 짓는다.
@@ -104,6 +106,9 @@ E2E_LIVE_PLATFORM=swea E2E_LIVE_SUBMIT=1 npm run e2e:full-cycle   # 하나만
 2. **로그인.** 로그아웃 상태면 editor도 제출 control도 없고 Playwright는 test timeout까지 조용히 기다린다(실측: 10분을 그렇게 썼다). 곧바로 `npm run e2e:login`을 하라고 말하고 멈춘다.
 3. **dry-run.** 채점 없이 먼저 돌려 예제 입출력과 대조한다. SWEA가 여기 해당하고 제출 상한이 있어 값이 가장 크다.
 4. **코드 nonce.** 실행마다 주석 한 줄을 덧붙인다. Programmers와 SWEA는 `acceptedSourceId`에 code hash가 들어가 같은 코드면 두 번째 실행이 중복으로 걸러지고 **그 통과는 거짓이다.**
+5. **가상 스크롤(SWEA만).** 렌더된 `.CodeMirror-line` 수가 전체 줄 수보다 적은지 본다. 전부 렌더되면 화면 밖 줄을 검증하지 못한 채 통과하므로 제출 전에 멈춘다. 이때 제출 전 제출횟수도 log에 남긴다 — 상한이 99회다.
+
+제출 뒤에는 commit된 줄 수가 넣은 코드와 같은지도 본다. nonce 포함만 보면 nonce가 마지막 줄이라 앞이 잘려도 통과한다. **SWEA에서만 실제로 돌려봤고**(2026-08-26) Programmers 경로는 아직 이 단언으로 돌려보지 않았다.
 
 확장은 이 계층에서만 로드한다. 그리고 **실제 Chrome이 아니라 Chromium으로 내려간다** — 실제 Chrome은 `--load-extension`을 더 이상 받지 않는다(2026-08-25 실측). 그때 프로필은 복사본을 쓴다. 한 프로필을 Chrome과 Chromium이 번갈아 열면 상해서 사람이 다시 로그인해야 한다.
 
