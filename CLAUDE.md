@@ -121,6 +121,14 @@ npm run build
 python3 -m unittest discover -s harness/tests -t harness
 ```
 
+`docs/`나 `*.md`에서 파일을 옮기거나 링크를 바꿨으면 함께 돌린다. CI가 같은 명령을 실행한다.
+
+```bash
+npm run verify:docs
+```
+
+상대 markdown 링크가 실제 파일을 가리키는지만 본다. 백틱 경로는 검사하지 않는다 — 문서에는 저장소 경로와 사용자 Sync Repository 경로가 같은 표기로 섞여 있어 기계가 구분할 수 없다.
+
 `e2e/`, content script나 `manifest.json`을 바꿨으면 Sealed 계층도 돌린다. CI가 별도 job으로 실행한다.
 
 ```bash
@@ -141,6 +149,7 @@ Node는 `package.json`의 `engines`가 하한을 정한다. `.github/workflows/c
 - UI layout, copy, locale, accessibility 변경: `docs/UI_GUIDE.md` 확인.
 - sync flow 또는 browser 검증 영향: `docs/MANUAL_VALIDATION.md` 갱신 필요 여부 확인.
 - Coding Platform 감지, adapter, 오류 코드 변경: `docs/platforms/`의 해당 플랫폼 문서와 README 표 확인.
+- 문서 파일 이동·이름 변경: `npm run verify:docs`로 그 파일을 가리키던 링크를 함께 확인.
 - commit message를 작성할 때는 `feat:`, `fix:`, `docs:`, `test:`, `refactor:`, `chore:`, `ci:` 같은 conventional commits 형식을 사용한다. branch type과 같은 목록이다.
 
 ## When Stuck
