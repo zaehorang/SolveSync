@@ -52,6 +52,11 @@ jobs:
             python3 harness/ci_gate.py "$BEFORE_SHA"
           fi
 
+      # node 내장 module만 쓰므로 `npm ci` 앞에 둔다. 링크가 깨졌다면 의존성을
+      # 내려받기 전에 알리는 편이 빠르다.
+      - name: 문서 링크 검증
+        run: npm run verify:docs
+
       - name: npm 의존성 설치
         run: npm ci
 
