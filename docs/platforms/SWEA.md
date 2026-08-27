@@ -2,6 +2,8 @@
 
 > **Description**: SW Expert Academy 전용 route, Accepted 신호, MAIN world editor bridge, 오류와 검증 계약을 정의한다. 공통 계약은 [Coding Platform 연동 계약](README.md)을 따른다.
 
+이 문서는 **구현 계약**이다. selector, bridge protocol, 오류 코드처럼 코드가 지켜야 할 것을 적는다. 같은 동작을 구현을 모르는 사람이 검수할 수 있게 옮긴 **사용자 관점 동작 명세**는 따로 있고, 제품 동작을 논의하거나 수동 검증 시나리오를 짤 때는 그쪽을 먼저 읽는다. 여섯이다 — [정답 감지](../specs/swea/accepted-detection.md), [어느 문제를 푼 것인지 가려내기](../specs/swea/problem-identity.md), [풀이 코드 가져오기](../specs/swea/code-retrieval.md), [풀이를 읽지 못했을 때](../specs/swea/extract-failure.md), [같은 풀이 중복 방지](../specs/swea/duplicate-prevention.md), [저장 위치와 목록](../specs/swea/repository-layout.md).
+
 ## 검증 기준 문제
 
 1206 View (`AV134DPqAA8CFAYh`). 문제당 제출 상한이 99회이므로 풀사이클 실행 횟수를 아껴 쓴다. `acceptedSourceId`에 code hash가 들어가 반복 제출 시 code를 매번 다르게 만들어야 한다.
