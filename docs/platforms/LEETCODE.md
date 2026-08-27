@@ -2,6 +2,8 @@
 
 > **Description**: LeetCode 전용 route, Accepted 감지, source 조회, 오류와 검증 계약을 정의한다. 공통 계약은 [Coding Platform 연동 계약](README.md)을 따른다.
 
+이 문서는 **구현 계약**이다. 같은 연동을 그 기술을 모르는 사람이 검수할 수 있게 사용자 관점 동작으로 다시 쓴 명세가 따로 있고, 둘이 어긋나면 이 문서가 맞다. [정답 감지](../specs/leetcode/accepted-detection.md), [풀이 조회](../specs/leetcode/submission-lookup.md), [풀이를 조회하지 못했을 때](../specs/leetcode/lookup-failure.md), [같은 제출 중복 방지](../specs/leetcode/duplicate-prevention.md), [저장 실패 다시 시도](../specs/leetcode/retry.md), [저장 위치와 목록](../specs/leetcode/repository-layout.md) 여섯이다.
+
 ## Route와 Accepted 감지
 
 > **관찰 강도: 실증 2026-08-25.** 기준 문제로 정답·오답을 실제 제출해 캡처했다. 근거는 [`e2e/fixtures/leetcode/`](../../e2e/fixtures/leetcode/)의 `accepted.json`·`rejected.json`이다. 결과 panel이 두 번째 제출에서 재사용되는지는 아직 확인하지 않았다 — 이번 캡처는 정답·오답 각 1회씩이다.
