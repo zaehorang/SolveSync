@@ -19,11 +19,11 @@
 
 | 명세 | 사라지면 사용자가 잃는 것 |
 |---|---|
-| [프로그래머스 정답 감지](programmers-accepted-detection.md) | 정답을 받아도 저장소에 아무것도 올라가지 않는다 |
-| [프로그래머스 풀이 확정](programmers-solution-snapshot.md) | 정답을 낸 코드가 아니라 그 뒤에 고친 코드가 올라간다 |
-| [프로그래머스 같은 풀이 중복 방지](programmers-duplicate-prevention.md) | 같은 풀이를 제출할 때마다 커밋이 쌓인다 |
-| [프로그래머스 풀이를 읽지 못했을 때](programmers-extract-failure.md) | 실패했는데 실패한 줄 모른다 |
-| [프로그래머스 풀이의 저장 위치와 목록](programmers-repository-layout.md) | 올라가긴 하는데 어디에 어떤 모양인지 확인할 수 없다 |
+| [프로그래머스 정답 감지](programmers/accepted-detection.md) | 정답을 받아도 저장소에 아무것도 올라가지 않는다 |
+| [프로그래머스 풀이 확정](programmers/solution-snapshot.md) | 정답을 낸 코드가 아니라 그 뒤에 고친 코드가 올라간다 |
+| [프로그래머스 같은 풀이 중복 방지](programmers/duplicate-prevention.md) | 같은 풀이를 제출할 때마다 커밋이 쌓인다 |
+| [프로그래머스 풀이를 읽지 못했을 때](programmers/extract-failure.md) | 실패했는데 실패한 줄 모른다 |
+| [프로그래머스 풀이의 저장 위치와 목록](programmers/repository-layout.md) | 올라가긴 하는데 어디에 어떤 모양인지 확인할 수 없다 |
 
 ## 검수하는 법
 
