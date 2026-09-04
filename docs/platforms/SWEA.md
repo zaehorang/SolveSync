@@ -2,6 +2,8 @@
 
 > **Description**: SW Expert Academy 전용 route, Accepted 신호, MAIN world editor bridge, 오류와 검증 계약을 정의한다. 공통 계약은 [Coding Platform 연동 계약](README.md)을 따른다.
 
+이 문서는 **구현 계약**이다. selector, bridge protocol, 오류 코드처럼 코드가 지켜야 할 것을 적는다. 같은 동작을 구현을 모르는 사람이 검수할 수 있게 옮긴 **사용자 관점 동작 명세**는 따로 있고, 제품 동작을 논의하거나 수동 검증 시나리오를 짤 때는 그쪽을 먼저 읽는다. 넷이다 — [정답 감지](../specs/swea/accepted-detection.md), [어느 문제를 푼 것인지 가려내기](../specs/swea/problem-identity.md), [풀이 확보](../specs/swea/solution-source.md), [풀이를 확보하지 못했을 때](../specs/swea/source-failure.md). 저장소 배치와 중복 방지는 세 사이트 공통이라 [저장 위치와 목록](../specs/common/repository-layout.md)과 [같은 풀이 중복 방지](../specs/common/duplicate-prevention.md)에 함께 있다.
+
 ## 검증 기준 문제
 
 1206 View (`AV134DPqAA8CFAYh`). 문제당 제출 상한이 99회이므로 풀사이클 실행 횟수를 아껴 쓴다. `acceptedSourceId`에 code hash가 들어가 반복 제출 시 code를 매번 다르게 만들어야 한다.
@@ -34,7 +36,16 @@
 | `contestProbId` | `input#contestProbId` | `problemId`, route key, Accepted Source ID |
 | 문제 번호 | `h3.problem_title`의 `{번호}` | `frontendId`, Solution File 이름, Solution README |
 
-파일명은 사람이 읽는 것이고 식별은 안정성이 우선이라 나눈다. 제목이 `{번호}. {제목}` 형식이 아니어서 번호를 읽지 못하면 `frontendId`도 `contestProbId`로 되돌아간다. 이 경우 파일명이 `swea/python/AV13zZ7KAAACFAYh_숫자_카드.py`가 된다.
+파일명은 사람이 읽는 것이고 식별은 안정성이 우선이라 나눈다. 제목이 `{번호}. {제목}` 형식이 아니어서 번호를 읽지 못하면 `frontendId`도 `contestProbId`로 되돌아간다.
+
+이때 **제목은 잘라내지 않고 읽은 그대로 쓴다.** 그래서 파일명은 제목에 번호가 남아 있는지에 따라 갈린다.
+
+| 화면의 제목 | 파일명 |
+| --- | --- |
+| `숫자 카드` (번호 없음) | `swea/python/AV13zZ7KAAACFAYh_숫자_카드.py` |
+| `1234 숫자 카드` (구분자가 `.`이 아님) | `swea/python/AV13zZ7KAAACFAYh_1234_숫자_카드.py` — 번호가 한 번 더 들어간다 |
+
+앞의 예시만 적어 두면 뒤의 경우를 버그로 오해하게 된다.
 
 ## Accepted 신호
 
@@ -125,7 +136,7 @@ Fresh Accepted를 확정한 즉시 다음 값을 한 번 읽는다.
 - 선택된 language
 - `pageUrl`, `detectedAt`
 
-Editor code만 [MAIN world bridge](#main-world-editor-bridge)에서 비동기로 온다. **code 요청도 fresh signal 시점에 보낸다.** 지연 callback에서 DOM을 다시 읽지 않으며, bridge 응답을 기다리는 동안 route key가 바뀌면 도착한 값을 버린다([ADR 0034](../adr/0034-fresh-accepted-transition-and-immutable-event.md)).
+Editor code만 [MAIN world bridge](#main-world-editor-bridge)에서 비동기로 온다. **code 요청도 fresh signal 시점에 보내지만, editor를 실제로 읽는 것은 MAIN world가 그 요청을 처리하는 시점이다.** 나머지 값과 달리 code는 fresh signal 시점의 값으로 고정되지 않는다. 그 사이(수 ms)에 editor가 바뀌면 바뀐 code가 commit된다. 셋 중 SWEA에만 있는 틈이다. 지연 callback에서 DOM을 다시 읽지 않으며, bridge 응답을 기다리는 동안 route key가 바뀌면 도착한 값을 버린다([ADR 0034](../adr/0034-fresh-accepted-transition-and-immutable-event.md)).
 
 `content:accepted_detected` payload는 `codingPlatform: "swea"`, `contestProbId`, `problemNumber`, `problemTitle`, `language`, `code`, `pageUrl`, `detectedAt`을 포함한다.
 
@@ -169,7 +180,7 @@ Isolated world에서는 code를 읽을 수 없다. 세 경로가 모두 막혀 �
 
 ## 오류 계약
 
-Missing `contestProbId`/title/language와 empty code는 commit하지 않고 `swea_extract_failed`로 normalize한다. **Bridge 미주입, 응답 없음, timeout은 모두 empty code로 도착하므로 같은 코드가 된다.** Retry Bundle이 만들어지지 않으므로 UI는 retry action을 제공하지 않는다.
+Missing `contestProbId`/title/language와 empty code는 commit하지 않고 `swea_extract_failed`로 normalize한다. 다만 **`contestProbId` 분기는 content 경로로 도달하지 않는다.** 그 값을 읽지 못하면 `resolveRoute`가 지원하지 않는 route로 판정해 observation 자체가 만들어지지 않기 때문이다. 실제로 이 실패를 만드는 것은 empty title, empty language와 empty code다. **Bridge 미주입, 응답 없음, timeout은 모두 empty code로 도착하므로 같은 코드가 된다.** Retry Bundle이 만들어지지 않으므로 UI는 retry action을 제공하지 않는다.
 
 ## Storage 영향
 
@@ -193,7 +204,7 @@ Missing `contestProbId`/title/language와 empty code는 commit하지 않고 `swe
 - `full-cycle.spec.ts`: 실제 제출 → 실제 commit. **MAIN world bridge 왕복이 여기서 실증된다** — SWEA code는 bridge로만 오고, 실행마다 붙는 nonce 주석이 commit된 파일에서 확인된다(2026-08-26).
 - `swea-bridge.spec.ts`: bridge가 code를 읽지 못할 때 `swea_extract_failed`로 끝나고 commit이 생기지 않는다. 네트워크를 타지 않는다.
 
-**가상 스크롤 밖 줄도 온다.** 검증용 풀이를 123줄로 늘려 풀사이클을 돌렸더니 editor는 29줄만 렌더한 상태였고, commit된 파일은 123줄 전체였다(2026-08-26 실측, 제출 전 제출횟수 16/99). 풀사이클이 이제 매 실행마다 두 가지를 함께 단언한다 — 렌더된 `.CodeMirror-line` 수가 전체 줄 수보다 적을 것, 그리고 commit된 줄 수가 넣은 코드와 같을 것. 풀이가 짧아져 전부 렌더되면 첫 단언이 먼저 깨져 알려준다.
+**가상 스크롤 밖 줄도 온다.** 검증용 풀이를 123줄로 늘려 풀사이클을 돌렸더니 editor는 29줄만 렌더한 상태였고, commit된 파일은 123줄 전체였다(2026-08-26 실측, 제출 전 제출횟수 16/99). 풀사이클이 이제 매 실행마다 두 가지를 함께 단언한다 — 렌더된 `.CodeMirror-line` 수가 전체 줄 수보다 적을 것, 그리고 commit된 줄 수가 넣은 코드와 같을 것. 풀이가 짧아져 전부 렌더되면 첫 단언이 먼저 깨져 알려준다. **2026-08-31 재확인**: 같은 단언이 그대로 통과했다(전체 123줄 / 렌더 29줄, 제출 전 제출횟수 17/99).
 
 **bridge 실패 수렴은 "editor instance가 없을 때"로 검증했다.** `e2e/swea-bridge.spec.ts`가 Sealed 뼈대(`.CodeMirror` host가 없다)에 auth와 settings를 심어 `setup_required`를 지나게 한 뒤, Sync History에 `failed` / `swea_extract_failed`가 남고 `commitSha`와 `solutionPath`가 null인 것을 본다. 재생 전에 bridge가 실제로 응답하는 것(`code: null`)을 먼저 확인하므로 bundle이 통째로 빠지면 그 확인이 먼저 깨진다.
 

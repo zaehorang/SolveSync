@@ -13,10 +13,15 @@
  * npm run e2e:contract
  * ```
  */
-import { test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 import { DRIVERS as CAPTURE_DRIVERS } from "./capture/drivers";
 import { ensureSweaLogin } from "./capture/sweaLogin";
+import {
+  isLoginPrompted,
+  MANUAL_LOGIN_TIMEOUT_MS,
+  waitForManualLogin
+} from "./support/manualLogin";
 import { DRIVERS } from "./drivers";
 import { openVerificationProfile } from "./support/profile";
 
@@ -63,6 +68,34 @@ test.describe("Contract Check", () => {
         // editor가 뜰 때까지 기다린다. 고정 대기로 두면 느린 날 page가 덜
         // 그려진 상태를 계약 위반으로 오해한다. 제출 조작은 하지 않는다 —
         // `open`은 page를 열고 editor를 기다리기만 한다.
+        // 세션이 만료됐으면 사람을 기다린다. 로그아웃 상태의 page를 그대로
+        // 재면 "계약이 깨졌다"가 아니라 "로그인 화면을 쟀다"가 되어, 실제로는
+        // 멀쩡한 selector가 사라진 것처럼 보고된다.
+        if (await isLoginPrompted(page)) {
+          // 이 test의 상한은 90초다. 사람이 로그인할 시간을 그 안에서 떼어 줄
+          // 수는 없으므로 대기가 필요해진 이 순간에만 상한을 늘린다. 늘리지
+          // 않으면 Playwright가 로그인 도중에 context를 죽이고, 남는 것은
+          // 로그인을 한 마디도 언급하지 않는 timeout이다.
+          test.setTimeout(MANUAL_LOGIN_TIMEOUT_MS + 90_000);
+
+          const loggedIn = await waitForManualLogin(page, driver.platform);
+
+          expect(
+            loggedIn,
+            `${driver.platform} 로그인을 기다렸지만 되지 않았다. 로그아웃 상태의 page를 재면 멀쩡한 selector가 사라진 것처럼 보고되므로 여기서 멈춘다.`
+          ).toBe(true);
+
+          await page.goto(driver.liveUrl(), { waitUntil: "domcontentloaded" });
+
+          // 되돌아온 page를 다시 잰다. 대기의 완료 판정은 로그인 흐름 밖에서
+          // 보는 것이라, 돌아온 자리가 로그인 화면이 아니라는 보장은 여기서
+          // 만든다.
+          expect(
+            await isLoginPrompted(page),
+            `${driver.platform} page가 아직 로그인을 요구한다. url=${new URL(page.url()).origin}`
+          ).toBe(false);
+        }
+
         await CAPTURE_DRIVERS[driver.platform].open(page);
         await page.waitForTimeout(2_000);
 

@@ -2,6 +2,8 @@
 
 > **Description**: Programmers 전용 route, Accepted presentation, Accepted Editor Snapshot, 오류와 검증 계약을 정의한다. 공통 계약은 [Coding Platform 연동 계약](README.md)을 따른다.
 
+이 문서는 **무엇을 어떻게 구현했는지**를 정의한다. 같은 연동을 그 기술을 모르는 사람이 검수할 수 있도록 사용자 관점 동작으로만 다시 쓴 것은 [정답 감지](../specs/programmers/accepted-detection.md), [풀이 확보](../specs/programmers/solution-source.md), [풀이를 확보하지 못했을 때](../specs/programmers/source-failure.md) 셋에 있고, 저장소 배치와 중복 방지는 세 사이트 공통이라 [저장 위치와 목록](../specs/common/repository-layout.md)과 [같은 풀이 중복 방지](../specs/common/duplicate-prevention.md)에 함께 있다. 둘이 어긋나면 구현이 무엇을 하는지는 이 문서가 맞고, 그것이 옳은 동작인지는 동작 명세의 열린 질문으로 올린다.
+
 ## Route와 Accepted presentation
 
 - 지원 route는 `/learn/courses/{courseId}/lessons/{lessonId}`다. Accepted 후보마다 현재 URL에서 `courseId`와 `lessonId`를 다시 추출한다.
@@ -64,7 +66,7 @@ Fresh Accepted를 확정한 즉시 다음 값을 한 번 읽어 immutable `Progr
 
 **[실증 2026-08-25]** 갱신된다. 캡처가 editor 내용을 기본 template에서 검증용 풀이로 통째로 바꾼 직후 `textarea#code.value`를 쟀더니 CodeMirror instance의 `getValue()`와 정확히 같았고(6줄 / 91자), 넣으려던 코드와도 일치했다. 정답·오답 캡처 양쪽에서 같은 값이 나왔다 — [`e2e/fixtures/programmers/`](../../e2e/fixtures/programmers/)의 `codeSource` 필드가 근거다. SWEA `textarea#textSource`에서 확인된 stale 문제는 Programmers에는 없다.
 
-다만 이 측정은 6줄짜리 짧은 풀이로 한 것이다. 화면 밖으로 스크롤될 만큼 긴 풀이에서 잘리지 않는지는 아직 보지 못했다. 가상 스크롤의 영향을 받는 것은 rendered line DOM이지 textarea가 아니므로 잘릴 이유는 없지만, 실측하지 않은 것은 실측하지 않은 것이다. `.cm-line` 같은 rendered line DOM은 화면에 보이는 줄만 반영할 수 있으므로 source of truth로 사용하지 않는다. `textarea#code`가 없거나 `value`가 비어 있으면 extraction failure다.
+다만 이 측정은 6줄짜리 짧은 풀이로 한 것이다. **2026-08-31에 풀사이클을 다시 돌려 실제 제출이 실제 commit이 되는 것을 재확인했지만, 이 한계는 그대로다** — 그 계층의 검증용 풀이가 5줄이라 화면 밖 줄을 태우지 못한다. SWEA는 검증용 풀이를 123줄로 늘려 이 질문을 닫았으므로, 여기서도 같은 방법을 쓸 수 있다. 화면 밖으로 스크롤될 만큼 긴 풀이에서 잘리지 않는지는 아직 보지 못했다. 가상 스크롤의 영향을 받는 것은 rendered line DOM이지 textarea가 아니므로 잘릴 이유는 없지만, 실측하지 않은 것은 실측하지 않은 것이다. `.cm-line` 같은 rendered line DOM은 화면에 보이는 줄만 반영할 수 있으므로 source of truth로 사용하지 않는다. `textarea#code`가 없거나 `value`가 비어 있으면 extraction failure다.
 
 Title은 page metadata/title/heading 후보에서 추출하고, language는 현재 선택된 language control에서 추출한다. Content script isolated world에서 editor source 접근이 막힐 때만 page-world bridge를 사용한다. Bridge는 code string만 전달하고 token, cookie와 session 값은 다루지 않는다.
 
@@ -78,6 +80,10 @@ Title은 page metadata/title/heading 후보에서 추출하고, language는 현�
 ## 오류 계약
 
 Missing lesson, title 또는 language와 empty code는 commit하지 않고 `programmers_extract_failed`로 normalize한다. Retry Bundle이 만들어지지 않으므로 UI는 retry action을 제공하지 않는다.
+
+**실제로 이 실패를 만드는 것은 empty language와 empty code뿐이다.** title은 `extractProgrammersProblemTitle`의 마지막 후보가 `lessonId`라 비는 일이 없고, lesson은 비면 route가 성립하지 않아 event 자체가 만들어지지 않는다. 계약은 네 값을 모두 요구하는 형태로 두되, 재현을 시도할 때 title 쪽을 파지 않도록 적어 둔다.
+
+Language registry에 없는 language(Programmers가 제공하는 C#, Ruby 등)는 이 코드가 아니라 공통 계약의 `unsupported_language`로 기록한다. commit하지 않는 것은 같지만 사용자에게 보이는 문구가 다르고, Sync History에도 다른 status로 남는다.
 
 ## 자동 검증
 
