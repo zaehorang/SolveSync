@@ -22,6 +22,7 @@ import {
   readSolution
 } from "./capture/drivers";
 import { ensureSweaLogin } from "./capture/sweaLogin";
+import { isLoginPrompted, waitForManualLogin } from "./support/manualLogin";
 import { DRIVERS } from "./drivers";
 import {
   openExtensionPage,
@@ -157,15 +158,22 @@ test.describe("풀사이클", () => {
 
         // **제출 앞의 세 번째 문: 로그인.** 로그아웃 상태면 editor도 제출
         // control도 없고, Playwright의 click과 wait는 test timeout까지
-        // 조용히 기다린다(2026-08-25 실측: 10분을 그렇게 썼다). 무엇이
-        // 문제인지 곧바로 말하게 한다.
-        const loginPrompted = await page.evaluate(() =>
-          /로그인|log in|sign in/i.test(document.body.innerText)
-        );
+        // 조용히 기다린다(2026-08-25 실측: 10분을 그렇게 썼다).
+        //
+        // 여기서 곧바로 실패시키지 않고 사람을 기다린다. 실패시키면 로그인하고
+        // 명령을 다시 치는 두 단계가 되는데, 이 계층은 브라우저를 세우고 설정을
+        // 심는 앞단이 길어 다시 도는 비용이 크다. 자동 로그인을 SWEA에만 두는
+        // 이유는 `support/manualLogin.ts`에 적혀 있다.
+        if (await isLoginPrompted(page)) {
+          await waitForManualLogin(page, driver.platform);
+
+          // 로그인 흐름이 어디로 보냈을지 모르므로 문제 page를 다시 연다.
+          await captureDriver.open(page);
+        }
 
         expect(
-          loginPrompted,
-          `page가 로그인을 요구한다. Verification Profile의 ${driver.platform} 세션이 없거나 만료됐다. \`npm run e2e:login\`으로 로그인한 뒤 다시 돌려라. url=${page.url()}`
+          await isLoginPrompted(page),
+          `page가 아직 로그인을 요구한다. Verification Profile의 ${driver.platform} 세션이 없고 기다리는 동안에도 로그인되지 않았다. url=${page.url()}`
         ).toBe(false);
 
         const prefix = COMMENT_PREFIX[captureDriver.extension] ?? "//";

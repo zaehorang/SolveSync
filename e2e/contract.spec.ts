@@ -17,6 +17,7 @@ import { test } from "@playwright/test";
 
 import { DRIVERS as CAPTURE_DRIVERS } from "./capture/drivers";
 import { ensureSweaLogin } from "./capture/sweaLogin";
+import { isLoginPrompted, waitForManualLogin } from "./support/manualLogin";
 import { DRIVERS } from "./drivers";
 import { openVerificationProfile } from "./support/profile";
 
@@ -63,6 +64,14 @@ test.describe("Contract Check", () => {
         // editor가 뜰 때까지 기다린다. 고정 대기로 두면 느린 날 page가 덜
         // 그려진 상태를 계약 위반으로 오해한다. 제출 조작은 하지 않는다 —
         // `open`은 page를 열고 editor를 기다리기만 한다.
+        // 세션이 만료됐으면 사람을 기다린다. 로그아웃 상태의 page를 그대로
+        // 재면 "계약이 깨졌다"가 아니라 "로그인 화면을 쟀다"가 되어, 실제로는
+        // 멀쩡한 selector가 사라진 것처럼 보고된다.
+        if (await isLoginPrompted(page)) {
+          await waitForManualLogin(page, driver.platform);
+          await page.goto(driver.liveUrl(), { waitUntil: "domcontentloaded" });
+        }
+
         await CAPTURE_DRIVERS[driver.platform].open(page);
         await page.waitForTimeout(2_000);
 
