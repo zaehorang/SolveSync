@@ -2,7 +2,7 @@
 
 > **Description**: Programmers 전용 route, Accepted presentation, Accepted Editor Snapshot, 오류와 검증 계약을 정의한다. 공통 계약은 [Coding Platform 연동 계약](README.md)을 따른다.
 
-이 문서는 **무엇을 어떻게 구현했는지**를 정의한다. 같은 연동을 그 기술을 모르는 사람이 검수할 수 있도록 사용자 관점 동작으로만 다시 쓴 것은 [동작 명세](../specs/README.md#programmers)에 있다. 둘이 어긋나면 구현이 무엇을 하는지는 이 문서가 맞고, 그것이 옳은 동작인지는 동작 명세의 열린 질문으로 올린다.
+이 문서는 **무엇을 어떻게 구현했는지**를 정의한다. 같은 연동을 그 기술을 모르는 사람이 검수할 수 있도록 사용자 관점 동작으로만 다시 쓴 것은 [정답 감지](../specs/programmers/accepted-detection.md), [풀이 확보](../specs/programmers/solution-source.md), [풀이를 확보하지 못했을 때](../specs/programmers/source-failure.md) 셋에 있고, 저장소 배치와 중복 방지는 세 사이트 공통이라 [저장 위치와 목록](../specs/common/repository-layout.md)과 [같은 풀이 중복 방지](../specs/common/duplicate-prevention.md)에 함께 있다. 둘이 어긋나면 구현이 무엇을 하는지는 이 문서가 맞고, 그것이 옳은 동작인지는 동작 명세의 열린 질문으로 올린다.
 
 ## Route와 Accepted presentation
 

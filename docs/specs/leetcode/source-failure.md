@@ -1,6 +1,6 @@
-# LeetCode 풀이를 조회하지 못했을 때
+# LeetCode 풀이를 확보하지 못했을 때
 
-> **Description**: 정답은 받았지만 LeetCode 서버에서 풀이를 가져오지 못했을 때 사용자가 무엇을 보게 되는지를 정의한다. 조회 자체는 [LeetCode 풀이 조회](submission-lookup.md)를 따른다.
+> **Description**: 정답은 받았지만 LeetCode 서버에서 풀이를 가져오지 못했을 때 사용자가 무엇을 보게 되는지를 정의한다. 조회 자체는 [LeetCode 풀이 확보](solution-source.md)를 따른다.
 
 ## Goal
 정답을 받았는데 LeetCode 서버에서 풀이를 가져오지 못한 경우, 조용히 넘어가지 않고 사용자가 그 사실과 이유를 알게 한다.

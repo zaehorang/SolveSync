@@ -1,6 +1,6 @@
 # LeetCode 정답 감지
 
-> **Description**: LeetCode 문제 화면에서 채점 결과가 정답으로 바뀐 순간을 언제 새로운 정답으로 세고 언제 세지 않는지를, 화면에서 관측되는 것만으로 정의한다. 무엇을 저장할지 정하는 동작은 [LeetCode 풀이 조회](submission-lookup.md)를 따른다.
+> **Description**: LeetCode 문제 화면에서 채점 결과가 정답으로 바뀐 순간을 언제 새로운 정답으로 세고 언제 세지 않는지를, 화면에서 관측되는 것만으로 정의한다. 무엇을 저장할지 정하는 동작은 [LeetCode 풀이 확보](solution-source.md)를 따른다.
 
 ## Goal
 LeetCode에서 채점 결과가 정답으로 바뀐 순간을 한 번만 알아채, 그 풀이가 저장소로 넘어가기 시작하게 한다.
