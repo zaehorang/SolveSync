@@ -36,7 +36,16 @@
 | `contestProbId` | `input#contestProbId` | `problemId`, route key, Accepted Source ID |
 | 문제 번호 | `h3.problem_title`의 `{번호}` | `frontendId`, Solution File 이름, Solution README |
 
-파일명은 사람이 읽는 것이고 식별은 안정성이 우선이라 나눈다. 제목이 `{번호}. {제목}` 형식이 아니어서 번호를 읽지 못하면 `frontendId`도 `contestProbId`로 되돌아간다. 이 경우 파일명이 `swea/python/AV13zZ7KAAACFAYh_숫자_카드.py`가 된다.
+파일명은 사람이 읽는 것이고 식별은 안정성이 우선이라 나눈다. 제목이 `{번호}. {제목}` 형식이 아니어서 번호를 읽지 못하면 `frontendId`도 `contestProbId`로 되돌아간다.
+
+이때 **제목은 잘라내지 않고 읽은 그대로 쓴다.** 그래서 파일명은 제목에 번호가 남아 있는지에 따라 갈린다.
+
+| 화면의 제목 | 파일명 |
+| --- | --- |
+| `숫자 카드` (번호 없음) | `swea/python/AV13zZ7KAAACFAYh_숫자_카드.py` |
+| `1234 숫자 카드` (구분자가 `.`이 아님) | `swea/python/AV13zZ7KAAACFAYh_1234_숫자_카드.py` — 번호가 한 번 더 들어간다 |
+
+앞의 예시만 적어 두면 뒤의 경우를 버그로 오해하게 된다.
 
 ## Accepted 신호
 
@@ -127,7 +136,7 @@ Fresh Accepted를 확정한 즉시 다음 값을 한 번 읽는다.
 - 선택된 language
 - `pageUrl`, `detectedAt`
 
-Editor code만 [MAIN world bridge](#main-world-editor-bridge)에서 비동기로 온다. **code 요청도 fresh signal 시점에 보낸다.** 지연 callback에서 DOM을 다시 읽지 않으며, bridge 응답을 기다리는 동안 route key가 바뀌면 도착한 값을 버린다([ADR 0034](../adr/0034-fresh-accepted-transition-and-immutable-event.md)).
+Editor code만 [MAIN world bridge](#main-world-editor-bridge)에서 비동기로 온다. **code 요청도 fresh signal 시점에 보내지만, editor를 실제로 읽는 것은 MAIN world가 그 요청을 처리하는 시점이다.** 나머지 값과 달리 code는 fresh signal 시점의 값으로 고정되지 않는다. 그 사이(수 ms)에 editor가 바뀌면 바뀐 code가 commit된다. 셋 중 SWEA에만 있는 틈이다. 지연 callback에서 DOM을 다시 읽지 않으며, bridge 응답을 기다리는 동안 route key가 바뀌면 도착한 값을 버린다([ADR 0034](../adr/0034-fresh-accepted-transition-and-immutable-event.md)).
 
 `content:accepted_detected` payload는 `codingPlatform: "swea"`, `contestProbId`, `problemNumber`, `problemTitle`, `language`, `code`, `pageUrl`, `detectedAt`을 포함한다.
 
@@ -171,7 +180,7 @@ Isolated world에서는 code를 읽을 수 없다. 세 경로가 모두 막혀 �
 
 ## 오류 계약
 
-Missing `contestProbId`/title/language와 empty code는 commit하지 않고 `swea_extract_failed`로 normalize한다. **Bridge 미주입, 응답 없음, timeout은 모두 empty code로 도착하므로 같은 코드가 된다.** Retry Bundle이 만들어지지 않으므로 UI는 retry action을 제공하지 않는다.
+Missing `contestProbId`/title/language와 empty code는 commit하지 않고 `swea_extract_failed`로 normalize한다. 다만 **`contestProbId` 분기는 content 경로로 도달하지 않는다.** 그 값을 읽지 못하면 `resolveRoute`가 지원하지 않는 route로 판정해 observation 자체가 만들어지지 않기 때문이다. 실제로 이 실패를 만드는 것은 empty title, empty language와 empty code다. **Bridge 미주입, 응답 없음, timeout은 모두 empty code로 도착하므로 같은 코드가 된다.** Retry Bundle이 만들어지지 않으므로 UI는 retry action을 제공하지 않는다.
 
 ## Storage 영향
 

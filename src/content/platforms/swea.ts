@@ -1,8 +1,8 @@
 /** SWEA Coding Platform Adapter.
  *
- * 전이 판정은 LeetCode와 같은 mutation 기반 무상태다. 실패 문구가
- * `채점용 input 파일로 채점한 결과 fail 입니다.`로 시작해 접두사가 겹치지
- * 않으므로 접두사 일치로 충분하다.
+ * 전이 판정은 LeetCode와 같은 mutation 기반 무상태다. 실패 layer의 text는
+ * `오답`이라는 title로 시작한다(2026-08-18/08-25 실측). Accepted layer에는 그
+ * title이 없어 접두사가 겹치지 않으므로 접두사 일치로 충분하다.
  *
  * route identity가 URL이 아니라 DOM에서 온다 (ADR 0036). 모든 문제가 같은
  * URL을 쓰기 때문이다.

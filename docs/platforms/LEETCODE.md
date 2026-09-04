@@ -52,6 +52,8 @@
 - GraphQL API를 우선 사용하며 query와 response parsing은 LeetCode client 모듈에 중앙화한다.
 - Solution code와 language는 조회된 Accepted Submission을 source of truth로 사용한다.
 - Accepted Submission code를 가져오지 못하면 GitHub commit을 만들지 않는다.
+- **조회한 제출이 방금 그 제출이라는 보장은 없다.** 최근 제출 목록을 최대 20건 받아 pending이 아닌 첫 `Accepted` 항목을 고르며, content event의 detection time과 대조하지 않는다. 대개 방금 것이 맨 앞이지만, 목록 반영이 늦으면 직전 Accepted가 올라간다.
+- **language도 그 제출에서 온다.** 화면에서 고른 language가 아니므로 둘이 다를 수 있고, 그때 Solution File은 조회된 제출의 language 폴더에 생긴다.
 - `acceptedSourceId`는 LeetCode submission ID를 사용한다. 플랫폼이 공식 ID를 노출하는 유일한 경우라 code hash를 쓰지 않는다.
 
 `content:accepted_detected` payload는 `codingPlatform: "leetcode"`, `titleSlug`, `pageUrl`, `detectedAt`을 포함한다. 이 값들은 같은 route-bound fresh Accepted event에서 확정한다.
@@ -59,6 +61,7 @@
 ## 오류 계약
 
 - 로그인 만료나 browser session 문제는 `leetcode_auth_required`로 normalize한다.
+- 네트워크 자체가 끊긴 실패는 `leetcode_fetch_failed`가 아니라 공통 코드 `network_failed`로 normalize한다. 사용자에게는 세 번째 문구가 보인다.
 - Problem metadata 또는 Accepted Submission 조회 실패는 `leetcode_fetch_failed`로 normalize한다. 오류 표에서 `retryable: true`지만 **사용자가 다시 시도할 수는 없다.** 이 실패는 Retry Bundle이 만들어지기 전 단계라 popup에 retry action이 나타나지 않고, 대신 Retry Bundle이 없다는 안내가 붙는다. 다시 올리려면 문제를 다시 제출해야 한다.
 - Run이나 Wrong Answer 뒤 stale Accepted를 재사용해 위 오류가 발생하지 않아야 한다.
 

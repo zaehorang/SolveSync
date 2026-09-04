@@ -81,6 +81,10 @@ Title은 page metadata/title/heading 후보에서 추출하고, language는 현�
 
 Missing lesson, title 또는 language와 empty code는 commit하지 않고 `programmers_extract_failed`로 normalize한다. Retry Bundle이 만들어지지 않으므로 UI는 retry action을 제공하지 않는다.
 
+**실제로 이 실패를 만드는 것은 empty language와 empty code뿐이다.** title은 `extractProgrammersProblemTitle`의 마지막 후보가 `lessonId`라 비는 일이 없고, lesson은 비면 route가 성립하지 않아 event 자체가 만들어지지 않는다. 계약은 네 값을 모두 요구하는 형태로 두되, 재현을 시도할 때 title 쪽을 파지 않도록 적어 둔다.
+
+Language registry에 없는 language(Programmers가 제공하는 C#, Ruby 등)는 이 코드가 아니라 공통 계약의 `unsupported_language`로 기록한다. commit하지 않는 것은 같지만 사용자에게 보이는 문구가 다르고, Sync History에도 다른 status로 남는다.
+
 ## 자동 검증
 
 - `src/content/platforms/programmers.test.ts`: route와 Accepted text 판정, modal baseline, visibility lifecycle, root replacement, payload 조립
