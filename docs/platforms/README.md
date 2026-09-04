@@ -24,7 +24,6 @@
 | Difficulty | 있음 | 없음 | 없음. 풀이 페이지에 없고 가져오지 않는다 |
 | 지원 언어 | language registry 전체 | language registry 전체 | `cpp`, `java`, `python3` 셋뿐 |
 | 오류 코드 | `leetcode_auth_required`, `leetcode_fetch_failed` | `programmers_extract_failed` | `swea_extract_failed` |
-| Retry 가능 | fetch 실패만 가능 | 불가 | 불가 |
 
 ## Accepted 감지가 갈리는 세 층
 
@@ -81,7 +80,7 @@ Route 출처가 URL인가 DOM인가가 세 플랫폼을 가르는 근본 축이�
 - Route, detection time과 source data는 fresh signal 시점에 **한 번만** 캡처해 immutable event로 만든다. 지연 callback에서 DOM을 다시 읽지 않는다.
 - Event는 확정 즉시 전달한다. Coalescing window는 전달을 미루는 지연 창이 아니라 같은 render burst의 후속 signal을 무시하는 **억제 창**이다([ADR 0037](../adr/0037-immediate-accepted-delivery-with-suppression-window.md)).
 - 전달 직전에 route key를 다시 확인한다. Route가 바뀌면 억제 창과 route-bound adapter state를 폐기한다.
-- Content script 시작 시 이미 보이는 Accepted 상태는 baseline으로만 저장하고 event를 만들지 않는다.
+- Content script 시작 시 이미 보이는 Accepted는 event를 만들지 않는다. 그 방법은 상태를 드는지에 따라 다르다. 유상태 adapter(Programmers)는 시작 시점의 presentation 상태를 baseline으로 저장해 전이가 아니게 만들고, 무상태 adapter(LeetCode, SWEA)는 이번 mutation이 만들어낸 것만 보므로 저장할 baseline이 애초에 없다. **결과는 같지만 메커니즘이 다르므로, 무상태 adapter에서 baseline 저장을 찾지 않는다.**
 
 ### Accepted event가 아닌 것
 
@@ -104,7 +103,20 @@ Route 출처가 URL인가 DOM인가가 세 플랫폼을 가르는 근본 축이�
 
 - 필수 값(problem identifier, title, language)이 없거나 code가 비어 있으면 commit하지 않고 플랫폼별 extract failure로 normalize한다.
 - language registry에 없는 language는 `unsupported_language`로 기록하고 commit하지 않는다.
+- **사용자가 다시 시도할 수 있는 실패는 GitHub commit 단계 실패뿐이고, 이것은 세 플랫폼 공통이다.** Retry Bundle은 commit을 시도한 뒤 catch에서만 만들어진다. source를 확정하기 전에 끝나는 실패(LeetCode 조회 실패, Programmers/SWEA extract 실패)는 bundle이 없고, popup은 `retryBundleId`가 있을 때만 retry action을 그리므로 버튼이 나타나지 않는다. 오류 표의 `retryable` flag와 실제로 retry가 가능한지는 다른 것이다. 차이표에 `Retry 가능` 행이 있었으나 플랫폼 사이의 차이가 아니어서 뺐다.
 - Difficulty를 제공하지 않는 플랫폼은 Solution Catalog에 `-`로 저장하고 Solution README에서는 Difficulty column을 표시하지 않는다.
+
+## Solved 날짜의 출처
+
+Solution Catalog와 Solution README의 Solved 날짜는 `submission.acceptedAt`을 local date로 자른 값이고, **그 field에 무엇이 들어 있는지가 플랫폼마다 다르다.**
+
+| | `acceptedAt`의 출처 |
+|---|---|
+| LeetCode | 플랫폼이 기록한 **제출 시각**. GraphQL 응답의 timestamp |
+| Programmers | 확장이 Accepted를 **감지한 시각** |
+| SWEA | 확장이 Accepted를 **감지한 시각** |
+
+같은 Sync Repository의 한 목록 안에서 기준이 갈린다. 대개 두 시각의 차이는 초 단위라 날짜가 달라지지 않지만, 자정 근처이거나 과거 제출을 조회하게 되면 갈릴 수 있다. 새 플랫폼을 붙일 때 어느 쪽을 넣을지 정해서 이 표에 적는다.
 
 ## 플랫폼 문서에 반드시 있어야 할 것
 

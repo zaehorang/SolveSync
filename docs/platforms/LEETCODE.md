@@ -59,7 +59,7 @@
 ## 오류 계약
 
 - 로그인 만료나 browser session 문제는 `leetcode_auth_required`로 normalize한다.
-- Problem metadata 또는 Accepted Submission 조회 실패는 `leetcode_fetch_failed`로 normalize한다. 세 플랫폼 중 retry가 가능한 유일한 실패다.
+- Problem metadata 또는 Accepted Submission 조회 실패는 `leetcode_fetch_failed`로 normalize한다. 오류 표에서 `retryable: true`지만 **사용자가 다시 시도할 수는 없다.** 이 실패는 Retry Bundle이 만들어지기 전 단계라 popup에 retry action이 나타나지 않고, 대신 Retry Bundle이 없다는 안내가 붙는다. 다시 올리려면 문제를 다시 제출해야 한다.
 - Run이나 Wrong Answer 뒤 stale Accepted를 재사용해 위 오류가 발생하지 않아야 한다.
 
 ## 자동 검증
