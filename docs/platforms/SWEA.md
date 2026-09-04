@@ -204,7 +204,7 @@ Missing `contestProbId`/title/language와 empty code는 commit하지 않고 `swe
 - `full-cycle.spec.ts`: 실제 제출 → 실제 commit. **MAIN world bridge 왕복이 여기서 실증된다** — SWEA code는 bridge로만 오고, 실행마다 붙는 nonce 주석이 commit된 파일에서 확인된다(2026-08-26).
 - `swea-bridge.spec.ts`: bridge가 code를 읽지 못할 때 `swea_extract_failed`로 끝나고 commit이 생기지 않는다. 네트워크를 타지 않는다.
 
-**가상 스크롤 밖 줄도 온다.** 검증용 풀이를 123줄로 늘려 풀사이클을 돌렸더니 editor는 29줄만 렌더한 상태였고, commit된 파일은 123줄 전체였다(2026-08-26 실측, 제출 전 제출횟수 16/99). 풀사이클이 이제 매 실행마다 두 가지를 함께 단언한다 — 렌더된 `.CodeMirror-line` 수가 전체 줄 수보다 적을 것, 그리고 commit된 줄 수가 넣은 코드와 같을 것. 풀이가 짧아져 전부 렌더되면 첫 단언이 먼저 깨져 알려준다.
+**가상 스크롤 밖 줄도 온다.** 검증용 풀이를 123줄로 늘려 풀사이클을 돌렸더니 editor는 29줄만 렌더한 상태였고, commit된 파일은 123줄 전체였다(2026-08-26 실측, 제출 전 제출횟수 16/99). 풀사이클이 이제 매 실행마다 두 가지를 함께 단언한다 — 렌더된 `.CodeMirror-line` 수가 전체 줄 수보다 적을 것, 그리고 commit된 줄 수가 넣은 코드와 같을 것. 풀이가 짧아져 전부 렌더되면 첫 단언이 먼저 깨져 알려준다. **2026-08-31 재확인**: 같은 단언이 그대로 통과했다(전체 123줄 / 렌더 29줄, 제출 전 제출횟수 17/99).
 
 **bridge 실패 수렴은 "editor instance가 없을 때"로 검증했다.** `e2e/swea-bridge.spec.ts`가 Sealed 뼈대(`.CodeMirror` host가 없다)에 auth와 settings를 심어 `setup_required`를 지나게 한 뒤, Sync History에 `failed` / `swea_extract_failed`가 남고 `commitSha`와 `solutionPath`가 null인 것을 본다. 재생 전에 bridge가 실제로 응답하는 것(`code: null`)을 먼저 확인하므로 bundle이 통째로 빠지면 그 확인이 먼저 깨진다.
 
