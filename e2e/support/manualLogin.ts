@@ -22,21 +22,38 @@
  */
 import type { Page } from "@playwright/test";
 
-/** 사람이 로그인하기를 기다리는 상한. `sweaLogin`과 같은 값이다. */
-const MANUAL_LOGIN_TIMEOUT_MS = 5 * 60 * 1000;
+/** 사람이 로그인하기를 기다리는 상한. `sweaLogin`과 같은 값이다.
+ *
+ * 부르는 쪽이 자기 test 상한을 이 값에 맞춰 늘려야 한다. Playwright는 test
+ * timeout에서 context를 통째로 죽이므로, test 상한이 이보다 짧으면 사람이
+ * 로그인하는 도중에 브라우저가 사라진다. */
+export const MANUAL_LOGIN_TIMEOUT_MS = 5 * 60 * 1000;
 
 const POLL_INTERVAL_MS = 2000;
 
-/** page가 로그인을 요구하는지 본다.
+/** page가 로그인을 요구하는지 본다. 재지 못하면 `null`이다.
  *
  * selector 대신 본문 text로 본다. 세 사이트의 로그인 화면 markup이 서로 다르고
- * 바뀌기도 하는데, "로그인하라"는 말은 어느 화면에나 있다. 로그아웃 상태에서는
- * editor도 제출 control도 없어 Playwright가 test timeout까지 조용히 기다리므로,
- * 무엇이 문제인지 곧바로 말하는 쪽이 낫다. */
-export async function isLoginPrompted(page: Page): Promise<boolean> {
+ * 바뀌기도 하는데, "로그인하라"는 말은 어느 화면에나 있다.
+ *
+ * **재지 못한 것과 로그인을 요구하지 않는 것을 구분한다.** navigation이 진행
+ * 중이면 `evaluate`는 execution context 파기로 던지는데, 그것을 "로그인 요구
+ * 없음"으로 접으면 로그인 폼을 제출한 직후가 완료로 판정된다. 그 순간 host는
+ * 아직 원래 host이므로(LeetCode 로그인은 같은 host 안에서 끝난다) 대기가
+ * 로그인 도중에 끝나 버린다. */
+async function readLoginPrompt(page: Page): Promise<boolean | null> {
   return page
     .evaluate(() => /로그인|log in|sign in/i.test(document.body.innerText))
-    .catch(() => false);
+    .catch(() => null);
+}
+
+/** 로그인을 요구하는지 본다. 재지 못하면 요구하지 않는 것으로 본다.
+ *
+ * 이쪽은 문 앞의 판정이라 재지 못한 경우 그대로 진행시킨다. 진행해서 실제로
+ * 로그아웃 상태였다면 뒤의 단언이 큰 소리로 실패한다. 대기 loop의 완료
+ * 판정과는 요구가 다르다 — 그쪽은 `readLoginPrompt`를 직접 쓴다. */
+export async function isLoginPrompted(page: Page): Promise<boolean> {
+  return (await readLoginPrompt(page)) === true;
 }
 
 /** 로그인을 요구하면 사람이 로그인할 때까지 기다린다.
@@ -66,8 +83,10 @@ export async function waitForManualLogin(
     await page.waitForTimeout(POLL_INTERVAL_MS);
 
     const back = new URL(page.url()).host === host;
+    // 재지 못한 동안은 완료로 보지 않는다. 로그인 흐름 한가운데일 수 있다.
+    const prompted = await readLoginPrompt(page);
 
-    if (back && !(await isLoginPrompted(page))) {
+    if (back && prompted === false) {
       console.info(`[manualLogin] ${platform} 로그인 감지됨. 이어서 진행한다.`);
       return true;
     }

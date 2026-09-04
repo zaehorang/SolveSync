@@ -153,8 +153,12 @@ test.describe("풀사이클", () => {
           console.info("[full-cycle] SWEA 로그인 완료");
         }
 
-        await captureDriver.open(page);
-        console.info("[full-cycle] 문제 page 열림");
+        // **로그인 검사를 `open` 앞에 둔다.** `open`은 editor를 60초까지
+        // 기다리는데, 로그아웃 화면에 editor가 없는 사이트에서는 그 60초를
+        // 태우고 던져 아래의 로그인 대기에 영영 닿지 못한다. 지금은 세 사이트
+        // 모두 로그아웃 상태에서도 `open`이 통과하지만, 그것은 우연이고
+        // 플랫폼이 언제든 바꿀 수 있다.
+        await page.goto(driver.liveUrl(), { waitUntil: "domcontentloaded" });
 
         // **제출 앞의 세 번째 문: 로그인.** 로그아웃 상태면 editor도 제출
         // control도 없고, Playwright의 click과 wait는 test timeout까지
@@ -168,13 +172,20 @@ test.describe("풀사이클", () => {
           await waitForManualLogin(page, driver.platform);
 
           // 로그인 흐름이 어디로 보냈을지 모르므로 문제 page를 다시 연다.
-          await captureDriver.open(page);
+          await page.goto(driver.liveUrl(), { waitUntil: "domcontentloaded" });
         }
 
+        // URL 전체가 아니라 origin만 남긴다. timeout이 사람의 로그인 도중에
+        // 걸리면 그 시점 URL이 서드파티 인증 흐름의 것이고, 거기에는 인가
+        // 코드가 query로 실려 있다. 실패 메시지는 trace에 그대로 남는다.
         expect(
           await isLoginPrompted(page),
-          `page가 아직 로그인을 요구한다. Verification Profile의 ${driver.platform} 세션이 없고 기다리는 동안에도 로그인되지 않았다. url=${page.url()}`
+          `page가 아직 로그인을 요구한다. Verification Profile의 ${driver.platform} 세션이 없고 기다리는 동안에도 로그인되지 않았다. origin=${new URL(page.url()).origin}`
         ).toBe(false);
+
+        // 여기서 비로소 editor를 기다린다.
+        await captureDriver.open(page);
+        console.info("[full-cycle] 문제 page 열림");
 
         const prefix = COMMENT_PREFIX[captureDriver.extension] ?? "//";
         const nonce = new Date().toISOString();

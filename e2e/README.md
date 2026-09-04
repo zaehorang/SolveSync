@@ -53,6 +53,8 @@ npm run e2e:capture:swea   # SWEA는 로그인과 정답·오답 캡처를 한 �
 
 **쿠키로 사는 둘은 그 쿠키가 만료되면 실행을 실패시키지 않고 사람을 기다린다.** 창을 띄운 채 최대 5분 멈추고, 로그인하면 그대로 이어서 진행한다. 실패시키면 사람이 로그인하고 명령을 다시 치는 두 단계가 되는데, 브라우저를 세우고 설정을 심는 앞단이 길어 다시 도는 비용이 크다. 구현은 [`support/manualLogin.ts`](support/manualLogin.ts)에 있고 풀사이클과 Contract Check가 함께 쓴다.
 
+**실패 trace에 로그인 흐름이 남는다.** `playwright.config.ts`가 `trace: "retain-on-failure"`라, 사람이 로그인하는 동안의 navigation과 화면 snapshot이 실패 시 trace에 보존된다. Programmers는 Google 로그인이라 여기에 인가 코드가 query로 실린 callback URL이 들어갈 수 있다. `.env`의 자격증명 자체는 새지 않지만(대기 경로는 platform 이름만 찍는다) **실패한 실행의 `test-results/`를 공유하거나 issue에 첨부하지 않는다.** 실패 메시지에는 URL 전체 대신 origin만 남긴다.
+
 기다리는 동안 page를 건드리지 않는다. Google 로그인처럼 다른 host로 나갔다 오는 흐름이 있어, 중간에 문제 page로 되돌리면 로그인 흐름이 끊긴다. **원래 host로 돌아왔고 더 이상 로그인을 요구하지 않을 때**를 완료로 보고, 그 뒤 호출한 쪽이 문제 page를 다시 연다.
 
 `npm run e2e:login`은 탭을 띄운다. 로그인을 마치고 브라우저를 닫으면 세션이 `.verification-profile/`에 남는다. SWEA는 `/main/identity/anonymous/loginPage.do`로 연다 — `/main/login.do`도 200을 주지만 본문이 비어 있어 빈 화면만 뜬다.
