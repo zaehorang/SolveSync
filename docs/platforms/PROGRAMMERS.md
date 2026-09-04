@@ -2,6 +2,8 @@
 
 > **Description**: Programmers 전용 route, Accepted presentation, Accepted Editor Snapshot, 오류와 검증 계약을 정의한다. 공통 계약은 [Coding Platform 연동 계약](README.md)을 따른다.
 
+이 문서는 **무엇을 어떻게 구현했는지**를 정의한다. 같은 연동을 그 기술을 모르는 사람이 검수할 수 있도록 사용자 관점 동작으로만 다시 쓴 것은 [동작 명세](../specs/README.md#programmers)에 있다. 둘이 어긋나면 구현이 무엇을 하는지는 이 문서가 맞고, 그것이 옳은 동작인지는 동작 명세의 열린 질문으로 올린다.
+
 ## Route와 Accepted presentation
 
 - 지원 route는 `/learn/courses/{courseId}/lessons/{lessonId}`다. Accepted 후보마다 현재 URL에서 `courseId`와 `lessonId`를 다시 추출한다.
