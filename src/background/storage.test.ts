@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  PROCESSED_SYNC_DEDUPLICATION_KEY_LIMIT,
+  PROCESSED_SYNC_DEDUPLICATION_KEY_TTL_MS,
   SYNC_DEDUPLICATION_KEY_LOCK_TTL_MS,
   RETRY_BUNDLE_LIMIT,
   RETRY_BUNDLE_TTL_MS,
@@ -90,8 +92,65 @@ describe("background extension storage", () => {
       "2026-01-01T00:00:01.000Z"
     );
 
+    expect(
+      await storage.hasProcessedSyncDeduplicationKey(syncDeduplicationKey)
+    ).toBe(true);
+    await expect(
+      storage.pruneProcessedSyncDeduplicationKeys("2026-01-01T00:00:02.000Z")
+    ).resolves.toMatchObject({ entries: [expect.anything()] });
+  });
+
+  it("drops processed Sync Deduplication Keys past their TTL", async () => {
+    const storage = createExtensionStorage(createMemoryStorageArea());
+    const processedAt = "2026-01-01T00:00:00.000Z";
+    const syncDeduplicationKey = makeSyncDeduplicationKey("source-1");
+
+    await storage.markSyncDeduplicationKeyProcessed(
+      syncDeduplicationKey,
+      {
+        commitSha: "commit-sha-1",
+        solutionPath: "leetcode/swift/0001_two_sum.swift"
+      },
+      processedAt
+    );
+
+    await storage.pruneProcessedSyncDeduplicationKeys(
+      addMs(processedAt, PROCESSED_SYNC_DEDUPLICATION_KEY_TTL_MS - 1)
+    );
     expect(await storage.hasProcessedSyncDeduplicationKey(syncDeduplicationKey)).toBe(true);
-    expect(await storage.listProcessedSyncDeduplicationKeys()).toHaveLength(1);
+
+    await storage.pruneProcessedSyncDeduplicationKeys(
+      addMs(processedAt, PROCESSED_SYNC_DEDUPLICATION_KEY_TTL_MS)
+    );
+    expect(await storage.hasProcessedSyncDeduplicationKey(syncDeduplicationKey)).toBe(false);
+  });
+
+  it("keeps only the newest processed Sync Deduplication Keys at the limit", async () => {
+    const storage = createExtensionStorage(createMemoryStorageArea());
+    const processedAt = "2026-01-01T00:00:00.000Z";
+
+    for (let index = 0; index < PROCESSED_SYNC_DEDUPLICATION_KEY_LIMIT + 5; index += 1) {
+      await storage.markSyncDeduplicationKeyProcessed(
+        makeSyncDeduplicationKey(`source-${index}`),
+        {
+          commitSha: `commit-sha-${index}`,
+          solutionPath: "leetcode/swift/0001_two_sum.swift"
+        },
+        addMs(processedAt, index * 1000)
+      );
+    }
+
+    const state = await storage.pruneProcessedSyncDeduplicationKeys(processedAt);
+
+    expect(state.entries).toHaveLength(PROCESSED_SYNC_DEDUPLICATION_KEY_LIMIT);
+    expect(await storage.hasProcessedSyncDeduplicationKey(makeSyncDeduplicationKey("source-0"))).toBe(
+      false
+    );
+    expect(
+      await storage.hasProcessedSyncDeduplicationKey(
+        makeSyncDeduplicationKey(`source-${PROCESSED_SYNC_DEDUPLICATION_KEY_LIMIT + 4}`)
+      )
+    ).toBe(true);
   });
 
   it("migrates legacy processed identities before duplicate checks", async () => {
@@ -114,15 +173,23 @@ describe("background extension storage", () => {
     });
     const storage = createExtensionStorage(area);
 
-    expect(await storage.hasProcessedSyncDeduplicationKey(makeSyncDeduplicationKey("submission-1"))).toBe(true);
-    await expect(storage.listProcessedSyncDeduplicationKeys()).resolves.toEqual([
-      {
-        syncDeduplicationKey: makeSyncDeduplicationKey("submission-1"),
-        processedAt: "2026-01-01T00:00:00.000Z",
-        commitSha: "commit-sha-1",
-        solutionPath: "leetcode/swift/0001_two_sum.swift"
-      }
-    ]);
+    expect(
+      await storage.hasProcessedSyncDeduplicationKey(
+        makeSyncDeduplicationKey("submission-1")
+      )
+    ).toBe(true);
+    await expect(
+      storage.pruneProcessedSyncDeduplicationKeys("2026-01-01T00:00:01.000Z")
+    ).resolves.toMatchObject({
+      entries: [
+        {
+          syncDeduplicationKey: makeSyncDeduplicationKey("submission-1"),
+          processedAt: "2026-01-01T00:00:00.000Z",
+          commitSha: "commit-sha-1",
+          solutionPath: "leetcode/swift/0001_two_sum.swift"
+        }
+      ]
+    });
   });
 
   it("keeps only the latest 20 sync history entries", async () => {

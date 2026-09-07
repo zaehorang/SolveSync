@@ -2,12 +2,12 @@
  * Accepted Source ID 값을 문자열 단위로 고정한다.
  *
  * 이 값은 Sync Deduplication Key의 구성요소다. 한 글자만 바뀌어도 기존 사용자의
- * 중복 방지가 깨져서 이미 동기화한 풀이가 다시 commit된다. 그래서 "동작이 같다"가
- * 아니라 "문자열이 같다"로 확인한다.
+ * 중복 방지 상태가 통째로 무효가 된다. 그래서 "동작이 같다"가 아니라 "문자열이
+ * 같다"로 확인한다.
  *
- * hash 자리도 전체 문자열로 고정한다. 형식만 보면 hash 구현이 다른 7자리 값을
- * 내놓아도 통과하는데, 그때 깨지는 것이 정확히 이 테스트가 지키려는 것이다.
- * 여기가 실패하면 값을 새로 적기 전에 왜 달라졌는지부터 확인한다.
+ * 마지막 자리는 감지 시각의 epoch millisecond다([ADR 0041](../../docs/adr/0041-sync-deduplication-key-identifies-accepted-event.md)).
+ * code가 들어가지 않으므로 같은 풀이를 다시 제출해도 값이 달라진다. 여기가
+ * 실패하면 값을 새로 적기 전에 왜 달라졌는지부터 확인한다.
  */
 
 import { describe, expect, it } from "vitest";
@@ -19,6 +19,8 @@ import type {
 } from "../shared";
 
 const DETECTED_AT = "2026-08-23T00:00:00.000Z";
+/** `DETECTED_AT`의 epoch millisecond. `acceptedSourceId`의 마지막 자리다. */
+const DETECTED_AT_STAMP = "1787443200000";
 const CODE = "print(sum(map(int, input().split())))\n";
 
 function programmersPayload(
@@ -65,36 +67,48 @@ function acceptedSourceIdOf(
 }
 
 describe("Accepted Source ID는 문자열이 고정되어 있다", () => {
-  it("Programmers는 lessonId, 지원 언어, code hash를 잇는다", () => {
+  it("Programmers는 lessonId, 지원 언어, 감지 시각을 잇는다", () => {
     expect(acceptedSourceIdOf(resolveProgrammersSource(programmersPayload()))).toBe(
-      "programmers:120804:python3:0bid2d7"
+      `programmers:120804:python3:${DETECTED_AT_STAMP}`
     );
   });
 
   it("Programmers 미지원 언어는 unsupported 자리를 쓴다", () => {
     expect(
       acceptedSourceIdOf(resolveProgrammersSource(programmersPayload({ language: "brainfuck" })))
-    ).toBe("programmers:120804:unsupported:0bid2d7");
+    ).toBe(`programmers:120804:unsupported:${DETECTED_AT_STAMP}`);
   });
 
-  it("SWEA는 contestProbId, 지원 언어, code hash를 잇는다", () => {
+  it("SWEA는 contestProbId, 지원 언어, 감지 시각을 잇는다", () => {
     expect(acceptedSourceIdOf(resolveSweaSource(sweaPayload()))).toBe(
-      "swea:AV134DPqAA8CFAYh:python3:0bid2d7"
+      `swea:AV134DPqAA8CFAYh:python3:${DETECTED_AT_STAMP}`
     );
   });
 
   it("SWEA 미지원 언어는 unsupported 자리를 쓴다", () => {
     expect(acceptedSourceIdOf(resolveSweaSource(sweaPayload({ language: "Z" })))).toBe(
-      "swea:AV134DPqAA8CFAYh:unsupported:0bid2d7"
+      `swea:AV134DPqAA8CFAYh:unsupported:${DETECTED_AT_STAMP}`
     );
   });
 
-  it("code가 달라지면 hash 자리도 달라진다", () => {
+  it("같은 code를 다시 제출해도 감지 시각이 다르면 값이 달라진다", () => {
+    const first = acceptedSourceIdOf(resolveProgrammersSource(programmersPayload()));
+    const second = acceptedSourceIdOf(
+      resolveProgrammersSource(
+        programmersPayload({ detectedAt: "2026-08-23T00:00:05.000Z" })
+      )
+    );
+
+    expect(first).toBe(`programmers:120804:python3:${DETECTED_AT_STAMP}`);
+    expect(second).toBe("programmers:120804:python3:1787443205000");
+  });
+
+  it("code가 달라져도 같은 Accepted라면 값이 같다", () => {
     expect(
       acceptedSourceIdOf(
         resolveProgrammersSource(programmersPayload({ code: `${CODE}# 한 줄 더\n` }))
       )
-    ).toBe("programmers:120804:python3:04uxv42");
+    ).toBe(`programmers:120804:python3:${DETECTED_AT_STAMP}`);
   });
 
   it("같은 문제와 언어라면 두 플랫폼의 값이 서로 섞이지 않는다", () => {

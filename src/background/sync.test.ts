@@ -28,6 +28,9 @@ import {
 
 const expectedAcceptedDate = "2026-01-02";
 const defaultAcceptedAt = makeLocalAcceptedAt(expectedAcceptedDate);
+/** 공식 Accepted Source ID가 없는 플랫폼의 `acceptedSourceId` 마지막 자리다. 감지
+ * 시각의 epoch millisecond이며, 그래서 같은 code를 다시 제출해도 값이 달라진다. */
+const defaultAcceptedEventStamp = String(Date.parse(defaultAcceptedAt));
 
 describe("background sync orchestrator", () => {
   it("records setup required without fetching LeetCode or committing", async () => {
@@ -382,6 +385,21 @@ describe("background sync orchestrator", () => {
       syncDeduplicationKey: programmersSyncDeduplicationKey
     });
     expect(harness.github.commits).toHaveLength(1);
+  });
+
+  it("commits the same Programmers code again when it is a new Accepted", async () => {
+    const harness = makeHarness();
+    await harness.saveSettings();
+
+    await harness.sync.handleAcceptedDetected(makeProgrammersAcceptedDetected());
+    await harness.sync.handleAcceptedDetected(
+      makeProgrammersAcceptedDetected({ detectedAt: makeLocalAcceptedAt("2026-01-03") })
+    );
+
+    expect(harness.github.commits).toHaveLength(2);
+    expect(harness.github.commits[1]).toMatchObject({
+      message: "solve: programmers 120804 두 수의 곱 구하기 in swift (rev 2)"
+    });
   });
 
   it("skips Programmers Sync Deduplication Keys that already have an in-flight lock", async () => {
@@ -1168,7 +1186,7 @@ const sweaCode = [
 const sweaSyncDeduplicationKey: SyncDeduplicationKey = {
   codingPlatform: "swea",
   // 식별은 contestProbId로 한다. 파일명 번호와 다른 값이다.
-  acceptedSourceId: `swea:AV13zZ7KAAACFAYh:python3:${buildShortCodeHash(sweaCode)}`,
+  acceptedSourceId: `swea:AV13zZ7KAAACFAYh:python3:${defaultAcceptedEventStamp}`,
   titleSlug: "1234_숫자_카드",
   language: "python3"
 };
@@ -1201,7 +1219,7 @@ function makeSweaAcceptedDetected(
 
 const programmersSyncDeduplicationKey: SyncDeduplicationKey = {
   codingPlatform: "programmers",
-  acceptedSourceId: `programmers:120804:swift:${buildShortCodeHash(programmersCode)}`,
+  acceptedSourceId: `programmers:120804:swift:${defaultAcceptedEventStamp}`,
   titleSlug: "120804_두_수의_곱_구하기",
   language: "swift"
 };
@@ -1451,17 +1469,6 @@ function makeV3CatalogWithTwoLanguages(): unknown {
       }
     ]
   };
-}
-
-function buildShortCodeHash(code: string): string {
-  let hash = 0x811c9dc5;
-
-  for (let index = 0; index < code.length; index += 1) {
-    hash ^= code.charCodeAt(index);
-    hash = Math.imul(hash, 0x01000193);
-  }
-
-  return (hash >>> 0).toString(36).padStart(7, "0");
 }
 
 async function historyStatuses(

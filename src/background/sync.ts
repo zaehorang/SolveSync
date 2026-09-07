@@ -195,6 +195,7 @@ export function createSyncOrchestrator(
     const initialTitleSlug = getInitialTitleSlug(payload);
     await options.storage.pruneRetryBundles(initialTimestamp);
     await options.storage.pruneSyncDeduplicationKeyLocks(initialTimestamp);
+    await options.storage.pruneProcessedSyncDeduplicationKeys(initialTimestamp);
 
     if (!hasRequiredSetup(settings, githubAuth !== null)) {
       const syncHistoryEntry = makeSyncHistoryEntry({
@@ -468,6 +469,7 @@ export function createSyncOrchestrator(
     const timestamp = now();
     await options.storage.pruneRetryBundles(timestamp);
     await options.storage.pruneSyncDeduplicationKeyLocks(timestamp);
+    await options.storage.pruneProcessedSyncDeduplicationKeys(timestamp);
 
     const retryBundle = await options.storage.getRetryBundle(retryBundleId);
 

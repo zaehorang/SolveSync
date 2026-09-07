@@ -92,7 +92,7 @@ describe("Solution Catalog", () => {
     });
   });
 
-  it("does not consume a revision for the same problem language accepted source id", () => {
+  it("advances dates for a repeated accepted source id", () => {
     const first = mergeSolutionCatalogEntry(
       createEmptySolutionCatalog(),
       twoSumSwift,
@@ -109,9 +109,9 @@ describe("Solution Catalog", () => {
     );
 
     expect(second.problems[0]?.languages.swift).toMatchObject({
-      lastSyncedAt: syncedAt,
+      lastSyncedAt: "2026-05-28T04:05:00.000Z",
       firstAcceptedDate: "2026-05-27",
-      lastAcceptedDate: "2026-05-27"
+      lastAcceptedDate: "2026-05-28"
     });
   });
 
@@ -382,7 +382,9 @@ describe("Solution Catalog", () => {
     expect(second.catalog.problems[0]?.languages.swift?.solutionRevisionNumber).toBe(2);
   });
 
-  it("keeps revision for the same accepted source id", () => {
+  /** Sync Deduplication Key가 Accepted 이벤트 하나를 식별하므로(ADR 0041) 여기까지
+   * 온 반영은 언제나 새 Accepted다. 같은 값이 다시 와도 revision을 세운다. */
+  it("advances revision for the same accepted source id", () => {
     const first = mergeSolutionCatalogEntryWithResult(
       createEmptySolutionCatalog(),
       twoSumSwift,
@@ -398,8 +400,8 @@ describe("Solution Catalog", () => {
       "2026-05-28"
     );
 
-    expect(second.solutionRevisionNumber).toBe(1);
-    expect(second.catalog.problems[0]?.languages.swift?.solutionRevisionNumber).toBe(1);
+    expect(second.solutionRevisionNumber).toBe(2);
+    expect(second.catalog.problems[0]?.languages.swift?.solutionRevisionNumber).toBe(2);
   });
 
   it.each([undefined, 0, -1, 1.5, "1"])(

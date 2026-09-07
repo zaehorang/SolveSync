@@ -108,25 +108,19 @@ export function mergeSolutionCatalogEntryWithResult(
     isSameProblem(entry, acceptedSource)
   );
   const existingLanguageEntry = existingProblem?.languages[acceptedSource.language];
-  const isDuplicateAcceptedSource =
-    existingLanguageEntry?.lastAcceptedSourceId === acceptedSource.acceptedSourceId;
+  // Sync Deduplication Key가 Accepted 이벤트 하나를 식별하므로(ADR 0041) 여기 도달한
+  // 반영은 언제나 새 Accepted다. 같은 code를 다시 제출해도 revision은 증가한다.
   const solutionRevisionNumber =
     existingLanguageEntry === undefined
       ? 1
-      : isDuplicateAcceptedSource
-        ? existingLanguageEntry.solutionRevisionNumber
-        : existingLanguageEntry.solutionRevisionNumber + 1;
+      : existingLanguageEntry.solutionRevisionNumber + 1;
   const languageEntry: SolutionCatalogLanguageEntry = {
     solutionPath: path,
     lastAcceptedSourceId: acceptedSource.acceptedSourceId,
     solutionRevisionNumber,
-    lastSyncedAt: isDuplicateAcceptedSource
-      ? existingLanguageEntry?.lastSyncedAt ?? syncedAt
-      : syncedAt,
+    lastSyncedAt: syncedAt,
     firstAcceptedDate: existingLanguageEntry?.firstAcceptedDate ?? acceptedDate,
-    lastAcceptedDate: isDuplicateAcceptedSource
-      ? existingLanguageEntry?.lastAcceptedDate ?? acceptedDate
-      : acceptedDate
+    lastAcceptedDate: acceptedDate
   };
 
   const nextProblem: SolutionCatalogProblem = {
@@ -136,13 +130,9 @@ export function mergeSolutionCatalogEntryWithResult(
     titleSlug: acceptedSource.titleSlug,
     difficulty: acceptedSource.difficulty,
     url: acceptedSource.url,
-    lastSyncedAt: isDuplicateAcceptedSource
-      ? existingProblem?.lastSyncedAt ?? syncedAt
-      : syncedAt,
+    lastSyncedAt: syncedAt,
     firstAcceptedDate: existingProblem?.firstAcceptedDate ?? acceptedDate,
-    lastAcceptedDate: isDuplicateAcceptedSource
-      ? existingProblem?.lastAcceptedDate ?? acceptedDate
-      : acceptedDate,
+    lastAcceptedDate: acceptedDate,
     languages: {
       ...(existingProblem?.languages ?? {}),
       [acceptedSource.language]: languageEntry
