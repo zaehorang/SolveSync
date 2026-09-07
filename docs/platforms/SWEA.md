@@ -6,7 +6,7 @@
 
 ## 검증 기준 문제
 
-1206 View (`AV134DPqAA8CFAYh`). 문제당 제출 상한이 99회이므로 풀사이클 실행 횟수를 아껴 쓴다. `acceptedSourceId`에 code hash가 들어가 반복 제출 시 code를 매번 다르게 만들어야 한다.
+1206 View (`AV134DPqAA8CFAYh`). 문제당 제출 상한이 99회이므로 풀사이클 실행 횟수를 아껴 쓴다. 반복 제출 시 code에 실행마다 다른 nonce를 넣어, commit된 내용이 이번 실행의 것인지 확인할 수 있게 한다.
 
 바꾸면 이전 캡처와의 비교가 끊기므로 [`e2e/capture/baseProblems.ts`](../../e2e/capture/baseProblems.ts)와 함께 고친다.
 
@@ -175,7 +175,7 @@ Isolated world에서는 code를 읽을 수 없다. 세 경로가 모두 막혀 �
 
 ## Accepted Source ID와 trust boundary
 
-- `acceptedSourceId`는 `swea:{contestProbId}:{language}:{codeHash}`다. SWEA는 공식 ID를 노출하지 않는다.
+- `acceptedSourceId`는 `swea:{contestProbId}:{language}:{detectedAtMs}`다. SWEA는 공식 ID를 노출하지 않는다.
 - MAIN world script는 page script와 같은 world에서 실행되므로 page가 bridge protocol을 관찰하고 위조 응답을 보낼 수 있다. 다만 어느 방식이든 SWEA solution source는 page가 제어하는 값이므로 신뢰 수준은 Programmers의 Accepted Editor Snapshot과 같다.
 
 ## 오류 계약
@@ -258,7 +258,7 @@ route 전환도 같은 날 확인했다. 1206 풀이 window를 닫고 같은 URL
 
 두 가지를 미리 알고 시작한다.
 
-- **같은 code를 다시 제출하면 commit이 생기지 않는다.** dedup key에 code hash가 들어가기 때문이며 정상 동작이다. 새 commit을 만들려면 marker 한 줄을 바꾼다.
+- **같은 code를 다시 제출해도 Accepted마다 commit이 생긴다**([ADR 0041](../adr/0041-sync-deduplication-key-identifies-accepted-event.md)). 어느 commit이 이번 제출의 것인지 가리려면 marker 한 줄을 매번 다르게 둔다.
 - **SWEA Python 제출에서 `import sys`가 컴파일 오류로 거부된다**(2026-08-18 관찰). 검증용 풀이는 `input()`으로 작성한다.
 
 1. `problemDetail.do`의 `문제 풀기`로 풀이 window를 연다. Toast와 무관하게 **DevTools에서 `#contestProbId`, `h3.problem_title`, `select#sel_lang` 값을 먼저 기록한다.**

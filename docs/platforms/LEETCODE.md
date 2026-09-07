@@ -54,7 +54,7 @@
 - Accepted Submission code를 가져오지 못하면 GitHub commit을 만들지 않는다.
 - **조회한 제출이 방금 그 제출이라는 보장은 없다.** **Accepted만 걸러진 최근 제출 목록**을 최대 20건 받아 pending이 아닌 첫 항목을 고르며, content event의 detection time과 대조하지 않는다. 대개 방금 것이 맨 앞이지만, 목록 반영이 늦으면 직전 Accepted가 올라간다.
 - **language도 그 제출에서 온다.** 화면에서 고른 language가 아니므로 둘이 다를 수 있고, 그때 Solution File은 조회된 제출의 language 폴더에 생긴다.
-- `acceptedSourceId`는 LeetCode submission ID를 사용한다. 플랫폼이 공식 ID를 노출하는 유일한 경우라 code hash를 쓰지 않는다.
+- `acceptedSourceId`는 LeetCode submission ID를 사용한다. 플랫폼이 공식 ID를 노출하는 유일한 경우라 감지 시각으로 이벤트를 구분하지 않는다.
 
 `content:accepted_detected` payload는 `codingPlatform: "leetcode"`, `titleSlug`, `pageUrl`, `detectedAt`을 포함한다. 이 값들은 같은 route-bound fresh Accepted event에서 확정한다.
 

@@ -46,7 +46,7 @@
 
 `https://school.programmers.co.kr/learn/courses/30/lessons/120804` (두 수의 곱 구하기, 코딩테스트 입문).
 
-풀이가 한 줄이라 캡처에 잡히는 noise가 적다. `acceptedSourceId`에 code hash가 들어가므로 **반복 제출할 때는 code를 매번 다르게 만들어야 한다.** 같으면 중복으로 걸러져 commit이 생기지 않고, 그 통과는 거짓이다.
+풀이가 한 줄이라 캡처에 잡히는 noise가 적다. 반복 제출할 때는 **code에 실행마다 다른 nonce를 넣는다.** 같은 code여도 commit은 생기므로, 그것이 이번 제출이 만든 commit인지 가리는 유일한 근거가 nonce다.
 
 바꾸면 이전 캡처와의 비교가 끊기므로 [`e2e/capture/baseProblems.ts`](../../e2e/capture/baseProblems.ts)와 함께 고친다.
 
@@ -74,7 +74,7 @@ Title은 page metadata/title/heading 후보에서 추출하고, language는 현�
 
 ## Accepted Source ID와 trust boundary
 
-- Programmers는 공식 Accepted Source ID가 없으므로 `acceptedSourceId`를 `programmers:{lessonId}:{language}:{codeHash}` 형식의 deterministic value로 만든다.
+- Programmers는 공식 Accepted Source ID가 없으므로 `acceptedSourceId`를 `programmers:{lessonId}:{language}:{detectedAtMs}` 형식의 deterministic value로 만든다.
 - Accepted Editor Snapshot은 v1의 DOM-trusted source다. Programmers origin DOM/script가 compromise되면 committed solution source integrity가 영향을 받을 수 있는 residual risk를 [ADR 0028](../adr/0028-programmers-dom-snapshot-risk-acceptance.md)에 따라 수용한다.
 
 ## 오류 계약

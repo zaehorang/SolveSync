@@ -17,7 +17,7 @@ Programmers와 SWEA에서 Accepted 직후 현재 문제 페이지의 editor code
 _Avoid_: Accepted snapshot, submission detail, official submission, screenshot, cached code
 
 **Sync Deduplication Key**:
-같은 Accepted Submission 또는 Accepted Editor Snapshot을 중복 commit하지 않기 위해 사용하는 기준값. 같은 문제와 언어의 최신 풀이를 같은 파일로 덮어쓰는 기준과는 별개의 개념이다.
+하나의 Accepted를 두 번 commit하지 않기 위해 사용하는 기준값. **Accepted 이벤트 하나를 식별하며 풀이 code를 식별하지 않는다.** 같은 code를 다시 제출하면 다른 Accepted이므로 commit이 생긴다. 같은 문제와 언어의 최신 풀이를 같은 파일로 덮어쓰는 기준과는 별개의 개념이다.
 _Avoid_: Sync identity, submission identity, problem identity, file identity
 
 **Sync Repository**:

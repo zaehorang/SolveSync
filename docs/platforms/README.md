@@ -20,7 +20,7 @@
 | 전이 판정 | mutation 기반, 무상태 | presentation 상태기계, 유상태 | mutation 기반, 무상태 |
 | 문구 판정 | 결과 text 선별 후 pattern. 정확 일치는 조건부 | **정확 일치** `정답입니다!` | **접두사 일치** `축하합니다. Pass입니다.` |
 | Solution code source | GraphQL Accepted Submission detail | `textarea#code.value` | MAIN world bridge의 `getValue()` |
-| `acceptedSourceId` | submission ID (플랫폼 공식) | `programmers:{lessonId}:{language}:{codeHash}` | `swea:{contestProbId}:{language}:{codeHash}` |
+| `acceptedSourceId` | submission ID (플랫폼 공식) | `programmers:{lessonId}:{language}:{detectedAtMs}` | `swea:{contestProbId}:{language}:{detectedAtMs}` |
 | Difficulty | 있음 | 없음 | 없음. 풀이 페이지에 없고 가져오지 않는다 |
 | 지원 언어 | language registry 전체 | language registry 전체 | `cpp`, `java`, `python3` 셋뿐 |
 | 오류 코드 | `leetcode_auth_required`, `leetcode_fetch_failed` | `programmers_extract_failed` | `swea_extract_failed` |
@@ -93,9 +93,10 @@ Route 출처가 URL인가 DOM인가가 세 플랫폼을 가르는 근본 축이�
 
 ## Sync Deduplication Key와 trust boundary
 
-- Sync Deduplication Key는 `codingPlatform`, `acceptedSourceId`, problem identifier와 language의 조합이다.
-- 플랫폼이 공식 Accepted Source ID를 노출하면 그것을 쓴다. 노출하지 않으면 `{codingPlatform}:{problemId}:{language}:{codeHash}` 형식의 deterministic value를 만든다.
-- code hash가 들어가는 플랫폼에서는 **같은 code를 다시 제출하면 commit이 생기지 않는다.** 정상 동작이다.
+- Sync Deduplication Key는 `codingPlatform`, `acceptedSourceId`, problem identifier와 language의 조합이고, **Accepted 이벤트 하나**를 식별한다([ADR 0041](../adr/0041-sync-deduplication-key-identifies-accepted-event.md)).
+- 플랫폼이 공식 Accepted Source ID를 노출하면 그것을 쓴다. 노출하지 않으면 `{codingPlatform}:{problemId}:{language}:{detectedAtMs}` 형식의 deterministic value를 만든다. `detectedAtMs`는 adapter가 fresh Accepted transition을 확정한 시점의 epoch millisecond다.
+- **같은 code를 다시 제출해도 새 Accepted이므로 commit이 생기고 Solution Revision Number가 증가한다.** 세 플랫폼이 같다.
+- 이 key가 막는 것은 **하나의 Accepted 이벤트가 두 번 처리되는 것**뿐이다.
 - DOM이나 page world에서 읽은 source는 page가 제어하는 값이다. 그 residual risk는 [ADR 0028](../adr/0028-programmers-dom-snapshot-risk-acceptance.md)의 control을 적용해 수용한다.
 - **이 trust boundary는 secret이나 write destination으로 확장되지 않는다.** Content message에 GitHub token, cookie와 session token을 넣지 않고, GitHub API 호출은 background service worker에서만 수행하며, write 대상은 사용자가 선택한 Sync Repository와 Sync Branch로 제한한다.
 
