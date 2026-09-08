@@ -111,6 +111,19 @@ describe("Accepted Source ID는 문자열이 고정되어 있다", () => {
     ).toBe(`programmers:120804:python3:${DETECTED_AT_STAMP}`);
   });
 
+  /** 대체값을 만들면 그 값이 그 문제·언어의 모든 Accepted에서 같아져, 첫 commit
+   * 이후가 전부 중복으로 버려진다. 조용히 잘못 동작하느니 실패로 드러낸다. */
+  it.each(["", "   ", "not-a-time"])(
+    "감지 시각을 읽을 수 없으면 %o extract 실패로 떨어뜨린다",
+    (detectedAt) => {
+      const programmers = resolveProgrammersSource(programmersPayload({ detectedAt }));
+      const swea = resolveSweaSource(sweaPayload({ detectedAt }));
+
+      expect(programmers.kind).toBe("extract_failed");
+      expect(swea.kind).toBe("extract_failed");
+    }
+  );
+
   it("같은 문제와 언어라면 두 플랫폼의 값이 서로 섞이지 않는다", () => {
     const programmers = acceptedSourceIdOf(resolveProgrammersSource(programmersPayload()));
     const swea = acceptedSourceIdOf(resolveSweaSource(sweaPayload()));

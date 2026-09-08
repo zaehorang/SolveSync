@@ -7,7 +7,7 @@
  * ADR 0024는 사이트별 parsing을 adapter에 두라고 정한다.
  *
  * 여기서 만드는 `acceptedSourceId`는 Sync Deduplication Key의 구성요소이고, 이 key는
- * code가 아니라 **Accepted 이벤트 하나**를 식별한다([ADR 0041](../../docs/adr/0041-sync-deduplication-key-identifies-accepted-event.md)).
+ * code가 아니라 **Accepted Signal 하나**를 식별한다([ADR 0041](../../docs/adr/0041-sync-deduplication-key-identifies-accepted-event.md)).
  * 공식 ID가 없는 플랫폼은 감지 시각으로 이벤트를 구분한다. 형식을 바꾸면 기존
  * 사용자의 중복 방지 상태가 통째로 무효가 되므로 형식 변경은 그 자체로 마이그레이션이다.
  */
@@ -78,7 +78,8 @@ export function resolveProgrammersSource(
     lessonId.length === 0 ||
     title.length === 0 ||
     language.length === 0 ||
-    code.trim().length === 0
+    code.trim().length === 0 ||
+    !isParsableDetectedAt(payload.detectedAt)
   ) {
     return {
       kind: "extract_failed",
@@ -88,7 +89,7 @@ export function resolveProgrammersSource(
       language,
       error: explicitError(
         "programmers_extract_failed",
-        "Programmers accepted source is missing lesson id, title, language, or code."
+        "Programmers accepted source is missing lesson id, title, language, code, or a parsable detection time."
       )
     };
   }
@@ -157,7 +158,8 @@ export function resolveSweaSource(
     contestProbId.length === 0 ||
     title.length === 0 ||
     language.length === 0 ||
-    code.trim().length === 0
+    code.trim().length === 0 ||
+    !isParsableDetectedAt(payload.detectedAt)
   ) {
     return {
       kind: "extract_failed",
@@ -167,7 +169,7 @@ export function resolveSweaSource(
       language,
       error: explicitError(
         "swea_extract_failed",
-        "SWEA accepted source is missing contest problem id, title, language, or code."
+        "SWEA accepted source is missing contest problem id, title, language, code, or a parsable detection time."
       )
     };
   }
@@ -217,20 +219,23 @@ export function resolveSweaSource(
 /**
  * `detectedAt`을 `acceptedSourceId`에 넣을 값으로 바꾼다.
  *
- * 두 성질이 필요하다. Accepted 이벤트마다 달라야 하고(그래야 같은 code를 다시
- * 제출해도 commit이 생긴다), 같은 payload를 다시 해석하면 같은 값이 나와야 한다.
- * epoch millisecond가 둘 다 만족한다. `detectedAt`은 adapter가 fresh transition을
- * 확정한 시점에 한 번 캡처한 값이라 이후 바뀌지 않는다([ADR 0034](../../docs/adr/0034-fresh-accepted-transition-and-immutable-event.md)).
+ * Accepted Signal마다 달라야 한다. 그래야 같은 code를 다시 제출해도 commit이
+ * 생긴다([ADR 0041](../../docs/adr/0041-sync-deduplication-key-identifies-accepted-event.md)).
+ * `detectedAt`은 adapter가 fresh transition을 확정한 시점에 한 번 캡처한 값이라
+ * 이후 바뀌지 않으므로([ADR 0034](../../docs/adr/0034-fresh-accepted-transition-and-immutable-event.md))
+ * 그 시각의 epoch millisecond가 Signal 하나를 가리킨다.
  *
- * 파싱되지 않는 값이 오면 원문에서 구분자만 지워 그대로 쓴다. 형식이 덜 고르지만
- * 두 성질은 유지된다.
+ * 호출 전에 `isParsableDetectedAt`으로 거른다. 파싱되지 않는 값에 대체값을 만들면
+ * 그 값이 그 문제·언어의 모든 Accepted에서 같아져, 첫 commit 이후가 전부 중복으로
+ * 버려진다. 조용히 잘못 동작하느니 extract failure로 드러내는 편이 낫다.
  */
 export function buildAcceptedEventStamp(detectedAt: string): string {
-  const timestamp = Date.parse(detectedAt);
+  return String(Date.parse(detectedAt));
+}
 
-  return Number.isNaN(timestamp)
-    ? detectedAt.trim().replace(/[^0-9a-zA-Z]/g, "")
-    : String(timestamp);
+/** `detectedAt`이 Accepted Signal 하나를 가리키는 값인지 확인한다. */
+export function isParsableDetectedAt(detectedAt: string): boolean {
+  return !Number.isNaN(Date.parse(detectedAt));
 }
 
 export function buildFilenameTitleSlug(problemNumber: string, title: string): string {

@@ -58,7 +58,7 @@ TypeScript, runtime message, storage schema는 같은 용어 체계를 사용한
 - 결과가 Accepted가 아니면 확장은 아무 commit도 만들지 않는다.
 - 결과가 Accepted면 확장은 `Syncing to GitHub...` toast를 보여준다.
 - 확장은 제출 코드, 문제 메타데이터, Sync Deduplication Key를 Coding Platform별 방식으로 확정한다.
-- 같은 Sync Deduplication Key가 이미 처리되었거나 처리 중이면 중복 commit을 만들지 않는다. 이 key는 Accepted 이벤트 하나를 식별하므로, 같은 풀이를 다시 제출하면 새 commit이 생긴다.
+- 같은 Sync Deduplication Key가 이미 처리되었거나 처리 중이면 중복 commit을 만들지 않는다. 이 key는 Accepted Signal 하나를 식별하므로, 같은 풀이를 다시 제출하면 새 commit이 생긴다.
 - 같은 문제/언어의 새 Accepted 제출이면 기존 solution path를 최신 풀이로 덮어쓴다.
 
 ### 성공 흐름
@@ -137,7 +137,7 @@ TypeScript, runtime message, storage schema는 같은 용어 체계를 사용한
 - Solution README는 문제당 한 행과 단일 `Languages` column을 사용하며, 해당 문제에 존재하는 언어별 solution link를 registry 순서로 표시한다.
 - `leetcode/README.md`와 `leetcode/.leetcode-sync/index.json`이 solution file과 같은 commit에 포함된다.
 - `programmers/README.md`와 `programmers/.programmers-sync/index.json`이 solution file과 같은 commit에 포함된다.
-- 같은 Sync Deduplication Key가 반복 감지되어도 중복 commit이 생기지 않는다.
+- 하나의 Accepted Signal이 저장소에 두 번 commit되지 않는다.
 - 같은 code를 다시 제출하면 새 commit이 생기고 Solution Revision Number가 증가한다.
 - stale Accepted DOM 이후의 Run, Wrong Answer와 unrelated UI mutation은 sync message나 commit을 만들지 않는다.
 - 동일 Accepted render burst는 정확히 한 번만 전달되고, 실제 두 번째 Accepted는 정확히 한 번 새 Solution Revision commit을 만든다.

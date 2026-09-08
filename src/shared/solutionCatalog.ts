@@ -108,19 +108,35 @@ export function mergeSolutionCatalogEntryWithResult(
     isSameProblem(entry, acceptedSource)
   );
   const existingLanguageEntry = existingProblem?.languages[acceptedSource.language];
-  // Sync Deduplication Key가 Accepted 이벤트 하나를 식별하므로(ADR 0041) 여기 도달한
-  // 반영은 언제나 새 Accepted다. 같은 code를 다시 제출해도 revision은 증가한다.
+  /* Catalog에 이미 이 `acceptedSourceId`가 있으면 **이 Accepted는 이미 Sync Branch에
+   * 써졌다**는 뜻이다. Sync Deduplication Key가 Accepted 하나를 식별하므로(ADR 0041)
+   * 같은 값이 두 번 나오는 경로는 하나뿐이다 — commit은 성공했는데 processed 기록이
+   * 남지 않아(service worker 종료, 응답 유실) Retry Bundle로 다시 올라오는 경우다.
+   * 그때 revision을 또 올리면 하나의 Accepted가 `(rev 1)`과 `(rev 2)` 두 commit으로
+   * 남는다. 번호는 Sync Branch에 실제 반영된 revision을 뜻하므로(ADR 0027) 여기서는
+   * 세지 않는다.
+   *
+   * 이 분기는 "같은 code"가 아니라 "같은 Accepted"를 막는다. 사용자가 같은 풀이를
+   * 다시 제출하면 다른 Accepted라 다른 값이 오고, 그때는 아래에서 번호가 증가한다. */
+  const isAlreadyCommittedAcceptedSource =
+    existingLanguageEntry?.lastAcceptedSourceId === acceptedSource.acceptedSourceId;
   const solutionRevisionNumber =
     existingLanguageEntry === undefined
       ? 1
-      : existingLanguageEntry.solutionRevisionNumber + 1;
+      : isAlreadyCommittedAcceptedSource
+        ? existingLanguageEntry.solutionRevisionNumber
+        : existingLanguageEntry.solutionRevisionNumber + 1;
   const languageEntry: SolutionCatalogLanguageEntry = {
     solutionPath: path,
     lastAcceptedSourceId: acceptedSource.acceptedSourceId,
     solutionRevisionNumber,
-    lastSyncedAt: syncedAt,
+    lastSyncedAt: isAlreadyCommittedAcceptedSource
+      ? existingLanguageEntry?.lastSyncedAt ?? syncedAt
+      : syncedAt,
     firstAcceptedDate: existingLanguageEntry?.firstAcceptedDate ?? acceptedDate,
-    lastAcceptedDate: acceptedDate
+    lastAcceptedDate: isAlreadyCommittedAcceptedSource
+      ? existingLanguageEntry?.lastAcceptedDate ?? acceptedDate
+      : acceptedDate
   };
 
   const nextProblem: SolutionCatalogProblem = {
@@ -130,9 +146,13 @@ export function mergeSolutionCatalogEntryWithResult(
     titleSlug: acceptedSource.titleSlug,
     difficulty: acceptedSource.difficulty,
     url: acceptedSource.url,
-    lastSyncedAt: syncedAt,
+    lastSyncedAt: isAlreadyCommittedAcceptedSource
+      ? existingProblem?.lastSyncedAt ?? syncedAt
+      : syncedAt,
     firstAcceptedDate: existingProblem?.firstAcceptedDate ?? acceptedDate,
-    lastAcceptedDate: acceptedDate,
+    lastAcceptedDate: isAlreadyCommittedAcceptedSource
+      ? existingProblem?.lastAcceptedDate ?? acceptedDate
+      : acceptedDate,
     languages: {
       ...(existingProblem?.languages ?? {}),
       [acceptedSource.language]: languageEntry

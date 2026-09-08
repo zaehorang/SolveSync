@@ -43,6 +43,7 @@ SolveSync는 별도 backend server를 운영하지 않으며, developer가 사�
 
 - Sync History는 최근 20개 항목을 보관합니다.
 - Retry Bundle은 최대 20개까지 보관하며, 7일이 지난 bundle은 정리됩니다.
+- 중복 방지에 사용하는 Sync Deduplication Key 기록은 최대 100개까지 보관하며, 7일이 지난 기록은 정리됩니다.
 - Retry 성공 후 해당 Retry Bundle은 삭제됩니다.
 - 사용자는 Chrome extension 설정 삭제, Chrome extension storage 삭제, 또는 extension 제거를 통해 로컬 저장 데이터를 삭제할 수 있습니다.
 

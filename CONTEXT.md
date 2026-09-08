@@ -17,7 +17,7 @@ Programmers와 SWEA에서 Accepted 직후 현재 문제 페이지의 editor code
 _Avoid_: Accepted snapshot, submission detail, official submission, screenshot, cached code
 
 **Sync Deduplication Key**:
-하나의 Accepted를 두 번 commit하지 않기 위해 사용하는 기준값. **Accepted 이벤트 하나를 식별하며 풀이 code를 식별하지 않는다.** 같은 code를 다시 제출하면 다른 Accepted이므로 commit이 생긴다. 같은 문제와 언어의 최신 풀이를 같은 파일로 덮어쓰는 기준과는 별개의 개념이다.
+하나의 Accepted를 두 번 commit하지 않기 위해 사용하는 기준값. **Accepted Signal 하나를 식별하며 풀이 code를 식별하지 않는다.** 같은 code를 다시 제출하면 다른 Accepted Signal이므로 commit이 생긴다. LeetCode만 예외로 플랫폼이 준 제출 번호를 쓰므로 Signal이 아니라 제출 레코드를 가리킨다. 같은 문제와 언어의 최신 풀이를 같은 파일로 덮어쓰는 기준과는 별개의 개념이다.
 _Avoid_: Sync identity, submission identity, problem identity, file identity
 
 **Sync Repository**:
@@ -81,5 +81,5 @@ _Avoid_: Test adapter, platform helper, page object
 _Avoid_: Test repository, sync repository, sandbox
 
 **Verification Profile**:
-Live E2E가 사용하는 전용 Chrome user data directory. 사용자의 상시 프로필과 분리하며, SolveSync의 Sync Deduplication Key 상태가 확장 설치 단위로 저장되므로 이 분리가 실사용 동기화 오염을 막는 유일한 수단이다.
+Live E2E가 사용하는 전용 Chrome user data directory. 사용자의 상시 프로필과 분리하며, 그 분리가 검증용 로그인 세션과 확장 상태를 실사용 브라우저에서 떼어 놓는다. 검증용 제출이 실사용 Sync Repository에 commit되는 것은 이 분리가 아니라 대상 저장소 확인이 막는다.
 _Avoid_: Test profile, browser profile, headless profile

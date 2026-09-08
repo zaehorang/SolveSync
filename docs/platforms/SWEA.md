@@ -256,9 +256,8 @@ route 전환도 같은 날 확인했다. 1206 풀이 window를 닫고 같은 URL
 | 주력 | 1206 `[S/W 문제해결 기본] 1일차 - View` | `AV134DPqAA8CFAYh` |
 | route 전환 확인용 | 1859 `백만 장자 프로젝트` | `AV5LrsUaDxcDFAXc` |
 
-두 가지를 미리 알고 시작한다.
+하나를 미리 알고 시작한다.
 
-- **같은 code를 다시 제출해도 Accepted마다 commit이 생긴다**([ADR 0041](../adr/0041-sync-deduplication-key-identifies-accepted-event.md)). 어느 commit이 이번 제출의 것인지 가리려면 marker 한 줄을 매번 다르게 둔다.
 - **SWEA Python 제출에서 `import sys`가 컴파일 오류로 거부된다**(2026-08-18 관찰). 검증용 풀이는 `input()`으로 작성한다.
 
 1. `problemDetail.do`의 `문제 풀기`로 풀이 window를 연다. Toast와 무관하게 **DevTools에서 `#contestProbId`, `h3.problem_title`, `select#sel_lang` 값을 먼저 기록한다.**

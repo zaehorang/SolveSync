@@ -44,7 +44,7 @@
 | 0038 | [Chrome Web Store Public 배포를 진행한다](0038-chrome-web-store-public-release.md) | Accepted |
 | 0039 | [Solution Revision Number는 `#n` 대신 `(rev n)`으로 표기한다](0039-revision-suffix-avoids-issue-autolink.md) | Accepted |
 | 0040 | [Solution Catalog v5에서 읽지 않는 activity를 지운다](0040-drop-unread-activity-from-solution-catalog.md) | Accepted |
-| 0041 | [Sync Deduplication Key는 code가 아니라 Accepted 이벤트를 식별한다](0041-sync-deduplication-key-identifies-accepted-event.md) | Accepted |
+| 0041 | [Sync Deduplication Key는 code가 아니라 Accepted Signal을 식별한다](0041-sync-deduplication-key-identifies-accepted-event.md) | Accepted |
 
 ## 번호 구멍
 

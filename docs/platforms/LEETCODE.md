@@ -42,7 +42,7 @@
 
 `https://leetcode.com/problems/two-sum/`.
 
-`acceptedSourceId`가 플랫폼 공식 submission ID라 같은 code를 다시 제출해도 새 값이 나온다. 세 플랫폼 중 유일하게 Sync Deduplication Key 오염을 걱정하지 않아도 되는 경우다. Page 구조도 가장 안정적이다.
+`acceptedSourceId`가 플랫폼 공식 submission ID라 같은 code를 다시 제출해도 새 값이 나온다. 다만 그 값이 가리키는 것은 Accepted Signal이 아니라 **제출 레코드**이므로, 목록 반영이 늦어 직전 제출을 집어 들면 이미 처리한 값이 나온다([ADR 0041](../adr/0041-sync-deduplication-key-identifies-accepted-event.md)). 나머지 두 플랫폼은 감지 시각을 쓰므로 이 갈림이 없다. Page 구조는 셋 중 가장 안정적이다.
 
 바꾸면 이전 캡처와의 비교가 끊기므로 [`e2e/capture/baseProblems.ts`](../../e2e/capture/baseProblems.ts)와 함께 고친다.
 

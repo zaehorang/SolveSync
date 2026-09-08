@@ -48,6 +48,8 @@ badge가 **observation이 살아 있는 동안 다시 그려지는** 경로가 �
 
 같은 제출을 이미 동기화했다면 processed Sync Deduplication Key가 막는다. 실제로 드러나려면 **그 문제의 최신 Accepted 제출이 이 설치에서 한 번도 동기화된 적이 없어야** 한다 — 확장을 설치하기 전에 푼 문제가 여기 해당한다.
 
+**이 방어에는 기한이 있다.** processed 기록은 7일이 지나거나 그 사이 100개가 쌓여 밀려나면 사라진다([ADR 0041](../adr/0041-sync-deduplication-key-identifies-accepted-event.md)). 그 뒤에는 이미 동기화한 제출도 다시 처리되므로, 오래 전에 푼 문제를 다시 열었을 때가 이 증상이 드러나는 두 번째 조건이다.
+
 ## 재현 시 수집할 것
 
 - Sync History entry의 `titleSlug`, `createdAt`, `commitSha`

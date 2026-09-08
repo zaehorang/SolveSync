@@ -33,7 +33,7 @@ export const SYNC_HISTORY_LIMIT = 20;
 export const RETRY_BUNDLE_LIMIT = 20;
 export const RETRY_BUNDLE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 export const SYNC_DEDUPLICATION_KEY_LOCK_TTL_MS = 10 * 60 * 1000;
-/** processed 항목은 Accepted 이벤트마다 하나씩 늘어난다(ADR 0041). 무한히 쌓이지
+/** processed 항목은 Accepted Signal마다 하나씩 늘어난다(ADR 0041). 무한히 쌓이지
  * 않도록 기한과 개수를 둔다. 기한이 Retry Bundle과 같은 이유는 최대 7일 뒤의
  * 재시도가 "이미 성공했는가"를 이 보관함에 묻기 때문이다. */
 export const PROCESSED_SYNC_DEDUPLICATION_KEY_TTL_MS = RETRY_BUNDLE_TTL_MS;
@@ -246,22 +246,24 @@ export function createExtensionStorage(area: StorageAreaAdapter): ExtensionStora
       return state;
     }
 
+    const entry: ProcessedSyncDeduplicationKeyEntry = {
+      syncDeduplicationKey,
+      processedAt: details.processedAt ?? toIsoDateString(now),
+      commitSha: details.commitSha,
+      solutionPath: details.solutionPath
+    };
+    // 방금 기록한 항목은 상한과 기한에 상관없이 남긴다. commit이 성공했는데 중복
+    // 방지 기록만 사라지는 상태를 만들지 않기 위해서다. 시계가 뒤로 움직이면
+    // 정렬만으로는 새 항목이 잘려나갈 수 있다.
     const next: ProcessedSyncDeduplicationKeysState = {
       version: STORAGE_SCHEMA_VERSION,
-      entries: capProcessedSyncDeduplicationKeys(
-        pruneProcessedSyncDeduplicationKeyList(
-          [
-            ...state.entries,
-            {
-              syncDeduplicationKey,
-              processedAt: details.processedAt ?? toIsoDateString(now),
-              commitSha: details.commitSha,
-              solutionPath: details.solutionPath
-            }
-          ],
-          now
+      entries: [
+        entry,
+        ...capProcessedSyncDeduplicationKeys(
+          pruneProcessedSyncDeduplicationKeyList(state.entries, now),
+          PROCESSED_SYNC_DEDUPLICATION_KEY_LIMIT - 1
         )
-      )
+      ]
     };
 
     return writeState(area, STORAGE_KEYS.processedSyncDeduplicationKeys, next);
@@ -274,7 +276,8 @@ export function createExtensionStorage(area: StorageAreaAdapter): ExtensionStora
     const next: ProcessedSyncDeduplicationKeysState = {
       version: STORAGE_SCHEMA_VERSION,
       entries: capProcessedSyncDeduplicationKeys(
-        pruneProcessedSyncDeduplicationKeyList(state.entries, now)
+        pruneProcessedSyncDeduplicationKeyList(state.entries, now),
+        PROCESSED_SYNC_DEDUPLICATION_KEY_LIMIT
       )
     };
 
@@ -580,15 +583,16 @@ function normalizeRetryBundleTtl(bundle: RetryBundle): RetryBundle {
 }
 
 function capProcessedSyncDeduplicationKeys(
-  entries: ProcessedSyncDeduplicationKeyEntry[]
+  entries: ProcessedSyncDeduplicationKeyEntry[],
+  limit: number
 ): ProcessedSyncDeduplicationKeyEntry[] {
-  if (entries.length <= PROCESSED_SYNC_DEDUPLICATION_KEY_LIMIT) {
+  if (entries.length <= limit) {
     return entries;
   }
 
   return [...entries]
     .sort((left, right) => compareIsoDescending(left.processedAt, right.processedAt))
-    .slice(0, PROCESSED_SYNC_DEDUPLICATION_KEY_LIMIT);
+    .slice(0, limit);
 }
 
 function pruneProcessedSyncDeduplicationKeyList(
