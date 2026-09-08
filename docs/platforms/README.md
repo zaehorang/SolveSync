@@ -20,7 +20,7 @@
 | 전이 판정 | mutation 기반, 무상태 | presentation 상태기계, 유상태 | mutation 기반, 무상태 |
 | 문구 판정 | 결과 text 선별 후 pattern. 정확 일치는 조건부 | **정확 일치** `정답입니다!` | **접두사 일치** `축하합니다. Pass입니다.` |
 | Solution code source | GraphQL Accepted Submission detail | `textarea#code.value` | MAIN world bridge의 `getValue()` |
-| `acceptedSourceId` | submission ID (플랫폼 공식) | `programmers:{lessonId}:{language}:{codeHash}` | `swea:{contestProbId}:{language}:{codeHash}` |
+| `acceptedSourceId` | submission ID (플랫폼 공식) | `programmers:{lessonId}:{language}:{detectedAtMs}` | `swea:{contestProbId}:{language}:{detectedAtMs}` |
 | Difficulty | 있음 | 없음 | 없음. 풀이 페이지에 없고 가져오지 않는다 |
 | 지원 언어 | language registry 전체 | language registry 전체 | `cpp`, `java`, `python3` 셋뿐 |
 | 오류 코드 | `leetcode_auth_required`, `leetcode_fetch_failed` | `programmers_extract_failed` | `swea_extract_failed` |
@@ -93,15 +93,17 @@ Route 출처가 URL인가 DOM인가가 세 플랫폼을 가르는 근본 축이�
 
 ## Sync Deduplication Key와 trust boundary
 
-- Sync Deduplication Key는 `codingPlatform`, `acceptedSourceId`, problem identifier와 language의 조합이다.
-- 플랫폼이 공식 Accepted Source ID를 노출하면 그것을 쓴다. 노출하지 않으면 `{codingPlatform}:{problemId}:{language}:{codeHash}` 형식의 deterministic value를 만든다.
-- code hash가 들어가는 플랫폼에서는 **같은 code를 다시 제출하면 commit이 생기지 않는다.** 정상 동작이다.
+- Sync Deduplication Key는 `codingPlatform`, `acceptedSourceId`, problem identifier와 language의 조합이고, **Accepted Signal 하나**를 식별한다([ADR 0041](../adr/0041-sync-deduplication-key-identifies-accepted-event.md)).
+- 플랫폼이 공식 Accepted Source ID를 노출하면 그것을 쓴다. 노출하지 않으면 `{codingPlatform}:{problemId}:{language}:{detectedAtMs}` 형식의 deterministic value를 만든다. `detectedAtMs`는 adapter가 fresh Accepted transition을 확정한 시점의 epoch millisecond다.
+- **같은 code를 다시 제출해도 새 Accepted Signal이므로 commit이 생기고 Solution Revision Number가 증가한다.** 세 플랫폼이 같다.
+- 이 key가 막는 것은 **하나의 Accepted Signal이 두 번 처리되는 것**뿐이고, 그것도 key가 같을 때만이다. 억제 창 밖에서 같은 Accepted가 다시 감지되면 감지 시각이 달라 막지 못한다.
+- LeetCode의 key는 Signal이 아니라 제출 레코드를 가리키므로 예외가 하나 붙는다. 제출 목록 반영이 늦어 직전 제출을 집어 들면 이미 처리한 값이 나와 commit이 생기지 않는다.
 - DOM이나 page world에서 읽은 source는 page가 제어하는 값이다. 그 residual risk는 [ADR 0028](../adr/0028-programmers-dom-snapshot-risk-acceptance.md)의 control을 적용해 수용한다.
 - **이 trust boundary는 secret이나 write destination으로 확장되지 않는다.** Content message에 GitHub token, cookie와 session token을 넣지 않고, GitHub API 호출은 background service worker에서만 수행하며, write 대상은 사용자가 선택한 Sync Repository와 Sync Branch로 제한한다.
 
 ## 오류 공통 계약
 
-- 필수 값(problem identifier, title, language)이 없거나 code가 비어 있으면 commit하지 않고 플랫폼별 extract failure로 normalize한다.
+- 필수 값(problem identifier, title, language)이 없거나, code가 비어 있거나, 감지 시각을 시각으로 읽을 수 없으면 commit하지 않고 플랫폼별 extract failure로 normalize한다. 감지 시각에 대체값을 만들지 않는 이유는 [ADR 0041](../adr/0041-sync-deduplication-key-identifies-accepted-event.md)에 있다.
 - language registry에 없는 language는 `unsupported_language`로 기록하고 commit하지 않는다.
 - **사용자가 다시 시도할 수 있는 실패는 GitHub commit 단계 실패뿐이고, 이것은 세 플랫폼 공통이다.** Retry Bundle은 commit을 시도한 뒤 catch에서만 만들어진다. source를 확정하기 전에 끝나는 실패(LeetCode 조회 실패, Programmers/SWEA extract 실패)는 bundle이 없고, popup은 `retryBundleId`가 있을 때만 retry action을 그리므로 버튼이 나타나지 않는다. 오류 표의 `retryable` flag와 실제로 retry가 가능한지는 다른 것이다. 차이표에 `Retry 가능` 행이 있었으나 플랫폼 사이의 차이가 아니어서 뺐다.
 - Difficulty를 제공하지 않는 플랫폼은 Solution Catalog에 `-`로 저장하고 Solution README에서는 Difficulty column을 표시하지 않는다.
@@ -185,7 +187,7 @@ npm run build
 2. 지원 언어로 Accepted 제출을 만든다. Toast, Sync History와 GitHub commit이 정확히 하나인지 확인한다.
 3. Run을 실행한다. 새 toast, Sync History와 commit이 없어야 한다.
 4. 실패 제출(Wrong Answer, 컴파일 오류)을 만든다. 새 sync가 없어야 한다.
-5. Code를 구별 가능하게 수정한 뒤 두 번째 Accepted 제출을 만든다. 두 번째 Solution Revision commit이 정확히 하나인지 확인한다.
+5. **Code를 그대로 두고** 두 번째 Accepted 제출을 만든다. 두 번째 Solution Revision commit이 정확히 하나 생기고 commit message의 revision 번호가 하나 올라갔는지 확인한다. 어느 commit이 이번 제출의 것인지 가려야 하면 code에 실행마다 다른 marker 한 줄을 둔다.
 6. 각 Solution File이 Run이나 실패 제출의 code가 아니라 해당 Accepted를 관찰한 시점의 code와 일치하는지 확인한다.
 7. 각 commit이 Solution File, Solution README와 Solution Catalog를 함께 변경했는지 확인한다.
 8. 다른 문제로 이동해 Accepted를 만든다. 현재 route의 식별자와 제목으로 sync가 정확히 한 번 생성되는지 확인한다.

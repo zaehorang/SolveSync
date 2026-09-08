@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  PROCESSED_SYNC_DEDUPLICATION_KEY_LIMIT,
+  PROCESSED_SYNC_DEDUPLICATION_KEY_TTL_MS,
   SYNC_DEDUPLICATION_KEY_LOCK_TTL_MS,
   RETRY_BUNDLE_LIMIT,
   RETRY_BUNDLE_TTL_MS,
@@ -90,8 +92,120 @@ describe("background extension storage", () => {
       "2026-01-01T00:00:01.000Z"
     );
 
+    expect(
+      await storage.hasProcessedSyncDeduplicationKey(syncDeduplicationKey)
+    ).toBe(true);
+    await expect(
+      storage.pruneProcessedSyncDeduplicationKeys("2026-01-01T00:00:02.000Z")
+    ).resolves.toMatchObject({ entries: [expect.anything()] });
+  });
+
+  it("drops processed Sync Deduplication Keys past their TTL", async () => {
+    const storage = createExtensionStorage(createMemoryStorageArea());
+    const processedAt = "2026-01-01T00:00:00.000Z";
+    const syncDeduplicationKey = makeSyncDeduplicationKey("source-1");
+
+    await storage.markSyncDeduplicationKeyProcessed(
+      syncDeduplicationKey,
+      {
+        commitSha: "commit-sha-1",
+        solutionPath: "leetcode/swift/0001_two_sum.swift"
+      },
+      processedAt
+    );
+
+    await storage.pruneProcessedSyncDeduplicationKeys(
+      addMs(processedAt, PROCESSED_SYNC_DEDUPLICATION_KEY_TTL_MS - 1)
+    );
     expect(await storage.hasProcessedSyncDeduplicationKey(syncDeduplicationKey)).toBe(true);
-    expect(await storage.listProcessedSyncDeduplicationKeys()).toHaveLength(1);
+
+    await storage.pruneProcessedSyncDeduplicationKeys(
+      addMs(processedAt, PROCESSED_SYNC_DEDUPLICATION_KEY_TTL_MS)
+    );
+    expect(await storage.hasProcessedSyncDeduplicationKey(syncDeduplicationKey)).toBe(false);
+  });
+
+  it("keeps only the newest processed Sync Deduplication Keys at the limit", async () => {
+    const storage = createExtensionStorage(createMemoryStorageArea());
+    const processedAt = "2026-01-01T00:00:00.000Z";
+
+    for (let index = 0; index < PROCESSED_SYNC_DEDUPLICATION_KEY_LIMIT + 5; index += 1) {
+      await storage.markSyncDeduplicationKeyProcessed(
+        makeSyncDeduplicationKey(`source-${index}`),
+        {
+          commitSha: `commit-sha-${index}`,
+          solutionPath: "leetcode/swift/0001_two_sum.swift"
+        },
+        addMs(processedAt, index * 1000)
+      );
+    }
+
+    expect(await storage.hasProcessedSyncDeduplicationKey(makeSyncDeduplicationKey("source-0"))).toBe(
+      false
+    );
+    expect(
+      await storage.hasProcessedSyncDeduplicationKey(
+        makeSyncDeduplicationKey(`source-${PROCESSED_SYNC_DEDUPLICATION_KEY_LIMIT + 4}`)
+      )
+    ).toBe(true);
+  });
+
+  /** 상한을 넘긴 상태가 이미 저장돼 있는 경우다. 기록 경로가 매번 상한을 적용하므로
+   * 저장된 값을 직접 심지 않으면 이 경로를 지나갈 수 없다. */
+  it("caps an already oversized processed Sync Deduplication Key list on prune", async () => {
+    const processedAt = "2026-01-01T00:00:00.000Z";
+    const area = createMemoryStorageArea({
+      [STORAGE_KEYS.processedSyncDeduplicationKeys]: {
+        version: STORAGE_SCHEMA_VERSION,
+        entries: Array.from(
+          { length: PROCESSED_SYNC_DEDUPLICATION_KEY_LIMIT + 5 },
+          (_unused, index) => ({
+            syncDeduplicationKey: makeSyncDeduplicationKey(`source-${index}`),
+            processedAt: addMs(processedAt, index * 1000),
+            commitSha: `commit-sha-${index}`,
+            solutionPath: "leetcode/swift/0001_two_sum.swift"
+          })
+        )
+      }
+    });
+    const storage = createExtensionStorage(area);
+
+    const state = await storage.pruneProcessedSyncDeduplicationKeys(processedAt);
+
+    expect(state.entries).toHaveLength(PROCESSED_SYNC_DEDUPLICATION_KEY_LIMIT);
+    expect(await storage.hasProcessedSyncDeduplicationKey(makeSyncDeduplicationKey("source-0"))).toBe(
+      false
+    );
+  });
+
+  /** commit은 성공했는데 중복 방지 기록만 사라지는 상태를 만들지 않는다. 시계가 뒤로
+   * 움직이면 정렬만으로는 방금 기록한 항목이 잘려나간다. */
+  it("keeps the newly processed Sync Deduplication Key even when the clock moves backwards", async () => {
+    const storage = createExtensionStorage(createMemoryStorageArea());
+    const processedAt = "2026-01-01T00:00:00.000Z";
+
+    for (let index = 0; index < PROCESSED_SYNC_DEDUPLICATION_KEY_LIMIT; index += 1) {
+      await storage.markSyncDeduplicationKeyProcessed(
+        makeSyncDeduplicationKey(`source-${index}`),
+        {
+          commitSha: `commit-sha-${index}`,
+          solutionPath: "leetcode/swift/0001_two_sum.swift"
+        },
+        addMs(processedAt, index * 1000)
+      );
+    }
+
+    const rewound = makeSyncDeduplicationKey("source-rewound");
+    await storage.markSyncDeduplicationKeyProcessed(
+      rewound,
+      {
+        commitSha: "commit-sha-rewound",
+        solutionPath: "leetcode/swift/0001_two_sum.swift"
+      },
+      addMs(processedAt, -60 * 1000)
+    );
+
+    expect(await storage.hasProcessedSyncDeduplicationKey(rewound)).toBe(true);
   });
 
   it("migrates legacy processed identities before duplicate checks", async () => {
@@ -114,15 +228,23 @@ describe("background extension storage", () => {
     });
     const storage = createExtensionStorage(area);
 
-    expect(await storage.hasProcessedSyncDeduplicationKey(makeSyncDeduplicationKey("submission-1"))).toBe(true);
-    await expect(storage.listProcessedSyncDeduplicationKeys()).resolves.toEqual([
-      {
-        syncDeduplicationKey: makeSyncDeduplicationKey("submission-1"),
-        processedAt: "2026-01-01T00:00:00.000Z",
-        commitSha: "commit-sha-1",
-        solutionPath: "leetcode/swift/0001_two_sum.swift"
-      }
-    ]);
+    expect(
+      await storage.hasProcessedSyncDeduplicationKey(
+        makeSyncDeduplicationKey("submission-1")
+      )
+    ).toBe(true);
+    await expect(
+      storage.pruneProcessedSyncDeduplicationKeys("2026-01-01T00:00:01.000Z")
+    ).resolves.toMatchObject({
+      entries: [
+        {
+          syncDeduplicationKey: makeSyncDeduplicationKey("submission-1"),
+          processedAt: "2026-01-01T00:00:00.000Z",
+          commitSha: "commit-sha-1",
+          solutionPath: "leetcode/swift/0001_two_sum.swift"
+        }
+      ]
+    });
   });
 
   it("keeps only the latest 20 sync history entries", async () => {

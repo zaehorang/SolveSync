@@ -92,7 +92,10 @@ describe("Solution Catalog", () => {
     });
   });
 
-  it("does not consume a revision for the same problem language accepted source id", () => {
+  /** 같은 `acceptedSourceId`가 다시 오는 경로는 하나뿐이다 — commit은 성공했는데
+   * processed 기록이 남지 않아 Retry Bundle로 다시 올라오는 경우다. 그 반영은 이미
+   * Sync Branch에 있으므로 날짜와 시각을 덮지 않는다. */
+  it("keeps dates for an already committed accepted source id", () => {
     const first = mergeSolutionCatalogEntry(
       createEmptySolutionCatalog(),
       twoSumSwift,
@@ -112,6 +115,29 @@ describe("Solution Catalog", () => {
       lastSyncedAt: syncedAt,
       firstAcceptedDate: "2026-05-27",
       lastAcceptedDate: "2026-05-27"
+    });
+  });
+
+  it("advances dates for a different accepted source id", () => {
+    const first = mergeSolutionCatalogEntry(
+      createEmptySolutionCatalog(),
+      twoSumSwift,
+      "leetcode/swift/0001_two_sum.swift",
+      syncedAt,
+      acceptedDate
+    );
+    const second = mergeSolutionCatalogEntry(
+      first,
+      { ...twoSumSwift, acceptedSourceId: "101" },
+      "leetcode/swift/0001_two_sum.swift",
+      "2026-05-28T04:05:00.000Z",
+      "2026-05-28"
+    );
+
+    expect(second.problems[0]?.languages.swift).toMatchObject({
+      lastSyncedAt: "2026-05-28T04:05:00.000Z",
+      firstAcceptedDate: "2026-05-27",
+      lastAcceptedDate: "2026-05-28"
     });
   });
 
@@ -382,7 +408,10 @@ describe("Solution Catalog", () => {
     expect(second.catalog.problems[0]?.languages.swift?.solutionRevisionNumber).toBe(2);
   });
 
-  it("keeps revision for the same accepted source id", () => {
+  /** 같은 값이 다시 온다는 것은 그 Accepted가 이미 Sync Branch에 써졌다는 뜻이다.
+   * 번호는 실제 반영된 revision을 뜻하므로(ADR 0027) 두 번 세지 않는다. 사용자가
+   * 같은 풀이를 다시 제출한 경우는 값이 달라 위 테스트가 다룬다. */
+  it("keeps revision for an already committed accepted source id", () => {
     const first = mergeSolutionCatalogEntryWithResult(
       createEmptySolutionCatalog(),
       twoSumSwift,

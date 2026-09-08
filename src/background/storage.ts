@@ -33,6 +33,11 @@ export const SYNC_HISTORY_LIMIT = 20;
 export const RETRY_BUNDLE_LIMIT = 20;
 export const RETRY_BUNDLE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 export const SYNC_DEDUPLICATION_KEY_LOCK_TTL_MS = 10 * 60 * 1000;
+/** processed 항목은 Accepted Signal마다 하나씩 늘어난다(ADR 0041). 무한히 쌓이지
+ * 않도록 기한과 개수를 둔다. 기한이 Retry Bundle과 같은 이유는 최대 7일 뒤의
+ * 재시도가 "이미 성공했는가"를 이 보관함에 묻기 때문이다. */
+export const PROCESSED_SYNC_DEDUPLICATION_KEY_TTL_MS = RETRY_BUNDLE_TTL_MS;
+export const PROCESSED_SYNC_DEDUPLICATION_KEY_LIMIT = 100;
 
 export interface StorageAreaAdapter {
   get(keys?: string | string[] | Record<string, unknown> | null): Promise<Record<string, unknown>>;
@@ -66,7 +71,6 @@ export interface ExtensionStorage {
     session: GitHubAuthSession
   ): Promise<GitHubAuthSession | null>;
   clearGitHubAuth(): Promise<void>;
-  listProcessedSyncDeduplicationKeys(): Promise<ProcessedSyncDeduplicationKeyEntry[]>;
   hasProcessedSyncDeduplicationKey(
     syncDeduplicationKey: SyncDeduplicationKey
   ): Promise<boolean>;
@@ -74,6 +78,9 @@ export interface ExtensionStorage {
     syncDeduplicationKey: SyncDeduplicationKey,
     details: MarkSyncDeduplicationKeyProcessedDetails,
     now?: Date | IsoDateString | number
+  ): Promise<ProcessedSyncDeduplicationKeysState>;
+  pruneProcessedSyncDeduplicationKeys(
+    now: Date | IsoDateString | number
   ): Promise<ProcessedSyncDeduplicationKeysState>;
   appendSyncHistoryEntry(entry: SyncHistoryEntry): Promise<SyncHistoryState>;
   listSyncHistoryEntries(): Promise<SyncHistoryEntry[]>;
@@ -212,15 +219,13 @@ export function createExtensionStorage(area: StorageAreaAdapter): ExtensionStora
     );
   }
 
-  async function listProcessedSyncDeduplicationKeys(): Promise<ProcessedSyncDeduplicationKeyEntry[]> {
-    const state = await readProcessedSyncDeduplicationKeys();
-    return state.entries;
-  }
-
+  /** 기한이 지난 항목은 `pruneProcessedSyncDeduplicationKeys`가 지운다. 동기화
+   * 흐름은 중복 확인 전에 항상 그것을 먼저 부르므로 여기서 다시 거르지 않는다. */
   async function hasProcessedSyncDeduplicationKey(
     syncDeduplicationKey: SyncDeduplicationKey
   ): Promise<boolean> {
     const state = await readProcessedSyncDeduplicationKeys();
+
     return state.entries.some((entry) =>
       isSameSyncDeduplicationKey(entry.syncDeduplicationKey, syncDeduplicationKey)
     );
@@ -241,17 +246,39 @@ export function createExtensionStorage(area: StorageAreaAdapter): ExtensionStora
       return state;
     }
 
+    const entry: ProcessedSyncDeduplicationKeyEntry = {
+      syncDeduplicationKey,
+      processedAt: details.processedAt ?? toIsoDateString(now),
+      commitSha: details.commitSha,
+      solutionPath: details.solutionPath
+    };
+    // 방금 기록한 항목은 상한과 기한에 상관없이 남긴다. commit이 성공했는데 중복
+    // 방지 기록만 사라지는 상태를 만들지 않기 위해서다. 시계가 뒤로 움직이면
+    // 정렬만으로는 새 항목이 잘려나갈 수 있다.
     const next: ProcessedSyncDeduplicationKeysState = {
       version: STORAGE_SCHEMA_VERSION,
       entries: [
-        ...state.entries,
-        {
-          syncDeduplicationKey,
-          processedAt: details.processedAt ?? toIsoDateString(now),
-          commitSha: details.commitSha,
-          solutionPath: details.solutionPath
-        }
+        entry,
+        ...capProcessedSyncDeduplicationKeys(
+          pruneProcessedSyncDeduplicationKeyList(state.entries, now),
+          PROCESSED_SYNC_DEDUPLICATION_KEY_LIMIT - 1
+        )
       ]
+    };
+
+    return writeState(area, STORAGE_KEYS.processedSyncDeduplicationKeys, next);
+  }
+
+  async function pruneProcessedSyncDeduplicationKeys(
+    now: Date | IsoDateString | number
+  ): Promise<ProcessedSyncDeduplicationKeysState> {
+    const state = await readProcessedSyncDeduplicationKeys();
+    const next: ProcessedSyncDeduplicationKeysState = {
+      version: STORAGE_SCHEMA_VERSION,
+      entries: capProcessedSyncDeduplicationKeys(
+        pruneProcessedSyncDeduplicationKeyList(state.entries, now),
+        PROCESSED_SYNC_DEDUPLICATION_KEY_LIMIT
+      )
     };
 
     return writeState(area, STORAGE_KEYS.processedSyncDeduplicationKeys, next);
@@ -444,11 +471,14 @@ export function createExtensionStorage(area: StorageAreaAdapter): ExtensionStora
       ),
     clearGitHubAuth: () =>
       runExclusive(STORAGE_KEYS.githubAuth, () => clearGitHubAuth()),
-    listProcessedSyncDeduplicationKeys,
     hasProcessedSyncDeduplicationKey,
     markSyncDeduplicationKeyProcessed: (syncDeduplicationKey, details, now) =>
       runExclusive(STORAGE_KEYS.processedSyncDeduplicationKeys, () =>
         markSyncDeduplicationKeyProcessed(syncDeduplicationKey, details, now)
+      ),
+    pruneProcessedSyncDeduplicationKeys: (now) =>
+      runExclusive(STORAGE_KEYS.processedSyncDeduplicationKeys, () =>
+        pruneProcessedSyncDeduplicationKeys(now)
       ),
     appendSyncHistoryEntry: (entry) =>
       runExclusive(STORAGE_KEYS.syncHistory, () => appendSyncHistoryEntry(entry)),
@@ -550,6 +580,36 @@ function normalizeRetryBundleTtl(bundle: RetryBundle): RetryBundle {
     ...bundle,
     expiresAt: nextExpiresAt
   };
+}
+
+function capProcessedSyncDeduplicationKeys(
+  entries: ProcessedSyncDeduplicationKeyEntry[],
+  limit: number
+): ProcessedSyncDeduplicationKeyEntry[] {
+  if (entries.length <= limit) {
+    return entries;
+  }
+
+  return [...entries]
+    .sort((left, right) => compareIsoDescending(left.processedAt, right.processedAt))
+    .slice(0, limit);
+}
+
+function pruneProcessedSyncDeduplicationKeyList(
+  entries: ProcessedSyncDeduplicationKeyEntry[],
+  now: Date | IsoDateString | number
+): ProcessedSyncDeduplicationKeyEntry[] {
+  const nowTimestamp = toTimestamp(now);
+
+  return entries.filter((entry) => {
+    const processedAt = parseTimestamp(entry.processedAt);
+
+    if (processedAt === null) {
+      return false;
+    }
+
+    return nowTimestamp < processedAt + PROCESSED_SYNC_DEDUPLICATION_KEY_TTL_MS;
+  });
 }
 
 function pruneRetryBundleList(

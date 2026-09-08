@@ -63,7 +63,7 @@ npm run e2e:capture:swea   # SWEA는 로그인과 정답·오답 캡처를 한 �
 
 결과는 `e2e/fixtures/{platform}/{outcome}.json`에 저장된다. 언제 끝났다고 볼지는 플랫폼마다 다르다 — Programmers·SWEA는 변화가 멎는 것으로 보고, **LeetCode는 침묵이 오지 않아** 대기 text가 판정으로 바뀌는 전이를 신호로 쓴다.
 
-**확장 없이 뜬다.** 확장이 켜진 채로 실제 제출을 하면 진짜 sync가 돌아 실사용 Sync Repository에 commit이 생기고 processed Sync Deduplication Key까지 남는다. 나중에 같은 문제를 실제로 풀었을 때 commit이 조용히 안 생긴다.
+**확장 없이 뜬다.** 확장이 켜진 채로 실제 제출을 하면 진짜 sync가 돌아 실사용 Sync Repository에 캡처용 제출이 그대로 commit된다. 사람이 푼 것과 구분되지 않는 기록이 남고, 지우려면 저장소를 직접 고쳐야 한다.
 
 **제출은 자동화돼 있다.** selector는 전부 실제 page를 열어 확인한 것이고 [`capture/drivers.ts`](capture/drivers.ts)에 근거와 함께 적혀 있다. 추측한 selector를 코드에 박는 것이 이 계층이 없애려는 문제 그 자체이므로, 그 값을 바꿀 때는 반드시 실제 page에서 다시 확인한다.
 
@@ -121,7 +121,7 @@ E2E_LIVE_PLATFORM=swea E2E_LIVE_SUBMIT=1 npm run e2e:full-cycle   # 하나만
 1. **대상 저장소.** 설정을 심은 뒤 되읽어 Verification Repository인지 확인한다. 아니면 제출하지 않는다 — 그 실수는 사용자의 실사용 Sync Repository에 쓴다.
 2. **로그인.** 로그아웃 상태면 editor도 제출 control도 없고 Playwright는 test timeout까지 조용히 기다린다(실측: 10분을 그렇게 썼다). 곧바로 `npm run e2e:login`을 하라고 말하고 멈춘다.
 3. **dry-run.** 채점 없이 먼저 돌려 예제 입출력과 대조한다. SWEA가 여기 해당하고 제출 상한이 있어 값이 가장 크다.
-4. **코드 nonce.** 실행마다 주석 한 줄을 덧붙인다. Programmers와 SWEA는 `acceptedSourceId`에 code hash가 들어가 같은 코드면 두 번째 실행이 중복으로 걸러지고 **그 통과는 거짓이다.**
+4. **코드 nonce.** 실행마다 주석 한 줄을 덧붙인다. commit된 내용에 이번 실행의 nonce가 있는지로 **방금 만들어진 commit인지 앞선 실행이 남긴 것인지**를 가른다.
 5. **가상 스크롤(SWEA만).** 렌더된 `.CodeMirror-line` 수가 전체 줄 수보다 적은지 본다. 전부 렌더되면 화면 밖 줄을 검증하지 못한 채 통과하므로 제출 전에 멈춘다. 이때 제출 전 제출횟수도 log에 남긴다 — 상한이 99회다.
 
 제출 뒤에는 commit된 줄 수가 넣은 코드와 같은지도 본다. nonce 포함만 보면 nonce가 마지막 줄이라 앞이 잘려도 통과한다. **SWEA에서만 실제로 돌려봤고**(2026-08-26) Programmers 경로는 아직 이 단언으로 돌려보지 않았다.
