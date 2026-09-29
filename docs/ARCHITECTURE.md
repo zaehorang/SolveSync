@@ -233,6 +233,10 @@ Sync Repository는 Coding Platform 폴더를 먼저 두고 그 내부를 언어�
 | `kotlin` | Kotlin | `kotlin` | `.kt` |
 | `go` | Go | `go` | `.go` |
 | `rust` | Rust | `rust` | `.rs` |
+| `mysql` | MySQL | `mysql` | `.sql` |
+| `oracle` | Oracle | `oracle` | `.sql` |
+| `postgresql` | PostgreSQL | `postgresql` | `.sql` |
+| `mssql` | MS SQL Server | `mssql` | `.sql` |
 
 생성된 Swift 풀이 파일은 `swift/SwiftAlgorithm` 아래에 저장하지 않는다. 이 규칙은 기본 검증 저장소의 Xcode build source 충돌을 피하기 위해 시작됐지만, v1에서는 모든 Sync Repository에 같은 path convention을 적용한다.
 

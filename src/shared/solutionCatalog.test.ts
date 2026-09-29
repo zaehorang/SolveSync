@@ -169,6 +169,42 @@ describe("Solution Catalog", () => {
     });
   });
 
+  it("keeps MySQL and Oracle solutions of the same problem side by side", () => {
+    const programmersSql = {
+      problemId: "59034",
+      frontendId: "59034",
+      title: "모든 레코드 조회하기",
+      titleSlug: "59034",
+      difficulty: "",
+      url: "https://school.programmers.co.kr/learn/courses/30/lessons/59034"
+    };
+    const withMysql = mergeSolutionCatalogEntry(
+      createEmptySolutionCatalog(),
+      { ...programmersSql, acceptedSourceId: "1", language: "mysql" },
+      "programmers/mysql/59034_모든_레코드_조회하기.sql",
+      syncedAt,
+      acceptedDate
+    );
+    // 같은 problem이라도 방언이 다르면 language key가 달라 덮어쓰지 않는다.
+    const withBoth = mergeSolutionCatalogEntry(
+      withMysql,
+      { ...programmersSql, acceptedSourceId: "2", language: "oracle" },
+      "programmers/oracle/59034_모든_레코드_조회하기.sql",
+      "2026-05-28T04:10:00.000Z",
+      "2026-05-28"
+    );
+
+    expect(withBoth.problems).toHaveLength(1);
+    expect(withBoth.problems[0]?.languages.mysql?.solutionPath).toBe(
+      "programmers/mysql/59034_모든_레코드_조회하기.sql"
+    );
+    expect(withBoth.problems[0]?.languages.oracle?.solutionPath).toBe(
+      "programmers/oracle/59034_모든_레코드_조회하기.sql"
+    );
+    // 새 language key가 저장 후 다시 읽을 때 버려지지 않는다.
+    expect(parseSolutionCatalogJson(JSON.stringify(withBoth))).toEqual(withBoth);
+  });
+
   it("parses a valid catalog and rejects malformed JSON", () => {
     const catalog = mergeSolutionCatalogEntry(
       createEmptySolutionCatalog(),

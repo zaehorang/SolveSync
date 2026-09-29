@@ -15,6 +15,11 @@ describe("shared domain type guards", () => {
     expect(isSupportedLanguage("python3")).toBe(true);
     expect(isSupportedLanguage("javascript")).toBe(true);
     expect(isSupportedLanguage("rust")).toBe(true);
+    for (const dialect of ["mysql", "oracle", "postgresql", "mssql"]) {
+      expect(isSupportedLanguage(dialect)).toBe(true);
+    }
+    expect(isSupportedLanguage("sql")).toBe(false);
+    expect(isSupportedLanguage("pandas")).toBe(false);
     expect(isSupportedLanguage("ruby")).toBe(false);
   });
 

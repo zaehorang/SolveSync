@@ -19,7 +19,7 @@ TypeScript, runtime message, storage schema는 같은 용어 체계를 사용한
 - Sync Repository: 사용자가 로그인한 GitHub 계정이 소유하고 SolveSync GitHub App을 설치한 repository 중 선택한다. 특정 repository를 제품 기본값으로 고정하지 않는다.
 
 ## 목표
-- LeetCode, Programmers와 SWEA에서 Swift, Python3, Java, C++, JavaScript, TypeScript, Kotlin, Go, Rust로 작성한 Accepted 제출을 자동으로 GitHub에 반영한다. 플랫폼이 실제로 제공하는 언어만 해당하며 SWEA는 C++14, JAVA, Python 3 셋뿐이다.
+- LeetCode, Programmers와 SWEA에서 Swift, Python3, Java, C++, JavaScript, TypeScript, Kotlin, Go, Rust와 SQL 방언 넷(MySQL, Oracle, PostgreSQL, MS SQL Server)으로 작성한 Accepted 제출을 자동으로 GitHub에 반영한다. 플랫폼이 실제로 제공하는 언어만 해당한다. SWEA는 C++14, JAVA, Python 3 셋뿐이고 SQL 문제가 없다. Programmers는 SQL 방언 중 MySQL과 Oracle만 제공한다. LeetCode의 Pandas는 지원하지 않는다([ADR 0043](adr/0043-sql-dialects-as-separate-supported-languages.md)).
 - Swift 풀이 파일을 Xcode 빌드 소스 폴더 밖의 Coding Platform별 풀이 폴더에 저장한다.
 - Sync Repository의 풀이 구조는 `leetcode`, `programmers` 같은 Coding Platform 폴더를 먼저 두고 그 내부를 언어별로 나눈다.
 - 성공, 실패, retry 상태를 문제 풀이 흐름을 방해하지 않는 방식으로 보여준다.
@@ -108,6 +108,7 @@ TypeScript, runtime message, storage schema는 같은 용어 체계를 사용한
 - Swift path 생성: `leetcode/swift`, `programmers/swift`.
 - Python3 path 생성: `leetcode/python`, `programmers/python`.
 - Java, C++, JavaScript, TypeScript, Kotlin, Go, Rust path는 각각 `java`, `cpp`, `javascript`, `typescript`, `kotlin`, `go`, `rust` 언어 폴더와 `.java`, `.cpp`, `.js`, `.ts`, `.kt`, `.go`, `.rs` 확장자를 사용한다.
+- SQL 방언은 하나로 묶지 않고 `mysql`, `oracle`, `postgresql`, `mssql` 언어 폴더를 각각 두며 확장자는 모두 `.sql`이다. 같은 문제를 MySQL과 Oracle로 풀면 두 풀이가 모두 남는다.
 - Sync Repository의 폴더, README, Solution Catalog가 없을 때도 첫 sync에서 생성한다.
 
 ## v1 제외 사항

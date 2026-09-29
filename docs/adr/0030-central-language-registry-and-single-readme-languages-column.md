@@ -1,6 +1,6 @@
 # 중앙 language registry와 단일 README Languages column 사용
 
-상태: Accepted.
+상태: Accepted. 지원 언어 목록은 [ADR 0043](0043-sql-dialects-as-separate-supported-languages.md)에서 SQL 방언 넷이 늘었다.
 
 결정: Supported language는 Swift, Python3, Java, C++, JavaScript, TypeScript, Kotlin, Go, Rust다. 각 언어의 stable key, display name, LeetCode/Programmers alias, folder, extension을 `src/shared/languageRegistry.ts` 한 곳에서 관리한다.
 
