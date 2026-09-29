@@ -296,7 +296,7 @@ v5 settings payload는 `syncRepository`, `syncBranch`, Auto Sync, UI language, c
 Keys:
 - `settings`: version, Sync Repository owner/name, Sync Branch, Auto Sync, UI language, connection status.
 - `githubAuth`: version, access token/expiry, refresh token/expiry, token type, 최소 GitHub account summary. Public settings 변환에서 token field를 절대 복사하지 않는다.
-- `processedSyncDeduplicationKeys`: version, 처리된 Sync Deduplication Key 목록.
+- `processedSyncDeduplicationKeys`: version, 처리된 Sync Deduplication Key 목록. 항목은 Accepted마다 하나씩 늘어나므로 7일 TTL과 100개 상한을 둔다. TTL이 Retry Bundle과 같은 이유는 최대 7일 뒤의 재시도가 "이미 성공했는가"를 이 목록에 묻기 때문이다.
 - `syncHistory`: version, Sync History의 최근 20개 `SyncHistoryEntry` 항목.
 - `retryBundles`: version, GitHub commit retry가 가능한 Retry Bundle 목록.
 - `syncDeduplicationKeyLocks`: version, 현재 처리 중인 Sync Deduplication Key lock 목록. 각 lock은 생성 시각을 저장하고 10분 TTL을 가진다.

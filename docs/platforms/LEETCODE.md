@@ -42,7 +42,7 @@
 
 `https://leetcode.com/problems/two-sum/`.
 
-`acceptedSourceId`가 플랫폼 공식 submission ID라 같은 code를 다시 제출해도 새 값이 나온다. 세 플랫폼 중 유일하게 Sync Deduplication Key 오염을 걱정하지 않아도 되는 경우다. Page 구조도 가장 안정적이다.
+`acceptedSourceId`가 플랫폼 공식 submission ID라 같은 code를 다시 제출해도 새 값이 나온다. 다만 그 값이 가리키는 것은 Accepted Signal이 아니라 **제출 레코드**이므로, 목록 반영이 늦어 직전 제출을 집어 들면 이미 처리한 값이 나온다([ADR 0041](../adr/0041-sync-deduplication-key-identifies-accepted-event.md)). 나머지 두 플랫폼은 감지 시각을 쓰므로 이 갈림이 없다. Page 구조는 셋 중 가장 안정적이다.
 
 바꾸면 이전 캡처와의 비교가 끊기므로 [`e2e/capture/baseProblems.ts`](../../e2e/capture/baseProblems.ts)와 함께 고친다.
 
@@ -54,7 +54,7 @@
 - Accepted Submission code를 가져오지 못하면 GitHub commit을 만들지 않는다.
 - **조회한 제출이 방금 그 제출이라는 보장은 없다.** **Accepted만 걸러진 최근 제출 목록**을 최대 20건 받아 pending이 아닌 첫 항목을 고르며, content event의 detection time과 대조하지 않는다. 대개 방금 것이 맨 앞이지만, 목록 반영이 늦으면 직전 Accepted가 올라간다.
 - **language도 그 제출에서 온다.** 화면에서 고른 language가 아니므로 둘이 다를 수 있고, 그때 Solution File은 조회된 제출의 language 폴더에 생긴다.
-- `acceptedSourceId`는 LeetCode submission ID를 사용한다. 플랫폼이 공식 ID를 노출하는 유일한 경우라 code hash를 쓰지 않는다.
+- `acceptedSourceId`는 LeetCode submission ID를 사용한다. 플랫폼이 공식 ID를 노출하는 유일한 경우라 감지 시각으로 이벤트를 구분하지 않는다.
 
 `content:accepted_detected` payload는 `codingPlatform: "leetcode"`, `titleSlug`, `pageUrl`, `detectedAt`을 포함한다. 이 값들은 같은 route-bound fresh Accepted event에서 확정한다.
 

@@ -44,11 +44,10 @@ const config = readVerificationRepositoryConfig();
 const enabled = process.env.E2E_LIVE_SUBMIT === "1";
 const only = process.env.E2E_LIVE_PLATFORM?.trim();
 
-/** 코드에 붙일 주석 접두사. 실행마다 코드를 다르게 만들어야 한다.
+/** 코드에 붙일 주석 접두사. 실행마다 코드를 다르게 만든다.
  *
- * Programmers와 SWEA는 `acceptedSourceId`에 code hash가 들어간다. 코드가
- * 같으면 두 번째 실행이 중복으로 걸러져 commit이 생기지 않고, **그 통과는
- * 거짓이다.** */
+ * commit된 내용에 이번 실행의 nonce가 있는지로 방금 만들어진 commit인지
+ * 앞선 실행이 남긴 것인지를 가른다. */
 /** 채점 출력 비교 전 표시상의 차이를 없앤다.
  *
  * SWEA의 TEST 결과 패널은 숫자 사이 공백을 **비분리 공백(U+00A0)** 으로
