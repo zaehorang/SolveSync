@@ -91,6 +91,10 @@ export interface ExtensionStorage {
   listRetryBundles(): Promise<RetryBundle[]>;
   getRetryBundle(id: string): Promise<RetryBundle | null>;
   removeRetryBundle(id: string): Promise<RetryBundlesState>;
+  /** 같은 Sync Deduplication Key로 저장된 Retry Bundle을 모두 지운다. */
+  removeRetryBundlesBySyncDeduplicationKey(
+    syncDeduplicationKey: SyncDeduplicationKey
+  ): Promise<RetryBundlesState>;
   pruneRetryBundles(now: Date | IsoDateString | number): Promise<RetryBundlesState>;
   acquireSyncDeduplicationKeyLock(
     syncDeduplicationKey: SyncDeduplicationKey,
@@ -359,6 +363,21 @@ export function createExtensionStorage(area: StorageAreaAdapter): ExtensionStora
     return writeState(area, STORAGE_KEYS.retryBundles, next);
   }
 
+  async function removeRetryBundlesBySyncDeduplicationKey(
+    syncDeduplicationKey: SyncDeduplicationKey
+  ): Promise<RetryBundlesState> {
+    const state = await readRetryBundles();
+    const next: RetryBundlesState = {
+      version: STORAGE_SCHEMA_VERSION,
+      bundles: state.bundles.filter(
+        (bundle) =>
+          !isSameSyncDeduplicationKey(bundle.syncDeduplicationKey, syncDeduplicationKey)
+      )
+    };
+
+    return writeState(area, STORAGE_KEYS.retryBundles, next);
+  }
+
   async function pruneRetryBundles(
     now: Date | IsoDateString | number
   ): Promise<RetryBundlesState> {
@@ -489,6 +508,10 @@ export function createExtensionStorage(area: StorageAreaAdapter): ExtensionStora
     getRetryBundle,
     removeRetryBundle: (id) =>
       runExclusive(STORAGE_KEYS.retryBundles, () => removeRetryBundle(id)),
+    removeRetryBundlesBySyncDeduplicationKey: (syncDeduplicationKey) =>
+      runExclusive(STORAGE_KEYS.retryBundles, () =>
+        removeRetryBundlesBySyncDeduplicationKey(syncDeduplicationKey)
+      ),
     pruneRetryBundles: (now) =>
       runExclusive(STORAGE_KEYS.retryBundles, () => pruneRetryBundles(now)),
     acquireSyncDeduplicationKeyLock: (syncDeduplicationKey, now) =>

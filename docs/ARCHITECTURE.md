@@ -316,6 +316,7 @@ Keys:
 - Retry Bundle retry는 lock을 얻은 직후 processed를 다시 확인한다. 처음 확인과 lock 사이에 같은 key의 처리가 끝났으면 commit하지 않고 Retry Bundle을 지운다.
 - Retry Bundle retry는 최신 Sync Branch의 Solution Catalog를 다시 읽어 files와 commit message를 재계산한다.
 - Retry 성공 후에는 Retry Bundle을 삭제하고 Sync History를 성공 상태로 갱신한다.
+- 일반 경로의 sync가 성공하면(commit을 만들었든 Catalog 확인으로 건너뛰었든) 같은 Sync Deduplication Key로 저장된 Retry Bundle을 모두 지운다. 이전 실패나 응답 유실로 남은 bundle이 이미 반영된 solution code를 7일 TTL까지 들고 있지 않게 하기 위해서다.
 
 ## Runtime Messaging
 모든 runtime message는 `src/shared`의 discriminated union 타입을 통과해야 한다.

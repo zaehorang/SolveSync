@@ -2,7 +2,7 @@
 
 상태: Accepted.
 
-결정: commit 직전에 Sync Branch에서 읽은 Solution Catalog의 이 문제·언어 `lastAcceptedSourceId`가 이번 `acceptedSourceId`와 같으면 commit하지 않는다. 대신 그 Accepted가 이미 반영된 것으로 보고 sync를 성공으로 끝낸다. processed Sync Deduplication Key를 기록하고, Retry Bundle이 있으면 지우고, Sync History에 `synced` 항목을 남긴다.
+결정: commit 직전에 Sync Branch에서 읽은 Solution Catalog의 이 문제·언어 `lastAcceptedSourceId`가 이번 `acceptedSourceId`와 같으면 commit하지 않는다. 대신 그 Accepted가 이미 반영된 것으로 보고 sync를 성공으로 끝낸다. processed Sync Deduplication Key를 기록하고, 같은 key의 Retry Bundle이 있으면 모두 지우고(재시도 경로는 재시도한 bundle을, 일반 경로는 storage에서 key로 찾은 bundle을), Sync History에 `synced` 항목을 남긴다. 일반 경로는 commit을 만든 성공에서도 같은 key의 남은 Retry Bundle을 지운다.
 
 이 확인은 Catalog를 읽는 세 자리에 모두 적용한다.
 

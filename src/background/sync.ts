@@ -391,6 +391,10 @@ export function createSyncOrchestrator(
         },
         syncedAt
       );
+      // 이전 실패나 응답 유실로 남은 같은 key의 Retry Bundle은 더 이상 필요 없다.
+      await options.storage.removeRetryBundlesBySyncDeduplicationKey(
+        prepared.syncDeduplicationKey
+      );
 
       const syncHistoryEntry = makeSyncHistoryEntry({
         status: "synced",

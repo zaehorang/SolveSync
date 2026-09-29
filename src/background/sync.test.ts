@@ -894,6 +894,43 @@ describe("background sync orchestrator", () => {
     await expect(harness.storage.listRetryBundles()).resolves.toHaveLength(0);
   });
 
+  it("removes the Retry Bundle of the same key when the Catalog already has the Accepted", async () => {
+    const harness = makeHarness();
+    await harness.saveSettings();
+    harness.leetcode.fetchProblemMetadata.mockResolvedValue(problem);
+    harness.leetcode.fetchLatestAcceptedSubmission.mockResolvedValue(
+      syncableAcceptedSubmission()
+    );
+    await harness.sync.handleAcceptedDetected(makeAcceptedDetected());
+    // commit은 성공했지만 응답이 유실돼 processed 없이 Retry Bundle만 남았고, 기록도 만료됐다.
+    await harness.storage.saveRetryBundle(makeRetryBundle("retry-lost-response"));
+    await harness.storage.pruneProcessedSyncDeduplicationKeys("2026-01-09T00:00:00.000Z");
+
+    const outcome = await harness.sync.handleAcceptedDetected(makeAcceptedDetected());
+
+    expect(harness.github.commits).toHaveLength(1);
+    expect(outcome).toMatchObject({
+      kind: "recorded",
+      syncHistoryEntry: { status: "synced", commitSha: null }
+    });
+    await expect(harness.storage.listRetryBundles()).resolves.toHaveLength(0);
+  });
+
+  it("removes the older Retry Bundle of the same key when a new commit succeeds", async () => {
+    const harness = makeHarness();
+    await harness.saveSettings();
+    harness.leetcode.fetchProblemMetadata.mockResolvedValue(problem);
+    harness.leetcode.fetchLatestAcceptedSubmission.mockResolvedValue(
+      syncableAcceptedSubmission()
+    );
+    await harness.storage.saveRetryBundle(makeRetryBundle("retry-older"));
+
+    await harness.sync.handleAcceptedDetected(makeAcceptedDetected());
+
+    expect(harness.github.commits).toHaveLength(1);
+    await expect(harness.storage.listRetryBundles()).resolves.toHaveLength(0);
+  });
+
   it("does not commit when the branch that moved during the commit already has the Accepted", async () => {
     const harness = makeHarness();
     await harness.saveSettings();
