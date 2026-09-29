@@ -2,7 +2,7 @@
 
 설계 결정과 tradeoff의 source of truth다. 새 ADR은 [TEMPLATE.md](TEMPLATE.md)에서 시작한다. 모든 ADR은 제목 다음에 `상태:` 줄을 갖는다. 구현이 ADR과 어긋나면 어느 쪽이 맞는지 먼저 판단하고, 결정이 바뀐 것이면 새 ADR을 쓴다. 기존 ADR을 조용히 고쳐 과거 결정을 덮어쓰지 않는다.
 
-**다음에 쓸 번호는 0042이다.** 아래 "번호 구멍"을 참고한다.
+**다음에 쓸 번호는 0043이다.** 아래 "번호 구멍"을 참고한다.
 
 ## 목록
 
@@ -23,7 +23,7 @@
 | 0013 | [README는 v1에서 항상 갱신한다](0013-always-update-readme-in-v1.md) | Accepted |
 | 0014 | [Sync Repository는 Coding Platform 기준 폴더를 우선한다](0014-coding-platform-first-repository-layout.md) | Accepted |
 | 0015 | [같은 문제/언어는 최신 풀이로 덮어쓴다](0015-overwrite-latest-solution-for-same-problem-language.md) | Accepted |
-| 0016 | [processed marking은 commit 성공 후에만 한다](0016-processed-after-commit-success-only.md) | Accepted |
+| 0016 | [processed marking은 commit 성공 후에만 한다](0016-processed-after-commit-success-only.md) | Accepted (일부는 0042) |
 | 0017 | [Storage schema는 version을 포함한다](0017-versioned-storage-schema.md) | Accepted |
 | 0018 | [Runtime message는 typed union으로 관리한다](0018-typed-runtime-message-union.md) | Accepted |
 | 0019 | [최소 host permission만 요청한다](0019-minimal-host-permissions.md) | Accepted |
@@ -44,7 +44,8 @@
 | 0038 | [Chrome Web Store Public 배포를 진행한다](0038-chrome-web-store-public-release.md) | Accepted |
 | 0039 | [Solution Revision Number는 `#n` 대신 `(rev n)`으로 표기한다](0039-revision-suffix-avoids-issue-autolink.md) | Accepted |
 | 0040 | [Solution Catalog v5에서 읽지 않는 activity를 지운다](0040-drop-unread-activity-from-solution-catalog.md) | Accepted |
-| 0041 | [Sync Deduplication Key는 code가 아니라 Accepted Signal을 식별한다](0041-sync-deduplication-key-identifies-accepted-event.md) | Accepted |
+| 0041 | [Sync Deduplication Key는 code가 아니라 Accepted Signal을 식별한다](0041-sync-deduplication-key-identifies-accepted-event.md) | Accepted (일부는 0042) |
+| 0042 | [Solution Catalog에 이미 있는 Accepted는 commit하지 않는다](0042-skip-commit-for-accepted-already-in-solution-catalog.md) | Accepted |
 
 ## 번호 구멍
 

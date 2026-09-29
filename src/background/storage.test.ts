@@ -291,6 +291,25 @@ describe("background extension storage", () => {
     expect(pruned.bundles.map((bundle) => bundle.id)).toEqual(["active"]);
   });
 
+  it("removes every retry bundle that has the same Sync Deduplication Key", async () => {
+    const storage = createExtensionStorage(createMemoryStorageArea());
+    const createdAt = "2026-01-01T00:00:00.000Z";
+
+    await storage.saveRetryBundle(makeRetryBundle("source-1", createdAt));
+    await storage.saveRetryBundle({
+      ...makeRetryBundle("source-1", createdAt),
+      id: "retry-source-1-again"
+    });
+    await storage.saveRetryBundle(makeRetryBundle("source-2", createdAt));
+
+    const next = await storage.removeRetryBundlesBySyncDeduplicationKey(
+      makeSyncDeduplicationKey("source-1")
+    );
+
+    expect(next.bundles.map((bundle) => bundle.id)).toEqual(["source-2"]);
+    expect((await storage.listRetryBundles()).map((bundle) => bundle.id)).toEqual(["source-2"]);
+  });
+
   it("caps retry bundle expiry to 7 days from creation", async () => {
     const storage = createExtensionStorage(createMemoryStorageArea());
 

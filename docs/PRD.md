@@ -59,6 +59,7 @@ TypeScript, runtime message, storage schema는 같은 용어 체계를 사용한
 - 결과가 Accepted면 확장은 `Syncing to GitHub...` toast를 보여준다.
 - 확장은 제출 코드, 문제 메타데이터, Sync Deduplication Key를 Coding Platform별 방식으로 확정한다.
 - 같은 Sync Deduplication Key가 이미 처리되었거나 처리 중이면 중복 commit을 만들지 않는다. 이 key는 Accepted Signal 하나를 식별하므로, 같은 풀이를 다시 제출하면 새 commit이 생긴다.
+- 처리 기록이 없어도 Sync Branch의 Solution Catalog가 이 Accepted를 이미 담고 있으면 commit하지 않고 성공으로 기록한다. 이때 toast와 Sync History에는 commit link와 file link가 없다.
 - 같은 문제/언어의 새 Accepted 제출이면 기존 solution path를 최신 풀이로 덮어쓴다.
 
 ### 성공 흐름

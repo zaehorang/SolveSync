@@ -134,6 +134,7 @@ Coding Platform 문제 page
 → background가 settings와 Auto Sync 확인
 → background가 Coding Platform source resolver로 problem/source/Sync Deduplication Key 확정
 → background가 Sync Deduplication Key lock 획득
+→ background가 Sync Branch의 Solution Catalog를 읽어 이 Accepted가 이미 있으면 commit 없이 성공 처리
 → background가 solution path, Solution Catalog 갱신, Solution README 갱신, Solution Revision Number 기반 commit message 생성
 → background가 GitHub Git Data API로 commit 생성
 → background가 processed Sync Deduplication Key와 Sync History 저장
@@ -175,7 +176,7 @@ Coding Platform 문제 page
   - 새 tree 생성
   - 새 commit 생성
   - branch ref update
-- branch가 이동해 ref update가 실패하면 최신 branch 상태와 Solution Catalog를 다시 읽고 files와 commit message를 재계산한 뒤 한 번만 재시도한다.
+- branch가 이동해 ref update가 실패하면 최신 branch 상태와 Solution Catalog를 다시 읽고 files와 commit message를 재계산한 뒤 한 번만 재시도한다. 다시 읽은 Catalog에 이 Accepted가 이미 있으면 재시도하지 않는다.
 - branch 생성 중 이미 같은 branch가 존재하게 된 race condition은 branch 목록을 다시 읽어 존재하면 성공에 준해 처리한다.
 - 같은 문제/언어의 새 Accepted 제출은 같은 solution file path를 최신 풀이로 덮어쓴다.
 - branch protection으로 ref update가 막히면 우회하지 않고 `github_branch_protected`로 실패 처리한다.
@@ -307,13 +308,15 @@ Keys:
 - 새 sync 시작 전 10분이 지난 stale in-flight lock을 정리한다.
 - background는 sync 시작 전에 storage에 Sync Deduplication Key lock을 기록한다.
 - 같은 Sync Deduplication Key가 이미 in-flight이면 새 요청은 중복으로 처리하지 않고 현재 상태를 반환한다.
-- GitHub commit 성공 후에만 processed Sync Deduplication Key를 기록한다.
+- GitHub commit 성공 후에만 processed Sync Deduplication Key를 기록한다. 예외는 commit 직전에 읽은 Sync Branch의 Solution Catalog가 이 문제·언어의 `lastAcceptedSourceId`로 같은 값을 가진 경우다. 그 Accepted는 이미 Sync Branch에 있으므로 commit하지 않고, 확인한 branch head sha로 processed를 기록한 뒤 commit link 없는 `synced` 항목을 남긴다([ADR 0042](adr/0042-skip-commit-for-accepted-already-in-solution-catalog.md)).
 - GitHub commit 단계 실패는 processed로 기록하지 않는다.
 - GitHub commit 단계까지 필요한 데이터가 준비된 실패만 Retry Bundle로 저장한다.
 - Retry Bundle은 solution code가 포함될 수 있으며 최대 20개까지 보관하고 7일이 지난 bundle은 정리한다.
 - sync 성공 또는 실패가 terminal 상태로 기록되면 in-flight lock을 삭제한다.
+- Retry Bundle retry는 lock을 얻은 직후 processed를 다시 확인한다. 처음 확인과 lock 사이에 같은 key의 처리가 끝났으면 commit하지 않고 같은 key의 Retry Bundle을 모두 지운다.
 - Retry Bundle retry는 최신 Sync Branch의 Solution Catalog를 다시 읽어 files와 commit message를 재계산한다.
-- Retry 성공 후에는 Retry Bundle을 삭제하고 Sync History를 성공 상태로 갱신한다.
+- Retry 성공 후에는 같은 Sync Deduplication Key의 Retry Bundle을 모두 삭제하고 Sync History를 성공 상태로 갱신한다.
+- 일반 경로의 sync가 성공하면(commit을 만들었든 Catalog 확인으로 건너뛰었든) 같은 Sync Deduplication Key로 저장된 Retry Bundle을 모두 지운다. 이전 실패나 응답 유실로 남은 bundle이 이미 반영된 solution code를 7일 TTL까지 들고 있지 않게 하기 위해서다.
 
 ## Runtime Messaging
 모든 runtime message는 `src/shared`의 discriminated union 타입을 통과해야 한다.

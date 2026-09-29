@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   MalformedSolutionCatalogError,
   createEmptySolutionCatalog,
+  hasCommittedAcceptedSource,
   mergeSolutionCatalogEntry,
   mergeSolutionCatalogEntryWithResult,
   parseSolutionCatalogJson
@@ -96,6 +97,32 @@ describe("Solution Catalog", () => {
    * 기록이 남지 않아 Retry Bundle로 다시 올라오는 경우다. LeetCode에서는 processed
    * 기록이 만료된 뒤 같은 제출이 다시 감지되어도 온다. 그 반영은 이미 Sync Branch에
    * 있으므로 날짜와 시각을 덮지 않는다. */
+  it("recognizes only the last Accepted of the same problem language as committed", () => {
+    const catalog = mergeSolutionCatalogEntry(
+      createEmptySolutionCatalog(),
+      twoSumSwift,
+      "leetcode/swift/0001_two_sum.swift",
+      syncedAt,
+      acceptedDate
+    );
+
+    expect(hasCommittedAcceptedSource(catalog, twoSumSwift)).toBe(true);
+    expect(
+      hasCommittedAcceptedSource(catalog, { ...twoSumSwift, acceptedSourceId: "101" })
+    ).toBe(false);
+    expect(
+      hasCommittedAcceptedSource(catalog, { ...twoSumSwift, language: "python3" })
+    ).toBe(false);
+    expect(
+      hasCommittedAcceptedSource(catalog, {
+        ...twoSumSwift,
+        problemId: "2",
+        titleSlug: "add-two-numbers"
+      })
+    ).toBe(false);
+    expect(hasCommittedAcceptedSource(createEmptySolutionCatalog(), twoSumSwift)).toBe(false);
+  });
+
   it("keeps dates for an already committed accepted source id", () => {
     const first = mergeSolutionCatalogEntry(
       createEmptySolutionCatalog(),
