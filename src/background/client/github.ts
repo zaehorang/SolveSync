@@ -46,6 +46,10 @@ export interface TestConnectionInput extends GitHubRepositoryInput {
   branchName: string;
 }
 
+export interface ReadBranchHeadInput extends GitHubRepositoryInput {
+  branchName: string;
+}
+
 export interface ReadTextFileInput extends GitHubRepositoryInput {
   repository?: SyncRepository;
   branchName: string;
@@ -64,9 +68,13 @@ export interface CommitGitDataInput extends GitHubRepositoryInput {
   branchName: string;
   files: GitTreeFile[];
   message: string;
+  /**
+   * ref update가 conflict로 끝나면 최신 branch 기준으로 payload를 다시 만든다. `null`을
+   * 돌려주면 최신 branch에 이미 반영된 것으로 보고 commit하지 않는다.
+   */
   onConflict?: (
     context: CommitConflictRetryContext
-  ) => Promise<CommitGitDataPayload> | CommitGitDataPayload;
+  ) => Promise<CommitGitDataPayload | null> | CommitGitDataPayload | null;
 }
 
 export interface CommitGitDataPayload {
@@ -88,8 +96,12 @@ export interface CommitGitDataResult {
   branch: SyncBranch;
   baseCommitSha: string;
   baseTreeSha: string;
-  commitSha: string;
-  commitUrl: string;
+  /**
+   * `onConflict`가 `null`을 돌려줘 commit을 만들지 않았으면 `null`이다. 그때 `branch.sha`는
+   * 다시 읽은 branch head다.
+   */
+  commitSha: string | null;
+  commitUrl: string | null;
   fileUrls: Record<string, string>;
 }
 
@@ -269,6 +281,10 @@ export class GitHubClient {
     });
   }
 
+  async readBranchHead(input: ReadBranchHeadInput): Promise<SyncBranch> {
+    return this.withNormalizedErrors(async () => this.getBranchRef(input, input.branchName));
+  }
+
   async commitFiles(input: CommitGitDataInput): Promise<CommitGitDataResult> {
     return this.withNormalizedErrors(async () => {
       const repository = input.repository ?? repositoryFromInput(input);
@@ -293,6 +309,18 @@ export class GitHubClient {
         readTextFile: async (path: string) =>
           this.readTextFileFromTree(repository, latestBase.tree, path)
       });
+
+      if (nextPayload === null) {
+        return {
+          repository,
+          branch: latestBase.branch,
+          baseCommitSha: latestBase.baseCommitSha,
+          baseTreeSha: latestBase.baseTreeSha,
+          commitSha: null,
+          commitUrl: null,
+          fileUrls: {}
+        };
+      }
 
       return this.commitFilesOnBase(repository, input, latestBase, nextPayload);
     });

@@ -1,5 +1,6 @@
 import {
   createEmptySolutionCatalog,
+  hasCommittedAcceptedSource,
   mergeSolutionCatalogEntryWithResult,
   parseSolutionCatalogJson
 } from "../shared/solutionCatalog";
@@ -40,6 +41,7 @@ import {
   type CommitGitDataInput,
   type CommitGitDataPayload,
   type CommitGitDataResult,
+  type ReadBranchHeadInput,
   type ReadTextFileInput
 } from "./client/github";
 import type { LatestAcceptedSubmissionResult } from "./client/leetcode";
@@ -81,6 +83,8 @@ export interface SyncGitHubClient {
    * 필수 method로 요구한다.
    */
   readTextFile(input: ReadTextFileInput): Promise<string | null>;
+  /** Catalog가 이미 반영을 보여줘 commit을 건너뛸 때 processed 기록에 남길 head를 읽는다. */
+  readBranchHead(input: ReadBranchHeadInput): Promise<SyncBranch>;
 }
 
 export type GitHubClientFactory = () => SyncGitHubClient;
@@ -145,6 +149,15 @@ interface PreparedCommit {
   solutionReadmePath: string;
   solutionCatalogPath: string;
 }
+
+/**
+ * `commitSha`가 `null`이면 이 Accepted가 Sync Branch에 이미 있어 commit하지 않았다는
+ * 뜻이다(ADR 0042). 그때 `branch.sha`는 그 사실을 확인한 branch head다.
+ */
+type SyncCommitResult = Pick<
+  CommitGitDataResult,
+  "repository" | "branch" | "commitSha" | "commitUrl" | "fileUrls"
+>;
 
 interface CommitPayloadBuildInput {
   problem: ProblemMetadata;
@@ -343,7 +356,7 @@ export function createSyncOrchestrator(
       );
 
       const github = options.githubClientFactory();
-      let payload: CommitGitDataPayload;
+      let payload: CommitGitDataPayload | null;
 
       try {
         payload = await buildCommitPayloadFromRepository(github, prepared, now());
@@ -373,7 +386,7 @@ export function createSyncOrchestrator(
       await options.storage.markSyncDeduplicationKeyProcessed(
         prepared.syncDeduplicationKey,
         {
-          commitSha: result.commitSha,
+          commitSha: processedCommitSha(result),
           solutionPath: prepared.solutionPath
         },
         syncedAt
@@ -515,6 +528,20 @@ export function createSyncOrchestrator(
     }
 
     try {
+      // 확인과 lock 사이에 같은 key의 처리가 끝나고 lock이 풀렸을 수 있다.
+      if (
+        await options.storage.hasProcessedSyncDeduplicationKey(
+          retryBundle.syncDeduplicationKey
+        )
+      ) {
+        await options.storage.removeRetryBundle(retryBundle.id);
+
+        return {
+          kind: "duplicate_processed",
+          syncDeduplicationKey: retryBundle.syncDeduplicationKey
+        };
+      }
+
       const githubAuth = await options.storage.getGitHubAuth();
 
       if (githubAuth === null) {
@@ -552,7 +579,7 @@ export function createSyncOrchestrator(
       await options.storage.markSyncDeduplicationKeyProcessed(
         retryBundle.syncDeduplicationKey,
         {
-          commitSha: result.commitSha,
+          commitSha: processedCommitSha(result),
           solutionPath: retryBundle.solutionPath
         },
         syncedAt
@@ -650,18 +677,35 @@ export function createSyncOrchestrator(
     github: SyncGitHubClient,
     prepared: PreparedCommit,
     syncedAt: IsoDateString
-  ): Promise<CommitGitDataResult> {
+  ): Promise<SyncCommitResult> {
     const payload = await buildCommitPayloadFromRepository(github, prepared, syncedAt);
 
     return commitPreparedPayload(github, prepared, payload, syncedAt);
   }
 
+  /** `payload`가 `null`이면 이미 반영된 Accepted라 commit 대신 branch head만 읽는다. */
   async function commitPreparedPayload(
     github: SyncGitHubClient,
     prepared: PreparedCommit,
-    payload: CommitGitDataPayload,
+    payload: CommitGitDataPayload | null,
     syncedAt: IsoDateString
-  ): Promise<CommitGitDataResult> {
+  ): Promise<SyncCommitResult> {
+    if (payload === null) {
+      const branch = await github.readBranchHead({
+        owner: prepared.syncRepository.owner,
+        name: prepared.syncRepository.name,
+        branchName: prepared.syncBranch.name
+      });
+
+      return {
+        repository: prepared.syncRepository,
+        branch,
+        commitSha: null,
+        commitUrl: null,
+        fileUrls: {}
+      };
+    }
+
     return github.commitFiles({
       owner: prepared.syncRepository.owner,
       name: prepared.syncRepository.name,
@@ -678,7 +722,7 @@ export function createSyncOrchestrator(
     github: SyncGitHubClient,
     prepared: PreparedCommit,
     syncedAt: IsoDateString
-  ): Promise<CommitGitDataPayload> {
+  ): Promise<CommitGitDataPayload | null> {
     const [existingSolutionCatalogText, existingReadmeText] = await Promise.all([
       readRepositoryTextFile(github, prepared, prepared.solutionCatalogPath),
       readRepositoryTextFile(github, prepared, prepared.solutionReadmePath)
@@ -701,7 +745,7 @@ export function createSyncOrchestrator(
     context: CommitConflictRetryContext,
     prepared: PreparedCommit,
     syncedAt: IsoDateString
-  ): Promise<CommitGitDataPayload> {
+  ): Promise<CommitGitDataPayload | null> {
     const [existingSolutionCatalogText, existingReadmeText] = await Promise.all([
       context.readTextFile(prepared.solutionCatalogPath),
       context.readTextFile(prepared.solutionReadmePath)
@@ -842,6 +886,11 @@ async function commitRepositoryCleanup(
     message: REPOSITORY_CLEANUP_COMMIT_MESSAGE
   });
 
+  // onConflict를 넘기지 않았으므로 commit이 없는 결과는 오지 않는다.
+  if (result.commitSha === null || result.commitUrl === null) {
+    return { kind: "no_changes" };
+  }
+
   return {
     kind: "committed",
     commitSha: result.commitSha,
@@ -960,19 +1009,30 @@ async function readRepositoryFile(
   });
 }
 
-function buildCommitPayload(input: CommitPayloadBuildInput): CommitGitDataPayload {
+/**
+ * Sync Branch의 Catalog가 이미 이 Accepted를 갖고 있으면 `null`을 돌려준다. 같은 Accepted를
+ * 두 번 commit하지 않기 위해서다(ADR 0042). 처음 읽은 Catalog와 ref conflict 뒤 다시 읽은
+ * Catalog 모두 이 함수를 거친다.
+ */
+function buildCommitPayload(input: CommitPayloadBuildInput): CommitGitDataPayload | null {
   const baseSolutionCatalog =
     input.existingSolutionCatalogText === null ||
     input.existingSolutionCatalogText.trim().length === 0
       ? createEmptySolutionCatalog()
       : parseSolutionCatalogJson(input.existingSolutionCatalogText);
+  const acceptedSource = {
+    ...input.problem,
+    acceptedSourceId: input.syncDeduplicationKey.acceptedSourceId,
+    language: input.syncDeduplicationKey.language
+  };
+
+  if (hasCommittedAcceptedSource(baseSolutionCatalog, acceptedSource)) {
+    return null;
+  }
+
   const mergeResult = mergeSolutionCatalogEntryWithResult(
     baseSolutionCatalog,
-    {
-      ...input.problem,
-      acceptedSourceId: input.syncDeduplicationKey.acceptedSourceId,
-      language: input.syncDeduplicationKey.language
-    },
+    acceptedSource,
     input.solutionPath,
     input.syncedAt,
     toLocalDateString(input.submission.acceptedAt)
@@ -1007,6 +1067,15 @@ function buildCommitPayload(input: CommitPayloadBuildInput): CommitGitDataPayloa
   };
 }
 
+
+/**
+ * processed 기록은 commit sha를 요구한다. commit을 건너뛰었으면 이 Accepted를 담고 있다고
+ * 확인한 branch head를 남긴다. 그 Accepted를 처음 쓴 commit은 아니지만 그것을 포함하는
+ * commit이고, 이 값을 읽는 곳은 없다.
+ */
+function processedCommitSha(result: SyncCommitResult): string {
+  return result.commitSha ?? result.branch.sha;
+}
 
 function addMs(value: IsoDateString, ms: number): IsoDateString {
   const timestamp = Date.parse(value);

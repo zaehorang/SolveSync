@@ -2,7 +2,11 @@ import { describe, expect, it, vi } from "vitest";
 
 import { normalizeError } from "../shared/errorNormalize";
 import { mergeReadmeManagedBlock, renderManagedReadmeTable } from "../shared/readme";
-import { parseSolutionCatalogJson } from "../shared/solutionCatalog";
+import {
+  createEmptySolutionCatalog,
+  mergeSolutionCatalogEntry,
+  parseSolutionCatalogJson
+} from "../shared/solutionCatalog";
 import { STORAGE_SCHEMA_VERSION } from "../shared/storageSchema";
 import { createExtensionStorage, type StorageAreaAdapter } from "./storage";
 import type {
@@ -803,6 +807,130 @@ describe("background sync orchestrator", () => {
     await expect(historyStatuses(harness.storage)).resolves.toEqual(["failed"]);
   });
 
+  it("does not commit a retry when the same key finished while it waited for the lock", async () => {
+    const harness = makeHarness();
+    await harness.saveSettings();
+    await harness.storage.saveRetryBundle(makeRetryBundle("retry-1"));
+    const acquireLock = harness.storage.acquireSyncDeduplicationKeyLock;
+    // processed 확인과 lock 획득 사이에 같은 key의 처리가 끝나고 lock이 풀린 상황이다.
+    vi.spyOn(harness.storage, "acquireSyncDeduplicationKeyLock").mockImplementationOnce(
+      async (key, now) => {
+        await harness.storage.markSyncDeduplicationKeyProcessed(
+          key,
+          { commitSha: "other-commit", solutionPath: "leetcode/swift/0001_two_sum.swift" },
+          now
+        );
+        return acquireLock(key, now);
+      }
+    );
+
+    const outcome = await harness.sync.handleRetry("retry-1");
+
+    expect(outcome).toEqual({
+      kind: "duplicate_processed",
+      syncDeduplicationKey
+    });
+    expect(harness.github.commits).toHaveLength(0);
+    await expect(harness.storage.getRetryBundle("retry-1")).resolves.toBeNull();
+    // lock을 풀지 않으면 같은 key의 다음 요청이 10분 동안 in-flight로 막힌다.
+    await expect(
+      harness.storage.acquireSyncDeduplicationKeyLock(syncDeduplicationKey, "2026-01-01T00:00:00.000Z")
+    ).resolves.toBe(true);
+  });
+
+  it("does not commit a retry whose Accepted the Solution Catalog already has", async () => {
+    const harness = makeHarness();
+    await harness.saveSettings();
+    harness.leetcode.fetchProblemMetadata.mockResolvedValue(problem);
+    harness.leetcode.fetchLatestAcceptedSubmission.mockResolvedValue(
+      syncableAcceptedSubmission()
+    );
+    // commit은 성공했는데 processed 기록이 남지 않아 Retry Bundle로 떨어진 상황이다.
+    vi.spyOn(harness.storage, "markSyncDeduplicationKeyProcessed").mockRejectedValueOnce(
+      new Error("service worker stopped")
+    );
+    await harness.sync.handleAcceptedDetected(makeAcceptedDetected());
+    const [bundle] = await harness.storage.listRetryBundles();
+    expect(bundle).toBeDefined();
+    expect(harness.github.commits).toHaveLength(1);
+
+    const outcome = await harness.sync.handleRetry(bundle?.id ?? "");
+
+    expect(harness.github.commits).toHaveLength(1);
+    expect(outcome).toMatchObject({
+      kind: "recorded",
+      syncHistoryEntry: {
+        status: "synced",
+        commitSha: null,
+        commitUrl: null,
+        retryBundleId: null
+      }
+    });
+    await expect(harness.storage.getRetryBundle(bundle?.id ?? "")).resolves.toBeNull();
+    expect(await harness.storage.hasProcessedSyncDeduplicationKey(syncDeduplicationKey)).toBe(true);
+  });
+
+  it("does not commit a LeetCode submission again after its processed record expired", async () => {
+    const harness = makeHarness();
+    await harness.saveSettings();
+    harness.leetcode.fetchProblemMetadata.mockResolvedValue(problem);
+    harness.leetcode.fetchLatestAcceptedSubmission.mockResolvedValue(
+      syncableAcceptedSubmission()
+    );
+    await harness.sync.handleAcceptedDetected(makeAcceptedDetected());
+    expect(harness.github.commits).toHaveLength(1);
+    // 7일 TTL이 지나 processed 기록이 사라졌다. 공식 submission ID라 같은 key가 다시 온다.
+    await harness.storage.pruneProcessedSyncDeduplicationKeys("2026-01-09T00:00:00.000Z");
+    expect(await harness.storage.hasProcessedSyncDeduplicationKey(syncDeduplicationKey)).toBe(false);
+
+    const outcome = await harness.sync.handleAcceptedDetected(makeAcceptedDetected());
+
+    expect(harness.github.commits).toHaveLength(1);
+    expect(outcome).toMatchObject({
+      kind: "recorded",
+      syncHistoryEntry: { status: "synced", commitSha: null, commitUrl: null }
+    });
+    expect(await harness.storage.hasProcessedSyncDeduplicationKey(syncDeduplicationKey)).toBe(true);
+    await expect(harness.storage.listRetryBundles()).resolves.toHaveLength(0);
+  });
+
+  it("does not commit when the branch that moved during the commit already has the Accepted", async () => {
+    const harness = makeHarness();
+    await harness.saveSettings();
+    harness.leetcode.fetchProblemMetadata.mockResolvedValue(problem);
+    harness.leetcode.fetchLatestAcceptedSubmission.mockResolvedValue(
+      syncableAcceptedSubmission()
+    );
+    // 첫 시도의 ref update 직전에 다른 writer가 같은 Accepted를 먼저 반영했다.
+    harness.github.conflictOnce = () => {
+      harness.github.files.set(
+        "leetcode/.leetcode-sync/index.json",
+        JSON.stringify(
+          mergeSolutionCatalogEntry(
+            createEmptySolutionCatalog(),
+            {
+              ...problem,
+              acceptedSourceId: syncDeduplicationKey.acceptedSourceId,
+              language: syncDeduplicationKey.language
+            },
+            "leetcode/swift/0001_two_sum.swift",
+            "2026-01-01T00:00:00.000Z",
+            expectedAcceptedDate
+          )
+        )
+      );
+    };
+
+    const outcome = await harness.sync.handleAcceptedDetected(makeAcceptedDetected());
+
+    expect(harness.github.appliedCommits).toHaveLength(0);
+    expect(outcome).toMatchObject({
+      kind: "recorded",
+      syncHistoryEntry: { status: "synced", commitSha: null, commitUrl: null }
+    });
+    expect(await harness.storage.hasProcessedSyncDeduplicationKey(syncDeduplicationKey)).toBe(true);
+  });
+
   it("cleans both Solution READMEs in one dedicated commit", async () => {
     const harness = makeHarness();
     const selectedBranch = { ...syncBranch, name: "solutions" };
@@ -1055,10 +1183,19 @@ class FakeGitHubClient implements SyncGitHubClient {
   readonly commitErrorQueue: unknown[] = [];
   commitError: unknown = null;
   beforeCommit: (() => void) | null = null;
+  /** Sync Branch에 실제로 올라간 commit. `commits`는 시도까지 센다. */
+  readonly appliedCommits: Array<Pick<CommitGitDataInput, "files" | "message">> = [];
+  /** 설정하면 첫 ref update가 conflict로 끝난다. 그 사이 다른 writer가 한 일을 여기서 흉내낸다. */
+  conflictOnce: (() => void) | null = null;
+  headSha = "head-sha";
 
   async readTextFile(input: ReadTextFileInput): Promise<string | null> {
     this.reads.push(input);
     return this.files.get(input.path) ?? null;
+  }
+
+  async readBranchHead(): Promise<SyncBranch> {
+    return { ...syncBranch, sha: this.headSha };
   }
 
   async commitFiles(input: CommitGitDataInput): Promise<CommitGitDataResult> {
@@ -1074,9 +1211,41 @@ class FakeGitHubClient implements SyncGitHubClient {
       throw this.commitError;
     }
 
-    for (const file of input.files) {
+    let payload: Pick<CommitGitDataInput, "files" | "message"> = input;
+
+    if (this.conflictOnce !== null && input.onConflict !== undefined) {
+      this.conflictOnce();
+      this.conflictOnce = null;
+      this.headSha = "head-after-conflict";
+      const nextPayload = await input.onConflict({
+        repository: syncRepository,
+        branch: { ...syncBranch, sha: this.headSha },
+        baseCommitSha: this.headSha,
+        baseTreeSha: "head-after-conflict-tree",
+        files: input.files,
+        readTextFile: async (path) => this.files.get(path) ?? null
+      });
+
+      if (nextPayload === null) {
+        return {
+          repository: syncRepository,
+          branch: { ...syncBranch, sha: this.headSha },
+          baseCommitSha: this.headSha,
+          baseTreeSha: "head-after-conflict-tree",
+          commitSha: null,
+          commitUrl: null,
+          fileUrls: {}
+        };
+      }
+
+      payload = nextPayload;
+    }
+
+    for (const file of payload.files) {
       this.files.set(file.path, file.content);
     }
+    this.appliedCommits.push({ files: payload.files, message: payload.message });
+    this.headSha = "commit-sha";
 
     return {
       repository: syncRepository,
@@ -1089,7 +1258,7 @@ class FakeGitHubClient implements SyncGitHubClient {
       commitSha: "commit-sha",
       commitUrl: "https://github.com/octo/algorithms/commit/commit-sha",
       fileUrls: Object.fromEntries(
-        input.files.map((file) => [
+        payload.files.map((file) => [
           file.path,
           `https://github.com/octo/algorithms/blob/main/${file.path}`
         ])

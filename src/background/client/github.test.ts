@@ -274,6 +274,57 @@ describe("GitHub background client", () => {
     });
   });
 
+  it("does not commit after a conflict when onConflict reports the change already applied", async () => {
+    const onConflict = vi.fn(() => null);
+    const fetchImpl = mockFetch(
+      jsonResponse(refResponse("refs/heads/main", "base-sha")),
+      jsonResponse(commitResponse("base-sha", "base-tree-sha")),
+      jsonResponse(treeResponse("base-tree-sha")),
+      jsonResponse({ sha: "first-blob-sha" }, 201),
+      jsonResponse({ sha: "first-tree-sha" }, 201),
+      jsonResponse(commitResponse("first-commit-sha", "first-tree-sha"), 201),
+      jsonResponse({ message: "Reference update failed" }, 409),
+      jsonResponse(refResponse("refs/heads/main", "latest-sha")),
+      jsonResponse(commitResponse("latest-sha", "latest-tree-sha")),
+      jsonResponse(treeResponse("latest-tree-sha"))
+    );
+    const client = makeClient(fetchImpl);
+
+    const result = await client.commitFiles({
+      owner: "octo",
+      name: "algorithms",
+      branchName: "main",
+      message: "solve: leetcode 0001 two sum in swift (rev 1)",
+      files: [{ path: "leetcode/README.md", content: "# old\n" }],
+      onConflict
+    });
+
+    expect(onConflict).toHaveBeenCalledTimes(1);
+    expect(result).toMatchObject({
+      branch: { name: "main", sha: "latest-sha" },
+      commitSha: null,
+      commitUrl: null,
+      fileUrls: {}
+    });
+    // 다시 읽은 base 뒤로 blob, tree, commit, ref 요청이 없다.
+    expect(requestMethods(fetchImpl)).toHaveLength(10);
+    expect(requestMethods(fetchImpl).filter((method) => method === "PATCH")).toHaveLength(1);
+  });
+
+  it("reads only the branch ref for the Sync Branch head", async () => {
+    const fetchImpl = mockFetch(jsonResponse(refResponse("refs/heads/main", "head-sha")));
+    const client = makeClient(fetchImpl);
+
+    const branch = await client.readBranchHead({
+      owner: "octo",
+      name: "algorithms",
+      branchName: "main"
+    });
+
+    expect(branch).toMatchObject({ name: "main", sha: "head-sha" });
+    expect(requestPaths(fetchImpl)).toEqual(["/repos/octo/algorithms/git/ref/heads/main"]);
+  });
+
   it("normalizes branch protected, rate limited, and auth failures", async () => {
     await expectProtectedBranchFailure();
     await expectRateLimitedFailure();

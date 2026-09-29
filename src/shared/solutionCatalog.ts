@@ -81,6 +81,34 @@ export function parseSolutionCatalogJson(text: string): SolutionCatalog {
   return catalog;
 }
 
+/**
+ * 이 Accepted가 이미 Sync Branch에 써졌는지 Catalog로 판단한다. Sync Deduplication Key가
+ * Accepted 하나를 식별하므로(ADR 0041) 이 문제·언어의 `lastAcceptedSourceId`가 같으면 그
+ * Accepted의 commit이 이미 있다. 대표 경로는 commit은 성공했는데 processed 기록이 남지
+ * 않아(service worker 종료, 응답 유실) Retry Bundle로 다시 올라오는 경우다. LeetCode는
+ * 제출마다 고정된 공식 submission ID를 쓰므로 processed 기록이 7일 TTL이나 100개 상한으로
+ * 지워진 뒤(또는 storage 초기화 뒤) 같은 제출이 다시 감지되어도 같은 값이 온다.
+ *
+ * 마지막 Accepted만 본다. 그보다 앞선 Accepted가 다시 오면 알아보지 못하고 새 revision으로
+ * commit된다. Catalog는 문제·언어마다 마지막 값 하나만 갖기 때문이다(ADR 0042).
+ */
+export function hasCommittedAcceptedSource(
+  catalog: SolutionCatalog,
+  acceptedSource: Pick<
+    SolutionCatalogAcceptedSourceInput,
+    "problemId" | "titleSlug" | "language" | "acceptedSourceId"
+  >
+): boolean {
+  const existingProblem = catalog.problems.find((entry) =>
+    isSameProblem(entry, acceptedSource)
+  );
+
+  return (
+    existingProblem?.languages[acceptedSource.language]?.lastAcceptedSourceId ===
+    acceptedSource.acceptedSourceId
+  );
+}
+
 export function mergeSolutionCatalogEntry(
   catalog: SolutionCatalog,
   acceptedSource: SolutionCatalogAcceptedSourceInput,
@@ -108,22 +136,11 @@ export function mergeSolutionCatalogEntryWithResult(
     isSameProblem(entry, acceptedSource)
   );
   const existingLanguageEntry = existingProblem?.languages[acceptedSource.language];
-  /* Catalog에 이미 이 `acceptedSourceId`가 있으면 **이 Accepted는 이미 Sync Branch에
-   * 써졌다**는 뜻이다. Sync Deduplication Key가 Accepted 하나를 식별하므로(ADR 0041)
-   * 같은 값이 다시 나오는 대표 경로는 commit은 성공했는데 processed 기록이 남지 않아
-   * (service worker 종료, 응답 유실) Retry Bundle로 다시 올라오는 경우다. LeetCode는
-   * 제출마다 고정된 공식 submission ID를 쓰므로 processed 기록이 7일 TTL이나 100개
-   * 상한으로 지워진 뒤(또는 storage 초기화 뒤) 같은 제출이 다시 감지되어도 같은 값이
-   * 온다. Programmers와 SWEA는 감지 시각이 매번 달라 이 경로가 사실상
-   * 없다(시계 역행으로 같은 문제·언어의 감지 시각이 같은 millisecond로 겹치는 경우 제외).
-   *
-   * 이 분기는 **revision 번호와 날짜를 다시 쓰지 않을 뿐, commit은 막지 못한다.**
-   * `solutionRevisionNumber`를 올리지 않고 `lastSyncedAt`·`lastAcceptedDate`도 덮지 않는다. 번호는 Sync Branch에
-   * 실제 반영된 revision을 뜻하므로(ADR 0027) 여기서는 세지 않는다. 중복 commit 자체는
-   * 막지 못한다. retry 경로가 이 경우에도 commitFiles를 호출하므로 같은 Accepted가
-   * 같은 `(rev n)` 제목의 commit 두 개로 남는다. processed 기록이 만료된 뒤 다시
-   * 감지된 경우에도 번호와 날짜를 다시 쓰지 않을 뿐 commit은 생긴다. 그것은 retry 경로 등이 막아야
-   * 하며 아직 막지 않는다.
+  /* Sync는 이 Accepted가 이미 Catalog에 있으면 merge까지 오지 않고 commit을 건너뛴다
+   * (`hasCommittedAcceptedSource`, ADR 0042). 그래도 merge는 같은 Accepted를 다시 받았을 때
+   * revision 번호와 날짜를 다시 쓰지 않는다. 번호는 Sync Branch에 실제 반영된 revision을
+   * 뜻하므로(ADR 0027) 이미 반영된 Accepted를 두 번 세면 안 되고, 이 함수만 떼어 불러도
+   * 그 불변식이 깨지지 않게 하려는 것이다.
    *
    * 이 분기는 "같은 code"가 아니라 "같은 Accepted"를 대상으로 한다. 사용자가 같은 풀이를
    * 다시 제출하면 다른 Accepted라 다른 값이 오고, 그때는 아래에서 번호가 증가한다. */
