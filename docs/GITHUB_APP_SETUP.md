@@ -7,7 +7,7 @@ SolveSync Release ZIP을 만들기 전에 maintainer가 수행할 외부 설정�
 GitHub Settings의 Developer settings에서 새 GitHub App을 만든다.
 
 - GitHub App name: `SolveSync Preview`
-- Description: `Connect SolveSync to repositories you choose and sync accepted LeetCode and Programmers solutions from the Chrome extension.`
+- Description: `Connect SolveSync to repositories you choose and sync accepted LeetCode, Programmers, and SWEA solutions from the Chrome extension.`
 - Homepage URL: `https://github.com/zaehorang/SolveSync`
 - Callback URL: Device Flow에서는 사용하지 않음
 - Webhook: 비활성화
@@ -88,6 +88,6 @@ Organization repository와 collaborator repository는 현재 제품 범위가 �
 
 - GitHub device approval와 App installation
 - App 설치 repository만 picker에 보이는지 확인
-- 로그인된 LeetCode/Programmers에서 실제 Accepted 제출
+- 로그인된 LeetCode, Programmers, SWEA에서 실제 Accepted 제출
 
 세부 시나리오는 `docs/MANUAL_VALIDATION.md`를 따른다. Issue, screenshot, log에는 access token, refresh token, device code, cookie, session 값, private solution code를 포함하지 않는다.

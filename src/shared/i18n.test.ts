@@ -49,6 +49,21 @@ describe("i18n foundation", () => {
     );
   });
 
+  it("does not name specific Coding Platforms in platform-agnostic security and lede copy", () => {
+    const keys = [
+      "options.page.lede",
+      "options.security.noProblemStatement",
+      "popup.security.note"
+    ] as const;
+
+    for (const locale of ["en", "ko"] as const) {
+      for (const key of keys) {
+        expect(t(locale, key)).not.toMatch(/LeetCode|Programmers|SWEA/);
+        expect(t(locale, key)).toContain("Coding Platform");
+      }
+    }
+  });
+
   it("interpolates params without throwing for missing params", () => {
     expect(t("en", "validation.required", { field: "Repository" })).toBe(
       "Repository is required."
