@@ -53,7 +53,7 @@ SolveSync는 사용자 데이터를 판매하지 않습니다.
 
 SolveSync는 광고 목적의 데이터 사용을 하지 않습니다.
 
-SolveSync는 sync 기능 수행에 필요한 GitHub, LeetCode, Programmers 통신 외에 사용자 GitHub token, solution code, Sync History를 제3자에게 공유하지 않습니다.
+SolveSync는 sync 기능 수행에 필요한 GitHub, LeetCode, Programmers, SWEA 통신 외에 사용자 GitHub token, solution code, Sync History를 제3자에게 공유하지 않습니다.
 
 ## 사용자 주의사항
 

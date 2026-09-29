@@ -183,7 +183,7 @@ Retry behavior:
 목적: 문제 풀이 흐름을 끊지 않는 즉시 feedback과 복구 action 제공.
 
 위치:
-- 지원 Coding Platform(LeetCode, Programmers, SWEA)의 문제 페이지 오른쪽 아래.
+- 지원 Coding Platform의 문제 페이지 오른쪽 아래.
 - Fixed position.
 - 일반적인 desktop width에서 code editor control, run/submit button, result panel action을 가리지 않아야 한다.
 - 모바일 또는 좁은 viewport에서는 `calc(100vw - safe margin)` 안에 들어와야 한다.
