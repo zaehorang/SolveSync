@@ -97,7 +97,7 @@ Route 출처가 URL인가 DOM인가가 세 플랫폼을 가르는 근본 축이�
 - 플랫폼이 공식 Accepted Source ID를 노출하면 그것을 쓴다. 노출하지 않으면 `{codingPlatform}:{problemId}:{language}:{detectedAtMs}` 형식의 deterministic value를 만든다. `detectedAtMs`는 adapter가 fresh Accepted transition을 확정한 시점의 epoch millisecond다.
 - **같은 code를 다시 제출해도 새 Accepted Signal이므로 commit이 생기고 Solution Revision Number가 증가한다.** 세 플랫폼이 같다.
 - 이 key가 막는 것은 **하나의 Accepted Signal이 두 번 처리되는 것**뿐이고, 그것도 key가 같을 때만이다. 억제 창 밖에서 같은 Accepted가 다시 감지되면 감지 시각이 달라 막지 못한다.
-- commit은 성공했는데 processed 기록이 남지 않은 채 Retry Bundle로 다시 올라오면, Solution Catalog가 revision 번호는 다시 올리지 않지만 retry 경로가 commit을 다시 만들어 같은 `(rev n)` 제목의 commit이 둘 남는다. 아직 막지 못하는 한계다. LeetCode는 processed 기록이 7일 TTL이나 100개 상한으로 지워진 뒤(또는 storage 초기화 뒤) 같은 제출이 다시 감지되어도 같은 key가 오며, 이때도 번호만 세지 않고 commit은 생긴다. Programmers·SWEA는 감지 시각이 매번 달라 이 경로가 없다.
+- commit은 성공했는데 processed 기록이 남지 않은 채 Retry Bundle로 다시 올라오면, Solution Catalog가 revision 번호와 날짜를 다시 쓰지 않을 뿐 retry 경로가 commit을 다시 만들어 같은 `(rev n)` 제목의 commit이 둘 남는다. 아직 막지 못하는 한계다. LeetCode는 processed 기록이 7일 TTL이나 100개 상한으로 지워진 뒤(또는 storage 초기화 뒤) 같은 제출이 다시 감지되어도 같은 key가 오며, 이때도 번호와 날짜를 다시 쓰지 않을 뿐 commit은 생긴다. Programmers·SWEA는 감지 시각이 매번 달라 이 경로가 사실상 없다(시계 역행으로 같은 문제·언어의 감지 시각이 같은 millisecond로 겹치는 경우 제외).
 - LeetCode의 key는 Signal이 아니라 제출 레코드를 가리키므로 예외가 하나 붙는다. 제출 목록 반영이 늦어 직전 제출을 집어 들면 이미 처리한 값이 나와 commit이 생기지 않는다.
 - DOM이나 page world에서 읽은 source는 page가 제어하는 값이다. 그 residual risk는 [ADR 0028](../adr/0028-programmers-dom-snapshot-risk-acceptance.md)의 control을 적용해 수용한다.
 - **이 trust boundary는 secret이나 write destination으로 확장되지 않는다.** Content message에 GitHub token, cookie와 session token을 넣지 않고, GitHub API 호출은 background service worker에서만 수행하며, write 대상은 사용자가 선택한 Sync Repository와 Sync Branch로 제한한다.

@@ -114,13 +114,15 @@ export function mergeSolutionCatalogEntryWithResult(
    * (service worker 종료, 응답 유실) Retry Bundle로 다시 올라오는 경우다. LeetCode는
    * 제출마다 고정된 공식 submission ID를 쓰므로 processed 기록이 7일 TTL이나 100개
    * 상한으로 지워진 뒤(또는 storage 초기화 뒤) 같은 제출이 다시 감지되어도 같은 값이
-   * 온다. Programmers와 SWEA는 감지 시각이 매번 달라 이 두 번째 경로가 없다.
+   * 온다. Programmers와 SWEA는 감지 시각이 매번 달라 이 경로가 사실상
+   * 없다(시계 역행으로 같은 문제·언어의 감지 시각이 같은 millisecond로 겹치는 경우 제외).
    *
-   * 이 분기는 **revision 번호가 두 번 증가하는 것만** 막는다. 번호는 Sync Branch에
+   * 이 분기는 **revision 번호와 날짜를 다시 쓰지 않을 뿐, commit은 막지 못한다.**
+   * `solutionRevisionNumber`를 올리지 않고 `lastSyncedAt`·`lastAcceptedDate`도 덮지 않는다. 번호는 Sync Branch에
    * 실제 반영된 revision을 뜻하므로(ADR 0027) 여기서는 세지 않는다. 중복 commit 자체는
    * 막지 못한다. retry 경로가 이 경우에도 commitFiles를 호출하므로 같은 Accepted가
    * 같은 `(rev n)` 제목의 commit 두 개로 남는다. processed 기록이 만료된 뒤 다시
-   * 감지된 경우에도 번호만 세지 않을 뿐 commit은 생긴다. 그것은 retry 경로 등이 막아야
+   * 감지된 경우에도 번호와 날짜를 다시 쓰지 않을 뿐 commit은 생긴다. 그것은 retry 경로 등이 막아야
    * 하며 아직 막지 않는다.
    *
    * 이 분기는 "같은 code"가 아니라 "같은 Accepted"를 대상으로 한다. 사용자가 같은 풀이를
