@@ -23,4 +23,6 @@
 
 실증 (2026-09-29): Programmers SQL 문제 157342를 MySQL로 제출해 `programmers/mysql/157342_자동차_평균_대여_기간_구하기.sql` commit과 README 행(Languages: MySQL)이 생기는 것을 확인했다. Oracle 제출은 아직 확인하지 않았다.
 
-미확인: LeetCode Database 문제가 일반 문제와 같은 Accepted 감지와 제출 상세 흐름을 타는지는 실제 제출로 확인하지 않았다. 언어 선택 UI와 GraphQL 언어 목록만 실측했다. 근거는 [PROGRAMMERS.md](../platforms/PROGRAMMERS.md)와 [LEETCODE.md](../platforms/LEETCODE.md)에 있다.
+실증 (2026-09-29): LeetCode 175 Combine Two Tables를 MySQL로 제출해 Accepted(8/8)를 받았고 toast `GitHub에 동기화됨 · Combine Two Tables, MySQL`을 확인했다. Database 문제가 일반 문제와 같은 감지·제출 상세 흐름을 탄다. 저장 경로는 직접 읽지 못했고 형식은 단위 테스트가 고정한다.
+
+미확인: LeetCode의 Oracle·PostgreSQL·MS SQL Server는 제출하지 않았고 alias만 language list 실측에 근거한다. Programmers는 언어 선택 UI를 실측했다. 근거는 [PROGRAMMERS.md](../platforms/PROGRAMMERS.md)와 [LEETCODE.md](../platforms/LEETCODE.md)에 있다.
