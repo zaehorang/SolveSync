@@ -511,7 +511,9 @@ export function createSyncOrchestrator(
         retryBundle.syncDeduplicationKey
       )
     ) {
-      await options.storage.removeRetryBundle(retryBundle.id);
+      await options.storage.removeRetryBundlesBySyncDeduplicationKey(
+        retryBundle.syncDeduplicationKey
+      );
 
       return {
         kind: "duplicate_processed",
@@ -538,7 +540,9 @@ export function createSyncOrchestrator(
           retryBundle.syncDeduplicationKey
         )
       ) {
-        await options.storage.removeRetryBundle(retryBundle.id);
+        await options.storage.removeRetryBundlesBySyncDeduplicationKey(
+        retryBundle.syncDeduplicationKey
+      );
 
         return {
           kind: "duplicate_processed",
@@ -588,7 +592,9 @@ export function createSyncOrchestrator(
         },
         syncedAt
       );
-      await options.storage.removeRetryBundle(retryBundle.id);
+      await options.storage.removeRetryBundlesBySyncDeduplicationKey(
+        retryBundle.syncDeduplicationKey
+      );
 
       const syncHistoryEntry = makeSyncHistoryEntry({
         status: "synced",

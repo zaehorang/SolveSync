@@ -870,6 +870,76 @@ describe("background sync orchestrator", () => {
     expect(await harness.storage.hasProcessedSyncDeduplicationKey(syncDeduplicationKey)).toBe(true);
   });
 
+  it("removes every Retry Bundle of the same key when one of them is retried and commits", async () => {
+    const harness = makeHarness();
+    await harness.saveSettings();
+    await harness.storage.saveRetryBundle(makeRetryBundle("retry-a"));
+    await harness.storage.saveRetryBundle(makeRetryBundle("retry-b"));
+
+    await harness.sync.handleRetry("retry-b");
+
+    expect(harness.github.commits).toHaveLength(1);
+    await expect(harness.storage.listRetryBundles()).resolves.toHaveLength(0);
+  });
+
+  it("removes every Retry Bundle of the same key when a retry is skipped by the Catalog", async () => {
+    const harness = makeHarness();
+    await harness.saveSettings();
+    harness.leetcode.fetchProblemMetadata.mockResolvedValue(problem);
+    harness.leetcode.fetchLatestAcceptedSubmission.mockResolvedValue(
+      syncableAcceptedSubmission()
+    );
+    await harness.sync.handleAcceptedDetected(makeAcceptedDetected());
+    await harness.storage.pruneProcessedSyncDeduplicationKeys("2026-01-09T00:00:00.000Z");
+    await harness.storage.saveRetryBundle(makeRetryBundle("retry-a"));
+    await harness.storage.saveRetryBundle(makeRetryBundle("retry-b"));
+
+    await harness.sync.handleRetry("retry-b");
+
+    expect(harness.github.commits).toHaveLength(1);
+    await expect(harness.storage.listRetryBundles()).resolves.toHaveLength(0);
+  });
+
+  it("removes every Retry Bundle of the same key when the key is already processed", async () => {
+    const harness = makeHarness();
+    await harness.saveSettings();
+    await harness.storage.saveRetryBundle(makeRetryBundle("retry-a"));
+    await harness.storage.saveRetryBundle(makeRetryBundle("retry-b"));
+    await harness.storage.markSyncDeduplicationKeyProcessed(
+      syncDeduplicationKey,
+      { commitSha: "other-commit", solutionPath: "leetcode/swift/0001_two_sum.swift" },
+      "2026-01-01T00:00:00.000Z"
+    );
+
+    const outcome = await harness.sync.handleRetry("retry-b");
+
+    expect(outcome).toMatchObject({ kind: "duplicate_processed" });
+    await expect(harness.storage.listRetryBundles()).resolves.toHaveLength(0);
+  });
+
+  it("removes every Retry Bundle of the same key when the key finished while waiting for the lock", async () => {
+    const harness = makeHarness();
+    await harness.saveSettings();
+    await harness.storage.saveRetryBundle(makeRetryBundle("retry-a"));
+    await harness.storage.saveRetryBundle(makeRetryBundle("retry-b"));
+    const acquireLock = harness.storage.acquireSyncDeduplicationKeyLock;
+    vi.spyOn(harness.storage, "acquireSyncDeduplicationKeyLock").mockImplementationOnce(
+      async (key, now) => {
+        await harness.storage.markSyncDeduplicationKeyProcessed(
+          key,
+          { commitSha: "other-commit", solutionPath: "leetcode/swift/0001_two_sum.swift" },
+          now
+        );
+        return acquireLock(key, now);
+      }
+    );
+
+    await harness.sync.handleRetry("retry-b");
+
+    expect(harness.github.commits).toHaveLength(0);
+    await expect(harness.storage.listRetryBundles()).resolves.toHaveLength(0);
+  });
+
   it("does not commit a LeetCode submission again after its processed record expired", async () => {
     const harness = makeHarness();
     await harness.saveSettings();

@@ -2,7 +2,7 @@
 
 상태: Accepted.
 
-결정: commit 직전에 Sync Branch에서 읽은 Solution Catalog의 이 문제·언어 `lastAcceptedSourceId`가 이번 `acceptedSourceId`와 같으면 commit하지 않는다. 대신 그 Accepted가 이미 반영된 것으로 보고 sync를 성공으로 끝낸다. processed Sync Deduplication Key를 기록하고, 같은 key의 Retry Bundle이 있으면 모두 지우고(재시도 경로는 재시도한 bundle을, 일반 경로는 storage에서 key로 찾은 bundle을), Sync History에 `synced` 항목을 남긴다. 일반 경로는 commit을 만든 성공에서도 같은 key의 남은 Retry Bundle을 지운다.
+결정: commit 직전에 Sync Branch에서 읽은 Solution Catalog의 이 문제·언어 `lastAcceptedSourceId`가 이번 `acceptedSourceId`와 같으면 commit하지 않는다. 대신 그 Accepted가 이미 반영된 것으로 보고 sync를 성공으로 끝낸다. processed Sync Deduplication Key를 기록하고, 같은 key의 Retry Bundle이 있으면 재시도 경로와 일반 경로 모두 storage에서 key로 찾아 전부 지우고, Sync History에 `synced` 항목을 남긴다. 두 경로 모두 commit을 만든 성공에서도 같은 key의 남은 Retry Bundle을 지운다.
 
 이 확인은 Catalog를 읽는 세 자리에 모두 적용한다.
 
@@ -10,7 +10,7 @@
 - Retry Bundle 재시도가 처음 읽은 Catalog
 - ref update가 conflict로 끝나 최신 branch에서 다시 읽은 Catalog. 이때 `onConflict`는 payload 대신 `null`을 돌려주고, GitHub client는 blob·tree·commit을 만들지 않고 `commitSha: null`인 결과를 돌려준다.
 
-Retry Bundle 재시도는 Sync Deduplication Key lock을 얻은 직후 processed를 한 번 더 확인한다. 일반 경로는 원래 그렇게 하고 있었다. 처음 확인과 lock 획득 사이에 같은 key의 처리가 끝나 lock이 풀릴 수 있기 때문이다. 이미 processed면 lock을 풀고 Retry Bundle을 지운 뒤 `duplicate_processed`를 돌려준다.
+Retry Bundle 재시도는 Sync Deduplication Key lock을 얻은 직후 processed를 한 번 더 확인한다. 일반 경로는 원래 그렇게 하고 있었다. 처음 확인과 lock 획득 사이에 같은 key의 처리가 끝나 lock이 풀릴 수 있기 때문이다. 이미 processed면 lock을 풀고 같은 key의 Retry Bundle을 모두 지운 뒤 `duplicate_processed`를 돌려준다.
 
 이유: [ADR 0041](0041-sync-deduplication-key-identifies-accepted-event.md)은 같은 `acceptedSourceId`에서 Catalog가 revision 번호와 날짜를 다시 쓰지 않게 했을 뿐, commit은 막지 못한다고 적었다. commit은 성공했는데 processed 기록이 남지 않으면(service worker 종료, 응답 유실) Retry Bundle 재시도가 같은 Accepted를 같은 `(rev n)` 제목으로 한 번 더 commit했다. LeetCode는 제출마다 고정된 submission ID를 쓰므로, processed 기록이 7일 TTL이나 100개 상한으로 지워진 뒤 같은 제출이 다시 감지되어도 일반 경로가 다시 commit했다.
 
