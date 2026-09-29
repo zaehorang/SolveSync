@@ -61,7 +61,9 @@
 - 언어 control `[data-language].active`가 `data-language="mysql"` 또는 `"oracle"`을 돌려준다. `?language=oracle`로 전환해 확인했다.
 - `#modal-dialog`와 `textarea#code`가 일반 문제와 같게 존재한다.
 
-**미확인 (실제 제출이 필요하다).** SQL 정답이 일반 문제와 같은 `정답입니다!` modal로 뜨는지는 확인하지 않았다. 다른 문구나 구조면 Accepted 감지가 SQL 문제에서만 조용히 실패할 수 있다. 확인되기 전까지 SQL Accepted sync를 동작하는 것으로 간주하지 않는다.
+**실제 제출로 확인 (2026-09-29).** 새 빌드로 SQL 문제 157342(자동차 평균 대여 기간 구하기)를 MySQL로 제출했다. 일반 문제와 같은 Accepted 감지 흐름으로 `programmers/mysql/157342_자동차_평균_대여_기간_구하기.sql` commit이 생겼고 Solution README에 Languages가 `MySQL`인 행이 생겼다. 이로써 MySQL은 SQL 문제에서도 동작하는 것으로 본다.
+
+**아직 미확인.** Oracle로 제출한 경우와, 같은 문제를 MySQL과 Oracle로 모두 풀었을 때 한 행에 두 link가 생기는지는 확인하지 않았다. `정답입니다!` modal의 DOM 구조를 일반 문제와 나란히 캡처해 비교한 것도 아니다. 감지와 commit이 성공했다는 결과만 확인했다.
 
 ## Accepted Editor Snapshot
 
@@ -122,7 +124,7 @@ Language registry에 없는 language(Programmers가 제공하는 C#, Ruby 등)�
 4. 같은 문제에서 실제로 선택 가능한 두 번째 지원 언어로 Accepted를 만든다. 기본 검증 조합은 Swift와 Python3다.
 5. 두 solution file이 존재하고 `programmers/README.md`에 Difficulty column 없이 같은 문제 한 행과 단일 `Languages` cell에 두 link가 표시되는지 확인한다.
 6. `programmers/.programmers-sync/index.json`이 v5이며 두 language entry를 보존하고, 각 언어의 첫 commit message가 `(rev 1)`을 포함하는지 확인한다.
-7. **SQL (미확인 항목).** SQL 문제(예: `lessons/59034`)에서 MySQL로 Accepted를 만들어 `정답입니다!` modal이 일반 문제와 같은 text로 뜨고 `programmers/mysql/{id}_{title}.sql`이 생기는지 확인한다. 같은 문제를 Oracle로도 풀어 `programmers/oracle/`에 두 번째 파일이 생기고 README의 한 행에 두 link가 있는지 확인한다. 결과는 위 "SQL 문제" 절에 반영한다.
+7. **SQL.** MySQL은 2026-09-29에 157342로 확인했다(위 "SQL 문제" 절). 남은 항목은 같은 문제를 Oracle로도 풀어 `programmers/oracle/`에 두 번째 파일이 생기고 README의 한 행에 두 link가 있는지 확인한다. 결과는 위 "SQL 문제" 절에 반영한다.
 
 ## Investigation notes (비계약)
 

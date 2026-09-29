@@ -21,4 +21,6 @@
 
 트레이드오프: 확장자가 겹치므로 registry 무결성 테스트가 확장자 유일성을 검사할 수 없고 folder 유일성만 검사한다. 경로 충돌은 folder가 막는다. LeetCode나 Programmers가 방언을 추가하거나 label을 바꾸면 registry와 테스트를 갱신해야 한다. 이전 버전 확장 프로그램은 새 key를 가진 Catalog를 읽으면 malformed로 본다. 새 버전에서 SQL을 sync한 저장소에 이전 버전을 다시 설치하면 그 저장소의 sync가 malformed Catalog 실패로 끝난다. 이전 버전이 storage에서 새 language key를 가진 Sync History나 Retry Bundle을 읽으면 malformed state로 보고 해당 key만 empty fallback으로 복구한다.
 
-미확인: Programmers SQL 정답이 일반 문제와 같은 `정답입니다!` modal로 뜨는지, LeetCode Database 문제가 일반 문제와 같은 Accepted 감지와 제출 상세 흐름을 타는지는 실제 제출로 확인하지 않았다. 언어 선택 UI와 GraphQL 언어 목록만 실측했다. 근거는 [PROGRAMMERS.md](../platforms/PROGRAMMERS.md)와 [LEETCODE.md](../platforms/LEETCODE.md)에 있다.
+실증 (2026-09-29): Programmers SQL 문제 157342를 MySQL로 제출해 `programmers/mysql/157342_자동차_평균_대여_기간_구하기.sql` commit과 README 행(Languages: MySQL)이 생기는 것을 확인했다. Oracle 제출은 아직 확인하지 않았다.
+
+미확인: LeetCode Database 문제가 일반 문제와 같은 Accepted 감지와 제출 상세 흐름을 타는지는 실제 제출로 확인하지 않았다. 언어 선택 UI와 GraphQL 언어 목록만 실측했다. 근거는 [PROGRAMMERS.md](../platforms/PROGRAMMERS.md)와 [LEETCODE.md](../platforms/LEETCODE.md)에 있다.
