@@ -1,6 +1,6 @@
 # Sync Deduplication Key는 code가 아니라 Accepted Signal을 식별한다
 
-상태: Accepted.
+상태: Accepted. 아래에 적은 "commit은 막지 못한다" 한계는 0042가 막는다. 나머지는 유효하다.
 
 결정: Sync Deduplication Key의 `acceptedSourceId`에서 code hash를 뺀다. 공식 Accepted Source ID가 없는 Coding Platform은 `{codingPlatform}:{problemId}:{language}:{detectedAtMs}` 형식을 쓴다. `detectedAtMs`는 adapter가 fresh Accepted transition을 확정한 시점의 epoch millisecond, 즉 [Accepted Signal](../../CONTEXT.md) 하나를 가리키는 값이다. 그 시각은 signal 시점에 한 번 캡처된 뒤 변하지 않는다([ADR 0034](0034-fresh-accepted-transition-and-immutable-event.md)). 읽을 수 없거나 시각으로 파싱되지 않으면 대체값을 만들지 않고 플랫폼별 extract failure로 떨어뜨린다.
 

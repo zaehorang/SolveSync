@@ -99,7 +99,7 @@ module을 수정하기 전에 가장 가까운 `CLAUDE.md`를 먼저 읽는다. 
 - Investigation의 가설을 확정된 Known Issue, troubleshooting 절차나 제품 계약처럼 표현하지 않는다.
 
 ## High-Risk Rules
-- processed Sync Deduplication Key는 GitHub commit 성공 후에만 기록한다.
+- processed Sync Deduplication Key는 GitHub commit 성공 후에만 기록한다. 예외는 Sync Branch의 Solution Catalog가 그 Accepted를 이미 담고 있어 commit을 건너뛴 경우뿐이다([ADR 0042](docs/adr/0042-skip-commit-for-accepted-already-in-solution-catalog.md)).
 - 같은 Sync Deduplication Key는 storage 기반 Sync Deduplication Key lock으로 중복 처리를 막는다.
 - Retry Bundle에는 solution code가 임시 저장될 수 있으므로 UI disclosure와 TTL/cap 정책을 유지한다.
 - Programmers와 SWEA는 공식 제출 상세 API를 전제로 하지 않고 Accepted 직후 Accepted Editor Snapshot을 source로 쓴다. SWEA editor code는 MAIN world bridge에서만 읽을 수 있고 bridge protocol에는 code string만 넣는다.

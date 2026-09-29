@@ -1,6 +1,6 @@
 # processed marking은 commit 성공 후에만 한다
 
-상태: Accepted.
+상태: Accepted. Sync Branch의 Solution Catalog가 이미 반영을 보여 주면 commit 없이도 기록한다는 확장은 0042에 있다.
 
 결정: processed Sync Deduplication Key에는 GitHub commit 성공 후에만 Sync Deduplication Key를 기록한다. GitHub commit 실패는 Retry Bundle과 Sync History에만 남긴다.
 이유: commit이 실패한 제출을 processed로 표시하면 이후 재시도나 재감지가 어려워진다. 성공 기준을 GitHub commit 완료로 두면 사용자의 저장소 상태와 extension 상태가 맞는다.

@@ -26,7 +26,7 @@ sequenceDiagram
 ```
 
 ## Non-obvious
-- 주의: processed Sync Deduplication Key는 GitHub commit 성공 후에만 기록한다.
+- 주의: processed Sync Deduplication Key는 GitHub commit 성공 후에만 기록한다. 예외는 Sync Branch의 Solution Catalog가 그 Accepted를 이미 담고 있어 commit을 건너뛴 경우뿐이다([ADR 0042](../../docs/adr/0042-skip-commit-for-accepted-already-in-solution-catalog.md)).
 - 주의: MV3 service worker의 장기 in-memory state를 source of truth로 쓰지 않는다.
 - Why: service worker는 언제든 suspend될 수 있으므로 lock, history와 retry 상태가 storage에서 복구되어야 한다.
 
