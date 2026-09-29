@@ -218,7 +218,7 @@ Privacy 답변은 최소 다음을 설명한다.
 - `storage`: auth session, settings, Sync History, Retry Bundle, deduplication state
 - `https://leetcode.com/*`: 로그인된 사용자의 Accepted submission metadata와 solution source 조회
 - `https://school.programmers.co.kr/*`: Accepted transition과 Accepted Editor Snapshot 감지
-- `https://swexpertacademy.com/*`: Accepted layer 감지와 MAIN world bridge를 통한 Accepted Editor Snapshot 수집
+- `https://swexpertacademy.com/*`: 풀이 페이지에서 Accepted alert layer 감지와 editor code 추출. 추출을 위해 풀이 페이지(`solvingProblem.do`)에 MAIN world bridge content script를 주입한다
 - `https://github.com/*`: GitHub App Device Flow token endpoint
 - `https://api.github.com/*`: 선택한 Sync Repository와 Sync Branch 조회 및 commit 생성
 - remote code 미사용
@@ -435,7 +435,7 @@ http://
 - [ ] 필수 icon, screenshots, promo tile이 준비됐다.
 - [ ] typecheck, test, build, package가 통과했다. 앞의 셋은 CI가 PR마다 실행하므로 제출 시점의 `main`이 초록인지 확인한다. `npm run package:chrome`은 별도로 실행한다.
 - [ ] ZIP 파일 목록, 크기, secret, remote code 검사가 통과했다.
-- [ ] GitHub, LeetCode, Programmers 수동 release smoke가 통과했다.
+- [ ] GitHub, LeetCode, Programmers, SWEA 수동 release smoke가 통과했다.
 - [ ] Dashboard 모든 탭을 제출 전 대조했다.
 
 ## 9. 작업 단위와 권장 순서
