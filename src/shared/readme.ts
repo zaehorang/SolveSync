@@ -50,9 +50,11 @@ export function renderManagedReadmeTable(
  * 건너뛰면 그대로다) 재렌더만으로 순서가 흔들려 의미 없는 commit이 생기지 않는다.
  * 부작용으로 같은 날 먼저 푼 문제를 다시 제출하면 그날 묶음의 맨 위로 올라온다.
  *
- * 값이 없거나 파싱되지 않는 옛 entry는 가장 오래된 것으로 본다. 파싱되는 것 뒤에
- * 오고, 그들끼리는 시각이 같은 것으로 보아 문제 번호로 tiebreak한다. 어느 쪽이든
- * 결과는 입력 순서와 무관하게 결정적이다.
+ * Catalog parser는 `lastSyncedAt`이 문자열이기만 하면 통과시킨다. 그래서 값이 누락된
+ * entry는 parser가 malformed_index로 거부해 여기까지 오지 않지만, `not-a-date` 같은
+ * 파싱 불가 문자열은 여기까지 올 수 있다. 어느 경우든 가장 오래된 것으로 보아
+ * 파싱되는 것 뒤에 두고, 그들끼리는 문제 번호로 tiebreak한다. 누락 처리는 정책이
+ * 아니라 비교를 전순서로 유지하기 위한 방어다.
  */
 function compareReadmeRows(
   left: SolutionCatalogProblem,

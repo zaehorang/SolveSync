@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  MalformedSolutionCatalogError,
   createEmptySolutionCatalog,
-  mergeSolutionCatalogEntry
+  mergeSolutionCatalogEntry,
+  parseSolutionCatalogJson
 } from "./solutionCatalog";
 import {
   PROGRAMMERS_README_TABLE_END_MARKER,
@@ -200,7 +202,30 @@ describe("README managed block", () => {
       expect(rowOrder(renderManagedReadmeTable(catalog))).toEqual(["10", "20"]);
     });
 
-    it("sorts entries with missing or unparsable lastSyncedAt after parsable ones within the day", () => {
+    it("rejects a catalog whose entry lacks lastSyncedAt but accepts an unparsable string", () => {
+      const base = syncedProblem(createEmptySolutionCatalog(), "10", day, "2026-09-29T01:00:00.000Z");
+      const withValue = (value: unknown) => {
+        const [problem] = base.problems;
+        const [key, entry] = Object.entries(problem.languages)[0];
+
+        return JSON.stringify({
+          ...base,
+          problems: [
+            { ...problem, languages: { [key]: { ...entry, lastSyncedAt: value } } }
+          ]
+        });
+      };
+
+      expect(() => parseSolutionCatalogJson(withValue(undefined))).toThrow(
+        MalformedSolutionCatalogError
+      );
+      expect(() => parseSolutionCatalogJson(withValue("not-a-date"))).not.toThrow();
+    });
+
+    // 누락 값은 parser가 거부해 실제 sync에서는 도달하지 않는다. 이 테스트는 cast로
+    // parser를 우회해 비교 함수가 그래도 결정적인 전순서를 유지하는지만 검증한다.
+    // 파싱 불가 문자열(30)은 parser를 통과하므로 실제로 도달할 수 있다.
+    it("keeps a total order as a defense when lastSyncedAt is missing or unparsable", () => {
       let catalog = syncedProblem(createEmptySolutionCatalog(), "10", day, "2026-09-29T01:00:00.000Z");
       catalog = syncedProblem(catalog, "20", day, "2026-09-29T02:00:00.000Z");
       catalog = syncedProblem(catalog, "30", day, "2026-09-29T03:00:00.000Z");
