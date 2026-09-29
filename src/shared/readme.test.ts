@@ -107,6 +107,121 @@ describe("README managed block", () => {
     );
   });
 
+  describe("same-day order by latest sync", () => {
+    function syncedProblem(
+      catalog: Parameters<typeof mergeSolutionCatalogEntry>[0],
+      frontendId: string,
+      acceptedDate: string,
+      syncedAt: string,
+      language: "swift" | "python3" = "swift"
+    ) {
+      return mergeSolutionCatalogEntry(
+        catalog,
+        {
+          problemId: frontendId,
+          frontendId,
+          title: `Problem ${frontendId}`,
+          titleSlug: `slug-${frontendId}`,
+          difficulty: "Easy",
+          url: `https://leetcode.com/problems/slug-${frontendId}/`,
+          acceptedSourceId: `source-${frontendId}-${syncedAt}-${language}`,
+          language
+        },
+        `leetcode/${language}/${frontendId}`,
+        syncedAt,
+        acceptedDate
+      );
+    }
+
+    function rowOrder(table: string): string[] {
+      return table
+        .split("\n")
+        .slice(2)
+        .map((row) => row.split("|")[1].trim());
+    }
+
+    function corruptLastSyncedAt(
+      catalog: ReturnType<typeof syncedProblem>,
+      frontendId: string,
+      value: unknown
+    ) {
+      return {
+        ...catalog,
+        problems: catalog.problems.map((problem) =>
+          problem.frontendId === frontendId
+            ? {
+                ...problem,
+                lastSyncedAt: value as string,
+                languages: Object.fromEntries(
+                  Object.entries(problem.languages).map(([key, entry]) => [
+                    key,
+                    { ...entry, lastSyncedAt: value as string }
+                  ])
+                )
+              }
+            : problem
+        )
+      } as typeof catalog;
+    }
+
+    const day = "2026-09-29";
+
+    it("puts the most recently synced problem first within a day even with the largest number", () => {
+      let catalog = syncedProblem(createEmptySolutionCatalog(), "42576", day, "2026-09-29T01:00:00.000Z");
+      catalog = syncedProblem(catalog, "42888", day, "2026-09-29T02:00:00.000Z");
+      catalog = syncedProblem(catalog, "157342", day, "2026-09-29T03:00:00.000Z");
+
+      expect(rowOrder(renderManagedReadmeTable(catalog))).toEqual(["157342", "42888", "42576"]);
+    });
+
+    it("keeps date-descending order across days regardless of sync time", () => {
+      let catalog = syncedProblem(createEmptySolutionCatalog(), "1", "2026-09-28", "2026-09-28T23:00:00.000Z");
+      catalog = syncedProblem(catalog, "2", "2026-09-29", "2026-09-29T01:00:00.000Z");
+      catalog = syncedProblem(catalog, "3", "2026-09-27", "2026-09-30T01:00:00.000Z");
+
+      expect(rowOrder(renderManagedReadmeTable(catalog))).toEqual(["2", "1", "3"]);
+    });
+
+    it("breaks equal sync times by problem number", () => {
+      const at = "2026-09-29T01:00:00.000Z";
+      let catalog = syncedProblem(createEmptySolutionCatalog(), "300", day, at);
+      catalog = syncedProblem(catalog, "100", day, at);
+      catalog = syncedProblem(catalog, "200", day, at);
+
+      expect(rowOrder(renderManagedReadmeTable(catalog))).toEqual(["100", "200", "300"]);
+    });
+
+    it("uses the latest sync among a problem's language entries", () => {
+      let catalog = syncedProblem(createEmptySolutionCatalog(), "10", day, "2026-09-29T01:00:00.000Z");
+      catalog = syncedProblem(catalog, "20", day, "2026-09-29T02:00:00.000Z");
+      // 10번을 다른 언어로 나중에 다시 풀면 10번의 최댓값이 20번보다 늦어진다.
+      catalog = syncedProblem(catalog, "10", day, "2026-09-29T03:00:00.000Z", "python3");
+
+      expect(rowOrder(renderManagedReadmeTable(catalog))).toEqual(["10", "20"]);
+    });
+
+    it("sorts entries with missing or unparsable lastSyncedAt after parsable ones within the day", () => {
+      let catalog = syncedProblem(createEmptySolutionCatalog(), "10", day, "2026-09-29T01:00:00.000Z");
+      catalog = syncedProblem(catalog, "20", day, "2026-09-29T02:00:00.000Z");
+      catalog = syncedProblem(catalog, "30", day, "2026-09-29T03:00:00.000Z");
+      catalog = syncedProblem(catalog, "40", day, "2026-09-29T04:00:00.000Z");
+      catalog = corruptLastSyncedAt(catalog, "40", undefined);
+      catalog = corruptLastSyncedAt(catalog, "30", "not-a-date");
+
+      // 파싱되는 값이 먼저, 누락과 파싱 불가는 같은 값으로 보고 번호 순으로 뒤에 둔다.
+      expect(rowOrder(renderManagedReadmeTable(catalog))).toEqual(["20", "10", "30", "40"]);
+    });
+
+    it("renders the same order for Programmers and SWEA catalogs", () => {
+      for (const platform of ["programmers", "swea"] as const) {
+        let catalog = syncedProblem(createEmptySolutionCatalog(), "1", day, "2026-09-29T01:00:00.000Z");
+        catalog = syncedProblem(catalog, "2", day, "2026-09-29T02:00:00.000Z");
+
+        expect(rowOrder(renderManagedReadmeTable(catalog, platform))).toEqual(["2", "1"]);
+      }
+    });
+  });
+
   it("links the title to the problem page", () => {
     const table = renderManagedReadmeTable(solutionCatalog);
 

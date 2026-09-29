@@ -2,7 +2,7 @@
 
 설계 결정과 tradeoff의 source of truth다. 새 ADR은 [TEMPLATE.md](TEMPLATE.md)에서 시작한다. 모든 ADR은 제목 다음에 `상태:` 줄을 갖는다. 구현이 ADR과 어긋나면 어느 쪽이 맞는지 먼저 판단하고, 결정이 바뀐 것이면 새 ADR을 쓴다. 기존 ADR을 조용히 고쳐 과거 결정을 덮어쓰지 않는다.
 
-**다음에 쓸 번호는 0044다.** 아래 "번호 구멍"을 참고한다.
+**다음에 쓸 번호는 0045다.** 아래 "번호 구멍"을 참고한다.
 
 ## 목록
 
@@ -47,6 +47,7 @@
 | 0041 | [Sync Deduplication Key는 code가 아니라 Accepted Signal을 식별한다](0041-sync-deduplication-key-identifies-accepted-event.md) | Accepted (일부는 0042) |
 | 0042 | [Solution Catalog에 이미 있는 Accepted는 commit하지 않는다](0042-skip-commit-for-accepted-already-in-solution-catalog.md) | Accepted |
 | 0043 | [SQL 방언을 방언별 별도 supported language로 추가한다](0043-sql-dialects-as-separate-supported-languages.md) | Accepted |
+| 0044 | [같은 날 푼 README 행은 최근 동기화한 것이 위에 오게 한다](0044-same-day-readme-rows-ordered-by-latest-sync.md) | Accepted |
 
 ## 번호 구멍
 

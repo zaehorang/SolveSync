@@ -39,13 +39,20 @@ export function renderManagedReadmeTable(
 /** README 표의 행 순서.
  *
  * Catalog의 `problems` 배열은 문제 번호 오름차순으로 두고(diff를 작게 유지한다)
- * 날짜 정렬은 렌더 시점에만 한다. 정렬 키를 Solved cell이 실제로 보여주는
- * first accepted date로 잡아야 표가 자기모순 없이 읽힌다. last accepted date로
- * 잡으면 재제출한 옛 문제가 위로 올라오는데 표시된 날짜는 그대로라 정렬이
- * 깨져 보인다.
+ * 날짜 정렬은 렌더 시점에만 한다. 1차 키는 Solved cell이 실제로 보여주는 first
+ * accepted date 내림차순이다. last accepted date로 잡으면 재제출한 옛 문제가
+ * 위로 올라오는데 표시된 날짜는 그대로라 정렬이 깨져 보인다.
  *
- * first accepted date는 day 단위라 같은 날 푼 문제가 묶인다. tiebreak를 문제
- * 번호로 고정해야 재렌더마다 순서가 흔들려 의미 없는 commit이 생기지 않는다.
+ * first accepted date는 day 단위라 같은 날 푼 문제가 묶인다. 그 안에서는 문제의
+ * language entry들 중 가장 최근 `lastSyncedAt`이 늦은 것을 위에 둔다. 방금 푼
+ * 문제가 번호가 크다는 이유로 그날 묶음의 맨 아래로 가면 안 되기 때문이다.
+ * `lastSyncedAt`은 새 commit이 생길 때만 바뀌므로(이미 Catalog에 있는 Accepted를
+ * 건너뛰면 그대로다) 재렌더만으로 순서가 흔들려 의미 없는 commit이 생기지 않는다.
+ * 부작용으로 같은 날 먼저 푼 문제를 다시 제출하면 그날 묶음의 맨 위로 올라온다.
+ *
+ * 값이 없거나 파싱되지 않는 옛 entry는 가장 오래된 것으로 본다. 파싱되는 것 뒤에
+ * 오고, 그들끼리는 시각이 같은 것으로 보아 문제 번호로 tiebreak한다. 어느 쪽이든
+ * 결과는 입력 순서와 무관하게 결정적이다.
  */
 function compareReadmeRows(
   left: SolutionCatalogProblem,
@@ -55,7 +62,29 @@ function compareReadmeRows(
     return left.firstAcceptedDate < right.firstAcceptedDate ? 1 : -1;
   }
 
+  const leftSyncedAt = latestSyncedAtMs(left);
+  const rightSyncedAt = latestSyncedAtMs(right);
+
+  if (leftSyncedAt !== rightSyncedAt) {
+    return rightSyncedAt - leftSyncedAt;
+  }
+
   return compareSolutionCatalogProblems(left, right);
+}
+
+/** 문제의 language entry 중 가장 늦은 `lastSyncedAt`(ms). 없거나 파싱 불가면 -Infinity. */
+function latestSyncedAtMs(problem: SolutionCatalogProblem): number {
+  let latest = Number.NEGATIVE_INFINITY;
+
+  for (const entry of Object.values(problem.languages)) {
+    const syncedAtMs = Date.parse(entry?.lastSyncedAt ?? "");
+
+    if (!Number.isNaN(syncedAtMs) && syncedAtMs > latest) {
+      latest = syncedAtMs;
+    }
+  }
+
+  return latest;
 }
 
 export function mergeReadmeManagedBlock(

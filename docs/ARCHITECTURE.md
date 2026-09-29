@@ -280,7 +280,9 @@ README 생성 규칙:
 - Programmers는 신뢰할 수 있는 Difficulty source가 없으므로 number, title, solved date,
   단일 Languages 컬럼만 생성한다. Catalog의 `difficulty: "-"`는 v4 호환성을 위해 유지한다.
 - row는 problem-level first accepted date 내림차순으로 정렬한다. 최근에 푼 문제가 위에 온다.
-  date는 day 단위라 같은 날 푼 문제는 numeric problem id 오름차순으로 정렬해 순서를 고정한다.
+  date는 day 단위라 같은 날 푼 문제는 그 문제 language entry 중 가장 늦은 `lastSyncedAt` 내림차순으로 정렬한다.
+  값이 없거나 파싱되지 않는 entry는 가장 오래된 것으로 보고, 시각이 같으면 numeric problem id 오름차순으로 순서를 고정한다.
+  `lastSyncedAt`은 새 commit이 생길 때만 바뀌므로 재렌더만으로는 순서가 흔들리지 않는다. 같은 날 먼저 푼 문제를 다시 제출하면 그날 묶음의 맨 위로 올라온다([ADR 0044](adr/0044-same-day-readme-rows-ordered-by-latest-sync.md)).
   Solution Catalog의 `problems` 배열 자체는 numeric problem id 오름차순을 유지하며, 날짜 정렬은 README 렌더 시점에만 적용한다.
 - Title cell은 Coding Platform policy가 정한 문제 page URL로 link를 건다. 조립할 수 없으면 link 없이 제목만 표시한다.
   - LeetCode는 Catalog의 problem URL을 그대로 쓴다.
