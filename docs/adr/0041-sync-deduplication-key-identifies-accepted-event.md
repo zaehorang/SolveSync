@@ -8,9 +8,9 @@
 
 processed Sync Deduplication Key 보관함에는 7일 TTL과 100개 상한을 둔다. 방금 기록한 항목은 상한과 기한에 상관없이 남긴다.
 
-Solution Catalog의 "같은 `acceptedSourceId`면 revision을 세지 않는다" 분기는 **유지한다.** 의미가 "같은 code"에서 "이미 Sync Branch에 써진 Accepted"로 바뀌었을 뿐이고, 그 조건이 참이 되는 경로가 아직 있다 — commit은 성공했는데 processed 기록이 남지 않아(service worker 종료, 응답 유실) Retry Bundle로 다시 올라오는 경우다.
+Solution Catalog의 "같은 `acceptedSourceId`면 revision을 세지 않는다" 분기는 **유지한다.** 의미가 "같은 code"에서 "이미 Sync Branch에 써진 Accepted"로 바뀌었을 뿐이고, 그 조건이 참이 되는 경로가 아직 있다. 대표 경로는 commit은 성공했는데 processed 기록이 남지 않아(service worker 종료, 응답 유실) Retry Bundle로 다시 올라오는 경우다. LeetCode에는 하나가 더 있다. 제출마다 고정된 공식 submission ID를 쓰므로, processed 기록이 7일 TTL이나 100개 상한으로 지워진 뒤(또는 storage 초기화 뒤) 같은 제출이 다시 감지되면 같은 `acceptedSourceId`가 온다. Programmers와 SWEA는 감지 시각이 매번 달라 이 경로가 없다.
 
-다만 이 분기가 막는 것은 **revision 번호가 두 번 증가하는 것뿐**이다. 그 경로에서도 retry가 `commitFiles`를 호출하므로 같은 Accepted가 같은 `(rev n)` 제목의 commit 두 개로 남는다. 이 한계는 이 결정이 만든 것이 아니라 main에도 있던 것이고, 여기서 고치지 않는다. 별도 변경에서 retry 경로가 막아야 한다.
+다만 이 분기가 막는 것은 **revision 번호가 두 번 증가하는 것뿐**이다. 그 경로에서도 retry가 `commitFiles`를 호출하므로 같은 Accepted가 같은 `(rev n)` 제목의 commit 두 개로 남는다. 이 한계는 이 결정이 만든 것이 아니라 main에도 있던 것이고, 여기서 고치지 않는다. 별도 변경에서 retry 경로가 막아야 한다. processed 기록이 만료된 뒤 LeetCode 제출이 다시 감지되는 경우에도 분기는 번호 증가만 막고 commit은 생긴다.
 
 이유: "같은 code면 commit하지 않는다"는 결정된 정책이 아니라 식별자 재료에서 딸려온 부작용이었다. LeetCode는 플랫폼이 제출마다 고유 ID를 주므로 재제출이 그대로 commit이 됐고, 공식 ID가 없는 Programmers와 SWEA만 code hash로 그 자리를 메우다가 다른 동작을 하게 됐다. 사용자에게는 같은 문제를 다시 푼 기록이 남는 편이 맞고, 플랫폼마다 다를 이유는 더더욱 없다.
 

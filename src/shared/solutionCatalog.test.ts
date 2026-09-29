@@ -92,9 +92,10 @@ describe("Solution Catalog", () => {
     });
   });
 
-  /** 같은 `acceptedSourceId`가 다시 오는 경로는 하나뿐이다 — commit은 성공했는데
-   * processed 기록이 남지 않아 Retry Bundle로 다시 올라오는 경우다. 그 반영은 이미
-   * Sync Branch에 있으므로 날짜와 시각을 덮지 않는다. */
+  /** 같은 `acceptedSourceId`가 다시 오는 대표 경로는 commit은 성공했는데 processed
+   * 기록이 남지 않아 Retry Bundle로 다시 올라오는 경우다. LeetCode에서는 processed
+   * 기록이 만료된 뒤 같은 제출이 다시 감지되어도 온다. 그 반영은 이미 Sync Branch에
+   * 있으므로 날짜와 시각을 덮지 않는다. */
   it("keeps dates for an already committed accepted source id", () => {
     const first = mergeSolutionCatalogEntry(
       createEmptySolutionCatalog(),
