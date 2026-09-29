@@ -50,6 +50,19 @@
 
 바꾸면 이전 캡처와의 비교가 끊기므로 [`e2e/capture/baseProblems.ts`](../../e2e/capture/baseProblems.ts)와 함께 고친다.
 
+## SQL 문제
+
+[ADR 0043](../adr/0043-sql-dialects-as-separate-supported-languages.md)에 따라 SQL 방언 중 `mysql`, `oracle`을 지원한다. Adapter 코드는 일반 문제와 같고 registry alias만 다르다.
+
+**실측 (2026-09-29, 제출하지 않음).** SQL 고득점 Kit 문제 `lessons/59034`(모든 레코드 조회하기)를 열어 확인했다.
+
+- route는 일반 문제와 같은 `/learn/courses/30/lessons/{id}`다.
+- 언어 선택지는 MySQL, Oracle 둘뿐이다.
+- 언어 control `[data-language].active`가 `data-language="mysql"` 또는 `"oracle"`을 돌려준다. `?language=oracle`로 전환해 확인했다.
+- `#modal-dialog`와 `textarea#code`가 일반 문제와 같게 존재한다.
+
+**미확인 (실제 제출이 필요하다).** SQL 정답이 일반 문제와 같은 `정답입니다!` modal로 뜨는지는 확인하지 않았다. 다른 문구나 구조면 Accepted 감지가 SQL 문제에서만 조용히 실패할 수 있다. 확인되기 전까지 SQL Accepted sync를 동작하는 것으로 간주하지 않는다.
+
 ## Accepted Editor Snapshot
 
 Fresh Accepted를 확정한 즉시 다음 값을 한 번 읽어 immutable `ProgrammersAcceptedEditorSnapshot`으로 만든다.
@@ -109,6 +122,7 @@ Language registry에 없는 language(Programmers가 제공하는 C#, Ruby 등)�
 4. 같은 문제에서 실제로 선택 가능한 두 번째 지원 언어로 Accepted를 만든다. 기본 검증 조합은 Swift와 Python3다.
 5. 두 solution file이 존재하고 `programmers/README.md`에 Difficulty column 없이 같은 문제 한 행과 단일 `Languages` cell에 두 link가 표시되는지 확인한다.
 6. `programmers/.programmers-sync/index.json`이 v5이며 두 language entry를 보존하고, 각 언어의 첫 commit message가 `(rev 1)`을 포함하는지 확인한다.
+7. **SQL (미확인 항목).** SQL 문제(예: `lessons/59034`)에서 MySQL로 Accepted를 만들어 `정답입니다!` modal이 일반 문제와 같은 text로 뜨고 `programmers/mysql/{id}_{title}.sql`이 생기는지 확인한다. 같은 문제를 Oracle로도 풀어 `programmers/oracle/`에 두 번째 파일이 생기고 README의 한 행에 두 link가 있는지 확인한다. 결과는 위 "SQL 문제" 절에 반영한다.
 
 ## Investigation notes (비계약)
 

@@ -16,9 +16,29 @@ const CODING_PLATFORMS: readonly CodingPlatform[] = [
 
 /** 각 플랫폼이 실제로 제출 언어로 제공하는 것. SWEA는 `select#sel_lang`에
  * C++14, JAVA, Python 3 셋만 둔다. */
+const GENERAL_PURPOSE_LANGUAGES = [
+  "swift",
+  "python3",
+  "java",
+  "cpp",
+  "javascript",
+  "typescript",
+  "kotlin",
+  "go",
+  "rust"
+] as const;
+
+/** SQL은 방언별 별도 언어다. Programmers는 MySQL과 Oracle만, LeetCode는 넷 다
+ * 제공하고 SWEA에는 SQL 문제가 없다. */
 const PLATFORM_SUPPORTED_LANGUAGES: Record<CodingPlatform, readonly string[]> = {
-  leetcode: SUPPORTED_LANGUAGE_KEYS,
-  programmers: SUPPORTED_LANGUAGE_KEYS,
+  leetcode: [
+    ...GENERAL_PURPOSE_LANGUAGES,
+    "mysql",
+    "oracle",
+    "postgresql",
+    "mssql"
+  ],
+  programmers: [...GENERAL_PURPOSE_LANGUAGES, "mysql", "oracle"],
   swea: ["python3", "java", "cpp"]
 };
 
@@ -39,17 +59,15 @@ describe("registry 무결성", () => {
     );
   });
 
-  it("folder와 extension이 언어마다 겹치지 않는다", () => {
-    // 겹치면 서로 다른 언어의 Solution File이 같은 경로로 덮어써진다.
+  it("folder가 언어마다 겹치지 않는다", () => {
+    // 겹치면 서로 다른 언어의 Solution File이 같은 경로로 덮어써진다. extension은
+    // SQL 방언 넷이 `sql`을 공유하므로 겹침 검사 대상이 아니다. 경로 충돌은
+    // folder가 갈라 준다.
     const folders = SUPPORTED_LANGUAGE_KEYS.map(
       (language) => LANGUAGE_REGISTRY[language].folder
     );
-    const extensions = SUPPORTED_LANGUAGE_KEYS.map(
-      (language) => LANGUAGE_REGISTRY[language].extension
-    );
 
     expect(new Set(folders).size).toBe(folders.length);
-    expect(new Set(extensions).size).toBe(extensions.length);
   });
 
   it("folder와 extension에 경로 구분자나 공백이 없다", () => {
@@ -145,6 +163,71 @@ describe("mapPlatformLanguage", () => {
     // SWEA 경로에는 Swift가 없다. 다른 플랫폼 alias가 새어 들어오면 안 된다.
     expect(mapPlatformLanguage("swea", "swift")).toBeNull();
     expect(mapPlatformLanguage("swea", "kotlin")).toBeNull();
+  });
+});
+
+describe("SQL 방언", () => {
+  it("방언마다 별도 key, 폴더, 표기를 갖고 확장자는 모두 sql이다", () => {
+    const expected = {
+      mysql: ["mysql", "MySQL"],
+      oracle: ["oracle", "Oracle"],
+      postgresql: ["postgresql", "PostgreSQL"],
+      mssql: ["mssql", "MS SQL Server"]
+    } as const;
+
+    for (const [key, [folder, displayName]] of Object.entries(expected)) {
+      const definition = LANGUAGE_REGISTRY[key as keyof typeof expected];
+      expect(definition.folder).toBe(folder);
+      expect(definition.displayName).toBe(displayName);
+      expect(definition.extension).toBe("sql");
+      expect(definition.aliases.swea).toEqual([]);
+    }
+  });
+
+  it("registry 순서는 rust 뒤에 mysql, oracle, postgresql, mssql이다", () => {
+    expect(SUPPORTED_LANGUAGE_KEYS.slice(-5)).toEqual([
+      "rust",
+      "mysql",
+      "oracle",
+      "postgresql",
+      "mssql"
+    ]);
+  });
+
+  it("LeetCode는 verboseName과 name 양쪽 표기를 받는다", () => {
+    // client는 verboseName을 먼저, 없으면 name을 읽는다.
+    const cases: Array<[string, string]> = [
+      ["MySQL", "mysql"],
+      ["mysql", "mysql"],
+      ["Oracle", "oracle"],
+      ["oraclesql", "oracle"],
+      ["PostgreSQL", "postgresql"],
+      ["postgresql", "postgresql"],
+      ["MS SQL Server", "mssql"],
+      ["mssql", "mssql"]
+    ];
+
+    for (const [raw, language] of cases) {
+      expect(mapPlatformLanguage("leetcode", raw)).toBe(language);
+    }
+  });
+
+  it("Programmers는 MySQL과 Oracle만 받는다", () => {
+    expect(mapPlatformLanguage("programmers", "mysql")).toBe("mysql");
+    expect(mapPlatformLanguage("programmers", "oracle")).toBe("oracle");
+    expect(mapPlatformLanguage("programmers", "postgresql")).toBeNull();
+    expect(mapPlatformLanguage("programmers", "mssql")).toBeNull();
+  });
+
+  it("SWEA는 SQL 방언을 받지 않는다", () => {
+    for (const raw of ["mysql", "oracle", "postgresql", "mssql"]) {
+      expect(mapPlatformLanguage("swea", raw)).toBeNull();
+    }
+  });
+
+  it("Pandas는 계속 지원하지 않는다", () => {
+    expect(mapPlatformLanguage("leetcode", "Pandas")).toBeNull();
+    expect(mapPlatformLanguage("leetcode", "pythondata")).toBeNull();
   });
 });
 

@@ -13,7 +13,11 @@ export type SupportedLanguage =
   | "typescript"
   | "kotlin"
   | "go"
-  | "rust";
+  | "rust"
+  | "mysql"
+  | "oracle"
+  | "postgresql"
+  | "mssql";
 
 export type LeetCodeLanguage =
   | "Swift"
@@ -28,6 +32,10 @@ export type LeetCodeLanguage =
   | "Go"
   | "Kotlin"
   | "Rust"
+  | "MySQL"
+  | "Oracle"
+  | "PostgreSQL"
+  | "MS SQL Server"
   | "Ruby"
   | "PHP"
   | "Scala"
@@ -159,7 +167,11 @@ export function isSupportedLanguage(value: unknown): value is SupportedLanguage 
     value === "typescript" ||
     value === "kotlin" ||
     value === "go" ||
-    value === "rust"
+    value === "rust" ||
+    value === "mysql" ||
+    value === "oracle" ||
+    value === "postgresql" ||
+    value === "mssql"
   );
 }
 

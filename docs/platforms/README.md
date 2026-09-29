@@ -22,7 +22,7 @@
 | Solution code source | GraphQL Accepted Submission detail | `textarea#code.value` | MAIN world bridge의 `getValue()` |
 | `acceptedSourceId` | submission ID (플랫폼 공식) | `programmers:{lessonId}:{language}:{detectedAtMs}` | `swea:{contestProbId}:{language}:{detectedAtMs}` |
 | Difficulty | 있음 | 없음 | 없음. 풀이 페이지에 없고 가져오지 않는다 |
-| 지원 언어 | language registry 전체 | language registry 전체 | `cpp`, `java`, `python3` 셋뿐 |
+| 지원 언어 | language registry 전체 | language registry 중 `postgresql`, `mssql`을 뺀 것. SQL은 `mysql`, `oracle`만 | `cpp`, `java`, `python3` 셋뿐. SQL 없음 |
 | 오류 코드 | `leetcode_auth_required`, `leetcode_fetch_failed` | `programmers_extract_failed` | `swea_extract_failed` |
 
 ## Accepted 감지가 갈리는 세 층

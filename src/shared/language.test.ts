@@ -18,9 +18,14 @@ describe("LeetCode language mapping", () => {
     expect(mapLeetCodeLanguage("Kotlin")).toBe("kotlin");
     expect(mapLeetCodeLanguage("Go")).toBe("go");
     expect(mapLeetCodeLanguage("Rust")).toBe("rust");
+    expect(mapLeetCodeLanguage("MySQL")).toBe("mysql");
+    expect(mapLeetCodeLanguage("Oracle")).toBe("oracle");
+    expect(mapLeetCodeLanguage("PostgreSQL")).toBe("postgresql");
+    expect(mapLeetCodeLanguage("MS SQL Server")).toBe("mssql");
   });
 
   it("returns null for unsupported languages", () => {
+    expect(mapLeetCodeLanguage("Pandas")).toBeNull();
     expect(mapLeetCodeLanguage("Python")).toBeNull();
     expect(mapLeetCodeLanguage("Ruby")).toBeNull();
   });
@@ -37,6 +42,10 @@ describe("LeetCode language mapping", () => {
     expect(mapProgrammersLanguage("Kotlin")).toBe("kotlin");
     expect(mapProgrammersLanguage("Go")).toBe("go");
     expect(mapProgrammersLanguage("Rust")).toBe("rust");
+    expect(mapProgrammersLanguage("mysql")).toBe("mysql");
+    expect(mapProgrammersLanguage("oracle")).toBe("oracle");
+    expect(mapProgrammersLanguage("postgresql")).toBeNull();
+    expect(mapProgrammersLanguage("mssql")).toBeNull();
   });
 
   it("builds the stable Sync Deduplication Key", () => {

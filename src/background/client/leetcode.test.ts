@@ -199,6 +199,57 @@ describe("LeetCode background client", () => {
     });
   });
 
+  it.each([
+    ["mysql", "MySQL", "mysql"],
+    ["oraclesql", "Oracle", "oracle"],
+    ["postgresql", "PostgreSQL", "postgresql"],
+    ["mssql", "MS SQL Server", "mssql"],
+    ["pythondata", "Pandas", null]
+  ])(
+    "maps the LeetCode Database language %s / %s to %s",
+    async (name, verboseName, expected) => {
+      const detail = (lang: unknown) =>
+        graphQLResponse({
+          submissionDetails: {
+            code: "SELECT 1;",
+            timestamp: "1767225600",
+            statusDisplay: "Accepted",
+            lang,
+            question: { titleSlug: "combine-two-tables" }
+          }
+        });
+      const list = () =>
+        graphQLResponse({
+          questionSubmissionList: {
+            submissions: [
+              {
+                id: "123456789",
+                titleSlug: "combine-two-tables",
+                statusDisplay: "Accepted",
+                lang: name,
+                langName: verboseName,
+                timestamp: "1767225600",
+                isPending: false
+              }
+            ]
+          }
+        });
+
+      // verboseName과 name 어느 쪽만 와도 같은 언어로 매핑된다.
+      for (const lang of [
+        { name, verboseName },
+        { name },
+        { verboseName }
+      ]) {
+        const result = await fetchLatestAcceptedSubmission("combine-two-tables", {
+          fetchImpl: mockFetch(list(), detail(lang))
+        });
+
+        expect(result.supportedLanguage).toBe(expected);
+      }
+    }
+  );
+
   it("normalizes malformed metadata responses", async () => {
     const fetchImpl = mockFetch(graphQLResponse({ question: null }));
 

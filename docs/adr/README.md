@@ -2,7 +2,7 @@
 
 설계 결정과 tradeoff의 source of truth다. 새 ADR은 [TEMPLATE.md](TEMPLATE.md)에서 시작한다. 모든 ADR은 제목 다음에 `상태:` 줄을 갖는다. 구현이 ADR과 어긋나면 어느 쪽이 맞는지 먼저 판단하고, 결정이 바뀐 것이면 새 ADR을 쓴다. 기존 ADR을 조용히 고쳐 과거 결정을 덮어쓰지 않는다.
 
-**다음에 쓸 번호는 0043이다.** 아래 "번호 구멍"을 참고한다.
+**다음에 쓸 번호는 0044다.** 아래 "번호 구멍"을 참고한다.
 
 ## 목록
 
@@ -36,7 +36,7 @@
 | 0027 | [Solution Revision Number를 commit message에 포함한다](0027-solution-revision-numbered-commit-message.md) | Accepted |
 | 0028 | [Programmers DOM Snapshot의 residual risk를 수용한다](0028-programmers-dom-snapshot-risk-acceptance.md) | Accepted |
 | 0029 | [Public GitHub App Device Flow와 local token refresh 사용](0029-public-github-app-device-flow-with-local-token-refresh.md) | Accepted |
-| 0030 | [중앙 language registry와 단일 README Languages column 사용](0030-central-language-registry-and-single-readme-languages-column.md) | Accepted |
+| 0030 | [중앙 language registry와 단일 README Languages column 사용](0030-central-language-registry-and-single-readme-languages-column.md) | Accepted (지원 언어 목록은 0043) |
 | 0034 | [Fresh Accepted transition은 route-bound immutable event로 캡처한다](0034-fresh-accepted-transition-and-immutable-event.md) | Accepted (일부는 0037) |
 | 0035 | [SWEA editor code는 MAIN world bridge로 읽는다](0035-main-world-editor-bridge-for-swea.md) | Accepted |
 | 0036 | [Content route key는 adapter가 확정한다](0036-adapter-resolved-content-route-key.md) | Accepted |
@@ -46,6 +46,7 @@
 | 0040 | [Solution Catalog v5에서 읽지 않는 activity를 지운다](0040-drop-unread-activity-from-solution-catalog.md) | Accepted |
 | 0041 | [Sync Deduplication Key는 code가 아니라 Accepted Signal을 식별한다](0041-sync-deduplication-key-identifies-accepted-event.md) | Accepted (일부는 0042) |
 | 0042 | [Solution Catalog에 이미 있는 Accepted는 commit하지 않는다](0042-skip-commit-for-accepted-already-in-solution-catalog.md) | Accepted |
+| 0043 | [SQL 방언을 방언별 별도 supported language로 추가한다](0043-sql-dialects-as-separate-supported-languages.md) | Accepted |
 
 ## 번호 구멍
 

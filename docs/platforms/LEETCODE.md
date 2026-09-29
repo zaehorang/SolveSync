@@ -58,6 +58,24 @@
 
 `content:accepted_detected` payload는 `codingPlatform: "leetcode"`, `titleSlug`, `pageUrl`, `detectedAt`을 포함한다. 이 값들은 같은 route-bound fresh Accepted event에서 확정한다.
 
+## Database 문제와 SQL 방언
+
+[ADR 0043](../adr/0043-sql-dialects-as-separate-supported-languages.md)에 따라 `mysql`, `oracle`, `postgresql`, `mssql`을 지원한다.
+
+**실측 (2026-09-29, 제출하지 않음).** GraphQL `languageList`가 돌려주는 SQL 관련 항목은 다음과 같다.
+
+| `name` | `verboseName` | supported language |
+| --- | --- | --- |
+| `mysql` | `MySQL` | `mysql` |
+| `oraclesql` | `Oracle` | `oracle` |
+| `postgresql` | `PostgreSQL` | `postgresql` |
+| `mssql` | `MS SQL Server` | `mssql` |
+| `pythondata` | `Pandas` | 지원하지 않음. `unsupported_language` |
+
+LeetCode client는 `lang.verboseName`, `lang.name`, `langName` 순서로 읽는다. alias 정규화가 공백을 지우므로 `MS SQL Server`는 `mssqlserver`가 되어 `mssql`과 별개 alias로 등록했다. 양쪽 표기는 `languageRegistry.test.ts`와 `client/leetcode.test.ts`가 검증한다.
+
+**미확인 (실제 제출이 필요하다).** Database 문제가 일반 문제와 같은 Accepted 감지(결과 text 선별)와 같은 `submissionDetails` 조회 흐름을 타는지는 확인하지 않았다. 확인되기 전까지 SQL Accepted sync를 동작하는 것으로 간주하지 않는다.
+
 ## 오류 계약
 
 - 로그인 만료나 browser session 문제는 `leetcode_auth_required`로 normalize한다.
@@ -97,3 +115,4 @@ Vitest에서 다음을 검증한다.
 2. Test branch에 `leetcode/README.md`와 `leetcode/.leetcode-sync/index.json`이 solution file과 같은 commit에 포함됐는지 확인한다.
 3. Wrong Answer 제출에서 sync가 없을 뿐 아니라 **source 조회 오류 toast도 나타나지 않는지** 확인한다. LeetCode만 실패 시 GraphQL 조회 경로가 있어 stale Accepted를 재사용하면 여기서 드러난다.
 4. SPA navigation으로 다른 문제에 이동해 Accepted를 만들고 현재 `titleSlug`와 path만 사용되는지 확인한다.
+5. **SQL (미확인 항목).** Database 문제(예: `combine-two-tables`)에서 MySQL로 Accepted를 만들어 감지와 제출 상세 조회가 일반 문제와 같게 동작하고 `leetcode/mysql/0175_combine_two_tables.sql`이 생기는지 확인한다. 결과는 위 "Database 문제와 SQL 방언" 절에 반영한다.

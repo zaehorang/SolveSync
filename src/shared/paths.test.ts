@@ -43,7 +43,11 @@ describe("solution path generation", () => {
       typescript: "leetcode/typescript/0001_two_sum.ts",
       kotlin: "leetcode/kotlin/0001_two_sum.kt",
       go: "leetcode/go/0001_two_sum.go",
-      rust: "leetcode/rust/0001_two_sum.rs"
+      rust: "leetcode/rust/0001_two_sum.rs",
+      mysql: "leetcode/mysql/0001_two_sum.sql",
+      oracle: "leetcode/oracle/0001_two_sum.sql",
+      postgresql: "leetcode/postgresql/0001_two_sum.sql",
+      mssql: "leetcode/mssql/0001_two_sum.sql"
     } as const;
 
     for (const language of SUPPORTED_LANGUAGE_KEYS) {
@@ -51,6 +55,33 @@ describe("solution path generation", () => {
         expected[language]
       );
     }
+  });
+
+  it("builds SQL dialect paths per platform", () => {
+    expect(
+      buildSolutionPath(
+        "leetcode",
+        {
+          problemId: "175",
+          frontendId: "175",
+          title: "Combine Two Tables",
+          titleSlug: "combine-two-tables"
+        },
+        "mysql"
+      )
+    ).toBe("leetcode/mysql/0175_combine_two_tables.sql");
+    expect(
+      buildSolutionPath(
+        "programmers",
+        {
+          problemId: "59034",
+          frontendId: "59034",
+          title: "모든 레코드 조회하기",
+          titleSlug: "59034"
+        },
+        "oracle"
+      )
+    ).toBe("programmers/oracle/59034_모든_레코드_조회하기.sql");
   });
 
   it("builds Programmers paths while preserving Korean title text", () => {

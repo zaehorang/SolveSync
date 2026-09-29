@@ -221,6 +221,44 @@ describe("README managed block", () => {
     expect(twoSumRow?.split("|")).toHaveLength(7);
   });
 
+  it("keeps MySQL and Oracle solutions of one problem side by side in registry order", () => {
+    const base = {
+      problemId: "59034",
+      frontendId: "59034",
+      title: "모든 레코드 조회하기",
+      titleSlug: "59034",
+      difficulty: "",
+      url: "https://school.programmers.co.kr/learn/courses/30/lessons/59034"
+    };
+    // 등록 순서(mysql → oracle)와 반대로 넣어도 셀 순서는 registry를 따른다.
+    const withOracle = mergeSolutionCatalogEntry(
+      createEmptySolutionCatalog(),
+      { ...base, acceptedSourceId: "1", language: "oracle" },
+      "programmers/oracle/59034_모든_레코드_조회하기.sql",
+      "2026-09-29T04:00:00.000Z",
+      "2026-09-29"
+    );
+    const both = mergeSolutionCatalogEntry(
+      withOracle,
+      { ...base, acceptedSourceId: "2", language: "mysql" },
+      "programmers/mysql/59034_모든_레코드_조회하기.sql",
+      "2026-09-29T04:05:00.000Z",
+      "2026-09-29"
+    );
+
+    expect(both.problems).toHaveLength(1);
+    expect(Object.keys(both.problems[0]?.languages ?? {}).sort()).toEqual([
+      "mysql",
+      "oracle"
+    ]);
+
+    const row = renderManagedReadmeTable(both, "programmers")
+      .split("\n")
+      .find((line) => line.includes("59034"));
+
+    expect(row).toMatch(/\[MySQL\]\(mysql\/59034_[^)]+\.sql\) · \[Oracle\]\(oracle\/59034_[^)]+\.sql\)/u);
+  });
+
   it("replaces only the existing managed marker block", () => {
     const table = renderManagedReadmeTable(solutionCatalog);
     const merged = mergeReadmeManagedBlock(

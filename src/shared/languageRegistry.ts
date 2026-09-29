@@ -17,7 +17,11 @@ export const SUPPORTED_LANGUAGE_KEYS = [
   "typescript",
   "kotlin",
   "go",
-  "rust"
+  "rust",
+  "mysql",
+  "oracle",
+  "postgresql",
+  "mssql"
 ] as const satisfies readonly SupportedLanguage[];
 
 export const LANGUAGE_REGISTRY: Record<SupportedLanguage, LanguageDefinition> = {
@@ -117,6 +121,50 @@ export const LANGUAGE_REGISTRY: Record<SupportedLanguage, LanguageDefinition> = 
     aliases: {
       leetcode: ["rust"],
       programmers: ["rust"],
+      swea: []
+    }
+  },
+  mysql: {
+    key: "mysql",
+    displayName: "MySQL",
+    folder: "mysql",
+    extension: "sql",
+    aliases: {
+      leetcode: ["mysql"],
+      programmers: ["mysql"],
+      swea: []
+    }
+  },
+  oracle: {
+    key: "oracle",
+    displayName: "Oracle",
+    folder: "oracle",
+    extension: "sql",
+    aliases: {
+      leetcode: ["oracle", "oraclesql"],
+      programmers: ["oracle"],
+      swea: []
+    }
+  },
+  postgresql: {
+    key: "postgresql",
+    displayName: "PostgreSQL",
+    folder: "postgresql",
+    extension: "sql",
+    aliases: {
+      leetcode: ["postgresql"],
+      programmers: [],
+      swea: []
+    }
+  },
+  mssql: {
+    key: "mssql",
+    displayName: "MS SQL Server",
+    folder: "mssql",
+    extension: "sql",
+    aliases: {
+      leetcode: ["mssql", "MS SQL Server"],
+      programmers: [],
       swea: []
     }
   }
