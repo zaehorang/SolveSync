@@ -2,7 +2,7 @@
 
 설계 결정과 tradeoff의 source of truth다. 새 ADR은 [TEMPLATE.md](TEMPLATE.md)에서 시작한다. 모든 ADR은 제목 다음에 `상태:` 줄을 갖는다. 구현이 ADR과 어긋나면 어느 쪽이 맞는지 먼저 판단하고, 결정이 바뀐 것이면 새 ADR을 쓴다. 기존 ADR을 조용히 고쳐 과거 결정을 덮어쓰지 않는다.
 
-**다음에 쓸 번호는 0045다.** 아래 "번호 구멍"을 참고한다.
+**다음에 쓸 번호는 0046다.** 아래 "번호 구멍"을 참고한다.
 
 ## 목록
 
@@ -17,7 +17,7 @@
 | 0007 | [단일 commit을 위해 GitHub Git Data API 사용](0007-github-git-data-api-for-single-commit.md) | Accepted |
 | 0008 | [Solution Catalog를 README source of truth로 사용](0008-solution-catalog-as-readme-source-of-truth.md) | Accepted |
 | 0009 | [Swift solution은 Xcode build folder 밖에 저장](0009-swift-solutions-outside-xcode-build-folder.md) | Accepted |
-| 0010 | [Chrome Web Store 배포는 v2로 연기](0010-defer-chrome-web-store-to-v2.md) | Superseded by 0038 |
+| 0010 | [Chrome Web Store 배포는 v2로 연기](0010-defer-chrome-web-store-to-v2.md) | Superseded by 0038, 이어 0045 |
 | 0011 | [외부 API client는 background에 둔다](0011-external-api-clients-in-background.md) | Accepted |
 | 0012 | [LeetCode 조회는 GraphQL 우선으로 격리한다](0012-leetcode-graphql-first-lookup.md) | Accepted |
 | 0013 | [README는 v1에서 항상 갱신한다](0013-always-update-readme-in-v1.md) | Accepted |
@@ -41,13 +41,14 @@
 | 0035 | [SWEA editor code는 MAIN world bridge로 읽는다](0035-main-world-editor-bridge-for-swea.md) | Accepted |
 | 0036 | [Content route key는 adapter가 확정한다](0036-adapter-resolved-content-route-key.md) | Accepted |
 | 0037 | [Accepted event는 감지 즉시 전달하고 window는 억제에만 쓴다](0037-immediate-accepted-delivery-with-suppression-window.md) | Accepted |
-| 0038 | [Chrome Web Store Public 배포를 진행한다](0038-chrome-web-store-public-release.md) | Accepted |
+| 0038 | [Chrome Web Store Public 배포를 진행한다](0038-chrome-web-store-public-release.md) | Superseded by 0045 |
 | 0039 | [Solution Revision Number는 `#n` 대신 `(rev n)`으로 표기한다](0039-revision-suffix-avoids-issue-autolink.md) | Accepted |
 | 0040 | [Solution Catalog v5에서 읽지 않는 activity를 지운다](0040-drop-unread-activity-from-solution-catalog.md) | Accepted |
 | 0041 | [Sync Deduplication Key는 code가 아니라 Accepted Signal을 식별한다](0041-sync-deduplication-key-identifies-accepted-event.md) | Accepted (일부는 0042) |
 | 0042 | [Solution Catalog에 이미 있는 Accepted는 commit하지 않는다](0042-skip-commit-for-accepted-already-in-solution-catalog.md) | Accepted |
 | 0043 | [SQL 방언을 방언별 별도 supported language로 추가한다](0043-sql-dialects-as-separate-supported-languages.md) | Accepted |
 | 0044 | [같은 날 푼 README 행은 최근 동기화한 것이 위에 오게 한다](0044-same-day-readme-rows-ordered-by-latest-sync.md) | Accepted |
+| 0045 | [Chrome Web Store에 배포하지 않고 GitHub Release ZIP만 쓴다](0045-github-release-zip-only-distribution.md) | Accepted |
 
 ## 번호 구멍
 

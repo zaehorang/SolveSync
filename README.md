@@ -4,15 +4,15 @@
   <img src="assets/brand/solvesync-icon.svg" alt="SolveSync logo" width="96" height="96">
 </p>
 
-SolveSync는 LeetCode, Programmers와 SW Expert Academy(SWEA)에서 Accepted 된 풀이를 사용자가 선택한 GitHub 저장소로 자동 동기화하는 local unpacked Chrome extension입니다.
+SolveSync는 LeetCode, Programmers와 SW Expert Academy(SWEA)에서 Accepted(정답 판정) 된 풀이를 사용자가 선택한 GitHub 저장소로 자동 동기화하는 Chrome 확장입니다. 현재는 압축을 푼 폴더를 Chrome에 직접 불러오는 방식(local unpacked)으로 설치합니다.
 
-문제를 푼 뒤 코드를 복사하고, 파일명을 정하고, GitHub에 commit하고, README 진행표를 갱신하는 반복 작업을 줄이기 위한 도구입니다. Accepted 결과가 감지되면 SolveSync가 Solution File, Solution README, Solution Catalog를 한 번의 GitHub commit으로 반영합니다.
+문제를 푼 뒤 코드를 복사하고, 파일명을 정하고, GitHub에 commit하고, README 진행표를 갱신하는 반복 작업을 줄이기 위한 도구입니다. Accepted 결과가 감지되면 SolveSync가 풀이 파일(Solution File), 진행표(Solution README), 진행표의 원본 데이터(Solution Catalog)를 한 번의 GitHub commit으로 반영합니다.
 
 <p>
   <img src="assets/readme/public-preview-flow.svg" alt="정답 결과가 선택한 GitHub 저장소로 자동 동기화되는 흐름" width="100%">
 </p>
 
-현재 상태는 GitHub Public Preview입니다. Chrome Web Store 배포판은 아니지만, [GitHub Releases](https://github.com/zaehorang/SolveSync/releases)에서 설치용 ZIP을 받을 수 있습니다.
+현재 상태는 GitHub Public Preview(`v0.1.0-preview.3` 기준)입니다. Chrome Web Store에는 배포하지 않으며, [GitHub Releases](https://github.com/zaehorang/SolveSync/releases)에서 설치용 ZIP을 받아 설치합니다.
 
 ## 다른 사람도 사용할 수 있나요?
 
@@ -20,14 +20,14 @@ SolveSync는 LeetCode, Programmers와 SW Expert Academy(SWEA)에서 Accepted 된
 
 - 공개 Release ZIP에는 SolveSync가 운영하는 public GitHub App의 공개 client ID와 slug만 포함됩니다. client secret은 포함되지 않습니다.
 - 각 사용자는 GitHub 로그인 후 [SolveSync Preview GitHub App](https://github.com/apps/solvesync-preview/installations/new)을 본인이 소유한 repository에 직접 설치합니다.
-- 아직 Chrome Web Store 배포판이 아니므로 Chrome의 Developer mode와 `Load unpacked`가 필요합니다.
+- Chrome Web Store 배포판이 없으므로 Chrome의 Developer mode와 `Load unpacked`가 필요합니다.
 
 ## 지원 범위
 
 - LeetCode, Programmers, SWEA의 Accepted solution sync
-- 지원 언어: Swift, Python3, Java, C++, JavaScript, TypeScript, Kotlin, Go, Rust. 각 Coding Platform이 실제로 제공하는 언어만 해당하며 SWEA는 C++14, JAVA, Python 3 셋뿐입니다
-- GitHub App Device Flow 로그인과 App 설치 repository 기반 Sync Repository/Sync Branch 선택
-- Auto Sync, Sync History, Retry Bundle
+- 지원 언어: Swift, Python3, Java, C++, JavaScript, TypeScript, Kotlin, Go, Rust와 SQL 방언 넷(MySQL, Oracle, PostgreSQL, MS SQL Server). 각 Coding Platform이 실제로 제공하는 언어만 해당합니다. SWEA는 C++14, JAVA, Python 3 셋뿐이고, Programmers의 SQL은 MySQL과 Oracle만 지원합니다. 플랫폼별 차이는 [PRD](docs/PRD.md)를 따릅니다
+- GitHub 로그인(Device Flow: GitHub 화면에서 일회용 code를 승인하는 방식)과, GitHub App을 설치한 repository 중에서 Sync Repository(동기화할 저장소)/Sync Branch(commit이 쌓일 branch) 선택
+- Auto Sync(자동 동기화), Sync History(동기화 기록), Retry Bundle(실패한 동기화를 다시 시도하려고 임시 보관하는 묶음)
 - 별도 backend server 없음
 
 지원하지 않는 범위:
@@ -45,7 +45,7 @@ SolveSync는 LeetCode, Programmers와 SW Expert Academy(SWEA)에서 Accepted 된
 - 로그인된 LeetCode, Programmers 또는 SWEA 계정
 - 본인이 소유한 GitHub repository
 
-1. [GitHub Releases](https://github.com/zaehorang/SolveSync/releases)에서 최신 preview의 `solvesync-*.zip`을 내려받아 압축을 풉니다.
+1. [GitHub Releases](https://github.com/zaehorang/SolveSync/releases)에서 최신 Release의 `solvesync-*.zip`(예: `solvesync-v0.1.0-preview.3.zip`)을 내려받아 압축을 풉니다.
 2. Chrome에서 `chrome://extensions`를 열고 Developer mode를 켭니다.
 3. `Load unpacked`를 누르고 압축을 푼 폴더를 선택합니다. 폴더 바로 아래에 `manifest.json`이 있어야 합니다.
 4. SolveSync Options에서 `Sign in with GitHub`를 누르고 GitHub에 표시된 일회용 code를 승인합니다.
@@ -60,47 +60,15 @@ Chrome에서 확장 폴더를 삭제하면 로드할 수 없으므로, 압축을
 
 GitHub의 `Settings → Applications → Installed GitHub Apps → SolveSync Preview → Configure`에서 다음을 확인하세요.
 
-1. 대기 중인 권한 변경 요청이 있으면 승인합니다.
+1. 설치된 App의 권한에 `Contents: Read and write`가 표시되는지 확인합니다. 대기 중인 권한 변경 요청이 있으면 승인합니다.
 2. Repository access에 동기화할 repository가 포함되어 있는지 확인합니다.
 3. 계속 실패하면 SolveSync Preview App을 제거한 뒤 해당 repository를 선택해 다시 설치하고, SolveSync Options에서 다시 로그인합니다.
 
 GitHub App의 repository 권한을 나중에 추가하거나 확장하면 기존 설치에는 자동으로 적용되지 않으며, 설치 소유자의 별도 승인이 필요합니다. 자세한 내용은 [GitHub의 권한 변경 승인 안내](https://docs.github.com/apps/using-github-apps/approving-updated-permissions-for-a-github-app)를 참고하세요.
 
-## 개발자 빌드
+## 소스에서 직접 빌드하기
 
-source에서 직접 build하려면 Node.js와 npm이 필요합니다.
-
-```bash
-git clone https://github.com/zaehorang/SolveSync.git
-cd SolveSync
-npm install
-cp .env.example .env.local
-```
-
-`.env.local`의 `VITE_GITHUB_APP_CLIENT_ID`, `VITE_GITHUB_APP_SLUG`를 사용할 GitHub App의 공개 값으로 바꿉니다. client secret은 필요하지 않으며 입력하면 안 됩니다. maintainer용 등록 절차는 [GitHub App 설정 가이드](docs/GITHUB_APP_SETUP.md)를 따릅니다.
-
-```bash
-npm run build
-```
-
-Chrome에서 `chrome://extensions`를 열고 Developer mode를 켠 뒤, `Load unpacked`로 생성된 `dist`를 선택합니다.
-
-## GitHub App 설정
-
-Release ZIP 사용자는 GitHub App을 새로 등록할 필요가 없습니다. 직접 배포용 build를 만드는 maintainer만 public GitHub App을 등록합니다.
-
-- Device Flow 활성화
-- Expiring user access token 활성화
-- Repository permission: `Contents: Read and write`
-- Repository permission: `Metadata: Read`
-- 다른 사람이 설치할 수 있도록 `Where can this GitHub App be installed?`를 `Any account`로 설정
-- 각 사용자는 실제로 동기화할 본인 소유 repository만 App 설치 대상으로 선택
-
-확장을 로드한 사용자는 Options에서 `Sign in with GitHub`를 누르고 일회용 code를 승인한 뒤, `Install or configure GitHub App`으로 동기화할 repository를 선택합니다.
-
-GitHub App 등록과 Device Flow 공식 설명은 [GitHub의 user access token 문서](https://docs.github.com/apps/creating-github-apps/authenticating-with-a-github-app/generating-a-user-access-token-for-a-github-app)를 따르세요.
-
-등록 값, 권한, tester onboarding 절차는 [docs/GITHUB_APP_SETUP.md](docs/GITHUB_APP_SETUP.md)에 정리되어 있습니다.
+Release ZIP 대신 소스에서 직접 만들려면 [GitHub App 설정 가이드의 소스 빌드 절](docs/GITHUB_APP_SETUP.md#2-local-build-설정)을 따릅니다. GitHub App 등록과 `.env.local` 설정이 필요하며, Release ZIP 사용자는 필요하지 않습니다. 문서 전체 안내는 [docs/README.md](docs/README.md)에 있습니다.
 
 ## 보안과 프라이버시 요약
 
@@ -112,22 +80,9 @@ GitHub App 등록과 Device Flow 공식 설명은 [GitHub의 user access token �
 
 자세한 내용은 [PRIVACY.md](PRIVACY.md)와 [SECURITY.md](SECURITY.md)를 확인하세요.
 
-## GitHub Support Boundary
+## 문의
 
-GitHub Issue로 받을 수 있는 내용:
-
-- bug report
-- docs/install question
-- 공개 문서의 누락 또는 부정확한 설명
-
-지원하지 않는 내용:
-
-- 개인 GitHub 계정 설정 대행
-- GitHub token 값 검토
-- private repository와 Coding Platform session 문제의 대리 디버깅
-- issue, screenshot, logs에 포함된 secret 분석
-
-Issue를 작성할 때 access token, refresh token, device code, cookie, session 값, private solution code를 포함하지 마세요.
+bug report, 설치 문의, 문서 오류는 GitHub Issue로 받습니다. 지원 범위와 Issue에 넣으면 안 되는 값(token, cookie, session 값, private solution code)은 [SECURITY.md](SECURITY.md)를 따릅니다.
 
 ## License
 

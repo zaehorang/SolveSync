@@ -8,7 +8,7 @@ SolveSync는 standalone Chrome extension이다. LeetCode, Programmers와 SWEA �
 이 확장은 별도 backend server를 운영하지 않는다. 모든 orchestration은 브라우저 extension runtime 안에서 수행한다.
 
 ## Domain Naming Contract
-표준 코드/domain 용어는 `CONTEXT.md`를 따른다. TypeScript identifier와 runtime message payload는 `CodingPlatform`, `SyncDeduplicationKey`, `acceptedSourceId`, `SyncRepository`, `SyncBranch`, `SyncHistoryEntry`, `RetryBundle`, `ProgrammersAcceptedEditorSnapshot` 계약을 사용한다. Storage v5는 settings와 GitHub auth session을 분리하고, Solution Catalog v4는 `lastAcceptedSourceId`, `solutionRevisionNumber`, 9개 supported language key를 사용한다.
+표준 코드/domain 용어는 `CONTEXT.md`를 따른다. TypeScript identifier와 runtime message payload는 `CodingPlatform`, `SyncDeduplicationKey`, `acceptedSourceId`, `SyncRepository`, `SyncBranch`, `SyncHistoryEntry`, `RetryBundle`, `ProgrammersAcceptedEditorSnapshot` 계약을 사용한다. Storage v5는 settings와 GitHub auth session을 분리하고, Solution Catalog v5는 `lastAcceptedSourceId`, `solutionRevisionNumber`, 13개 supported language key(9개 언어와 SQL 방언 넷)를 사용한다.
 
 이전 storage와 runtime payload는 backward-compatible parser로 읽되, 새 write path는 현재 field만 쓴다. v4 settings 안의 legacy PAT는 v5 migration 때 저장 값에서 제거하고 로그인 필요 상태로 전환한다. Runtime message alias는 ingress compatibility 전용이다. 이전 이름과 새 이름의 대응표는 `docs/adr/0026-domain-naming-v4-storage-runtime-and-catalog-migration.md`를 따른다.
 
@@ -98,7 +98,7 @@ flowchart LR
 - 공통 TypeScript 타입을 정의한다.
 - runtime message union을 정의한다.
 - versioned storage schema를 정의한다.
-- LeetCode/Programmers 언어를 공통 supported language와 대상 path extension으로 매핑한다.
+- 지원 Coding Platform의 언어를 공통 supported language와 대상 path extension으로 매핑한다.
 - Coding Platform policy로 root folder, Solution README path, Solution Catalog path, marker, commit message prefix를 제공한다.
 - 결정적인 filename과 path를 생성한다.
 - Solution Catalog 데이터를 merge한다.
@@ -189,7 +189,7 @@ Coding Platform 문제 page
 
 저장소 파일 정리는 Accepted sync와 별도의 background action이다.
 - Options가 전달한 현재 Sync Repository와 Sync Branch를 그대로 사용하며 branch를 생성하거나 ref를 force update하지 않는다.
-- LeetCode와 Programmers의 Solution Catalog를 읽고 현재 Coding Platform policy로 Solution README managed block을 렌더링한다. Catalog가 없는 Coding Platform은 건너뛰며 malformed Catalog는 normalized failure로 반환한다.
+- 지원 Coding Platform(LeetCode, Programmers, SWEA)의 Solution Catalog를 읽고 현재 Coding Platform policy로 Solution README managed block을 렌더링한다. Catalog가 없는 Coding Platform은 건너뛰며 malformed Catalog는 normalized failure로 반환한다.
 - managed marker 밖 기존 bytes는 보존하고, 기존 Solution README와 실제로 다른 projection만 commit files에 포함한다. Solution File과 Solution Catalog는 정리 commit에 포함하지 않는다.
 - 변경 파일이 있으면 Git Data API로 `chore: README 표 형식을 정리한다` 단독 commit 하나를 만들고 `committed` 결과를 반환한다.
 - 변경 파일이 없으면 GitHub commit API를 호출하지 않고 `no_changes`를 반환한다. 첫 commit 반영 후 같은 action을 반복해도 `no_changes`다.
@@ -216,6 +216,11 @@ programmers/swift/120804_두_수의_곱_구하기.swift
 Programmers Python3 풀이:
 ```text
 programmers/python/120804_두_수의_곱_구하기.py
+```
+
+SWEA Python3 풀이:
+```text
+swea/python/1234_숫자_카드.py
 ```
 
 Sync Repository는 Coding Platform 폴더를 먼저 두고 그 내부를 언어별로 나눈다.
@@ -338,7 +343,7 @@ Message categories:
 
 Runtime message type은 `surface:action_name` 형태의 stable namespaced identifier를 사용한다. Sync History와 Retry Bundle message의 정확한 old/new type string은 Domain Naming Contract의 legacy 대응 표를 따른다.
 
-Content/popup/options로 나가는 message payload에는 GitHub access token, refresh token, device code, LeetCode/Programmers cookie나 session token을 포함하지 않는다. GitHub auth secret은 background가 storage에서 직접 읽는다.
+Content/popup/options로 나가는 message payload에는 GitHub access token, refresh token, device code, Coding Platform cookie나 session token을 포함하지 않는다. GitHub auth secret은 background가 storage에서 직접 읽는다.
 
 ## Error Model
 모든 실패는 안정적인 error code로 normalize한다.
@@ -439,7 +444,7 @@ flowchart TB
   cap -.->|"fixture 갱신"| A
 ```
 
-캡처는 검증 계층이 아니라 **A의 입력을 만드는 도구**다. 실제 page에서 성공·실패 mutation을 기록해 `e2e/fixtures/`에 남기고, A는 그것을 재생한다. 그래서 A가 보는 것은 언제나 *캡처 시점의* 플랫폼이며, 그 이후 플랫폼이 바꾼 것은 C가 잡는다.
+캡처는 검증 계층이 아니라 **A의 입력을 만드는 도구**다. 실제 page에서 성공·실패 때 화면이 어떻게 바뀌는지(DOM mutation)를 기록해 `e2e/fixtures/`에 남기고, A는 그것을 재생한다. 그래서 A가 보는 것은 언제나 *캡처 시점의* 플랫폼이다. 그 이후 플랫폼이 바꾼 것 중 제출 전 화면은 C가, 채점 결과 화면은 D만 잡는다([무엇이 바뀌면 어느 계층이 잡나](platforms/README.md#무엇이-바뀌면-어느-계층이-잡나)).
 
 실행 절차와 각 계층의 전제·함정은 [검증 하네스 README](../e2e/README.md)를 따른다.
 

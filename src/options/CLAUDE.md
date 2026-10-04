@@ -6,6 +6,7 @@ GitHub 연결과 Sync Repository·Sync Branch 설정을 관리하는 Options pag
 - GitHub App Device Flow, 설치 안내와 연결 해제 UI
 - Sync Repository·Sync Branch 조회, 선택과 명시적 branch 생성 action
 - Auto Sync 설정과 connection test
+- 사용자가 명시적으로 실행하는 저장소 파일 정리(Solution README projection) action과 결과 표시
 - 설정 disclosure, locale과 view model
 
 ## Common changes

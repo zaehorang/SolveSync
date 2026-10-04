@@ -41,7 +41,7 @@ npm run package:chrome
 | commit이 Solution File·Solution README·Solution Catalog를 함께 바꾸는지 | GitHub write |
 | 플랫폼 page의 selector가 아직 유효한지 | Contract Check |
 
-**여전히 사람이 해야 하는 것.** GitHub Device Flow 승인과 App 설치, Chrome Web Store packaging 확인, 그리고 아래 절들의 UI 확인이다. 실제 Accepted 제출은 풀사이클 계층이 담당하지만 실행 승인은 사람이 한다.
+**여전히 사람이 해야 하는 것.** GitHub Device Flow 승인과 App 설치, Release ZIP packaging 확인(`npm run package:chrome`), 그리고 아래 절들의 UI 확인이다. 실제 Accepted 제출은 풀사이클 계층이 담당하지만 실행 승인은 사람이 한다.
 
 ## 2. Extension Load
 

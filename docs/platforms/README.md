@@ -2,6 +2,8 @@
 
 > **Description**: 모든 Coding Platform이 공통으로 지키는 연동 계약과 플랫폼 사이의 차이를 정의한다. 플랫폼별 세부는 각 플랫폼 문서를 따르고, 런타임 module 경계는 [ARCHITECTURE.md](../ARCHITECTURE.md)를 따른다.
 
+먼저 알아둘 말: **content script**는 플랫폼 문제 페이지 안에서 도는 확장 코드, **mutation**은 화면(DOM)이 바뀌었다는 브라우저 알림, **Adapter**는 한 플랫폼의 화면 해석을 맡은 코드, **event**는 "새 Accepted가 나왔다"는 content script의 메시지다. 나머지 용어는 [CONTEXT](../../CONTEXT.md)를 따른다.
+
 플랫폼 문서는 **공통과 다른 것만** 적는다. 같은 문장을 세 번 쓰면 반드시 한 번 어긋나고, 실제로 어긋났다. 어느 쪽이 맞는지 판단할 근거가 없으면 이 문서가 맞다.
 
 | 플랫폼 | 문서 |
@@ -169,6 +171,15 @@ B는 **LeetCode를 돌지 않는다.** 그 플랫폼은 code도 제목도 backgr
 C와 D는 **headed로만 된다.** headless는 LeetCode의 Cloudflare가 막고(`Just a moment...`), 확장이 필요한 D는 실제 Chrome이 `--load-extension`을 받지 않아 Chromium으로 내려간다(2026-08-26 실측).
 
 A와 B는 자격증명 유무로 갈린다. A는 secret이 없어 fork PR에서도 돌고, B는 Verification Repository 쓰기 권한만 가진 token을 쓴다. C와 D는 Verification Profile의 로그인 세션이 필요해 CI에 배선하지 않는다.
+
+### 무엇이 바뀌면 어느 계층이 잡나
+
+| 바뀐 것 | 잡는 계층 |
+|---|---|
+| 문제 페이지·editor·언어 표시(제출 전 화면) | C Contract Check |
+| 채점 결과 화면(Accepted 표시) | D 풀사이클만. A는 옛 캡처를 재생하므로 못 잡는다 |
+| 감지 코드의 회귀 | A Sealed E2E |
+| GitHub commit 경로 | B GitHub write. LeetCode는 B가 돌지 않아 D만 잡는다 |
 
 전 계층 공통으로 잡지 못하는 것이 하나 있다. **릴리스와 릴리스 사이에 플랫폼이 DOM을 바꾸면 어느 계층도 즉시 알지 못한다.** 이건 테스트가 아니라 관측의 영역이다.
 

@@ -1,8 +1,8 @@
 # Chrome Web Store Public 배포를 진행한다
 
-상태: Accepted. [ADR 0010](0010-defer-chrome-web-store-to-v2.md)의 연기 결정을 supersede한다.
+상태: Superseded by [ADR 0045](0045-github-release-zip-only-distribution.md). Chrome Web Store에 배포하지 않는다. 아래는 당시 결정 기록이다. 당시 [ADR 0010](0010-defer-chrome-web-store-to-v2.md)의 연기 결정을 supersede했다.
 
-결정: SolveSync를 Chrome Web Store Public item으로 제출하고 심사 통과 후 사용자가 명시적으로 publish한다. 실행 계획과 제출 항목은 [Chrome Web Store 배포](../CHROME_WEB_STORE.md)를 따른다.
+결정: SolveSync를 Chrome Web Store Public item으로 제출하고 심사 통과 후 사용자가 명시적으로 publish한다. 실행 계획과 제출 항목은 Chrome Web Store 배포 계획 문서(철회와 함께 삭제)를 따른다.
 
 이유: [ADR 0010](0010-defer-chrome-web-store-to-v2.md)이 연기 근거로 든 것들이 해소됐다. Accepted-to-GitHub 흐름은 local unpacked와 GitHub Public Preview에서 검증됐고, 아이콘은 `icons/`에 있으며, `npm run package:chrome`이 `dist` 내용만 ZIP으로 만들고 필수/금지 경로를 검증한다. 인증도 사용자가 PAT를 직접 만들어 넣는 방식이 아니라 public GitHub App Device Flow로 바뀌어([ADR 0029](0029-public-github-app-device-flow-with-local-token-refresh.md)) 일반 사용자가 설치할 수 있는 형태가 됐다.
 
