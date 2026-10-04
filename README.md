@@ -12,7 +12,7 @@ SolveSync는 LeetCode, Programmers와 SW Expert Academy(SWEA)에서 Accepted(정
   <img src="assets/readme/public-preview-flow.svg" alt="정답 결과가 선택한 GitHub 저장소로 자동 동기화되는 흐름" width="100%">
 </p>
 
-현재 상태는 GitHub Public Preview입니다. Chrome Web Store 배포판은 아니지만, [GitHub Releases](https://github.com/zaehorang/SolveSync/releases)에서 설치용 ZIP을 받을 수 있습니다.
+현재 상태는 GitHub Public Preview(`v0.1.0-preview.3` 기준)입니다. Chrome Web Store에는 배포하지 않으며, [GitHub Releases](https://github.com/zaehorang/SolveSync/releases)에서 설치용 ZIP을 받아 설치합니다.
 
 ## 다른 사람도 사용할 수 있나요?
 
@@ -20,12 +20,12 @@ SolveSync는 LeetCode, Programmers와 SW Expert Academy(SWEA)에서 Accepted(정
 
 - 공개 Release ZIP에는 SolveSync가 운영하는 public GitHub App의 공개 client ID와 slug만 포함됩니다. client secret은 포함되지 않습니다.
 - 각 사용자는 GitHub 로그인 후 [SolveSync Preview GitHub App](https://github.com/apps/solvesync-preview/installations/new)을 본인이 소유한 repository에 직접 설치합니다.
-- 아직 Chrome Web Store 배포판이 아니므로 Chrome의 Developer mode와 `Load unpacked`가 필요합니다.
+- Chrome Web Store 배포판이 없으므로 Chrome의 Developer mode와 `Load unpacked`가 필요합니다.
 
 ## 지원 범위
 
 - LeetCode, Programmers, SWEA의 Accepted solution sync
-- 지원 언어: Swift, Python3, Java, C++, JavaScript, TypeScript, Kotlin, Go, Rust. 각 Coding Platform이 실제로 제공하는 언어만 해당하며 SWEA는 C++14, JAVA, Python 3 셋뿐입니다
+- 지원 언어: Swift, Python3, Java, C++, JavaScript, TypeScript, Kotlin, Go, Rust와 SQL 방언 넷(MySQL, Oracle, PostgreSQL, MS SQL Server). 각 Coding Platform이 실제로 제공하는 언어만 해당합니다. SWEA는 C++14, JAVA, Python 3 셋뿐이고, Programmers의 SQL은 MySQL과 Oracle만 지원합니다. 플랫폼별 차이는 [PRD](docs/PRD.md)를 따릅니다
 - GitHub 로그인(Device Flow: GitHub 화면에서 일회용 code를 승인하는 방식)과, GitHub App을 설치한 repository 중에서 Sync Repository(동기화할 저장소)/Sync Branch(commit이 쌓일 branch) 선택
 - Auto Sync(자동 동기화), Sync History(동기화 기록), Retry Bundle(실패한 동기화를 다시 시도하려고 임시 보관하는 묶음)
 - 별도 backend server 없음
@@ -45,7 +45,7 @@ SolveSync는 LeetCode, Programmers와 SW Expert Academy(SWEA)에서 Accepted(정
 - 로그인된 LeetCode, Programmers 또는 SWEA 계정
 - 본인이 소유한 GitHub repository
 
-1. [GitHub Releases](https://github.com/zaehorang/SolveSync/releases)에서 최신 preview의 `solvesync-*.zip`을 내려받아 압축을 풉니다.
+1. [GitHub Releases](https://github.com/zaehorang/SolveSync/releases)에서 최신 Release의 `solvesync-*.zip`(예: `solvesync-v0.1.0-preview.3.zip`)을 내려받아 압축을 풉니다.
 2. Chrome에서 `chrome://extensions`를 열고 Developer mode를 켭니다.
 3. `Load unpacked`를 누르고 압축을 푼 폴더를 선택합니다. 폴더 바로 아래에 `manifest.json`이 있어야 합니다.
 4. SolveSync Options에서 `Sign in with GitHub`를 누르고 GitHub에 표시된 일회용 code를 승인합니다.

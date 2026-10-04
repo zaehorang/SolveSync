@@ -22,12 +22,11 @@ Accepted 감지는 content script(플랫폼 페이지 안에서 도는 확장 �
 | 왜 이렇게 정했는가 | [ADR](adr/README.md) |
 | 용어의 뜻 (Sync Repository, Solution Catalog 등) | [CONTEXT](../CONTEXT.md) |
 | 플랫폼별 감지 방식, 검증 계층의 정의 | [platforms](platforms/README.md) |
-| 플랫폼 동작을 개발 지식 없이 검수 | [specs](specs/README.md) |
+| 플랫폼 동작을 개발 지식 없이 검수 (구현 계약은 platforms, 사용자 관점 동작은 specs가 정본) | [specs](specs/README.md) |
 | 화면 구성, 문구, 접근성 | [UI_GUIDE](UI_GUIDE.md) |
 | 손으로 확인하는 절차 | [MANUAL_VALIDATION](MANUAL_VALIDATION.md) |
 | 자동 검증(e2e) 실행 | [e2e/README](../e2e/README.md) |
 | GitHub App 등록과 tester 설치 | [GITHUB_APP_SETUP](GITHUB_APP_SETUP.md) |
-| Chrome Web Store 제출 조건 | [CHROME_WEB_STORE](CHROME_WEB_STORE.md) |
 | 수집 데이터, 보안 제보 | [PRIVACY](../PRIVACY.md), [SECURITY](../SECURITY.md) |
 | 아직 재현되지 않은 증상 | [investigations](investigations/ABOUT.md) |
 

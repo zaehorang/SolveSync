@@ -4,7 +4,7 @@
 
 `AGENTS.md`는 이 파일을 가리키는 symlink다. codex는 `AGENTS.md`를, Claude Code는 `CLAUDE.md`를 읽지만 실체는 하나다. 어느 이름으로 열어 편집해도 같은 파일이 바뀐다. 규칙을 두 파일로 나누면 반드시 어긋나므로 복사본을 만들지 않는다.
 
-SolveSync는 LeetCode, Programmers와 SWEA에서 Accepted 된 풀이를 사용자가 선택한 GitHub 저장소로 동기화하는 Chrome extension이다. 배포는 Chrome Web Store와 GitHub Release ZIP 두 경로다([ADR 0038](docs/adr/0038-chrome-web-store-public-release.md)).
+SolveSync는 LeetCode, Programmers와 SWEA에서 Accepted 된 풀이를 사용자가 선택한 GitHub 저장소로 동기화하는 Chrome extension이다. 배포는 GitHub Release ZIP(Chrome에서 Load unpacked로 설치) 하나뿐이다. Chrome Web Store 배포는 하지 않는다([ADR 0045](docs/adr/0045-github-release-zip-only-distribution.md)).
 
 ## Source of Truth
 - 제품 범위, 사용자 흐름, 성공 기준은 `docs/PRD.md`를 따른다.
@@ -14,6 +14,7 @@ SolveSync는 LeetCode, Programmers와 SWEA에서 Accepted 된 풀이를 사용�
 - 수동 검증 절차는 `docs/MANUAL_VALIDATION.md`를 따른다.
 - Coding Platform별 route 출처, Accepted 감지 방식, solution code source, `acceptedSourceId` 형식, 오류 코드는 `docs/platforms/`를 따른다. 공통 계약과 플랫폼 사이의 차이는 `docs/platforms/README.md`에 있고, 플랫폼 문서는 공통과 다른 것만 적는다.
 - 도메인 용어의 정의와 표기는 `CONTEXT.md`를 따른다.
+- 사용자 관점의 관측 가능한 동작 명세는 `docs/specs/`, 구현 계약은 `docs/platforms/`를 따른다. 둘이 어긋나면 구현이 무엇을 하는지는 `docs/platforms/`가 맞고, 그것이 옳은 동작인지는 `docs/specs/`의 열린 질문으로 올린다([규칙](docs/specs/README.md)).
 - [`docs/README.md`](docs/README.md)는 문서 지도·입문 안내다. 정본이 아니며 어느 문서를 읽을지만 알려준다.
 - `docs/plans/`는 source of truth가 아니다. 진행 중인 다단계 작업의 실행 계획만 담는다. 계획과 `docs/`가 다르면 `docs/`가 맞다. 계획이 정책 변경을 요구하면 해당 source of truth를 먼저 고친 뒤 계획을 따른다. 작업이 끝나면 해당 계획 파일을 지운다.
 - `docs/investigations/`는 source of truth가 아니다. 아직 재현되지 않은 증상, 원인 가설과 재현 시 수집할 근거만 기록한다.
@@ -139,7 +140,7 @@ npm run build && npm run e2e
 
 `npm run e2e`는 secret 없이 도는 계층만 실행한다. Contract Check와 풀사이클은 env guard로 스스로 건너뛴다 — 실제 제출이 필요한 계층은 [`e2e/README.md`](e2e/README.md)를 따른다.
 
-Chrome Web Store 제출용 ZIP은 `npm run package:chrome`이 만든다. `dist` 내용만 담고 필수/금지 경로를 검증한다.
+GitHub Release용 ZIP은 `npm run package:chrome`이 만든다. `dist` 내용만 담고 필수/금지 경로를 검증한다.
 
 변경 범위가 작으면 관련 Vitest 파일을 먼저 실행해도 된다. 최종 build는 content IIFE bundle 검증까지 포함한다.
 
