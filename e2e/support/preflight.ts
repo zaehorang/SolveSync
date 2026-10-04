@@ -3,6 +3,7 @@
  * 환경 변수의 값은 어떤 경로에서도 출력하지 않는다. 사전 점검은 키의 존재와
  * GitHub 응답 상태만 다룬다.
  */
+import { chromium } from "@playwright/test";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -13,6 +14,7 @@ const repoRoot = fileURLToPath(new URL("../..", import.meta.url));
 
 export type PreflightMode =
   | "default"
+  | "check"
   | "login"
   | "capture-swea"
   | "contract"
@@ -32,6 +34,9 @@ export type PreflightFetch = (
 
 export interface PreflightObservations {
   readonly distManifestExists: boolean;
+  readonly envFileExists: boolean;
+  readonly liveSubmitKeyPresent: boolean;
+  readonly playwrightChromiumInstalled: boolean;
   readonly verificationProfileExists: boolean;
   readonly githubTokenPresent: boolean;
   readonly githubRepositoryPresent: boolean;
@@ -42,7 +47,7 @@ export interface PreflightObservations {
 }
 
 export interface PreflightItem {
-  readonly id: "dist" | "github" | "swea" | "profile";
+  readonly id: "dist" | "env" | "live-submit" | "chromium" | "github" | "swea" | "profile";
   readonly label: string;
   readonly status: PreflightStatus;
   readonly action: string;
@@ -53,6 +58,10 @@ function isPresent(value: string | undefined): boolean {
 }
 
 export function detectPreflightMode(env: NodeJS.ProcessEnv): PreflightMode {
+  if (env.E2E_CHECK === "1") {
+    return "check";
+  }
+
   if (env.E2E_LIVE_SUBMIT === "1") {
     return "live-submit";
   }
@@ -97,19 +106,79 @@ export function buildPreflightItems(
         }
   ];
 
-  if (mode === "default" || mode === "live-submit") {
+  if (mode === "check") {
+    items.push(envItem(observations), chromiumItem(observations), liveSubmitItem(observations));
+  }
+
+  if (mode === "default" || mode === "check" || mode === "live-submit") {
     items.push(githubItem(observations));
   }
 
-  if (mode === "capture-swea" || mode === "contract" || mode === "live-submit") {
+  if (mode === "capture-swea" ||
+    mode === "contract" ||
+    mode === "check" ||
+    mode === "live-submit"
+  ) {
     items.push(sweaItem(observations));
   }
 
-  if (mode === "login" || mode === "contract" || mode === "live-submit") {
+  if (mode === "login" || mode === "contract" || mode === "check" || mode === "live-submit") {
     items.push(profileItem(observations));
   }
 
   return items;
+}
+
+function envItem(observations: PreflightObservations): PreflightItem {
+  return observations.envFileExists
+    ? {
+        id: "env",
+        label: ".env",
+        status: "ready",
+        action: "현재 디렉터리에 .env가 있다."
+      }
+    : {
+        id: "env",
+        label: ".env",
+        status: "missing",
+        action:
+          "현재 디렉터리에 .env가 없다. worktree라면 주 디렉터리의 .env를 복사해라(symlink가 아니라 복사)."
+      };
+}
+
+/** 값은 보지 않고 키가 있는지만 본다. `npm run e2e`는 풀사이클 spec도 돌려서
+ * 이 키가 셸이나 `.env`에 남아 있으면 확인 없이 실제 제출이 일어난다. */
+function liveSubmitItem(observations: PreflightObservations): PreflightItem {
+  return observations.liveSubmitKeyPresent
+    ? {
+        id: "live-submit",
+        label: "E2E_LIVE_SUBMIT",
+        status: "failed",
+        action:
+          "셸 환경이나 .env에 E2E_LIVE_SUBMIT이 남아 있다. 기본 e2e가 확인 없이 실제 제출할 수 있으니 지우고 실행해라."
+      }
+    : {
+        id: "live-submit",
+        label: "E2E_LIVE_SUBMIT",
+        status: "ready",
+        action: "설정돼 있지 않다. 기본 e2e가 실제 제출을 하지 않는다."
+      };
+}
+
+function chromiumItem(observations: PreflightObservations): PreflightItem {
+  return observations.playwrightChromiumInstalled
+    ? {
+        id: "chromium",
+        label: "Playwright Chromium",
+        status: "ready",
+        action: "번들 Chromium이 설치돼 있다."
+      }
+    : {
+        id: "chromium",
+        label: "Playwright Chromium",
+        status: "missing",
+        action: "npx playwright install chromium 후 다시 실행해라. 기본 E2E와 풀사이클이 이것으로 확장을 로드한다."
+      };
 }
 
 function githubItem(observations: PreflightObservations): PreflightItem {
@@ -193,6 +262,7 @@ export function formatPreflight(mode: PreflightMode, items: readonly PreflightIt
   };
   const modeLabel: Record<PreflightMode, string> = {
     default: "기본 E2E",
+    check: "환경 점검",
     login: "로그인",
     "capture-swea": "SWEA 캡처",
     contract: "Contract Check",
@@ -240,6 +310,9 @@ export async function collectPreflightObservations(
 
   return {
     distManifestExists: existsSync(resolve(repoRoot, "dist/manifest.json")),
+    envFileExists: existsSync(resolve(repoRoot, ".env")),
+    liveSubmitKeyPresent: env.E2E_LIVE_SUBMIT !== undefined,
+    playwrightChromiumInstalled: existsSync(chromium.executablePath()),
     verificationProfileExists: existsSync(resolve(repoRoot, ".verification-profile")),
     githubTokenPresent,
     githubRepositoryPresent,
