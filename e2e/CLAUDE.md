@@ -17,6 +17,8 @@
 npm run build && npm run e2e
 ```
 
+`/e2e` skill이 계층 선택, 준비물 점검, 로그인 안내를 묶어 실행한다. 환경만 확인하려면 `npm run e2e:check`다.
+
 `npm run e2e`는 secret 없이 도는 계층만 실행한다. 로그인 세션이나 실제 제출이 필요한 계층은 env guard로 스스로 건너뛰므로, 건너뛴 것을 통과로 읽지 않는다.
 
 ## Non-obvious

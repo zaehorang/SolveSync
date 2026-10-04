@@ -17,6 +17,7 @@
     "verify:build": "node scripts/verify_extension_build.mjs",
     "verify:docs": "node scripts/verify_doc_links.mjs",
     "e2e": "playwright test",
+    "e2e:check": "E2E_CHECK=1 playwright test e2e/check.spec.ts",
     "e2e:capture": "playwright test e2e/capture --headed",
     "e2e:capture:swea": "E2E_CAPTURE_SWEA=1 playwright test e2e/capture/captureSweaSession.spec.ts --headed",
     "e2e:login": "E2E_LOGIN=1 playwright test e2e/capture/login.spec.ts --headed",

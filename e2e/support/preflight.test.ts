@@ -4,6 +4,7 @@ import {
   assessGitHubProbe,
   buildPreflightItems,
   collectPreflightObservations,
+  detectPreflightMode,
   formatPreflight,
   type PreflightObservations
 } from "./preflight";
@@ -34,6 +35,9 @@ function observations(
 ): PreflightObservations {
   return {
     distManifestExists: true,
+    envFileExists: true,
+    liveSubmitKeyPresent: false,
+    playwrightChromiumInstalled: true,
     verificationProfileExists: true,
     githubTokenPresent: true,
     githubRepositoryPresent: true,
@@ -50,6 +54,40 @@ describe("E2E 사전 점검", () => {
     const items = buildPreflightItems("default", observations());
 
     expect(items.map((item) => item.id)).toEqual(["dist", "github"]);
+  });
+
+  it("환경 점검은 모든 항목을 표시하고 누락마다 해결책을 남긴다", () => {
+    const items = buildPreflightItems(
+      "check",
+      observations({ envFileExists: false, playwrightChromiumInstalled: false })
+    );
+
+    expect(items.map((item) => item.id)).toEqual([
+      "dist",
+      "env",
+      "chromium",
+      "live-submit",
+      "github",
+      "swea",
+      "profile"
+    ]);
+    expect(items.find((item) => item.id === "env")?.status).toBe("missing");
+    expect(items.find((item) => item.id === "chromium")?.action).toContain(
+      "playwright install"
+    );
+    expect(detectPreflightMode({ E2E_CHECK: "1" })).toBe("check");
+  });
+
+  it("환경 점검은 E2E_LIVE_SUBMIT 키가 남아 있으면 실패로 표시한다", async () => {
+    const items = buildPreflightItems("check", observations({ liveSubmitKeyPresent: true }));
+
+    expect(items.find((item) => item.id === "live-submit")?.status).toBe("failed");
+
+    const found = await collectPreflightObservations({ E2E_LIVE_SUBMIT: "" }, async () => ({
+      status: 200
+    }));
+
+    expect(found.liveSubmitKeyPresent).toBe(true);
   });
 
   it("로그인·SWEA 캡처·Contract Check·풀사이클에 관련 항목만 표시한다", () => {

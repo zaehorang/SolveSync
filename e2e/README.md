@@ -28,6 +28,8 @@ npm run build   # dist/를 그대로 로드하므로 최신 빌드가 필요하�
 npm run e2e
 ```
 
+`/e2e` skill([`.claude/skills/e2e/SKILL.md`](../.claude/skills/e2e/SKILL.md))이 아래 계층을 고르고 준비물을 챙겨 실행한다. 테스트 없이 환경만 보려면 `npm run e2e:check`다.
+
 실행 전 사전 점검이 필요한 준비물을 `준비됨`·`누락`·`확인 실패`로 출력한다.
 기본 E2E에서 GitHub 설정이 없거나 확인에 실패해도 경고만 남기고 진행한다. 그래서
 fork PR도 Sealed E2E를 실행할 수 있다. 반면 `E2E_LIVE_SUBMIT=1` 풀사이클은 GitHub
