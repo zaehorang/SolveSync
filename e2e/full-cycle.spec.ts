@@ -353,10 +353,9 @@ test.describe("풀사이클", () => {
         // 바꾸고(auto-indent) 그러면 정상 실행이 깨진다. 줄 수는 그 변형을
         // 견디면서 잘림은 잡는 자리다.
         //
-        // **SWEA에서만 실제로 돌려봤다**(2026-08-26). Programmers 경로는 code가
-        // `textarea#code`에서 오는데 그쪽이 마지막 빈 줄을 다르게 다루는지
-        // 아직 확인하지 않았다. 다음 Programmers 풀사이클이 여기서 깨지면
-        // 그때가 첫 실측이다.
+        // SWEA(2026-08-26)와 Programmers(2026-10-04)에서 실제로 통과했다.
+        // Programmers는 code가 `textarea#code`에서 오며, 짧은 기준 풀이로만
+        // 확인했다. 긴 풀이의 잘림은 #79가 다룬다.
         if (driver.platform !== "leetcode") {
           expect(
             (committed ?? "").split("\n").length,
