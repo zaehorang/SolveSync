@@ -441,15 +441,15 @@ http://
 ## 9. 작업 단위와 권장 순서
 
 1. 외부 계정·publisher·GitHub App 결정
-3. 제품 문서와 UI copy 전환 PR
-4. Store Listing·Privacy·reviewer 문서 PR
-5. Store graphic assets 준비
-6. release candidate build와 자동 검증
-7. 사용자 실계정 수동 검증
-8. 최종 ZIP과 Dashboard 제출 패키지 승인
-9. Submit for Review
-10. 심사 대응 또는 승인 후 smoke test
-11. Public publish
+2. 제품 문서와 UI copy 전환 PR
+3. Store Listing·Privacy·reviewer 문서 PR
+4. Store graphic assets 준비
+5. release candidate build와 자동 검증
+6. 사용자 실계정 수동 검증
+7. 최종 ZIP과 Dashboard 제출 패키지 승인
+8. Submit for Review
+9. 심사 대응 또는 승인 후 smoke test
+10. Public publish
 
 각 작업은 가능한 작은 목적별 branch와 Pull Request로 진행한다. 최종 ZIP은 모든 관련 변경이 `main`에 병합된 뒤 새 release branch 또는 tag 대상 commit에서 다시 생성한다.
 

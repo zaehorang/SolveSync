@@ -72,6 +72,14 @@ _Avoid_: Real test, production test, smoke test
 제출하지 않고 실제 문제 페이지에서 Coding Platform Adapter가 의존하는 DOM 도달 가능성만 확인하는 Live E2E. 제출 상한과 계정 기록을 쓰지 않아 자주 실행할 수 있다. Accepted 결과 DOM은 제출이 있어야 나타나므로 이 검증의 범위 밖이다.
 _Avoid_: Selector test, health check, monitoring
 
+**GitHub write**:
+확장 Options page에서 합성 Accepted event를 보내 플랫폼 페이지 없이 background orchestration을 태우고, Verification Repository에 실제로 생긴 commit을 GitHub API로 밖에서 확인하는 검증. 로컬은 `.env`, CI는 secret `E2E_GITHUB_TOKEN`과 var `E2E_GITHUB_REPOSITORY`로 돌며, 자격증명이 없으면 건너뛴다.
+_Avoid_: GitHub smoke test, write test
+
+**풀사이클**:
+실제 계정으로 실제 채점 제출을 해서 Accepted 감지부터 Verification Repository의 commit까지 전 구간을 태우는 Live E2E. 제출은 되돌릴 수 없어 릴리스 전에 사람이 실행한다.
+_Avoid_: Full e2e, live submit test
+
 **Platform E2E Driver**:
 검증 하네스 쪽의 플랫폼별 구현체. fixture, 기준 문제 URL, Contract Check 단언, 제출 조작을 제공한다. 제품 번들에 포함되지 않으며 제출 버튼처럼 제품이 쓰지 않는 selector는 여기에만 존재한다.
 _Avoid_: Test adapter, platform helper, page object

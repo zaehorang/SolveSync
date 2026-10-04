@@ -2,6 +2,8 @@
 
 > **Description**: 모든 Coding Platform이 공통으로 지키는 연동 계약과 플랫폼 사이의 차이를 정의한다. 플랫폼별 세부는 각 플랫폼 문서를 따르고, 런타임 module 경계는 [ARCHITECTURE.md](../ARCHITECTURE.md)를 따른다.
 
+먼저 알아둘 말: **content script**는 플랫폼 문제 페이지 안에서 도는 확장 코드, **mutation**은 화면(DOM)이 바뀌었다는 브라우저 알림, **Adapter**는 한 플랫폼의 화면 해석을 맡은 코드, **event**는 "새 Accepted가 나왔다"는 content script의 메시지다. 나머지 용어는 [CONTEXT](../../CONTEXT.md)를 따른다.
+
 플랫폼 문서는 **공통과 다른 것만** 적는다. 같은 문장을 세 번 쓰면 반드시 한 번 어긋나고, 실제로 어긋났다. 어느 쪽이 맞는지 판단할 근거가 없으면 이 문서가 맞다.
 
 | 플랫폼 | 문서 |
@@ -176,8 +178,8 @@ A와 B는 자격증명 유무로 갈린다. A는 secret이 없어 fork PR에서�
 |---|---|
 | 문제 페이지·editor·언어 표시(제출 전 화면) | C Contract Check |
 | 채점 결과 화면(Accepted 표시) | D 풀사이클만. A는 옛 캡처를 재생하므로 못 잡는다 |
-| 확장 코드의 회귀 | A Sealed E2E |
-| GitHub commit 경로 | B GitHub write |
+| 감지 코드의 회귀 | A Sealed E2E |
+| GitHub commit 경로 | B GitHub write. LeetCode는 B가 돌지 않아 D만 잡는다 |
 
 전 계층 공통으로 잡지 못하는 것이 하나 있다. **릴리스와 릴리스 사이에 플랫폼이 DOM을 바꾸면 어느 계층도 즉시 알지 못한다.** 이건 테스트가 아니라 관측의 영역이다.
 

@@ -32,15 +32,15 @@
 | 29 | 결과 내용이 **node 추가**로 들어온다. `.modal-title`이 이때 `정답입니다!`가 된다 | 아직 `display: none`. 즉 **title은 보이지 않는 상태에서 먼저 채워진다** |
 | 30 | visibility만 바뀐다. `class`에 `show` 추가, `style="display: block;"`, `aria-hidden` 제거, `aria-modal="true"` 추가 | `display: block`, title은 이미 채워져 있음 |
 
-이것이 앞선 다섯 질문에 대한 답이다.
+위 표로 다섯 가지를 살폈다. 넷은 확인됐고 하나(닫은 뒤 두 번째 Accepted)는 아직이다.
 
-1. `#modal-dialog`는 **이미 존재하던 node**다. 캡처 첫 batch부터 `present: true`이고 `display: none`으로 대기한다. 새로 만들어지지 않는다.
-2. `정답입니다!`는 **node 추가**로 온다. 기존 text 교체가 아니라 결과 내용 `div`가 통째로 modal 안에 추가된다.
-3. **아직 미확인.** 이번 캡처는 정답·오답 각 1회씩이라 닫은 뒤 두 번째 Accepted를 보지 못했다. 남은 질문이다.
-4. **같은 root를 쓴다.** 오답도 동일한 `#modal-dialog`가 같은 두 batch 구조로 전이하고 title만 `틀렸습니다!`다.
-5. **갈라진다.** 위 표대로 batch 29와 30으로 나뉜다.
+1. **root의 존재.** `#modal-dialog`는 **이미 존재하던 node**다. 캡처 첫 batch부터 `present: true`이고 `display: none`으로 대기한다. 새로 만들어지지 않는다.
+2. **Accepted 문구가 오는 방식.** `정답입니다!`는 **node 추가**로 온다. 기존 text 교체가 아니라 결과 내용 `div`가 통째로 modal 안에 추가된다.
+3. **닫은 뒤 두 번째 Accepted. 아직 미확인.** 이번 캡처는 정답·오답 각 1회씩이라 닫은 뒤 두 번째 Accepted를 보지 못했다. 남은 질문이다.
+4. **오답의 root. 같은 root를 쓴다.** 오답도 동일한 `#modal-dialog`가 같은 두 batch 구조로 전이하고 title만 `틀렸습니다!`다.
+5. **내용과 visibility. 갈라진다.** 위 표대로 batch 29와 30으로 나뉜다.
 
-5번이 갈라지는데도 판정이 성립하는 이유는 구현이 `state`를 batch 사이에 들고 가기 때문이다. batch 29에서는 title이 채워져도 root가 아직 `display: none`이라 `readState()`가 `inactive`이므로 event가 나가지 않고, batch 30의 visibility attribute 변경이 다시 `readState()`를 부를 때 비로소 `inactive → acceptedVisible` 전이가 잡힌다. **한 batch 안에서 title과 visibility를 함께 보려 하면 이 경로는 깨진다.** `PRESENTATION_ATTRIBUTE_FILTER`에서 `class`나 `style`을 빼도 batch 30이 관찰되지 않아 같은 결과가 된다.
+내용과 visibility가 갈라지는데도 판정이 성립하는 이유는 구현이 `state`를 batch 사이에 들고 가기 때문이다. batch 29에서는 title이 채워져도 root가 아직 `display: none`이라 `readState()`가 `inactive`이므로 event가 나가지 않고, batch 30의 visibility attribute 변경이 다시 `readState()`를 부를 때 비로소 `inactive → acceptedVisible` 전이가 잡힌다. **한 batch 안에서 title과 visibility를 함께 보려 하면 이 경로는 깨진다.** `PRESENTATION_ATTRIBUTE_FILTER`에서 `class`나 `style`을 빼도 batch 30이 관찰되지 않아 같은 결과가 된다.
 
 ## 검증 기준 문제
 
