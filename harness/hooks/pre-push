@@ -1,0 +1,103 @@
+#!/usr/bin/env python3
+"""Git pre-push gate. stdin의 push ref와 현재 working tree를 검사한다.
+
+검사 대상 commit과 working tree가 다르면 성공한 검증이 push 대상에 적용되지
+않는다. 그래서 현재 HEAD만 push하게 하고, 추적 파일의 미커밋 변경도 막는다.
+
+`harness/` 범위 판정은 보조 최적화다. 새 branch의 `origin/main` 또는 remote SHA를
+찾지 못하면 자체 테스트를 실행하는 안전한 쪽을 택한다. 자체 테스트를 pre-commit에
+남기지 않는 이유는 CI가 모든 PR에서 이를 항상 다시 실행하기 때문이다.
+"""
+
+from __future__ import annotations
+
+import subprocess
+import sys
+
+
+def fail(message: str) -> None:
+    print(f"pre-push: {message}", file=sys.stderr)
+    sys.exit(1)
+
+
+def run(args: list[str]) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(args, capture_output=True, text=True)
+
+
+def git(*args: str) -> str:
+    result = run(["git", *args])
+    if result.returncode != 0:
+        fail(f"git {' '.join(args)} 실패: {result.stderr.strip()}")
+    return result.stdout
+
+
+def is_zero_sha(sha: str) -> bool:
+    return bool(sha) and set(sha) == {"0"}
+
+
+def pushed_refs() -> list[tuple[str, str]]:
+    refs: list[tuple[str, str]] = []
+    for line in sys.stdin:
+        fields = line.split()
+        if len(fields) != 4:
+            fail("git이 올바르지 않은 push ref 정보를 보냈습니다.")
+        _local_ref, local_sha, _remote_ref, remote_sha = fields
+        if not is_zero_sha(local_sha):
+            refs.append((local_sha, remote_sha))
+    return refs
+
+
+def changed_paths(local_sha: str, remote_sha: str) -> list[str] | None:
+    if is_zero_sha(remote_sha):
+        base_result = run(["git", "merge-base", "origin/main", local_sha])
+        if base_result.returncode != 0:
+            return None
+        base = base_result.stdout.strip()
+    else:
+        base = remote_sha
+    diff = run(["git", "diff", "--name-only", "-z", base, local_sha])
+    if diff.returncode != 0:
+        return None
+    return [path for path in diff.stdout.split("\0") if path]
+
+
+def main() -> None:
+    refs = pushed_refs()
+    if not refs:
+        return
+
+    # annotated tag는 tag 객체 sha로 오므로 commit으로 벗겨서 비교한다.
+    head = git("rev-parse", "HEAD").strip()
+    if any(git("rev-parse", f"{local_sha}^{{commit}}").strip() != head for local_sha, _remote_sha in refs):
+        fail("HEAD가 아닌 commit은 push할 수 없습니다. 검사는 working tree에서 돌기 때문입니다. 해당 branch를 체크아웃하고 push하세요.")
+
+    dirty = git("status", "--porcelain", "--untracked-files=no")
+    if dirty:
+        fail("추적 파일에 미커밋 변경이 있습니다. push 대상과 같은 상태로 만든 뒤 다시 시도하세요.")
+
+    run_harness_tests = False
+    for local_sha, remote_sha in refs:
+        paths = changed_paths(local_sha, remote_sha)
+        if paths is None or any(path.startswith("harness/") for path in paths):
+            run_harness_tests = True
+            break
+    checks = [
+        ("typecheck", ["npm", "run", "typecheck"]),
+        ("test", ["npm", "test"]),
+        ("build", ["npm", "run", "build"]),
+    ]
+    if run_harness_tests:
+        checks.append(
+            ("harness 자체 테스트", ["python3", "-m", "unittest", "discover", "-s", "harness/tests", "-t", "harness"])
+        )
+
+    for name, args in checks:
+        result = run(args)
+        if result.returncode != 0:
+            sys.stderr.write(result.stdout)
+            sys.stderr.write(result.stderr)
+            fail(f"{name} 실패.")
+
+
+if __name__ == "__main__":
+    main()

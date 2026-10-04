@@ -4,10 +4,8 @@
 해석한다. 이 해석이 어긋나면 gate는 정상적인 commit을 막거나, 반대로 하네스
 변경을 검증 없이 통과시킨다. 둘 다 조용히 일어난다.
 
-전체 검증(typecheck·test·build)까지 돌리면 테스트가 분 단위가 되므로, 여기서는
-그 앞 단계까지만 확인한다. `package.json`이 없는 임시 저장소에서 hook을 돌리면
-staged 해석을 지나 npm 단계에서 실패하므로, "어디에서 실패했는가"로 해석이
-맞았는지 판정할 수 있다.
+pre-commit은 저장소 보호 규칙만 담당하므로, 이 테스트는 staged 해석만 확인한다.
+typecheck·test·build와 하네스 자체 테스트는 pre-push에서 검증한다.
 """
 
 from __future__ import annotations
@@ -97,12 +95,7 @@ class PreCommitStagedTest(unittest.TestCase):
         self.repo = PreCommitRepo(Path(self._tmp.name))
 
     def assertPassedStagedCheck(self, result: subprocess.CompletedProcess) -> None:
-        """staged 해석 단계를 지났는지만 본다.
-
-        임시 저장소에는 package.json이 없어 어차피 npm 단계에서 막힌다. 그러니
-        "비어 있다"고 막히지 않았다는 사실이 곧 해석이 맞았다는 뜻이다.
-        """
-        self.assertNotIn(EMPTY, result.stderr, result.stdout + result.stderr)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
     def test_deletion_only_commit_passes_staged_check(self):
         """한 번 뚫렸던 구멍. 삭제만 담은 commit이 "변경 없음"으로 막혔다."""
@@ -121,31 +114,6 @@ class PreCommitStagedTest(unittest.TestCase):
         result = self.repo.hook()
         self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
         self.assertIn(EMPTY, result.stderr)
-
-    def test_harness_deletion_triggers_harness_self_test(self):
-        """하네스 파일을 지우는 것도 신뢰 경계를 바꾸는 일이다.
-
-        자체 테스트 목록이 `staged`(ACMR)만 보면 삭제 commit은 검증 없이 지나간다.
-        임시 저장소에는 harness/tests가 없으므로, 자체 테스트가 실행됐다면 그
-        단계 이름으로 실패한다.
-
-        앞선 npm 단계에서 먼저 멈추면 아무것도 확인하지 못하므로, 여기서만
-        통과하는 no-op script를 깔아 자체 테스트 단계까지 도달시킨다.
-        """
-        self.repo.write(
-            "package.json",
-            '{"name":"fixture","scripts":'
-            '{"typecheck":"true","test":"true","build":"true"}}\n',
-        )
-        self.repo.write("harness/policy.py", "# fixture\n")
-        self.repo.git("add", "-A")
-        self.repo.git("commit", "-q", "-m", "harness fixture")
-        self.repo.stage_deletion("harness/policy.py")
-
-        result = self.repo.hook()
-        self.assertPassedStagedCheck(result)
-        self.assertIn("harness 자체 테스트", result.stderr, result.stdout + result.stderr)
-
 
 if __name__ == "__main__":
     unittest.main()
