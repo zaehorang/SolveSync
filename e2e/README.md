@@ -28,6 +28,21 @@ npm run build   # dist/를 그대로 로드하므로 최신 빌드가 필요하�
 npm run e2e
 ```
 
+실행 전 사전 점검이 필요한 준비물을 `준비됨`·`누락`·`확인 실패`로 출력한다.
+기본 E2E에서 GitHub 설정이 없거나 확인에 실패해도 경고만 남기고 진행한다. 그래서
+fork PR도 Sealed E2E를 실행할 수 있다. 반면 `E2E_LIVE_SUBMIT=1` 풀사이클은 GitHub
+설정이 없거나 Repository 확인에 실패하면 실제 제출 전에 즉시 멈춘다.
+
+`dist/manifest.json`이 없으면 모든 실행에서 `npm run build` 안내를 남긴다. Contract
+Check처럼 확장을 로드하지 않는 계층도 있으므로, 사전 점검 자체는 이를 실패로
+바꾸지 않는다.
+
+GitHub 확인은 `GET /repos/{owner}/{name}` 한 번이다. 읽기 권한만 있어도 성공하므로
+**쓰기 권한은 확인하지 못하며** 실제 GitHub write 계층에서 드러난다. Verification
+Profile도 디렉터리 존재만 확인한다. 쿠키 유효성은 실제 page를 열어야 알 수 있고,
+만료되면 기존처럼 수동 로그인을 기다린다.
+GitHub 확인은 최대 5초만 기다리며 timeout도 확인 실패로 안내한다.
+
 ## 캡처
 
 Sealed E2E의 입력이 되는 실제 DOM을 만든다. 플랫폼당 성공 1회 + 실패 1회가 필요하며, **두 신호가 겹치지 않는 것을 실측해야** "실패는 event 0회"가 진짜 검증이 된다.

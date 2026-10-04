@@ -19,6 +19,7 @@ if (existsSync(envFile)) {
 
 export default defineConfig({
   testDir: "e2e",
+  globalSetup: "./e2e/globalSetup.ts",
   // Vitest가 도는 `*.test.ts`를 Playwright가 다시 집지 않게 한다.
   testMatch: "**/*.spec.ts",
   // 확장 로드와 service worker 기동이 있어 단위 테스트보다 느리다.

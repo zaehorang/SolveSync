@@ -26,12 +26,14 @@ export interface VerificationRepositoryConfig {
  *
  * 기본값을 두지 않는다. 실수로 실사용 저장소를 대상으로 삼을 경로 자체를
  * 없애는 것이 이 계층의 전제다. */
-export function readVerificationRepositoryConfig(): VerificationRepositoryConfig | null {
-  const token = process.env.E2E_GITHUB_TOKEN?.trim() ?? "";
-  const repository = process.env.E2E_GITHUB_REPOSITORY?.trim() ?? "";
-  const [owner, name] = repository.split("/");
+export function readVerificationRepositoryConfig(
+  env: NodeJS.ProcessEnv = process.env
+): VerificationRepositoryConfig | null {
+  const token = env.E2E_GITHUB_TOKEN?.trim() ?? "";
+  const repository = env.E2E_GITHUB_REPOSITORY?.trim() ?? "";
+  const [owner, name, ...rest] = repository.split("/");
 
-  if (token.length === 0 || owner === undefined || name === undefined) {
+  if (token.length === 0 || owner === undefined || name === undefined || rest.length > 0) {
     return null;
   }
 
