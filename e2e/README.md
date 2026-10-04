@@ -72,7 +72,7 @@ npm run e2e:capture:swea   # SWEA는 로그인과 정답·오답 캡처를 한 �
 
 기다리는 동안 page를 건드리지 않는다. Google 로그인처럼 다른 host로 나갔다 오는 흐름이 있어, 중간에 문제 page로 되돌리면 로그인 흐름이 끊긴다. **원래 host로 돌아왔고 더 이상 로그인을 요구하지 않을 때**를 완료로 보고, 그 뒤 호출한 쪽이 문제 page를 다시 연다.
 
-`npm run e2e:login`은 탭을 띄운다. 로그인을 마치고 브라우저를 닫으면 세션이 `.verification-profile/`에 남는다. SWEA는 `/main/identity/anonymous/loginPage.do`로 연다 — `/main/login.do`도 200을 주지만 본문이 비어 있어 빈 화면만 뜬다.
+`npm run e2e:login`은 탭을 띄운다. 로그인을 마치고 브라우저를 **종료하면** 세션이 `.verification-profile/`에 남는다. macOS에서는 창만 닫으면 Chrome 프로세스가 남아 명령이 끝나지 않는다 — ⌘Q로 앱을 종료한다(2026-10-04 실측). 평소 쓰는 Chrome과는 별도 프로필로 뜬 별개 프로세스라 그쪽은 끄지 않아도 된다. SWEA는 `/main/identity/anonymous/loginPage.do`로 연다 — `/main/login.do`도 200을 주지만 본문이 비어 있어 빈 화면만 뜬다.
 
 **SWEA 세션만 디스크에 남지 않는다.** `SESSION` 쿠키가 만료 기한 없이 발급되는 진짜 session cookie라 브라우저 프로세스가 끝나면 사라진다(2026-08-25 실측). 그래서 SWEA는 "미리 로그인해 두고 나중에 캡처"가 통하지 않고, 전용 spec이 로그인과 캡처를 한 프로세스 안에서 잇는다. `.env`에 `E2E_SWEA_ID`/`E2E_SWEA_PASSWORD`가 있으면 로그인까지 자동이고, 없으면 사람이 로그인할 때까지 최대 5분 기다린다. `.env`는 `.gitignore`에 있고 견본은 `.env.example`이다.
 
@@ -139,7 +139,7 @@ E2E_LIVE_PLATFORM=swea E2E_LIVE_SUBMIT=1 npm run e2e:full-cycle   # 하나만
 4. **코드 nonce.** 실행마다 주석 한 줄을 덧붙인다. commit된 내용에 이번 실행의 nonce가 있는지로 **방금 만들어진 commit인지 앞선 실행이 남긴 것인지**를 가른다.
 5. **가상 스크롤(SWEA만).** 렌더된 `.CodeMirror-line` 수가 전체 줄 수보다 적은지 본다. 전부 렌더되면 화면 밖 줄을 검증하지 못한 채 통과하므로 제출 전에 멈춘다. 이때 제출 전 제출횟수도 log에 남긴다 — 상한이 99회다.
 
-제출 뒤에는 commit된 줄 수가 넣은 코드와 같은지도 본다. nonce 포함만 보면 nonce가 마지막 줄이라 앞이 잘려도 통과한다. **SWEA에서만 실제로 돌려봤고**(2026-08-26) Programmers 경로는 아직 이 단언으로 돌려보지 않았다.
+제출 뒤에는 commit된 줄 수가 넣은 코드와 같은지도 본다. nonce 포함만 보면 nonce가 마지막 줄이라 앞이 잘려도 통과한다. SWEA(2026-08-26)와 Programmers(2026-10-04)에서 실제로 통과했다. Programmers는 기준 풀이처럼 짧은 code로만 확인했고, 긴 풀이에서 `textarea#code`가 잘리지 않는지는 [#79](https://github.com/zaehorang/SolveSync/issues/79)가 다룬다.
 
 확장은 이 계층에서만 로드한다. 그리고 **실제 Chrome이 아니라 Chromium으로 내려간다** — 실제 Chrome은 `--load-extension`을 더 이상 받지 않는다(2026-08-25 실측). 그때 프로필은 복사본을 쓴다. 한 프로필을 Chrome과 Chromium이 번갈아 열면 상해서 사람이 다시 로그인해야 한다.
 
@@ -198,7 +198,7 @@ auth session은 `chrome.storage.local`에 직접 심는다. `BackgroundRuntimeOp
 
 드라이버 계약은 [`drivers/types.ts`](drivers/types.ts)에 있고, 세 플랫폼의 정답·오답 fixture 여섯 개가 `fixtures/`에 있다. 각 fixture가 담은 판정과 재생할 때 주의할 점은 해당 플랫폼 문서를 따른다.
 
-**네 계층이 모두 세 플랫폼에서 통과한다**(2026-08-26). CI가 도는 것은 Sealed와 GitHub write 둘이고, Contract Check와 풀사이클은 로그인 세션과 headed 브라우저가 필요해 사람이 돌린다.
+**네 계층이 모두 세 플랫폼에서 통과한다**(2026-08-26, 2026-10-04 재확인). CI가 도는 것은 Sealed와 GitHub write 둘이고, Contract Check와 풀사이클은 로그인 세션과 headed 브라우저가 필요해 사람이 돌린다.
 
 ## Verification Profile은 실제 Chrome으로 띄운다
 

@@ -36,14 +36,15 @@ test.describe("Verification Profile", () => {
       await page.goto(url, { waitUntil: "domcontentloaded" }).catch(() => undefined);
     }
 
-    console.info("[login] 세 탭에서 로그인해라. 끝나면 브라우저를 닫으면 된다.");
+    console.info("[login] 세 탭에서 로그인해라. 끝나면 브라우저를 종료한다(macOS는 ⌘Q).");
     console.info("[login] 세션은 .verification-profile/에 남는다 (gitignore).");
 
     for (const problem of Object.values(BASE_PROBLEMS)) {
       console.info(`[login] 기준 문제: ${problem.label} — ${problem.url}`);
     }
 
-    // 사람이 브라우저를 닫으면 끝난다.
+    // 사람이 브라우저를 종료하면 끝난다. macOS에서는 창만 닫으면 프로세스가
+    // 남아 이 이벤트가 오지 않는다(2026-10-04 실측). ⌘Q로 앱을 종료해야 한다.
     await context.waitForEvent("close", { timeout: 29 * 60 * 1000 });
   });
 });
