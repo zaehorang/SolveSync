@@ -170,6 +170,15 @@ C와 D는 **headed로만 된다.** headless는 LeetCode의 Cloudflare가 막고(
 
 A와 B는 자격증명 유무로 갈린다. A는 secret이 없어 fork PR에서도 돌고, B는 Verification Repository 쓰기 권한만 가진 token을 쓴다. C와 D는 Verification Profile의 로그인 세션이 필요해 CI에 배선하지 않는다.
 
+### 무엇이 바뀌면 어느 계층이 잡나
+
+| 바뀐 것 | 잡는 계층 |
+|---|---|
+| 문제 페이지·editor·언어 표시(제출 전 화면) | C Contract Check |
+| 채점 결과 화면(Accepted 표시) | D 풀사이클만. A는 옛 캡처를 재생하므로 못 잡는다 |
+| 확장 코드의 회귀 | A Sealed E2E |
+| GitHub commit 경로 | B GitHub write |
+
 전 계층 공통으로 잡지 못하는 것이 하나 있다. **릴리스와 릴리스 사이에 플랫폼이 DOM을 바꾸면 어느 계층도 즉시 알지 못한다.** 이건 테스트가 아니라 관측의 영역이다.
 
 플랫폼 문서의 자동 검증은 해당 플랫폼의 Vitest 파일을 가리킨다. Release 전에는 저장소 루트에서 전체를 실행한다.

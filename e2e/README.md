@@ -105,7 +105,9 @@ redaction은 회수 경로에 박혀 있고 저장 직전에 한 번 더 검사�
 
 ## Sealed E2E
 
-실제 도메인 URL로 **최소 뼈대** page를 띄우고 캡처에서 온 판정 text를 그대로 나타나게 한 뒤, 프로덕션 content script가 그것을 Accepted로 읽어 background까지 보내는지 본다. 관측점은 Sync History다 — `onMessage`를 후킹하면 service worker가 잠들 때 날아가고, storage에 남는 것은 "도달했다"보다 강한 것을 본다.
+**쉽게 말하면:** 예전에 실제로 제출해 캡처한 결과 문구를, 실제 사이트 주소처럼 보이는 최소한의 페이지 위에 다시 나타나게 해서, 배포용 확장이 정답을 알아보는지 본다. 실제 사이트에 접속하거나 제출하지 않는다.
+
+구체적으로는 실제 도메인 URL로 **최소 뼈대** page(제목·editor 자리 같은 틀만 있는 빈 page)를 띄우고 캡처에서 온 판정 text를 그대로 나타나게 한 뒤, 프로덕션 content script가 그것을 Accepted로 읽어 background까지 보내는지 본다. 관측점은 Sync History다 — `onMessage`를 후킹하면 service worker가 잠들 때 날아가고, storage에 남는 것은 "도달했다"보다 강한 것을 본다.
 
 **GitHub를 설정하지 않고 돌린다.** `setup_required` entry가 남고 거기에 platform·problem이 들어 있다. 네트워크를 타지 않아 secret 없이 fork PR에서도 돈다.
 
@@ -113,7 +115,7 @@ redaction은 회수 경로에 박혀 있고 저장 직전에 한 번 더 검사�
 
 ### 왜 뼈대는 짓고 text는 짓지 않는가
 
-캡처는 DOM snapshot이 아니라 **mutation 기록**이고, mutation의 `target`에 node 경로가 없어(`{kind, name}`뿐) 기록을 그대로 되감을 수 없다. 그래서 뼈대는 드라이버가 최소한으로 짓는다.
+캡처는 DOM 전체를 찍은 snapshot이 아니라 **mutation 기록**(제출 뒤 화면이 어떻게 바뀌었는지를 변경 단위로 적은 것)이고, mutation의 `target`에 node 경로가 없어(`{kind, name}`뿐) 기록을 그대로 되감을 수 없다. 그래서 뼈대는 드라이버가 최소한으로 짓는다.
 
 그 자유도가 판정 text까지 번지면 **우리가 상상한 DOM으로 우리 adapter를 검증하는 순환**이 되어 통과해도 아무것도 보장하지 않는다. 그래서 판정 text는 드라이버에 상수로 두되 [`support/capturedResult.ts`](support/capturedResult.ts)가 그 값이 캡처에 실재하는지 재생 전에 확인한다. 플랫폼이 문구를 바꿔 새 캡처가 들어오면 이 확인이 먼저 깨진다.
 
@@ -131,7 +133,7 @@ E2E_LIVE_PLATFORM=swea E2E_LIVE_SUBMIT=1 npm run e2e:full-cycle   # 하나만
 
 제출은 [`capture/drivers.ts`](capture/drivers.ts)를 그대로 쓴다. selector를 두 곳에 두면 하나가 조용히 낡는다.
 
-### 제출 앞에 문이 넷 있다
+### 제출 앞에 문이 다섯 있다
 
 제출은 되돌릴 수 없으므로 확인을 전부 제출 앞에 세웠다.
 

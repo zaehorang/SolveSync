@@ -58,7 +58,7 @@ SolveSync는 LeetCode, Programmers와 SWEA에서 Accepted 된 풀이를 사용�
 - PR body에는 무엇을 왜 바꿨는지와 어떻게 검증했는지를 남긴다. 근거가 된 이슈가 있으면 `Fixes #<number>` 또는 적절한 issue link로 함께 포함한다.
 - commit, push, PR 생성처럼 저장소나 GitHub 상태를 바꾸는 게시 단계는 사용자가 해당 작업에서 요청하거나 승인한 범위에서 수행한다.
 - `gh pr merge`와 `git worktree remove`는 주 디렉터리에서 실행한다. worktree 안에서 부르면 `'main' is already used by worktree`로 막힌다.
-- gh 2.101.0에서는 주 디렉터리에서 실행한 `gh pr merge --delete-branch`가 **worktree 디렉터리와 로컬·원격 branch를 함께 지운다**(2026-10-04 실측). worktree에 복사해 둔 `.env`와 `dist/`도 함께 사라진다. 실행 뒤 `git worktree list`와 `git branch`로 남은 것이 없는지 확인한다.
+- gh 2.101.0에서는 주 디렉터리에서 실행한 `gh pr merge --delete-branch`가 **worktree 디렉터리와 로컬·원격 branch를 함께 지운다**(2026-10-04 실측). worktree에 복사해 둔 `.env`와 `dist/`도 함께 사라진다. 단 추적하지 않는(gitignore되지 않은) 파일이 있으면 worktree 삭제와 로컬 branch 삭제를 건너뛴다(2026-10-04 실측, PR #105). 그때는 남은 파일을 확인한 뒤 `git worktree remove` → `git branch -D` 순서로 정리한다. 실행 뒤 `git worktree list`와 `git branch`로 남은 것이 없는지 확인한다.
 - 그보다 낮은 gh에서는 worktree가 살아 있으면 로컬 branch 삭제가 `cannot delete branch ... used by worktree`로 실패한다. 원격 branch는 이미 지워진 뒤라 로컬만 남고, 다음 실행이 낡은 branch를 본다. 그때 정리 순서는 **worktree 제거 → branch 삭제**다.
 - 정리 명령에 `git checkout main`을 넣지 않는다. 이미 `main`이어도 PreToolUse hook이 branch 전환으로 보고 명령 전체를 막는다.
 - 이 section의 development work branch와 제품이 사용자의 Sync Repository에 만드는 Sync Branch는 서로 다른 개념이다. 제품의 Sync Branch 자동 생성 금지 규칙은 그대로 유지한다.
