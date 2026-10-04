@@ -91,6 +91,7 @@ class BashRules(unittest.TestCase):
     def test_gate_bypass_is_still_denied(self):
         self.assertIsNotNone(self.check("git commit --no-verify -m 'feat: x'"))
         self.assertIsNotNone(self.check("git commit -n -m 'feat: x'"))
+        self.assertIsNotNone(self.check("git push --no-verify origin HEAD"))
 
     def test_global_install_is_denied(self):
         self.assertIsNotNone(self.check("npm install -g something"))

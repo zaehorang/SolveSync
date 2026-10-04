@@ -421,8 +421,9 @@ B가 content script를 건너뛰는 것이 이 그림의 요점이다. 그래서
 flowchart TB
   subgraph AUTO["자동 — 사람이 기억할 필요가 없다"]
     direction TB
-    commit["git commit"] --> gate["pre-commit gate<br/>branch·경로·secret 정책<br/>typecheck · Vitest · build"]
-    gate --> pr["Pull Request"] --> ci["CI"]
+    commit["git commit"] --> gate["pre-commit gate<br/>branch·경로·secret 정책"]
+    gate --> push["git push"] --> verify["pre-push gate<br/>typecheck · Vitest · build<br/>harness 변경 시 자체 테스트"]
+    verify --> pr["Pull Request"] --> ci["CI"]
     ci --> job1["전체 검증<br/>+ 문서 링크 검증"]
     ci --> job2["검증 하네스"]
     job2 --> A["A Sealed E2E"]

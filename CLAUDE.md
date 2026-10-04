@@ -37,7 +37,7 @@ SolveSync는 LeetCode, Programmers와 SWEA에서 Accepted 된 풀이를 사용�
   git worktree add -b feat/worktree-isolation-gate ../SolveSync-wt/worktree-isolation-gate main
   ```
 
-  새 worktree에는 `node_modules`가 없다. pre-commit이 commit마다 typecheck, test, build를 돌리므로 그대로 커밋하면 `tsc: command not found`로 막힌다. 주 디렉터리의 `node_modules`를 symlink로 걸거나 worktree에서 `npm ci`를 돌린다. symlink 쪽이 63MB를 다시 받지 않아 빠르고, gate 전체가 그 상태로 통과한다.
+  새 worktree에는 `node_modules`가 없다. pre-push가 typecheck, test, build를 돌리므로 그대로 push하면 `tsc: command not found`로 막힌다. 주 디렉터리의 `node_modules`를 symlink로 걸거나 worktree에서 `npm ci`를 돌린다. symlink 쪽이 63MB를 다시 받지 않아 빠르고, gate 전체가 그 상태로 통과한다.
 
   ```bash
   ln -s {repo-root}/node_modules node_modules
@@ -66,7 +66,7 @@ SolveSync는 LeetCode, Programmers와 SWEA에서 Accepted 된 풀이를 사용�
 ## Guardrails
 `harness/`는 되돌리기 비싼 변경을 commit, 도구 호출과 CI 시점에 막는 gate다. 구현을 대신하지 않으며, 상세 구조·설치·변경 절차는 [`harness/CLAUDE.md`](harness/CLAUDE.md)를 따른다.
 
-pre-commit은 typecheck·test·build와 저장소 보호 규칙을 실행하는 최후 방어선이다. `--no-verify`로 우회하지 말고 차단 사유를 고친다.
+pre-commit은 되돌릴 수 없는 저장소 보호 규칙의 최후 방어선이고, pre-push는 typecheck·test·build를 PR 전 실행한다. `--no-verify`로 우회하지 말고 차단 사유를 고친다.
 
 ## Module Context
 module을 수정하기 전에 가장 가까운 `CLAUDE.md`를 먼저 읽는다. 각 문서는 소유 책임, 대표 변경 절차, 비직관적 규칙과 의존 방향만 담는다.

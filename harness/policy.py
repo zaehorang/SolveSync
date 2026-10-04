@@ -1,13 +1,14 @@
 """하네스가 공유하는 차단 규칙.
 
-두 hook이 이 모듈을 import한다. Claude Code PreToolUse와 git pre-commit이다.
+Claude Code PreToolUse, git pre-commit과 CI gate가 이 모듈을 import한다.
+pre-commit과 CI gate는 같은 규칙으로 staged 경로와 secret을 검사하고, pre-push는
+프로젝트 검증을 실행한다.
 규칙을 한 곳에만 두기 위해서다. 표준 라이브러리만 쓰고 부수효과를 두지 않는다.
 순수한 판단 로직이며 harness/tests/test_policy.py가 검증한다. subprocess를
 부르지 않으므로 git 상태 같은 바깥 사실은 호출자가 판정해서 인자로 넘긴다.
 
-두 hook이 서는 자리가 다르다. PreToolUse는 도구 호출 전에 막고, pre-commit은
-커밋 시점에 막는다. pre-commit 쪽이 최후 방어선이다. 누가 커밋하든, 어떤 도구를
-거쳤든 걸린다.
+PreToolUse는 도구 호출 전에, pre-commit은 저장소 보호 규칙을 커밋 시점에 막는다.
+pre-push는 typecheck·Vitest·build를 PR 전 실행한다.
 
 차단 사유는 지시문으로 쓴다. hook이 `permissionDecisionReason`을 그대로 모델에게
 돌려주므로, 무엇이 잘못됐는지가 아니라 대신 무엇을 하라고 적어야 한다.
@@ -128,9 +129,8 @@ def check_bash(
     `in_main_worktree`는 호출자가 판정해서 넘긴다. 이 모듈은 subprocess를 부르지
     않는 순수 함수로 남는다.
 
-    게시(`git push`, `gh pr`, `gh issue`)와 저장소 밖 경로는 막지 않는다. 대화형
-    세션에서는 그것이 정상 작업이다. worktree를 만들고 사용자가 승인하면
-    push하는 것이 워크플로우 자체다.
+    게시(`git push`, `gh pr`, `gh issue`)와 저장소 밖 경로를 원칙적으로 막지
+    않는다. 단 `--no-verify`는 pre-push 검증을 우회하므로 막는다.
     """
     for argv in _segments(command):
         if argv[0] == "git" and "commit" in argv[:3]:
@@ -139,6 +139,12 @@ def check_bash(
                     "pre-commit gate를 우회하지 마세요. gate가 커밋을 막았다면 "
                     "막은 이유를 고치고 다시 커밋하세요."
                 )
+
+        if argv[0] == "git" and "push" in argv[:3] and "--no-verify" in argv:
+            return (
+                "pre-push gate를 우회하지 마세요. gate가 push를 막았다면 "
+                "막은 이유를 고치고 다시 push하세요."
+            )
 
         if _is_branch_switch(argv):
             if in_main_worktree:
