@@ -1,6 +1,6 @@
 # Chrome Web Store에 배포하지 않고 GitHub Release ZIP만 쓴다
 
-상태: Accepted. [ADR 0038](0038-chrome-web-store-public-release.md)과 [ADR 0010](0010-defer-chrome-web-store-to-v2.md)을 supersede한다.
+상태: Superseded by [ADR 0046](0046-chrome-web-store-alongside-release-zip.md). Chrome Web Store 배포를 다시 진행한다. 아래는 당시 결정 기록이다. 당시 [ADR 0038](0038-chrome-web-store-public-release.md)과 [ADR 0010](0010-defer-chrome-web-store-to-v2.md)을 supersede했다.
 
 결정: SolveSync는 Chrome Web Store에 제출하지 않는다. 배포 채널은 GitHub Release에 올리는 ZIP 하나이고, 사용자는 압축을 풀어 `chrome://extensions`의 `Load unpacked`로 설치한다. ZIP은 `npm run package:chrome -- <버전>`이 만든다. Store 제출 계획 문서(`docs/CHROME_WEB_STORE.md`)는 지운다.
 

@@ -29,7 +29,7 @@ TypeScript, runtime message, storage schema는 같은 용어 체계를 사용한
 
 ## 사용자 여정
 ### 첫 설치
-- 사용자는 Chrome에서 확장을 unpacked extension으로 로드한다.
+- 사용자는 Chrome Web Store에서 확장을 설치하거나, GitHub Release ZIP을 받아 unpacked extension으로 로드한다.
 - 사용자가 지원 Coding Platform 문제 페이지에 들어간다.
 - 설정이 없으면 확장이 작은 toast로 GitHub 연결이 필요하다고 알려준다.
 - toast에는 Options 페이지로 이동하는 버튼이 있다.
@@ -96,7 +96,7 @@ TypeScript, runtime message, storage schema는 같은 용어 체계를 사용한
 - 이 action은 확장 시작, Auto Sync, Accepted sync에서 자동 실행되지 않으며 Sync Branch 생성, history rewrite, force push를 수행하지 않는다.
 
 ## MVP 기능
-- Local unpacked Chrome extension.
+- Chrome Web Store와 GitHub Release ZIP(local unpacked)으로 배포하는 Chrome extension.
 - GitHub App Device Flow 로그인, App 설치, repository picker, branch picker, branch 생성, Auto Sync, connection test를 설정하는 Options 페이지.
 - 현재 Solution Catalog를 기준으로 Solution README만 단독 commit으로 갱신하는 명시적 저장소 파일 정리 action.
 - Auto Sync 토글, 최근 20개 기록, 실패 상세, retry를 제공하는 Popup.
@@ -112,7 +112,6 @@ TypeScript, runtime message, storage schema는 같은 용어 체계를 사용한
 - Sync Repository의 폴더, README, Solution Catalog가 없을 때도 첫 sync에서 생성한다.
 
 ## v1 제외 사항
-- Chrome Web Store 배포. 배포는 GitHub Release ZIP 하나뿐이다([ADR 0045](adr/0045-github-release-zip-only-distribution.md)).
 - GitHub App이 설치되지 않은 repository와 organization/team repository workflow.
 - 지원 Coding Platform 문제 설명 전문 저장.
 - 다중 GitHub 계정 동시 저장과 계정 전환 관리. 현재 연결을 해제한 뒤 다른 계정으로 다시 로그인할 수 있다.
@@ -168,4 +167,4 @@ TypeScript, runtime message, storage schema는 같은 용어 체계를 사용한
 ## 릴리즈 전략
 - 현재 release(`v0.1.0-preview.3`): GitHub App Device Flow와 지원 언어 전체(SQL 방언 포함)를 포함한 LeetCode/Programmers/SWEA Accepted-to-GitHub 흐름을 GitHub Releases의 ZIP으로 배포하는 public preview. 사용자는 ZIP을 풀고 Chrome Developer mode에서 local unpacked extension으로 로드한다.
 - Domain naming migration: Solution Catalog schema 변경은 사용자가 선택한 Sync Repository의 검증 branch에서 확인하며, 특정 repository를 제품 기본값으로 고정하지 않는다.
-- 배포 채널은 GitHub Release ZIP 하나다. Chrome Web Store 배포는 하지 않는다.
+- 배포 채널은 Chrome Web Store와 GitHub Release ZIP 두 가지다([ADR 0046](adr/0046-chrome-web-store-alongside-release-zip.md)). Store 제출 조건과 Release Gate는 [Chrome Web Store 배포](CHROME_WEB_STORE.md)를 따른다. Store 출시 전까지는 Release ZIP이 유일한 설치 경로다.
