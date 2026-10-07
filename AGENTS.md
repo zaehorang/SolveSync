@@ -1,1 +1,161 @@
-CLAUDE.md
+# SolveSync Agent Guide
+
+이 파일은 AI coding agent를 위한 작업 매뉴얼이다. 제품 명세를 복제하지 말고, 작업 전에 어떤 문서를 확인해야 하는지와 구현 중 절대 놓치면 안 되는 가드레일만 제공한다.
+
+규칙 문서의 실체는 `AGENTS.md`이고, 같은 디렉터리의 `CLAUDE.md`는 그 파일을 가리키는 symlink다. 루트와 module 문서 모두 같다. codex는 `AGENTS.md`를, Claude Code는 `CLAUDE.md`를 읽지만 실체는 하나다. 어느 이름으로 열어 편집해도 같은 파일이 바뀐다. 규칙을 두 파일로 나누면 반드시 어긋나므로 복사본을 만들지 않는다. 문서와 메시지에서 규칙 문서를 가리킬 때는 `AGENTS.md`라고 쓴다. 새 module 문서를 만들 때도 `AGENTS.md`를 만들고 `ln -s AGENTS.md CLAUDE.md`로 symlink를 건다.
+
+SolveSync는 LeetCode, Programmers와 SWEA에서 Accepted 된 풀이를 사용자가 선택한 GitHub 저장소로 동기화하는 Chrome extension이다. 배포는 GitHub Release ZIP(Chrome에서 Load unpacked로 설치) 하나뿐이다. Chrome Web Store 배포는 하지 않는다([ADR 0045](docs/adr/0045-github-release-zip-only-distribution.md)).
+
+## Source of Truth
+- 제품 범위, 사용자 흐름, 성공 기준은 `docs/PRD.md`를 따른다.
+- 설계 결정과 tradeoff는 `docs/adr/`의 ADR 파일을 따른다. 목록과 다음에 쓸 번호는 `docs/adr/README.md`에 있다. ADR 번호는 재사용하지 않는다.
+- 런타임 구조, 데이터 흐름, storage, messaging, error model은 `docs/ARCHITECTURE.md`를 따른다.
+- Options, Popup, Toast UI와 문구/접근성 규칙은 `docs/UI_GUIDE.md`를 따른다.
+- 수동 검증 절차는 `docs/MANUAL_VALIDATION.md`를 따른다.
+- Coding Platform별 route 출처, Accepted 감지 방식, solution code source, `acceptedSourceId` 형식, 오류 코드는 `docs/platforms/`를 따른다. 공통 계약과 플랫폼 사이의 차이는 `docs/platforms/README.md`에 있고, 플랫폼 문서는 공통과 다른 것만 적는다.
+- 도메인 용어의 정의와 표기는 `CONTEXT.md`를 따른다.
+- 사용자 관점의 관측 가능한 동작 명세는 `docs/specs/`, 구현 계약은 `docs/platforms/`를 따른다. 둘이 어긋나면 구현이 무엇을 하는지는 `docs/platforms/`가 맞고, 그것이 옳은 동작인지는 `docs/specs/`의 열린 질문으로 올린다([규칙](docs/specs/README.md)).
+- [`docs/README.md`](docs/README.md)는 문서 지도·입문 안내다. 정본이 아니며 어느 문서를 읽을지만 알려준다.
+- `docs/plans/`는 source of truth가 아니다. 진행 중인 다단계 작업의 실행 계획만 담는다. 계획과 `docs/`가 다르면 `docs/`가 맞다. 계획이 정책 변경을 요구하면 해당 source of truth를 먼저 고친 뒤 계획을 따른다. 작업이 끝나면 해당 계획 파일을 지운다.
+- `docs/investigations/`는 source of truth가 아니다. 아직 재현되지 않은 증상, 원인 가설과 재현 시 수집할 근거만 기록한다.
+- 이 파일과 `docs/`가 충돌하면 먼저 관련 `docs/`를 확인하고, 실제 정책 변경이 필요하면 해당 문서를 source of truth로 수정한다.
+
+## Language
+- 산문은 한국어로 쓴다. `docs/`, 코드 주석과 docstring, commit message subject, PR 제목과 본문, GitHub Issue 코멘트가 여기에 해당한다.
+- `harness/`의 prompt, JSON schema description, `.claude/`의 agent와 skill 문서, 그리고 사람이나 agent가 읽는 런타임 메시지(hook 차단 사유, 검증 실패 메시지)도 한국어로 쓴다.
+- 식별자는 번역하지 않는다. 파일 경로, 함수/변수 이름, branch 이름, conventional commit type(`feat:`, `fix:` 등), `CONTEXT.md`가 정의한 도메인 용어는 원문 그대로 쓴다.
+- 도메인 용어는 `CONTEXT.md`의 표기를 따르고, 같은 개념을 한국어로 임의 번역해 새 용어를 만들지 않는다.
+- 사용자에게 보이는 UI 문구는 `docs/UI_GUIDE.md`의 locale 규칙을 따른다. 이 section은 저장소 안에서 개발자끼리 주고받는 글에 대한 규칙이다.
+
+## Git Workflow
+- **조사와 계획의 결과물은 문서 파일이 아니라 PR body에 남기는 것이 기본값이다.** 착수 근거, 무엇을 왜 바꿨는지, 어떻게 검증했는지가 여기에 들어간다.
+- **GitHub Issue는 선택이다.** 지금 고치지 않을 것을 기록할 때 만든다. 재현되지 않은 버그, 나중에 할 일, 사용자와 합의가 더 필요한 결정이 그렇다. 지금 바로 고칠 것이라면 이슈 없이 branch를 만들고 PR로 간다. 이슈를 만들었다면 PR body에 `Fixes #<number>`로 잇는다.
+- 계획을 승인받았다고 해서 파일 변경까지 승인된 것은 아니다. 짧은 승인은 다음 한 단계에만 적용한다. 계획을 제시한 뒤 착수 여부를 다시 확인한다.
+- 구현이나 문서 변경을 시작하기 전에 `git status --short --branch`와 현재 branch를 확인한다.
+- `main`에서는 직접 작업하거나 commit하지 않는다. 현재 `main`을 base로 work branch를 만든 뒤 변경한다.
+- **work branch 작업은 `{root}-wt/{slug}` worktree에서 한다.** 주 작업 디렉터리의 branch를 갈아타지 않는다. 다른 세션이나 다른 agent가 그 디렉터리에서 작업 중일 수 있고, branch를 갈아타면 그쪽 작업이 조용히 깨진다. 주 디렉터리는 worktree를 만들고 지우는 용도로 쓴다.
+
+  ```bash
+  git worktree add -b feat/worktree-isolation-gate ../SolveSync-wt/worktree-isolation-gate main
+  ```
+
+  새 worktree에는 `node_modules`가 없다. pre-push가 typecheck, test, build를 돌리므로 그대로 push하면 `tsc: command not found`로 막힌다. 주 디렉터리의 `node_modules`를 symlink로 걸거나 worktree에서 `npm ci`를 돌린다. symlink 쪽이 63MB를 다시 받지 않아 빠르고, gate 전체가 그 상태로 통과한다.
+
+  ```bash
+  ln -s {repo-root}/node_modules node_modules
+  ```
+
+  `e2e/`를 돌릴 worktree에는 `.env`도 복사한다. `playwright.config.ts`가 `import.meta.dirname` 기준으로 읽어 주 디렉터리에 두면 조용히 무시된다. symlink가 아니라 복사인 이유는 worktree를 지울 때 자격증명 사본도 함께 사라지게 하기 위해서다.
+
+  단 `package-lock.json`을 바꾸는 branch에서는 symlink를 쓰지 않는다. 주 디렉터리의 의존성을 조용히 쓰게 되어 lock 변경을 검증하지 못한다. 그때는 `npm ci`를 돌린다.
+
+  worktree에 symlink로 거는 것은 `.gitignore` 패턴에 슬래시를 붙이지 않는다. 슬래시는 디렉터리만 잡는데 symlink는 디렉터리가 아니라 그대로 untracked로 뜬다. `node_modules`와 `.verification-profile`이 여기 해당하고, 후자는 로그인 세션이 들어 있어 실제로 위험했다.
+
+  이 규칙은 두 층이 강제한다. pre-commit gate가 주 디렉터리에서의 커밋을 막고, `.claude/settings.json`이 배선한 PreToolUse hook이 주 디렉터리에서의 branch 전환을 막는다. 커밋 gate만으로는 이미 남의 branch를 밀어낸 뒤에 막힌다.
+- work branch 이름은 `{type}/{slug}` 형식이다. `type`은 `feat`, `fix`, `docs`, `test`, `refactor`, `chore`, `ci` 중 하나이고 `slug`는 kebab-case다. 예: `chore/shrink-harness`. 이슈가 있으면 `chore/issue-56-shrink-harness`처럼 slug에 번호를 넣어도 된다.
+- 이 형식은 pre-commit gate가 강제한다. 목록에 없는 접두사를 쓰거나 type이 없으면 커밋이 막힌다. 우회용 접두사는 두지 않는다.
+- `main`과 `origin/main`이 어긋나 있으면 그대로 진행하지 말고 base 상태를 먼저 정리한다. 사용자 변경이 섞여 있으면 되돌리지 말고 현재 작업과의 관계를 확인한다.
+- 이미 `main`에 현재 작업의 미커밋 변경이 있다면 버리지 않는다. 작업 범위가 명확하면 새 work branch로 함께 가져가고, 다른 작업과 섞여 있으면 사용자에게 확인한다.
+- 변경 전달은 work branch에서 검증한 뒤 Pull Request를 통해 수행한다. `main`으로 직접 push하거나 직접 merge하는 흐름을 사용하지 않는다.
+- PR 제목과 본문은 [`.github/PULL_REQUEST_TEMPLATE.md`](.github/PULL_REQUEST_TEMPLATE.md)를 따른다. 제목은 `type: 사용자가 보는 변화`로 쓰고, fix는 구현이 아니라 증상과 조건을 쓴다. 본문은 템플릿의 다섯 section(해결하는 문제, 사용자 영향, 왜 이렇게 바꿨는가, 근거, 함께 갱신한 문서)을 순서대로 채우고 주석은 지운다. `gh pr create --body`는 템플릿을 읽지 않으므로 `--body-file`로 같은 구조를 넘긴다. 근거가 된 이슈가 있으면 `Fixes #<number>` 또는 `Related: #<number>`로 함께 포함한다.
+- commit, push, PR 생성처럼 저장소나 GitHub 상태를 바꾸는 게시 단계는 사용자가 해당 작업에서 요청하거나 승인한 범위에서 수행한다.
+- `gh pr merge`와 `git worktree remove`는 주 디렉터리에서 실행한다. worktree 안에서 부르면 `'main' is already used by worktree`로 막힌다.
+- gh 2.101.0에서는 주 디렉터리에서 실행한 `gh pr merge --delete-branch`가 **worktree 디렉터리와 로컬·원격 branch를 함께 지운다**(2026-10-04 실측). worktree에 복사해 둔 `.env`와 `dist/`도 함께 사라진다. 단 추적하지 않는(gitignore되지 않은) 파일이 있으면 worktree 삭제와 로컬 branch 삭제를 건너뛴다(2026-10-04 실측, PR #105). 그때는 남은 파일을 확인한 뒤 `git worktree remove` → `git branch -D` 순서로 정리한다. 실행 뒤 `git worktree list`와 `git branch`로 남은 것이 없는지 확인한다.
+- 그보다 낮은 gh에서는 worktree가 살아 있으면 로컬 branch 삭제가 `cannot delete branch ... used by worktree`로 실패한다. 원격 branch는 이미 지워진 뒤라 로컬만 남고, 다음 실행이 낡은 branch를 본다. 그때 정리 순서는 **worktree 제거 → branch 삭제**다.
+- 정리 명령에 `git checkout main`을 넣지 않는다. 이미 `main`이어도 PreToolUse hook이 branch 전환으로 보고 명령 전체를 막는다.
+- 이 section의 development work branch와 제품이 사용자의 Sync Repository에 만드는 Sync Branch는 서로 다른 개념이다. 제품의 Sync Branch 자동 생성 금지 규칙은 그대로 유지한다.
+
+## Guardrails
+`harness/`는 되돌리기 비싼 변경을 commit, 도구 호출과 CI 시점에 막는 gate다. 구현을 대신하지 않으며, 상세 구조·설치·변경 절차는 [`harness/AGENTS.md`](harness/AGENTS.md)를 따른다.
+
+pre-commit은 되돌릴 수 없는 저장소 보호 규칙의 최후 방어선이고, pre-push는 typecheck·test·build를 PR 전 실행한다. `--no-verify`로 우회하지 말고 차단 사유를 고친다.
+
+## Module Context
+module을 수정하기 전에 가장 가까운 `AGENTS.md`를 먼저 읽는다. 각 문서는 소유 책임, 대표 변경 절차, 비직관적 규칙과 의존 방향만 담는다.
+
+대상: [`src/shared`](src/shared/AGENTS.md), [`src/background`](src/background/AGENTS.md), [`src/content`](src/content/AGENTS.md), [`src/options`](src/options/AGENTS.md), [`src/popup`](src/popup/AGENTS.md), [`harness`](harness/AGENTS.md), [`e2e`](e2e/AGENTS.md).
+
+## Do
+- 변경 전에 관련 `docs/` 문서를 먼저 읽고, docs와 구현이 어긋나면 사용자에게 명확히 알린다.
+- 플랫폼 page의 동작·제약·selector를 조사하기 전에 `docs/platforms/`를 grep한다. 이미 실측된 사실이 수동 검증 절 안에 들어 있을 수 있다.
+- 치환 기반 편집(`sed`, python `str.replace`)은 반영됐는지 확인한다. 조용히 no-op되면 그 뒤 디버깅이 전부 엉뚱한 곳을 판다.
+- diff는 작고 테스트 가능하게 유지한다.
+- 기존 module boundary와 local helper를 우선 사용한다.
+- business rule은 가능한 `src/shared` 또는 `src/background` orchestration에 두고 UI 코드는 얇게 유지한다.
+- shared pure logic, path, README, index, storage, error normalization을 바꾸면 Vitest 테스트를 함께 추가하거나 갱신한다.
+- `src/shared`와 `src/background`의 로직 파일은 같은 디렉터리에 `<모듈>.test.ts`를 둔다. 버그 수정은 재현 테스트를 먼저 작성하고 통과시키는 순서로 진행한다.
+- 외부 API error는 사용자에게 보여주기 전에 normalized error로 변환한다.
+- Chrome MV3 service worker의 장기 in-memory state를 source of truth로 쓰지 않는다.
+- `content_scripts` bundle은 classic script로 실행된다. content entry와 SWEA MAIN world bridge build 결과에 static ESM `import`가 남지 않게 한다.
+- 미재현 edge case를 남길 때는 `docs/investigations/`에 상태, 증상, 가설, 구분 조건, 안전한 증거 수집 범위와 승격 조건을 함께 기록한다. 실제 재현되면 회귀 테스트와 구현을 갱신하고, 계약 변경이 있으면 관련 source of truth도 수정한 뒤 investigation note를 정리한다.
+
+## Don't
+- GitHub access/refresh token, Device Flow device code, legacy PAT, LeetCode/Programmers cookie, session token, 실제 사용자 secret을 source, fixture, docs 예시에 넣지 않는다.
+- LeetCode/Programmers 문제 설명 전문을 저장하지 않는다.
+- content script에서 GitHub API를 직접 호출하지 않는다. 외부 write는 background service worker를 통해 수행한다.
+- 대상 GitHub repository나 branch를 코드 기본값으로 고정하지 않는다.
+- branch를 자동 생성하지 않는다. 사용자의 명시적 create action이 있을 때만 생성한다.
+- README/index/path 규칙을 UI나 API client에 흩뿌리지 않는다. shared pure logic으로 관리한다.
+- `dist/`, `node_modules/`, coverage output, build artifact를 커밋하지 않는다.
+- 사용자가 명시적으로 요청하지 않는 한 README를 수정하지 않는다.
+- 제품/아키텍처 세부 규칙을 AGENTS.md에 장황하게 복제하지 않는다. 해당 `docs/` 문서를 갱신한다.
+- Investigation의 가설을 확정된 Known Issue, troubleshooting 절차나 제품 계약처럼 표현하지 않는다.
+
+## High-Risk Rules
+- processed Sync Deduplication Key는 GitHub commit 성공 후에만 기록한다. 예외는 Sync Branch의 Solution Catalog가 그 Accepted를 이미 담고 있어 commit을 건너뛴 경우뿐이다([ADR 0042](docs/adr/0042-skip-commit-for-accepted-already-in-solution-catalog.md)).
+- 같은 Sync Deduplication Key는 storage 기반 Sync Deduplication Key lock으로 중복 처리를 막는다.
+- Retry Bundle에는 solution code가 임시 저장될 수 있으므로 UI disclosure와 TTL/cap 정책을 유지한다.
+- Programmers와 SWEA는 공식 제출 상세 API를 전제로 하지 않고 Accepted 직후 Accepted Editor Snapshot을 source로 쓴다. SWEA editor code는 MAIN world bridge에서만 읽을 수 있고 bridge protocol에는 code string만 넣는다.
+- Solution README는 Solution Catalog의 projection이다. managed marker 밖 사용자의 수동 내용은 보존한다.
+- Swift solution은 대상 저장소의 Xcode build source folder 아래에 만들지 않는다.
+
+## Commands
+저장소 루트에서 실행한다.
+
+```bash
+npm run typecheck
+npm test
+npm run build
+```
+
+`harness/`를 바꿨으면 함께 돌린다. CI가 실행하는 것과 같은 명령이다.
+
+```bash
+python3 -m unittest discover -s harness/tests -t harness
+```
+
+`docs/`나 `*.md`에서 파일을 옮기거나 링크를 바꿨으면 함께 돌린다. CI가 같은 명령을 실행한다.
+
+```bash
+npm run verify:docs
+```
+
+상대 markdown 링크가 실제 파일을 가리키는지만 본다. 백틱 경로는 검사하지 않는다 — 문서에는 저장소 경로와 사용자 Sync Repository 경로가 같은 표기로 섞여 있어 기계가 구분할 수 없다.
+
+`e2e/`, content script나 `manifest.json`을 바꿨으면 Sealed 계층도 돌린다. CI가 별도 job으로 실행한다.
+
+```bash
+npm run build && npm run e2e
+```
+
+`npm run e2e`는 secret 없이 도는 계층만 실행한다. Contract Check와 풀사이클은 env guard로 스스로 건너뛴다 — 실제 제출이 필요한 계층은 [`e2e/README.md`](e2e/README.md)를 따른다.
+
+GitHub Release용 ZIP은 `npm run package:chrome`이 만든다. `dist` 내용만 담고 필수/금지 경로를 검증한다.
+
+변경 범위가 작으면 관련 Vitest 파일을 먼저 실행해도 된다. 최종 build는 content IIFE bundle 검증까지 포함한다.
+
+Node는 `package.json`의 `engines`가 하한을 정한다. `.github/workflows/ci.yml`은 그 하한 버전을 고정해서 돌리므로 로컬이 더 새 버전이어도 CI가 하한을 검증한다. 하한을 올릴 때는 두 곳을 함께 바꾼다.
+
+## Change Checklist
+- 제품 동작이나 scope 변경: `docs/PRD.md` 확인.
+- architecture, storage, runtime message, API boundary 변경: `docs/ARCHITECTURE.md`와 `docs/adr/` 확인.
+- UI layout, copy, locale, accessibility 변경: `docs/UI_GUIDE.md` 확인.
+- sync flow 또는 browser 검증 영향: `docs/MANUAL_VALIDATION.md` 갱신 필요 여부 확인.
+- Coding Platform 감지, adapter, 오류 코드 변경: `docs/platforms/`의 해당 플랫폼 문서와 README 표 확인.
+- 문서 파일 이동·이름 변경: `npm run verify:docs`로 그 파일을 가리키던 링크를 함께 확인.
+- commit message를 작성할 때는 `feat:`, `fix:`, `docs:`, `test:`, `refactor:`, `chore:`, `ci:` 같은 conventional commits 형식을 사용한다. branch type과 같은 목록이다.
+
+## When Stuck
+- 추측으로 큰 rewrite를 하지 말고, 현재 관찰한 사실과 막힌 지점을 짧게 정리한다.
+- 여러 해석이 가능한 제품 결정은 관련 docs 후보를 제시하고 사용자 확인을 받는다.
+- repo 상태가 더러우면 사용자가 만든 변경을 되돌리지 말고, 현재 작업과 충돌하는 경우에만 물어본다.

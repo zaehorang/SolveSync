@@ -27,3 +27,6 @@ blob-report/
 
 # Playwright 산출물
 test-results/
+
+# 개인 작업 계획과 메모. 저장소에 올리지 않는 로컬 전용 공간이다.
+.local/
