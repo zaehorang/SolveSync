@@ -12,7 +12,7 @@ solve-sync는 LeetCode, Programmers와 SW Expert Academy(SWEA)에서 Accepted(�
   <img src="assets/readme/public-preview-flow.svg" alt="정답 결과가 선택한 GitHub 저장소로 자동 동기화되는 흐름" width="100%">
 </p>
 
-현재 상태는 GitHub Public Preview(`v0.1.0-preview.3` 기준)입니다. Chrome Web Store 출시를 준비 중이며, 현재는 [GitHub Releases](https://github.com/zaehorang/solve-sync/releases)에서 설치용 ZIP을 받아 설치합니다.
+현재 상태는 GitHub Public Preview(`v0.1.0-preview.4` 기준)입니다. Chrome Web Store 출시를 준비 중이며, 현재는 [GitHub Releases](https://github.com/zaehorang/solve-sync/releases)에서 설치용 ZIP을 받아 설치합니다.
 
 ## 다른 사람도 사용할 수 있나요?
 

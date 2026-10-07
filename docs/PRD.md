@@ -165,6 +165,6 @@ TypeScript, runtime message, storage schema는 같은 용어 체계를 사용한
 - test fixture에는 실제 token, cookie, private code를 넣지 않는다.
 
 ## 릴리즈 전략
-- 현재 release(`v0.1.0-preview.3`): GitHub App Device Flow와 지원 언어 전체(SQL 방언 포함)를 포함한 LeetCode/Programmers/SWEA Accepted-to-GitHub 흐름을 GitHub Releases의 ZIP으로 배포하는 public preview. 사용자는 ZIP을 풀고 Chrome Developer mode에서 local unpacked extension으로 로드한다.
+- 현재 release(`v0.1.0-preview.4`): GitHub App Device Flow와 지원 언어 전체(SQL 방언 포함)를 포함한 LeetCode/Programmers/SWEA Accepted-to-GitHub 흐름을 GitHub Releases의 ZIP으로 배포하는 public preview. 사용자는 ZIP을 풀고 Chrome Developer mode에서 local unpacked extension으로 로드한다.
 - Domain naming migration: Solution Catalog schema 변경은 사용자가 선택한 Sync Repository의 검증 branch에서 확인하며, 특정 repository를 제품 기본값으로 고정하지 않는다.
 - 배포 채널은 Chrome Web Store와 GitHub Release ZIP 두 가지다([ADR 0046](adr/0046-chrome-web-store-alongside-release-zip.md)). Store 제출 조건과 Release Gate는 [Chrome Web Store 배포](CHROME_WEB_STORE.md)를 따른다. Store 출시 전까지는 Release ZIP이 유일한 설치 경로다.
