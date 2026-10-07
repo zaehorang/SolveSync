@@ -57,7 +57,7 @@ Implementation rules:
 - General: Auto Sync, Language.
 - Repository file cleanup: 현재 Sync Repository와 Sync Branch의 Solution README projection 정리.
 - Security: GitHub session token과 Retry Bundle disclosure.
-- About: 제품 이름, local unpacked v1 성격, backend 없음 안내.
+- About: 제품 이름, Accepted-to-GitHub 동기화 목적, backend 없음 안내.
 - Save controls.
 
 필수 field:

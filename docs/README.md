@@ -28,6 +28,7 @@ Accepted 감지는 content script(플랫폼 페이지 안에서 도는 확장 �
 | 자동 검증(e2e) 실행 | [e2e/README](../e2e/README.md) |
 | GitHub App 등록과 tester 설치 | [GITHUB_APP_SETUP](GITHUB_APP_SETUP.md) |
 | Chrome Web Store 제출 조건과 Release Gate | [CHROME_WEB_STORE](CHROME_WEB_STORE.md) |
+| Store Listing, Privacy 답변과 reviewer 안내 초안 | [STORE_SUBMISSION](STORE_SUBMISSION.md) |
 | 수집 데이터, 보안 제보 | [PRIVACY](../PRIVACY.md), [SECURITY](../SECURITY.md) |
 | 아직 재현되지 않은 증상 | [investigations](investigations/ABOUT.md) |
 
