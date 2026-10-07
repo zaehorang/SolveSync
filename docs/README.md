@@ -35,7 +35,7 @@ Accepted 감지는 content script(플랫폼 페이지 안에서 도는 확장 �
 1. [PRD](PRD.md)로 무엇을 만드는지 잡는다.
 2. [CONTEXT](../CONTEXT.md)로 용어를 익힌다. 문서 전체가 이 표기를 쓴다.
 3. [ARCHITECTURE](ARCHITECTURE.md)로 구조를 본다.
-4. [루트 CLAUDE.md](../CLAUDE.md)로 작업 규칙(branch, worktree, 명령, 금지 사항)을 확인한다.
-5. 고칠 폴더의 `CLAUDE.md`(`src/*`, `harness`, `e2e`)를 읽는다.
+4. [루트 AGENTS.md](../AGENTS.md)로 작업 규칙(branch, worktree, 명령, 금지 사항)을 확인한다.
+5. 고칠 폴더의 `AGENTS.md`(`src/*`, `harness`, `e2e`)를 읽는다.
 
-문서끼리 내용이 다르면 [루트 CLAUDE.md](../CLAUDE.md)의 Source of Truth 절이 어느 쪽이 맞는지 정한다.
+문서끼리 내용이 다르면 [루트 AGENTS.md](../AGENTS.md)의 Source of Truth 절이 어느 쪽이 맞는지 정한다.
