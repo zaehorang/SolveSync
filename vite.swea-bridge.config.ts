@@ -18,7 +18,7 @@ export default defineConfig({
     lib: {
       entry: resolve(srcRoot, "content/sweaEditorBridge.ts"),
       formats: ["iife"],
-      name: "SolveSyncSweaEditorBridge",
+      name: "solve_sync_swea_editor_bridge",
       fileName: () => "content/sweaEditorBridge.js"
     }
   }

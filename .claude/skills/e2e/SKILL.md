@@ -1,6 +1,6 @@
 ---
 name: e2e
-description: SolveSync e2e 검증을 상황에 맞게 고르고 준비물을 챙겨 실행한다. 환경 점검, Contract Check, 기본 e2e, 풀사이클 중 선택한다. "/e2e", "e2e 돌려줘", "e2e 환경 확인", "contract check" 같은 요청에 쓴다.
+description: solve-sync e2e 검증을 상황에 맞게 고르고 준비물을 챙겨 실행한다. 환경 점검, Contract Check, 기본 e2e, 풀사이클 중 선택한다. "/e2e", "e2e 돌려줘", "e2e 환경 확인", "contract check" 같은 요청에 쓴다.
 ---
 
 # e2e
@@ -110,11 +110,11 @@ GitHub write 설정이 없거나 Repository 확인에 실패하면 사전 점검
 종료 대상은 두 가지뿐이다. 평소 쓰는 Chrome은 건드리지 않는다.
 
 - 로그인·Contract Check: 이 저장소의 `.verification-profile` 절대경로를 `--user-data-dir`로 받은 Chrome
-- 풀사이클: `solvesync-profile-` 임시 복사본 프로필을 받은 Chromium (`$TMPDIR/solvesync-profile-*`)
+- 풀사이클: `solve-sync-profile-` 임시 복사본 프로필을 받은 Chromium (`$TMPDIR/solve-sync-profile-*`)
 
 ```bash
 # 목록. Chrome·Chromium 실행 파일의 메인 프로세스만(자식은 --type= 인자가 있다)
-ps -axo pid=,args= | grep -F -e "--user-data-dir=$PWD/.verification-profile" -e "--user-data-dir=${TMPDIR%/}/solvesync-profile-" | grep -E 'Google Chrome|Chromium|chrome-mac' | grep -v -e grep -e '--type='
+ps -axo pid=,args= | grep -F -e "--user-data-dir=$PWD/.verification-profile" -e "--user-data-dir=${TMPDIR%/}/solve-sync-profile-" | grep -E 'Google Chrome|Chromium|chrome-mac' | grep -v -e grep -e '--type='
 ```
 
 결과가 비어 있으면 남은 것이 없다. 있으면 PID와 프로필 경로를 사용자에게 보여주고 승인받은 PID에만 `kill -TERM <pid>`를 보낸다. 자식은 따라서 끝난다. 몇 초 뒤 같은 목록 명령으로 사라졌는지 확인한다. `kill -9`는 쓰지 않는다 — 프로필이 상한다. 다른 worktree의 프로필 경로가 보이면 그쪽 작업일 수 있으니 건드리지 않는다.

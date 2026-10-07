@@ -3,7 +3,7 @@
 > **Description**: 시스템 구조, 모듈 책임, 데이터 흐름, 저장소 모델, 기술 규칙을 정리한 문서다.
 
 ## 시스템 개요
-SolveSync는 standalone Chrome extension이다. LeetCode, Programmers와 SWEA 문제 페이지를 관찰해 Accepted 제출을 감지하고, 사용자가 선택한 Sync Repository에 Solution File을 커밋한다. 플랫폼별 route, 감지 신호와 source 수집 계약은 [LeetCode 연동](platforms/LEETCODE.md), [Programmers 연동](platforms/PROGRAMMERS.md)과 [SWEA 연동](platforms/SWEA.md)을 따른다.
+solve-sync는 standalone Chrome extension이다. LeetCode, Programmers와 SWEA 문제 페이지를 관찰해 Accepted 제출을 감지하고, 사용자가 선택한 Sync Repository에 Solution File을 커밋한다. 플랫폼별 route, 감지 신호와 source 수집 계약은 [LeetCode 연동](platforms/LEETCODE.md), [Programmers 연동](platforms/PROGRAMMERS.md)과 [SWEA 연동](platforms/SWEA.md)을 따른다.
 
 이 확장은 별도 backend server를 운영하지 않는다. 모든 orchestration은 브라우저 extension runtime 안에서 수행한다.
 

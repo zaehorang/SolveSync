@@ -12,7 +12,7 @@ import {
 
 describe("shared public barrel", () => {
   it("exports scaffold and shared contract symbols", () => {
-    expect(APP_NAME).toBe("SolveSync");
+    expect(APP_NAME).toBe("solve-sync");
     expect(STORAGE_SCHEMA_VERSION).toBe(5);
     expect(DEFAULT_UI_LANGUAGE).toBe("system");
     expect(resolveUiLocale("system", "ko-KR")).toBe("ko");

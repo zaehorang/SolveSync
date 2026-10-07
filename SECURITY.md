@@ -1,10 +1,10 @@
 # Security Policy
 
-SolveSync 보안 문제는 GitHub Issue 또는 maintainer contact 경로로 제보할 수 있습니다. 공개 issue에 민감한 정보를 포함하지 마세요.
+solve-sync 보안 문제는 GitHub Issue 또는 maintainer contact 경로로 제보할 수 있습니다. 공개 issue에 민감한 정보를 포함하지 마세요.
 
 ## 취약점 제보에 포함하면 좋은 내용
 
-- 영향을 받는 SolveSync version 또는 commit
+- 영향을 받는 solve-sync version 또는 commit
 - 재현 가능한 단계
 - 예상 동작과 실제 동작
 - 관련 화면 또는 로그의 민감 정보 제거본
@@ -41,7 +41,7 @@ Issue, screenshot, logs, sample payload에 다음 값을 포함하지 마세요.
 
 ## Security Notes
 
-- SolveSync는 별도 backend server를 운영하지 않습니다.
+- solve-sync는 별도 backend server를 운영하지 않습니다.
 - GitHub access/refresh token과 Retry Bundle code는 Chrome extension local storage에 저장될 수 있습니다. Device Flow pending state는 session storage에 저장됩니다.
 - GitHub write는 사용자가 선택한 Sync Repository와 Sync Branch로 제한됩니다.
 - Content script는 GitHub API를 직접 호출하지 않습니다.

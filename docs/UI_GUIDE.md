@@ -3,14 +3,14 @@
 > **Description**: 화면 구성, 상태 표현, 문구, 스타일, 접근성 기준을 정리한 문서다.
 
 ## 제품 UI 원칙
-1. SolveSync는 마케팅 제품이 아니라 매일 쓰는 조용한 개발 도구처럼 느껴져야 한다.
+1. solve-sync는 마케팅 제품이 아니라 매일 쓰는 조용한 개발 도구처럼 느껴져야 한다.
 2. 모든 화면은 현재 작업에 집중한다. GitHub 연결, sync 상태 확인, 실패 retry, Auto Sync 일시 중지가 핵심이다.
 3. 시각적 질감은 상태와 구조를 돕기 위한 보조 수단이다. 장식보다 짧은 상태 문구, 안정적인 control, 명확한 복구 action을 우선한다.
 4. 사용자를 놀라게 하는 navigation을 피한다. 사용자가 link를 클릭하지 않는 한 GitHub 탭을 자동으로 열지 않는다.
 5. Liquid Glass 방향은 Apple HIG의 material, hierarchy, clarity 원칙을 참고하되 Apple 제품 UI를 복제하지 않는다.
 
 ## UI Surface
-SolveSync의 사용자 화면은 세 가지다.
+solve-sync의 사용자 화면은 세 가지다.
 - Options page
 - Popup page
 - Problem page sync popup/toast
@@ -89,7 +89,7 @@ Repository file cleanup 문구:
 
 Sync Repository picker:
 - 로그인 후 Load repositories action을 제공한다.
-- 목록은 로그인 계정이 소유하고 SolveSync GitHub App access가 허용된 repository만 보여준다.
+- 목록은 로그인 계정이 소유하고 solve-sync GitHub App access가 허용된 repository만 보여준다.
 - 목록이 비어 있으면 GitHub App을 본인 repository에 설치하거나 access 범위를 설정하라는 상태와 action을 보여준다.
 - 목록이 길 수 있으므로 검색 가능한 UI를 제공한다.
 - repository를 자동 선택하지 않는다.
@@ -135,7 +135,7 @@ Connection test 상태:
 Chrome action popup sizing:
 - Chrome action popup은 일반 tab viewport가 아니라 popup content 기준으로 자동 크기 조정된다.
 - 공식 popup 크기 범위는 `25x25`부터 `800x600`px까지다.
-- SolveSync toolbar popup 기준 폭은 `380px`이다.
+- solve-sync toolbar popup 기준 폭은 `380px`이다.
 - popup root sizing에는 `100vw`, `min(..., 100vw)` 같은 viewport 의존 폭을 사용하지 않는다.
 - popup root에는 명확한 fixed/min content width를 두고, 내부 콘텐츠가 그 폭 안에서 줄바꿈되게 한다.
 
@@ -214,7 +214,7 @@ Toast rules:
 - 긴 technical stack trace는 toast에 표시하지 않고 Popup의 details에 둔다.
 
 ## Visual Style
-SolveSync는 Liquid Glass inspired utility UI를 사용한다.
+solve-sync는 Liquid Glass inspired utility UI를 사용한다.
 
 핵심 방향:
 - frosted/translucent glass shell.

@@ -1,8 +1,8 @@
 # 문서 안내
 
-> **Description**: SolveSync를 처음 보는 사람을 위한 문서 지도다. 정본이 아니며 요약과 링크만 둔다.
+> **Description**: solve-sync를 처음 보는 사람을 위한 문서 지도다. 정본이 아니며 요약과 링크만 둔다.
 
-## SolveSync란
+## solve-sync란
 
 LeetCode, Programmers, SW Expert Academy(SWEA)에서 문제를 풀어 Accepted(정답 판정)를 받으면, Chrome 확장이 그 풀이를 사용자가 고른 GitHub 저장소에 자동으로 commit한다. 풀이 파일과 함께 진행표(README)도 갱신한다. 별도 backend server는 없고, 브라우저가 GitHub에 직접 보낸다.
 

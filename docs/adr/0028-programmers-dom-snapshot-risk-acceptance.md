@@ -4,7 +4,7 @@
 
 결정: v1은 Programmers Accepted 제출을 동기화할 때 현재 페이지 DOM의 Accepted Editor Snapshot을 solution source로 계속 사용한다. 별도 사용자 confirmation gate, 일반 수동 sync, Programmers 비공식 제출 상세 API 의존은 추가하지 않는다.
 
-이유: Programmers는 LeetCode처럼 안정적으로 사용할 공식 Accepted submission detail API를 전제로 하기 어렵다. SolveSync의 목표는 local unpacked extension에서 사용자가 지원 언어로 푼 solution source를 개인 GitHub 저장소에 자동 반영하는 것이다. 이 데이터는 GitHub token, cookie, session token, repository 선택 정보가 아니라 사용자가 제출한 solution code다.
+이유: Programmers는 LeetCode처럼 안정적으로 사용할 공식 Accepted submission detail API를 전제로 하기 어렵다. solve-sync의 목표는 local unpacked extension에서 사용자가 지원 언어로 푼 solution source를 개인 GitHub 저장소에 자동 반영하는 것이다. 이 데이터는 GitHub token, cookie, session token, repository 선택 정보가 아니라 사용자가 제출한 solution code다.
 
 보안 경계: Programmers page DOM과 script는 extension background보다 낮은 trust boundary에 있다. 따라서 Programmers origin DOM/script가 compromise되면 committed solution source integrity가 영향을 받을 수 있다. 이 residual risk는 v1에서 문서화하고 수용한다.
 

@@ -7,8 +7,8 @@
  * 들어간다. 두 bundle 모두 IIFE이므로 여기에 runtime 의존을 추가하지 않는다.
  */
 
-export const SWEA_BRIDGE_REQUEST_SOURCE = "solvesync-swea-bridge-request";
-export const SWEA_BRIDGE_RESPONSE_SOURCE = "solvesync-swea-bridge-response";
+export const SWEA_BRIDGE_REQUEST_SOURCE = "solve-sync-swea-bridge-request";
+export const SWEA_BRIDGE_RESPONSE_SOURCE = "solve-sync-swea-bridge-response";
 
 export interface SweaBridgeRequest {
   source: typeof SWEA_BRIDGE_REQUEST_SOURCE;

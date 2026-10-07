@@ -1,14 +1,14 @@
 # GitHub App Setup
 
-SolveSync Release ZIP을 만들기 전에 maintainer가 수행할 외부 설정이다. Extension에는 공개 client ID와 App slug만 포함하며 client secret, private key, backend는 사용하지 않는다. Release ZIP 사용자는 별도의 GitHub App을 등록하지 않는다.
+solve-sync Release ZIP을 만들기 전에 maintainer가 수행할 외부 설정이다. Extension에는 공개 client ID와 App slug만 포함하며 client secret, private key, backend는 사용하지 않는다. Release ZIP 사용자는 별도의 GitHub App을 등록하지 않는다.
 
 ## 1. Public GitHub App 등록
 
-GitHub Settings의 Developer settings에서 새 GitHub App을 만든다.
+GitHub Settings의 Developer settings에서 운영 중인 GitHub App 설정을 확인한다.
 
-- GitHub App name: `SolveSync Preview`
-- Description: `Connect SolveSync to repositories you choose and sync accepted LeetCode, Programmers, and SWEA solutions from the Chrome extension.`
-- Homepage URL: `https://github.com/zaehorang/SolveSync`
+- GitHub App name: `solve-sync`
+- Description: `solve-sync Chrome 확장이 LeetCode, Programmers, SWEA에서 Accepted 받은 풀이를 내가 고른 GitHub 저장소로 자동 동기화하도록 연결합니다.`
+- Homepage URL: `https://github.com/zaehorang/solve-sync`
 - Callback URL: Device Flow에서는 사용하지 않음
 - Webhook: 비활성화
 - Expire user authorization tokens: 활성화
@@ -17,12 +17,12 @@ GitHub Settings의 Developer settings에서 새 GitHub App을 만든다.
 
 Display information:
 
-- Logo: `assets/github-app/solvesync-github-app-logo.png`
+- Logo: `assets/github-app/solve-sync-github-app-logo.png`
 - Badge background color: `#F8FBFF`
 
 GitHub App 이름을 변경하면 public slug가 바뀔 수 있다. 변경 후 General 화면의 public link를 확인하고 `.env.local`의 `VITE_GITHUB_APP_SLUG`를 새 slug로 갱신한 뒤 다시 build한다.
 
-현재 preview App의 public slug는 `solvesync-preview`다.
+현재 운영 App의 public slug는 `solve-sync`다.
 
 Repository permissions:
 
@@ -34,7 +34,7 @@ Private key를 생성할 필요가 없다. Client secret도 extension 설정이�
 
 ### 기존 설치의 권한 변경 승인
 
-GitHub App의 repository permission을 추가하거나 접근 수준을 높여도 기존 installation에는 즉시 적용되지 않는다. 각 installation 소유자가 GitHub의 `Settings → Applications → Installed GitHub Apps → SolveSync Preview → Configure`에서 대기 중인 권한 변경을 승인해야 한다. 확장에서 Device Flow 로그인을 다시 진행하는 것만으로는 installation permission이 갱신되지 않는다.
+GitHub App의 repository permission을 추가하거나 접근 수준을 높여도 기존 installation에는 즉시 적용되지 않는다. 각 installation 소유자가 GitHub의 `Settings → Applications → Installed GitHub Apps → solve-sync → Configure`에서 대기 중인 권한 변경을 승인해야 한다. 확장에서 Device Flow 로그인을 다시 진행하는 것만으로는 installation permission이 갱신되지 않는다.
 
 승인 후에도 `POST .../git/blobs: Resource not accessible by integration`이 발생하면 사용자용 해결 순서([README](../README.md#github-app-쓰기-권한-오류))를 따른다.
 
@@ -51,8 +51,8 @@ GitHub App의 repository permission을 추가하거나 접근 수준을 높여�
 Release ZIP 대신 소스에서 직접 만드는 절차다. Node.js(`package.json`의 `engines` 이상)와 npm이 필요하다.
 
 ```bash
-git clone https://github.com/zaehorang/SolveSync.git
-cd SolveSync
+git clone https://github.com/zaehorang/solve-sync.git
+cd solve-sync
 npm install
 ```
 
@@ -79,7 +79,7 @@ npm run build
 
 ## 3. Tester onboarding
 
-1. Tester는 GitHub Releases에서 최신 `solvesync-*.zip`을 내려받고 압축을 푼다.
+1. Tester는 GitHub Releases에서 최신 설치용 ZIP을 내려받고 압축을 푼다.
 2. Chrome의 Developer mode에서 `Load unpacked`로 압축을 푼 폴더를 로드한다.
 3. Options에서 `Sign in with GitHub`를 누르고 GitHub의 device page에서 일회용 code를 승인한다.
 4. `Install or configure GitHub App`에서 tester 본인이 소유한 test repository만 선택한다.

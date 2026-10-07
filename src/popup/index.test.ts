@@ -861,7 +861,7 @@ describe("popup state helpers", () => {
 
     expect(html).toContain("Ready to sync");
     expect(html).toContain(
-      "solvesync-fixture/algorithm-sync-sandbox-with-a-very-long-repository-name-for-popup-qa"
+      "solve-sync-fixture/algorithm-sync-sandbox-with-a-very-long-repository-name-for-popup-qa"
     );
     expect(html).toContain(
       "release/chrome-web-store-prelaunch-popup-runtime-fixture-with-long-branch-name"

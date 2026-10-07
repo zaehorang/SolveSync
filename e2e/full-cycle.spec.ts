@@ -191,7 +191,7 @@ test.describe("풀사이클", () => {
         const code = `${await readSolution(
           driver.platform,
           "accepted"
-        )}\n${prefix} solvesync full-cycle ${nonce}\n`;
+        )}\n${prefix} solve-sync full-cycle ${nonce}\n`;
 
         await captureDriver.writeSolution(page, code);
         console.info("[full-cycle] 코드 입력 완료");

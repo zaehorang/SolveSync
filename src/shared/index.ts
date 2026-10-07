@@ -1,4 +1,4 @@
-export const APP_NAME = "SolveSync";
+export const APP_NAME = "solve-sync";
 
 export * from "./errors";
 export * from "./errorNormalize";

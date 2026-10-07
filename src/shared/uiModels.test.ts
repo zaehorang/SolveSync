@@ -42,7 +42,7 @@ describe("shared UI models", () => {
     });
     expect(getConnectionStatusView("ko", "no_accessible_repositories")).toMatchObject({
       label: "본인 저장소 없음",
-      detail: "본인 소유 저장소 하나 이상에 SolveSync GitHub App을 설치하세요.",
+      detail: "본인 소유 저장소 하나 이상에 solve-sync GitHub App을 설치하세요.",
       tone: "warning"
     });
     expect(getConnectionStatusView("en", "auth_failed", error)).toMatchObject({

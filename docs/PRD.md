@@ -1,9 +1,9 @@
-# PRD: SolveSync
+# PRD: solve-sync
 
 > **Description**: 제품 요구사항, 사용자 흐름, 범위, 성공 기준을 정리한 문서다.
 
 ## 개요
-SolveSync는 LeetCode, Programmers와 SWEA에서 Accepted 된 풀이를 GitHub 문제 풀이 저장소로 자동 동기화하는 개인용 Chrome 확장이다. 사용자가 문제를 푼 뒤 코드 복사, 파일 위치 선택, 커밋, README 갱신, push를 반복하지 않도록 만드는 것이 목적이다.
+solve-sync는 LeetCode, Programmers와 SWEA에서 Accepted 된 풀이를 GitHub 문제 풀이 저장소로 자동 동기화하는 개인용 Chrome 확장이다. 사용자가 문제를 푼 뒤 코드 복사, 파일 위치 선택, 커밋, README 갱신, push를 반복하지 않도록 만드는 것이 목적이다.
 
 ## 도메인 Naming 계약
 표준 제품/domain 용어는 `CONTEXT.md`를 따른다. 사용자-facing 문서와 UI는 Coding Platform, Accepted Submission, Accepted Editor Snapshot, Sync Deduplication Key, Sync Repository, Sync Branch, Solution File, Solution Revision Number, Solution Catalog, Solution README, Sync History, Retry Bundle을 기준으로 쓴다.
@@ -16,7 +16,7 @@ TypeScript, runtime message, storage schema는 같은 용어 체계를 사용한
 ## 대상 사용자
 - 주 사용자: 코딩 테스트와 알고리즘 인터뷰를 준비하는 개발자.
 - 사용 환경: Chrome, 로그인된 지원 Coding Platform 세션, 개인 GitHub 계정, 개인 문제 풀이 저장소.
-- Sync Repository: 사용자가 로그인한 GitHub 계정이 소유하고 SolveSync GitHub App을 설치한 repository 중 선택한다. 특정 repository를 제품 기본값으로 고정하지 않는다.
+- Sync Repository: 사용자가 로그인한 GitHub 계정이 소유하고 solve-sync GitHub App을 설치한 repository 중 선택한다. 특정 repository를 제품 기본값으로 고정하지 않는다.
 
 ## 목표
 - LeetCode, Programmers와 SWEA에서 Swift, Python3, Java, C++, JavaScript, TypeScript, Kotlin, Go, Rust와 SQL 방언 넷(MySQL, Oracle, PostgreSQL, MS SQL Server)으로 작성한 Accepted 제출을 자동으로 GitHub에 반영한다. 플랫폼이 실제로 제공하는 언어만 해당한다. SWEA는 C++14, JAVA, Python 3 셋뿐이고 SQL 문제가 없다. Programmers는 SQL 방언 중 MySQL과 Oracle만 제공한다. LeetCode의 Pandas는 지원하지 않는다([ADR 0043](adr/0043-sql-dialects-as-separate-supported-languages.md)).
@@ -37,8 +37,8 @@ TypeScript, runtime message, storage schema는 같은 용어 체계를 사용한
 ### GitHub 연결
 - 사용자가 Options 페이지를 연다.
 - 사용자는 `Sign in with GitHub`를 눌러 GitHub Device Flow를 시작한다.
-- Options는 일회용 user code와 GitHub verification URL을 보여주며, 사용자는 GitHub에서 SolveSync를 승인한다.
-- 사용자는 SolveSync GitHub App을 본인 소유 Sync Repository에 설치한다. App 권한은 repository Metadata read와 Contents read/write로 제한한다.
+- Options는 일회용 user code와 GitHub verification URL을 보여주며, 사용자는 GitHub에서 solve-sync를 승인한다.
+- 사용자는 solve-sync GitHub App을 본인 소유 Sync Repository에 설치한다. App 권한은 repository Metadata read와 Contents read/write로 제한한다.
 - Options는 로그인 계정이 소유하고 App이 설치된 repository 목록을 보여주며 사용자가 Sync Repository를 선택하게 한다.
 - repository 목록이 비어 있거나 불러오기에 실패하면 Options는 원인과 다음 행동을 보여준다.
 - 사용자가 Sync Repository를 선택하면 Options는 branch 목록을 불러오고 기본 선택값으로 repository default branch를 보여준다.

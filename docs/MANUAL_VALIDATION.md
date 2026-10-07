@@ -7,11 +7,11 @@
 ## 사전 조건
 
 - Chrome Developer mode를 사용할 수 있다.
-- Device Flow와 expiring user access token을 활성화한 public SolveSync GitHub App이 준비되어 있다.
+- Device Flow와 expiring user access token을 활성화한 public solve-sync GitHub App이 준비되어 있다.
 - GitHub App repository permission은 Metadata read와 Contents read/write다.
 - `.env.local`에 `VITE_GITHUB_APP_CLIENT_ID`, `VITE_GITHUB_APP_SLUG`를 설정한다. client secret은 사용하지 않는다.
 - 로그인할 GitHub 계정이 소유한 별도 test repository에 App을 설치한다.
-- 실제 풀이 branch 대신 `solvesync-test` 같은 test branch를 사용한다.
+- 실제 풀이 branch 대신 `solve-sync-test` 같은 test branch를 사용한다.
 
 특정 repository나 branch를 제품 기본값으로 고정하지 않는다. 검증할 때 Options의 picker에서 직접 선택한다.
 

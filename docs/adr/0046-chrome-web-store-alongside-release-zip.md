@@ -2,7 +2,7 @@
 
 상태: Accepted. [ADR 0045](0045-github-release-zip-only-distribution.md)를 supersede한다.
 
-결정: SolveSync를 Chrome Web Store Public item으로 제출하고, 심사를 통과하면 프로젝트 소유자가 명시적으로 publish한다. GitHub Release ZIP 배포도 유지한다. 두 채널은 같은 `npm run package:chrome` 결과물을 쓴다. 제출 조건과 Release Gate는 [Chrome Web Store 배포](../CHROME_WEB_STORE.md)가 갖는다.
+결정: solve-sync를 Chrome Web Store Public item으로 제출하고, 심사를 통과하면 프로젝트 소유자가 명시적으로 publish한다. GitHub Release ZIP 배포도 유지한다. 두 채널은 같은 `npm run package:chrome` 결과물을 쓴다. 제출 조건과 Release Gate는 [Chrome Web Store 배포](../CHROME_WEB_STORE.md)가 갖는다.
 
 이유: 프로젝트 소유자가 2026-10-07에 Store 배포를 다시 진행하기로 했고, 같은 날 Chrome Web Store Developer 계정을 등록했다. 0045는 Store를 쓰지 않는다는 전제였는데 그 전제가 사라졌다. 기술적 준비 상태는 [ADR 0038](0038-chrome-web-store-public-release.md) 시점과 같다. MV3, 아이콘, ZIP 검증, public GitHub App Device Flow가 이미 갖춰져 있고, 남은 것은 문구와 권한 정리, 제출 자료, 심사다. 0038을 되살리지 않고 새 번호로 쓰는 것은 0045를 거친 결정의 이력을 덮지 않기 위해서다.
 

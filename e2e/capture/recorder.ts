@@ -70,7 +70,7 @@ export interface ArmOptions {
   readonly maxHtmlLength?: number;
 }
 
-const GLOBAL_KEY = "__solveSyncCapture";
+const GLOBAL_KEY = "__solve_sync_capture";
 
 /** 다음 navigation부터 page script보다 먼저 실행된다. */
 export async function armRecorder(page: Page, options: ArmOptions = {}): Promise<void> {

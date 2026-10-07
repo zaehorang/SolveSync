@@ -69,7 +69,7 @@ export async function openVerificationProfile(
 }
 
 async function copyProfile(): Promise<string> {
-  const target = await mkdtemp(join(tmpdir(), "solvesync-profile-"));
+  const target = await mkdtemp(join(tmpdir(), "solve-sync-profile-"));
 
   await cp(VERIFICATION_PROFILE_DIR, target, { recursive: true });
 

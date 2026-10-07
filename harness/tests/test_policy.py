@@ -79,14 +79,14 @@ class BashRules(unittest.TestCase):
         self.assertIsNone(self.check("gh pr create --fill"))
         self.assertIsNone(self.check("gh api /repos/x/y"))
         self.assertIsNone(self.check("git push --force-with-lease"))
-        self.assertIsNone(self.check("git worktree add -b feat/issue-20-x ../SolveSync-wt/x main"))
+        self.assertIsNone(self.check("git worktree add -b feat/issue-20-x ../solve-sync-wt/x main"))
         self.assertIsNone(self.check("git config core.hooksPath harness/hooks"))
 
     def test_paths_outside_the_repository_are_allowed(self):
         # scratchpad와 memory는 저장소 밖이고 대화형 세션의 정상 작업이다.
         self.assertIsNone(self.check("cat /tmp/scratch/notes.md"))
         self.assertIsNone(self.check("cat /Users/someone/.claude/projects/x/memory/MEMORY.md"))
-        self.assertIsNone(self.check("cat ../SolveSync/AGENTS.md"))
+        self.assertIsNone(self.check("cat ../solve-sync/AGENTS.md"))
 
     def test_gate_bypass_is_still_denied(self):
         self.assertIsNotNone(self.check("git commit --no-verify -m 'feat: x'"))

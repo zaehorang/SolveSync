@@ -19,12 +19,12 @@ import {
 } from "./support/extensionPage";
 
 const REPOSITORY: SyncRepository = {
-  owner: "solvesync-verification",
+  owner: "solve-sync-verification",
   name: "seed-only",
-  fullName: "solvesync-verification/seed-only",
+  fullName: "solve-sync-verification/seed-only",
   defaultBranch: "main",
   private: true,
-  htmlUrl: "https://github.com/solvesync-verification/seed-only"
+  htmlUrl: "https://github.com/solve-sync-verification/seed-only"
 };
 
 const BRANCH: SyncBranch = {
@@ -41,7 +41,7 @@ test("심은 GitHub auth session을 제품이 연결된 상태로 읽는다", as
 
     await seedGitHubAuthSession(page, {
       accessToken: "seed-only-token-never-sent-to-github",
-      login: "solvesync-verification"
+      login: "solve-sync-verification"
     });
 
     const settings = await requireRuntimeData<PublicSettingsState>(page, {
@@ -51,7 +51,7 @@ test("심은 GitHub auth session을 제품이 연결된 상태로 읽는다", as
     // parser가 session을 버리면 여기서 false가 된다. schema가 바뀌면
     // 하네스가 아니라 이 단언이 먼저 깨진다.
     expect(settings.isGithubConnected).toBe(true);
-    expect(settings.githubAccount?.login).toBe("solvesync-verification");
+    expect(settings.githubAccount?.login).toBe("solve-sync-verification");
   } finally {
     await extension.close();
   }

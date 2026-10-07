@@ -27,7 +27,7 @@ const distDirectory = resolve(root, "dist");
 const artifactsDirectory = resolve(root, "artifacts");
 const archivePath = resolve(
   artifactsDirectory,
-  `solvesync-${releaseLabel}.zip`
+  `solve-sync-${releaseLabel}.zip`
 );
 
 for (const key of [

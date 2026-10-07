@@ -152,7 +152,7 @@ def check_bash(
                     "주 작업 디렉터리의 branch를 갈아타지 마세요. 다른 세션이 그 "
                     "디렉터리에서 작업 중일 수 있고, 그 작업이 조용히 깨집니다. "
                     "`git worktree add -b {type}/{slug} "
-                    "../SolveSync-wt/{slug} main`으로 새 worktree를 만들어 거기서 작업하세요."
+                    "../solve-sync-wt/{slug} main`으로 새 worktree를 만들어 거기서 작업하세요."
                 )
 
         if argv[0] == "npm" and len(argv) > 1 and argv[1] in ("i", "install", "add"):
@@ -204,7 +204,7 @@ def check_worktree_isolation(git_dir: str, git_common_dir: str) -> str | None:
     return (
         "주 작업 디렉터리에서는 커밋할 수 없습니다. 다른 세션이 이 디렉터리에서 "
         "작업 중일 수 있습니다. `git worktree add -b {type}/{slug} "
-        "../SolveSync-wt/{slug} main`으로 worktree를 만들고 거기서 작업하세요 (AGENTS.md)."
+        "../solve-sync-wt/{slug} main`으로 worktree를 만들고 거기서 작업하세요 (AGENTS.md)."
     )
 
 
