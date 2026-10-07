@@ -6,7 +6,7 @@
 
 ## 찾기 위한 증상 표현
 
-- Programmers에서 `정답입니다!`를 확인했지만 SolveSync toast가 없다.
+- Programmers에서 `정답입니다!`를 확인했지만 solve-sync toast가 없다.
 - Sync History와 GitHub commit이 생성되지 않았다.
 - 문제를 제출한 뒤 새로고침 없이 다른 화면으로 이동했다가 문제 화면으로 돌아왔다.
 - 문제 화면으로 돌아오는 순간 제출 결과 modal도 함께 나타났다.

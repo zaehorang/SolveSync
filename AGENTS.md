@@ -1,10 +1,10 @@
-# SolveSync Agent Guide
+# solve-sync Agent Guide
 
 이 파일은 AI coding agent를 위한 작업 매뉴얼이다. 제품 명세를 복제하지 말고, 작업 전에 어떤 문서를 확인해야 하는지와 구현 중 절대 놓치면 안 되는 가드레일만 제공한다.
 
 규칙 문서의 실체는 `AGENTS.md`이고, 같은 디렉터리의 `CLAUDE.md`는 그 파일을 가리키는 symlink다. 루트와 module 문서 모두 같다. codex는 `AGENTS.md`를, Claude Code는 `CLAUDE.md`를 읽지만 실체는 하나다. 어느 이름으로 열어 편집해도 같은 파일이 바뀐다. 규칙을 두 파일로 나누면 반드시 어긋나므로 복사본을 만들지 않는다. 문서와 메시지에서 규칙 문서를 가리킬 때는 `AGENTS.md`라고 쓴다. 새 module 문서를 만들 때도 `AGENTS.md`를 만들고 `ln -s AGENTS.md CLAUDE.md`로 symlink를 건다.
 
-SolveSync는 LeetCode, Programmers와 SWEA에서 Accepted 된 풀이를 사용자가 선택한 GitHub 저장소로 동기화하는 Chrome extension이다. 배포는 Chrome Web Store와 GitHub Release ZIP(Chrome에서 Load unpacked로 설치) 두 경로다([ADR 0046](docs/adr/0046-chrome-web-store-alongside-release-zip.md)). Store 제출 조건과 Release Gate는 [`docs/CHROME_WEB_STORE.md`](docs/CHROME_WEB_STORE.md)를 따른다.
+solve-sync는 LeetCode, Programmers와 SWEA에서 Accepted 된 풀이를 사용자가 선택한 GitHub 저장소로 동기화하는 Chrome extension이다. 배포는 Chrome Web Store와 GitHub Release ZIP(Chrome에서 Load unpacked로 설치) 두 경로다([ADR 0046](docs/adr/0046-chrome-web-store-alongside-release-zip.md)). Store 제출 조건과 Release Gate는 [`docs/CHROME_WEB_STORE.md`](docs/CHROME_WEB_STORE.md)를 따른다.
 
 ## Source of Truth
 - 제품 범위, 사용자 흐름, 성공 기준은 `docs/PRD.md`를 따른다.
@@ -36,7 +36,7 @@ SolveSync는 LeetCode, Programmers와 SWEA에서 Accepted 된 풀이를 사용�
 - **work branch 작업은 `{root}-wt/{slug}` worktree에서 한다.** 주 작업 디렉터리의 branch를 갈아타지 않는다. 다른 세션이나 다른 agent가 그 디렉터리에서 작업 중일 수 있고, branch를 갈아타면 그쪽 작업이 조용히 깨진다. 주 디렉터리는 worktree를 만들고 지우는 용도로 쓴다.
 
   ```bash
-  git worktree add -b feat/worktree-isolation-gate ../SolveSync-wt/worktree-isolation-gate main
+  git worktree add -b feat/worktree-isolation-gate ../solve-sync-wt/worktree-isolation-gate main
   ```
 
   새 worktree에는 `node_modules`가 없다. pre-push가 typecheck, test, build를 돌리므로 그대로 push하면 `tsc: command not found`로 막힌다. 주 디렉터리의 `node_modules`를 symlink로 걸거나 worktree에서 `npm ci`를 돌린다. symlink 쪽이 63MB를 다시 받지 않아 빠르고, gate 전체가 그 상태로 통과한다.

@@ -80,7 +80,7 @@ export class ContentToast {
     }
 
     const host = this.documentRef.createElement("div");
-    host.id = "solvesync-toast-root";
+    host.id = "solve-sync-toast-root";
     const shadowRoot = host.attachShadow({ mode: "open" });
     this.documentRef.documentElement.append(host);
     this.host = host;
@@ -321,7 +321,7 @@ export const CONTENT_TOAST_CSS = `
     rgb(37 99 235 / 0.22)
   );
   background-size: 180% 100%;
-  animation: solvesync-progress 1400ms linear infinite;
+  animation: solve-sync-progress 1400ms linear infinite;
 }
 
 .header {
@@ -408,7 +408,7 @@ export const CONTENT_TOAST_CSS = `
   border-top-color: currentColor;
   border-radius: var(--ss-badge-pill-radius);
   content: "";
-  animation: solvesync-spin 820ms linear infinite;
+  animation: solve-sync-spin 820ms linear infinite;
 }
 
 .copy {
@@ -521,13 +521,13 @@ export const CONTENT_TOAST_CSS = `
   color: var(--ss-text-on-accent);
 }
 
-@keyframes solvesync-spin {
+@keyframes solve-sync-spin {
   to {
     transform: rotate(360deg);
   }
 }
 
-@keyframes solvesync-progress {
+@keyframes solve-sync-progress {
   to {
     background-position: -180% 0;
   }

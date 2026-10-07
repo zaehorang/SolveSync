@@ -74,13 +74,13 @@ describe("캡처 redaction", () => {
   it("등록한 계정 문자열을 지운다", () => {
     // 아이디는 형태가 정해져 있지 않아 패턴으로 잡을 수 없다. SWEA는
     // 로그인하면 header에 사용자 이름을 그리므로 캡처 DOM에 그대로 섞인다.
-    registerSecrets(["solvesync-tester"]);
+    registerSecrets(["solve-sync-tester"]);
 
-    const redacted = redactText("<span>solvesync-tester님</span>");
+    const redacted = redactText("<span>solve-sync-tester님</span>");
 
     expect(redacted).toBe(`<span>${REDACTED}님</span>`);
     expect(findLeaks(redacted)).toEqual([]);
-    expect(findLeaks("<span>solvesync-tester님</span>")).toContain("account");
+    expect(findLeaks("<span>solve-sync-tester님</span>")).toContain("account");
   });
 
   it("정규식 특수문자가 든 비밀도 글자 그대로 지운다", () => {
@@ -102,11 +102,11 @@ describe("캡처 redaction", () => {
   it("label이 다르면 서로의 등록을 지우지 않는다", () => {
     // 계정은 세션 내내 유지되어야 하고 solution code는 캡처마다 바뀐다.
     // 한쪽을 다시 등록할 때 다른 쪽이 사라지면 그 순간부터 조용히 샌다.
-    registerSecrets(["solvesync-tester"]);
+    registerSecrets(["solve-sync-tester"]);
     registerSecrets(["return seen.find(target);"], "solution-code");
     registerSecrets(["print(total + 1)"], "solution-code");
 
-    expect(redactText("solvesync-tester님")).toBe(`${REDACTED}님`);
+    expect(redactText("solve-sync-tester님")).toBe(`${REDACTED}님`);
     expect(redactText("print(total + 1)")).toBe(REDACTED);
     // 같은 label의 이전 등록은 교체된다.
     expect(redactText("return seen.find(target);")).toBe("return seen.find(target);");

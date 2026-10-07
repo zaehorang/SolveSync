@@ -2,7 +2,7 @@
 
 상태: Accepted. ADR 0006의 fine-grained PAT 결정을 supersede한다.
 
-결정: SolveSync는 사용자가 직접 입력하는 PAT 대신 public GitHub App의 Device Flow로 로그인한다. App은 Device Flow와 expiring user access token을 활성화하고, 공개 client ID와 App slug만 extension build에 포함한다. client secret이나 별도 backend는 사용하지 않는다.
+결정: solve-sync는 사용자가 직접 입력하는 PAT 대신 public GitHub App의 Device Flow로 로그인한다. App은 Device Flow와 expiring user access token을 활성화하고, 공개 client ID와 App slug만 extension build에 포함한다. client secret이나 별도 backend는 사용하지 않는다.
 
 Device Flow pending state의 device code는 `chrome.storage.session`에 저장한다. 완료 후 받은 access token, refresh token, 만료 시각, 최소 account summary는 versioned `githubAuth` state로 `chrome.storage.local`에 저장한다. Public settings와 runtime 응답에는 token과 device code를 포함하지 않는다.
 

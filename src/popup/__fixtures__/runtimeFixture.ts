@@ -200,7 +200,7 @@ export function renderPopupStaticQaFixture(
           .join("")}</ul>`;
 
   return `<main class="popup-shell" aria-labelledby="popup-title">
-  <h1 id="popup-title">SolveSync</h1>
+  <h1 id="popup-title">solve-sync</h1>
   <section id="setup-card" class="status-card ${setup.tone}">
     <h2 id="setup-title">${escapeHtml(setup.label)}</h2>
     <p id="setup-detail">${escapeHtml(setup.detail)}</p>
@@ -354,9 +354,9 @@ function makeSyncHistoryEntry(
     solutionPath:
       "leetcode/swift/1368_minimum_cost_to_make_at_least_one_valid_path_in_a_grid_with_extra_long_title.swift",
     commitSha: "commit-sha",
-    commitUrl: "https://github.com/solvesync-fixture/algorithm-sync-sandbox/commit/commit-sha",
+    commitUrl: "https://github.com/solve-sync-fixture/algorithm-sync-sandbox/commit/commit-sha",
     fileUrl:
-      "https://github.com/solvesync-fixture/algorithm-sync-sandbox/blob/main/leetcode/swift/1368_minimum_cost_to_make_at_least_one_valid_path_in_a_grid_with_extra_long_title.swift",
+      "https://github.com/solve-sync-fixture/algorithm-sync-sandbox/blob/main/leetcode/swift/1368_minimum_cost_to_make_at_least_one_valid_path_in_a_grid_with_extra_long_title.swift",
     error: null,
     retryBundleId: null,
     createdAt: timestamp,
@@ -381,9 +381,9 @@ function makeProgrammersSyncHistoryEntry(
     },
     solutionPath: "programmers/swift/120804_두_수의_곱_구하기.swift",
     commitUrl:
-      "https://github.com/solvesync-fixture/algorithm-sync-sandbox/commit/programmers-sha",
+      "https://github.com/solve-sync-fixture/algorithm-sync-sandbox/commit/programmers-sha",
     fileUrl:
-      "https://github.com/solvesync-fixture/algorithm-sync-sandbox/blob/main/programmers/swift/120804_두_수의_곱_구하기.swift",
+      "https://github.com/solve-sync-fixture/algorithm-sync-sandbox/blob/main/programmers/swift/120804_두_수의_곱_구하기.swift",
     ...overrides
   });
 }
@@ -442,12 +442,12 @@ function escapeHtml(value: string): string {
 }
 
 const syncRepository: SyncRepository = {
-  owner: "solvesync-fixture",
+  owner: "solve-sync-fixture",
   name: "algorithm-sync-sandbox-with-a-very-long-repository-name-for-popup-qa",
   fullName:
-    "solvesync-fixture/algorithm-sync-sandbox-with-a-very-long-repository-name-for-popup-qa",
+    "solve-sync-fixture/algorithm-sync-sandbox-with-a-very-long-repository-name-for-popup-qa",
   defaultBranch: "main",
   private: true,
   htmlUrl:
-    "https://github.com/solvesync-fixture/algorithm-sync-sandbox-with-a-very-long-repository-name-for-popup-qa"
+    "https://github.com/solve-sync-fixture/algorithm-sync-sandbox-with-a-very-long-repository-name-for-popup-qa"
 };

@@ -74,7 +74,7 @@
 
 LeetCode client는 `lang.verboseName`, `lang.name`, `langName` 순서로 읽는다. alias 정규화가 공백을 지우므로 `MS SQL Server`는 `mssqlserver`가 되어 `mssql`과 별개 alias로 등록했다. 양쪽 표기는 `languageRegistry.test.ts`와 `client/leetcode.test.ts`가 검증한다.
 
-**실제 제출로 확인 (2026-09-29, MySQL 한 방언).** 새 빌드에서 175 Combine Two Tables를 MySQL로 제출해 Accepted(8/8)를 받았고(submission id 2156862594) SolveSync toast가 `GitHub에 동기화됨 · Combine Two Tables, MySQL`을 표시했다. Database 문제도 일반 문제와 같은 Accepted 감지와 제출 상세 조회 흐름으로 sync된다. 저장 경로는 toast link가 closed shadow DOM이라 직접 읽지 못했다. 경로를 실측한 것이 아니며, 경로 형식은 단위 테스트가 고정한다.
+**실제 제출로 확인 (2026-09-29, MySQL 한 방언).** 새 빌드에서 175 Combine Two Tables를 MySQL로 제출해 Accepted(8/8)를 받았고(submission id 2156862594) solve-sync toast가 `GitHub에 동기화됨 · Combine Two Tables, MySQL`을 표시했다. Database 문제도 일반 문제와 같은 Accepted 감지와 제출 상세 조회 흐름으로 sync된다. 저장 경로는 toast link가 closed shadow DOM이라 직접 읽지 못했다. 경로를 실측한 것이 아니며, 경로 형식은 단위 테스트가 고정한다.
 
 **alias만 실측에 근거한다.** Oracle, PostgreSQL, MS SQL Server는 제출하지 않았고 language list 실측(위 표)에 근거한 alias만 있다. 이 방언들의 Accepted sync는 확인되지 않았다.
 

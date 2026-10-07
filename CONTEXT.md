@@ -1,19 +1,19 @@
-# SolveSync
+# solve-sync
 
-SolveSync는 LeetCode, Programmers와 SWEA에서 Accepted 된 풀이를 사용자가 선택한 GitHub 저장소로 동기화하는 개인용 Chrome extension이다. 이 컨텍스트는 문제 풀이 제출, 동기화 대상, GitHub 반영 결과를 다루는 언어를 정의한다.
+solve-sync는 LeetCode, Programmers와 SWEA에서 Accepted 된 풀이를 사용자가 선택한 GitHub 저장소로 동기화하는 개인용 Chrome extension이다. 이 컨텍스트는 문제 풀이 제출, 동기화 대상, GitHub 반영 결과를 다루는 언어를 정의한다.
 
 ## 언어
 
 **Coding Platform**:
-사용자가 문제를 풀고 제출하는 외부 코딩 문제 서비스. SolveSync의 Coding Platform은 LeetCode, Programmers와 SW Expert Academy(SWEA)다.
+사용자가 문제를 풀고 제출하는 외부 코딩 문제 서비스. solve-sync의 Coding Platform은 LeetCode, Programmers와 SW Expert Academy(SWEA)다.
 _Avoid_: Problem platform, site, judge, provider
 
 **Accepted Submission**:
-Coding Platform에서 Accepted 판정을 받은 사용자의 제출. SolveSync에서는 GitHub 동기화 후보가 되는 제출을 뜻하며, 문제 자체를 푼 상태나 현재 editor 상태와는 구분한다.
+Coding Platform에서 Accepted 판정을 받은 사용자의 제출. solve-sync에서는 GitHub 동기화 후보가 되는 제출을 뜻하며, 문제 자체를 푼 상태나 현재 editor 상태와는 구분한다.
 _Avoid_: Solved problem, accepted problem, result
 
 **Accepted Editor Snapshot**:
-Programmers와 SWEA에서 Accepted 직후 현재 문제 페이지의 editor code와 화면 메타데이터에서 얻은 동기화 source. 제출 상세 기록이나 화면 캡처가 아니라 사용자가 Accepted를 받은 순간 SolveSync가 관찰한 editor 상태다.
+Programmers와 SWEA에서 Accepted 직후 현재 문제 페이지의 editor code와 화면 메타데이터에서 얻은 동기화 source. 제출 상세 기록이나 화면 캡처가 아니라 사용자가 Accepted를 받은 순간 solve-sync가 관찰한 editor 상태다.
 _Avoid_: Accepted snapshot, submission detail, official submission, screenshot, cached code
 
 **Sync Deduplication Key**:
@@ -21,11 +21,11 @@ _Avoid_: Accepted snapshot, submission detail, official submission, screenshot, 
 _Avoid_: Sync identity, submission identity, problem identity, file identity
 
 **Sync Repository**:
-사용자가 SolveSync Options에서 선택한 GitHub 저장소. SolveSync가 Solution File, Solution Catalog, Solution README를 반영하는 목적지다.
+사용자가 solve-sync Options에서 선택한 GitHub 저장소. solve-sync가 Solution File, Solution Catalog, Solution README를 반영하는 목적지다.
 _Avoid_: Target repository, default repository, validation repository, local repository
 
 **Sync Branch**:
-Sync Repository 안에서 SolveSync가 commit을 반영하는 사용자가 선택한 branch. 존재하지 않는 branch는 자동 목적지가 아니다.
+Sync Repository 안에서 solve-sync가 commit을 반영하는 사용자가 선택한 branch. 존재하지 않는 branch는 자동 목적지가 아니다.
 _Avoid_: Target branch, default branch, generated branch
 
 **Solution File**:

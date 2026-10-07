@@ -85,7 +85,7 @@ export const sweaDriver: PlatformE2EDriver = {
       // commit된 파일에 그대로 도달하는가뿐이다.
       code: [
         "def main():",
-        '    print("solvesync verification")',
+        '    print("solve-sync verification")',
         "",
         "",
         "main()",

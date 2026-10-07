@@ -143,7 +143,7 @@ E2E_LIVE_PLATFORM=swea E2E_LIVE_SUBMIT=1 npm run e2e:full-cycle   # 하나만
 4. **코드 nonce.** 실행마다 주석 한 줄을 덧붙인다. commit된 내용에 이번 실행의 nonce가 있는지로 **방금 만들어진 commit인지 앞선 실행이 남긴 것인지**를 가른다.
 5. **가상 스크롤(SWEA만).** 렌더된 `.CodeMirror-line` 수가 전체 줄 수보다 적은지 본다. 전부 렌더되면 화면 밖 줄을 검증하지 못한 채 통과하므로 제출 전에 멈춘다. 이때 제출 전 제출횟수도 log에 남긴다 — 상한이 99회다.
 
-제출 뒤에는 commit된 줄 수가 넣은 코드와 같은지도 본다. nonce 포함만 보면 nonce가 마지막 줄이라 앞이 잘려도 통과한다. SWEA(2026-08-26)와 Programmers(2026-10-04)에서 실제로 통과했다. Programmers는 기준 풀이처럼 짧은 code로만 확인했고, 긴 풀이에서 `textarea#code`가 잘리지 않는지는 [#79](https://github.com/zaehorang/SolveSync/issues/79)가 다룬다.
+제출 뒤에는 commit된 줄 수가 넣은 코드와 같은지도 본다. nonce 포함만 보면 nonce가 마지막 줄이라 앞이 잘려도 통과한다. SWEA(2026-08-26)와 Programmers(2026-10-04)에서 실제로 통과했다. Programmers는 기준 풀이처럼 짧은 code로만 확인했고, 긴 풀이에서 `textarea#code`가 잘리지 않는지는 [#79](https://github.com/zaehorang/solve-sync/issues/79)가 다룬다.
 
 확장은 이 계층에서만 로드한다. 그리고 **실제 Chrome이 아니라 Chromium으로 내려간다** — 실제 Chrome은 `--load-extension`을 더 이상 받지 않는다(2026-08-25 실측). 그때 프로필은 복사본을 쓴다. 한 프로필을 Chrome과 Chromium이 번갈아 열면 상해서 사람이 다시 로그인해야 한다.
 

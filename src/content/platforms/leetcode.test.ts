@@ -258,7 +258,7 @@ describe("LeetCode content detector", () => {
   it("ignores removed Accepted nodes and unrelated additions", () => {
     const mutation = mutationRecord({
       target: elementNode([]),
-      addedNodes: [elementNode([textNode("SolveSync synced")])],
+      addedNodes: [elementNode([textNode("solve-sync synced")])],
       removedNodes: [elementNode([textNode("Accepted")])]
     });
 

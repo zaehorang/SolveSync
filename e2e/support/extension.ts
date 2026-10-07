@@ -33,7 +33,7 @@ export async function loadExtension(
 ): Promise<LoadedExtension> {
   const ephemeral = options.userDataDir === undefined;
   const userDataDir =
-    options.userDataDir ?? (await mkdtemp(join(tmpdir(), "solvesync-e2e-")));
+    options.userDataDir ?? (await mkdtemp(join(tmpdir(), "solve-sync-e2e-")));
 
   const context = await chromium.launchPersistentContext(userDataDir, {
     // headless 기본값은 `chromium_headless_shell`을 쓰는데 그 바이너리는

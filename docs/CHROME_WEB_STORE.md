@@ -1,6 +1,6 @@
 # Chrome Web Store 배포
 
-> **Description**: SolveSync를 Chrome Web Store에 Public으로 제출하고 출시하기 위한 계획, 제출 항목과 Release Gate를 정의한다.
+> **Description**: solve-sync를 Chrome Web Store에 Public으로 제출하고 출시하기 위한 계획, 제출 항목과 Release Gate를 정의한다.
 
 - 공식 Chrome Web Store 문서 확인일: 2026-08-12. 개발자 등록과 게시자 한도는 2026-10-07에 다시 확인했다.
 - 목표 채널: Chrome Web Store Public
@@ -12,7 +12,7 @@
 
 ## 1. 목표
 
-GitHub Release ZIP으로만 배포하던 SolveSync를 Chrome Web Store에서도 설치하고 업데이트할 수 있는 Public extension으로 낸다. Release ZIP 배포는 유지한다.
+GitHub Release ZIP으로만 배포하던 solve-sync를 Chrome Web Store에서도 설치하고 업데이트할 수 있는 Public extension으로 낸다. Release ZIP 배포는 유지한다.
 
 첫 배포는 다음 조건을 만족해야 한다.
 
@@ -149,11 +149,11 @@ Agent는 Google, GitHub와 Coding Platform 사용자 계정의 인증 정보나 
 | Primary listing language | Korean | 확정 |
 | Secondary listing language | English | 확정 |
 | Publisher owner | 프로젝트 소유자의 개인 Google 계정 | 확정, 등록 완료 |
-| Publisher name | `SolveSync`와 일관된 이름 | 사용자 결정 |
+| Publisher name | `solve-sync`와 일관된 이름 | 사용자 결정 |
 | Homepage URL | Public GitHub repository | 권장 |
 | Support URL | GitHub Issues | 권장 |
 | Privacy Policy URL | 저장소 `main`의 `PRIVACY.md` GitHub 페이지 | 확정 |
-| GitHub App name | `solve-sync` (기존 `SolveSync Preview` App의 이름 변경) | 확정 |
+| GitHub App name | `solve-sync` (기존 preview App의 이름 변경) | 확정 |
 | GitHub App slug | `solve-sync` | 변경 완료 |
 | Initial Store version | `0.1.0` | 확정 |
 
@@ -289,7 +289,7 @@ reviewer test instructions에 포함할 흐름. reviewer가 자기 GitHub 계정
 - test repository와 공개 가능한 sample solution만 사용한다.
 - token, device code, cookie, email, private repository, private solution code를 제거한다.
 - 실제 기능보다 과장된 UI나 지원 범위를 이미지에 표시하지 않는다.
-- promo tile은 screenshot 복사보다 SolveSync의 single purpose와 브랜드를 전달한다.
+- promo tile은 screenshot 복사보다 solve-sync의 single purpose와 브랜드를 전달한다.
 
 완료 조건:
 
@@ -406,7 +406,7 @@ http://
 
 완료 조건:
 
-- Chrome Web Store Public listing에서 SolveSync를 설치할 수 있다.
+- Chrome Web Store Public listing에서 solve-sync를 설치할 수 있다.
 - Store 설치본의 핵심 sync 흐름이 정상 동작한다.
 - Privacy Policy와 support URL이 공개 접근 가능하다.
 - 출시 version과 Git tag/release 기록이 일치한다.
@@ -418,7 +418,7 @@ http://
 | broad host permission으로 보이는 권한 | 심사 지연 또는 반려 | 각 host가 필요한 정확한 endpoint와 사용자 기능을 justification에 설명하고 불필요한 권한을 제거한다. |
 | GitHub token의 local storage 저장 | 개인정보·보안 검토 | UI와 Privacy Policy에 저장 위치와 목적을 명시하고 코드 노출 경로와 추가 보호 필요성을 제출 전 재검토한다. |
 | Programmers와 SWEA의 Accepted Editor Snapshot 의존 | reviewer 재현 차이 | residual risk를 과장 없이 설명하고 실제 페이지 수동 검증 및 관련 regression test를 유지한다. |
-| 게시자 한도(2026-08-20부터 기본 2개) | 다른 확장을 함께 낼 때 막힘 | SolveSync는 한 칸만 쓴다. 한도가 차면 Dashboard에서 증가를 요청한다. |
+| 게시자 한도(2026-08-20부터 기본 2개) | 다른 확장을 함께 낼 때 막힘 | solve-sync는 한 칸만 쓴다. 한도가 차면 Dashboard에서 증가를 요청한다. |
 | GitHub App 이름/slug가 Preview로 남음 | 사용자 혼동과 reviewer 신뢰 저하 | 정식 App 이름과 slug를 확정하고 Store copy, build config, install link를 일치시킨다. |
 | Store copy와 구현 불일치 | 정책 반려 | 지원 플랫폼, 언어, repository 범위, backend 부재를 실제 구현만 기준으로 작성한다. |
 | screenshot의 민감정보 노출 | 개인정보 유출 | 전용 test data 사용, 촬영 전후 2회 검토, 원본 공유 범위 제한. |

@@ -2,7 +2,7 @@
 
 설계 결정과 tradeoff의 source of truth다. 새 ADR은 [TEMPLATE.md](TEMPLATE.md)에서 시작한다. 모든 ADR은 제목 다음에 `상태:` 줄을 갖는다. 구현이 ADR과 어긋나면 어느 쪽이 맞는지 먼저 판단하고, 결정이 바뀐 것이면 새 ADR을 쓴다. 기존 ADR을 조용히 고쳐 과거 결정을 덮어쓰지 않는다.
 
-**다음에 쓸 번호는 0047이다.** 아래 "번호 구멍"을 참고한다.
+**다음에 쓸 번호는 0048이다.** 아래 "번호 구멍"을 참고한다.
 
 ## 목록
 
@@ -50,6 +50,7 @@
 | 0044 | [같은 날 푼 README 행은 최근 동기화한 것이 위에 오게 한다](0044-same-day-readme-rows-ordered-by-latest-sync.md) | Accepted |
 | 0045 | [Chrome Web Store에 배포하지 않고 GitHub Release ZIP만 쓴다](0045-github-release-zip-only-distribution.md) | Superseded by 0046 |
 | 0046 | [Chrome Web Store에 배포하고 GitHub Release ZIP도 유지한다](0046-chrome-web-store-alongside-release-zip.md) | Accepted |
+| 0047 | [제품과 저장소 이름을 solve-sync로 통일한다](0047-solve-sync-brand-and-repository-rename.md) | Accepted |
 
 ## 번호 구멍
 

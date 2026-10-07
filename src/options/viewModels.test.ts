@@ -21,7 +21,7 @@ describe("options index owner repository copy", () => {
   it("labels empty repository state as no owned repositories", () => {
     expect(getConnectionStatusView("no_accessible_repositories")).toMatchObject({
       label: "No owned repositories",
-      detail: "Install the SolveSync GitHub App for at least one repository you own.",
+      detail: "Install the solve-sync GitHub App for at least one repository you own.",
       tone: "warning"
     });
   });

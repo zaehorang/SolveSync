@@ -28,18 +28,18 @@ describe("getGitHubAppInstallationUrl", () => {
   });
 
   it("slug가 있으면 GitHub App 설치 URL을 조립한다", async () => {
-    const { getGitHubAppInstallationUrl } = await loadWithSlug("solvesync");
+    const { getGitHubAppInstallationUrl } = await loadWithSlug("solve-sync");
 
     expect(getGitHubAppInstallationUrl()).toBe(
-      "https://github.com/apps/solvesync/installations/new"
+      "https://github.com/apps/solve-sync/installations/new"
     );
   });
 
   it("slug 앞뒤 공백을 무시한다", async () => {
-    const { getGitHubAppInstallationUrl } = await loadWithSlug("  solvesync  ");
+    const { getGitHubAppInstallationUrl } = await loadWithSlug("  solve-sync  ");
 
     expect(getGitHubAppInstallationUrl()).toBe(
-      "https://github.com/apps/solvesync/installations/new"
+      "https://github.com/apps/solve-sync/installations/new"
     );
   });
 

@@ -38,13 +38,13 @@ import { servePage } from "./support/route";
  * 그래도 실사용 저장소로 착각할 이름은 쓰지 않는다. 이 spec이 나중에 GitHub를
  * 타게 바뀌면 그 이름이 그대로 대상이 된다. */
 const SYNTHETIC_REPOSITORY: SyncRepository = {
-  owner: "solvesync-e2e-nonexistent-owner",
+  owner: "solve-sync-e2e-nonexistent-owner",
   name: "swea-bridge-failure",
-  fullName: "solvesync-e2e-nonexistent-owner/swea-bridge-failure",
+  fullName: "solve-sync-e2e-nonexistent-owner/swea-bridge-failure",
   defaultBranch: "main",
   private: true,
   htmlUrl:
-    "https://github.com/solvesync-e2e-nonexistent-owner/swea-bridge-failure"
+    "https://github.com/solve-sync-e2e-nonexistent-owner/swea-bridge-failure"
 };
 
 const SYNTHETIC_BRANCH: SyncBranch = {
@@ -106,7 +106,7 @@ test.describe("SWEA bridge 실패 수렴", () => {
       const probe = await page.evaluate(
         async ({ requestSource, responseSource, timeoutMs }) =>
           new Promise<{ responded: boolean; code: string | null }>((resolve) => {
-            const nonce = "solvesync-e2e-bridge-probe";
+            const nonce = "solve-sync-e2e-bridge-probe";
             const timer = setTimeout(() => {
               window.removeEventListener("message", onMessage);
               resolve({ responded: false, code: null });
