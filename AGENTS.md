@@ -4,7 +4,7 @@
 
 규칙 문서의 실체는 `AGENTS.md`이고, 같은 디렉터리의 `CLAUDE.md`는 그 파일을 가리키는 symlink다. 루트와 module 문서 모두 같다. codex는 `AGENTS.md`를, Claude Code는 `CLAUDE.md`를 읽지만 실체는 하나다. 어느 이름으로 열어 편집해도 같은 파일이 바뀐다. 규칙을 두 파일로 나누면 반드시 어긋나므로 복사본을 만들지 않는다. 문서와 메시지에서 규칙 문서를 가리킬 때는 `AGENTS.md`라고 쓴다. 새 module 문서를 만들 때도 `AGENTS.md`를 만들고 `ln -s AGENTS.md CLAUDE.md`로 symlink를 건다.
 
-SolveSync는 LeetCode, Programmers와 SWEA에서 Accepted 된 풀이를 사용자가 선택한 GitHub 저장소로 동기화하는 Chrome extension이다. 배포는 GitHub Release ZIP(Chrome에서 Load unpacked로 설치) 하나뿐이다. Chrome Web Store 배포는 하지 않는다([ADR 0045](docs/adr/0045-github-release-zip-only-distribution.md)).
+SolveSync는 LeetCode, Programmers와 SWEA에서 Accepted 된 풀이를 사용자가 선택한 GitHub 저장소로 동기화하는 Chrome extension이다. 배포는 Chrome Web Store와 GitHub Release ZIP(Chrome에서 Load unpacked로 설치) 두 경로다([ADR 0046](docs/adr/0046-chrome-web-store-alongside-release-zip.md)). Store 제출 조건과 Release Gate는 [`docs/CHROME_WEB_STORE.md`](docs/CHROME_WEB_STORE.md)를 따른다.
 
 ## Source of Truth
 - 제품 범위, 사용자 흐름, 성공 기준은 `docs/PRD.md`를 따른다.
@@ -140,7 +140,7 @@ npm run build && npm run e2e
 
 `npm run e2e`는 secret 없이 도는 계층만 실행한다. Contract Check와 풀사이클은 env guard로 스스로 건너뛴다 — 실제 제출이 필요한 계층은 [`e2e/README.md`](e2e/README.md)를 따른다.
 
-GitHub Release용 ZIP은 `npm run package:chrome`이 만든다. `dist` 내용만 담고 필수/금지 경로를 검증한다.
+Chrome Web Store 제출과 GitHub Release에 쓰는 ZIP은 `npm run package:chrome`이 만든다. `dist` 내용만 담고 필수/금지 경로를 검증한다.
 
 변경 범위가 작으면 관련 Vitest 파일을 먼저 실행해도 된다. 최종 build는 content IIFE bundle 검증까지 포함한다.
 
