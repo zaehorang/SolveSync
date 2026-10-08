@@ -6,7 +6,7 @@
 - 목표 채널: Chrome Web Store Public
 - 현재 기준 버전: `0.1.0`
 
-배포를 진행한다는 결정은 [ADR 0046](adr/0046-chrome-web-store-alongside-release-zip.md)이다. GitHub Release ZIP 배포도 함께 유지한다. 각 단계는 `AGENTS.md`의 Git Workflow를 따라 work branch와 PR로 진행한다.
+배포를 진행한다는 결정은 [ADR 0046](adr/0046-chrome-web-store-alongside-release-zip.md)이다. GitHub Release ZIP 배포도 함께 유지한다. Dashboard 입력 문안은 [Store 제출 문안](STORE_SUBMISSION.md)에 둔다. 각 단계는 `AGENTS.md`의 Git Workflow를 따라 work branch와 PR로 진행한다.
 
 **진행 상황은 이 문서에 적지 않는다.** 무엇을 언제 했는지는 PR과 commit history에 남고, 여기에 적으면 낡는다. 이 문서에는 무엇을 만족해야 제출할 수 있는지만 둔다.
 
@@ -66,7 +66,7 @@ Store 심사 준비 중 기능 결함이 발견되면 배포 차단 여부를 �
 - [x] PR마다 typecheck/test/build를 실행하는 CI
 - [ ] Options About/Security의 local unpacked 전용 copy를 Store 배포 문구로 전환
 - [ ] 정식 GitHub App 이름(`solve-sync`)과 slug를 build 설정과 Store copy에 반영
-- [ ] `github.com` host permission을 실제 요청 경로(`https://github.com/login/*`)로 축소
+- [ ] `github.com` host permission의 필요성과 실제 Device Flow 요청 경로를 심사 문안에 설명
 
 ### 제출 문서
 
@@ -194,7 +194,7 @@ GitHub App client ID와 slug는 공개 build 설정이다. client secret, privat
 4. Options의 `local unpacked Chrome extension` 문구를 제거한다.
 5. backend, local storage, Retry Bundle disclosure는 실제 동작과 일치하게 유지한다.
 6. `docs/MANUAL_VALIDATION.md`에 Store 제출용 검증 절차를 추가한다.
-7. `manifest.json`의 `https://github.com/*`를 `https://github.com/login/*`로 줄인다. github.com에 보내는 요청은 Device Flow의 `/login/device/code`와 `/login/oauth/access_token`뿐이다. 권한을 줄이는 변경은 기존 사용자에게 재승인을 요구하지 않으므로 출시 전에 하는 편이 가장 싸다.
+7. `https://github.com/*` host permission은 GitHub Device Flow의 `/login/device/code`와 `/login/oauth/access_token` 요청에 필요하다. Chrome은 host permission의 경로를 무시하므로 `/login/*`로 표기해도 권한 범위가 줄지 않는다. 실제 요청 endpoint와 reviewer 설명을 일치시킨다.
 
 검증:
 
@@ -225,7 +225,7 @@ Privacy 답변은 최소 다음을 설명한다.
 - `https://leetcode.com/*`: 로그인된 사용자의 Accepted submission metadata와 solution source 조회
 - `https://school.programmers.co.kr/*`: Accepted transition과 Accepted Editor Snapshot 감지
 - `https://swexpertacademy.com/*`: 풀이 페이지에서 Accepted alert layer 감지와 editor code 추출. 추출을 위해 풀이 페이지(`solvingProblem.do`)에 MAIN world bridge content script를 주입한다
-- `https://github.com/login/*`: GitHub App Device Flow의 device code와 token endpoint
+- `https://github.com/*`: GitHub App Device Flow의 device code와 token endpoint. Chrome은 host permission의 경로를 무시한다.
 - `https://api.github.com/*`: 선택한 Sync Repository와 Sync Branch 조회 및 commit 생성
 - remote code 미사용
 - 별도 backend, 광고, 판매, 프로파일링 미사용

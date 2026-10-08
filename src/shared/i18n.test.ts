@@ -64,6 +64,24 @@ describe("i18n foundation", () => {
     }
   });
 
+  it("does not version the separate backend security disclosure", () => {
+    expect(t("en", "options.security.noBackend")).toBe(
+      "The extension does not run a separate backend server."
+    );
+    expect(t("ko", "options.security.noBackend")).toBe(
+      "확장 프로그램은 별도 backend server를 운영하지 않습니다."
+    );
+  });
+
+  it("uses Chrome extension terminology in Korean Options copy", () => {
+    expect(t("ko", "options.page.eyebrow")).toBe(
+      "Chrome 확장 프로그램 설정"
+    );
+    expect(t("ko", "options.message.extensionStateUnavailable")).toBe(
+      "확장 프로그램 설정에 접근할 수 없습니다. 확장 프로그램을 다시 로드하거나 Options를 다시 여세요."
+    );
+  });
+
   it("interpolates params without throwing for missing params", () => {
     expect(t("en", "validation.required", { field: "Repository" })).toBe(
       "Repository is required."

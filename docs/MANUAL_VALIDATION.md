@@ -112,3 +112,17 @@ solution link, 날짜와 marker 밖 수동 내용이 유지되고, 같은 Catalo
 - 실제 token, cookie, session 값, private solution code를 screenshot, issue, fixture, log에 남기지 않는다.
 
 지원 언어와 path 계약은 `docs/ARCHITECTURE.md`의 registry 표와 자동 테스트가 검증한다.
+
+## 8. Chrome Web Store 제출 전 release smoke
+
+Store에 올릴 최종 ZIP과 동일한 commit에서 만든 확장을 새 Verification Profile 또는 깨끗한 Chrome profile에 로드해 확인한다. 기존 로그인과 설치 상태가 결과를 가리지 않도록 profile과 Sync Repository의 test branch를 기록한다. 수집한 화면에는 token, device code, email, private solution code를 남기지 않는다.
+
+1. `npm run package:chrome -- v0.1.0` 결과 ZIP의 root에 `manifest.json`이 있고, 이름·버전·GitHub App slug가 제출 값과 일치하는지 확인한다. Store에 제출할 ZIP의 SHA-256을 기록한다.
+2. Options에서 GitHub Device Flow 승인, `solve-sync` App 설치, 본인 소유 Verification Repository와 test Sync Branch 선택, commit 없는 connection test를 확인한다.
+3. LeetCode, Programmers, SWEA에서 각각 지원 언어의 실제 Accepted를 제출해 Popup 성공 상태와 해당 branch의 새 commit, Solution File·Catalog·README를 확인한다. SWEA는 화면 밖 줄까지 code가 포함되는지 본다.
+4. Programmers에서는 같은 문제의 서로 다른 두 지원 언어가 별도 Solution File로 저장되고 Solution README에는 한 문제 행으로 나타나는지 확인한다.
+5. GitHub 연결 해제 후 재연결해 repository/branch 선택 보존과 connection test를 확인한다. 실패 항목의 Retry Bundle disclosure와 retry 동작을 확인한다.
+6. Options·Popup·Toast와 Chrome extension error에서 secret 노출, content script import error, 예상하지 못한 원격 코드 로드가 없는지 확인한다.
+7. Store Listing, [Store 제출 문안](STORE_SUBMISSION.md), [Privacy Policy](../PRIVACY.md), Dashboard Privacy 답변과 실제 동작을 대조한다. 테스트 결과와 남은 위험은 PR body에 남긴다.
+
+풀사이클 자동 검증은 실제 Accepted에서 GitHub commit까지의 경로를 확인하지만, Device Flow 최초 설치·재연결과 Dashboard 문안 대조는 사람이 이 절차로 확인한다.

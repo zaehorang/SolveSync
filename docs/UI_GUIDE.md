@@ -20,6 +20,8 @@ Problem page sync popup/toast는 단순 알림이 아니라 sync 진행, 성공,
 ## Domain Naming In UI
 UI copy의 표준 도메인 용어는 `CONTEXT.md`를 따른다. Options, Popup, Toast에서는 Sync Repository, Sync Branch, Sync History, Retry Bundle, Solution README, Solution Catalog, Coding Platform을 기준으로 표현한다.
 
+한국어 UI는 Chrome 확장 프로그램이라고 쓰고 확장을 단독으로 쓰지 않는다.
+
 사용자에게 내부 storage key나 runtime message type을 노출하지 않는다. 단, Security disclosure에서는 Retry Bundle이 Accepted solution code를 임시 저장할 수 있다는 사실을 명확히 알린다.
 
 Solution Revision Number는 commit message와 Solution Catalog의 추적 정보이며, Popup, Toast, Options, Solution README에는 표시하지 않는다.
@@ -57,7 +59,7 @@ Implementation rules:
 - General: Auto Sync, Language.
 - Repository file cleanup: 현재 Sync Repository와 Sync Branch의 Solution README projection 정리.
 - Security: GitHub session token과 Retry Bundle disclosure.
-- About: 제품 이름, local unpacked v1 성격, backend 없음 안내.
+- About: 제품 이름, Accepted-to-GitHub 동기화 목적, backend 없음 안내.
 - Save controls.
 
 필수 field:
@@ -106,7 +108,7 @@ Security disclosure에는 다음 사용자 고지를 표시한다.
 - GitHub access token과 refresh token은 Chrome extension local storage에 저장된다.
 - 실패 Retry Bundle은 Accepted solution code를 local storage에 임시 저장할 수 있다.
 - Retry Bundle은 최대 20개, 최대 7일 보관하고 retry 성공 후 삭제한다.
-- v1 확장은 별도 backend server를 운영하지 않는다.
+- 확장 프로그램은 별도 backend server를 운영하지 않는다.
 - Solution code는 설정된 GitHub sync commit을 위해서만 GitHub로 전송된다.
 - 지원 Coding Platform의 문제 설명 전문은 저장하지 않는다.
 

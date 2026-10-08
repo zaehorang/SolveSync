@@ -329,7 +329,7 @@ describe("options state helpers", () => {
       "Could not commit the solution to GitHub."
     );
     expect(getOptionsExtensionStateUnavailableMessage("ko")).toBe(
-      "확장 설정에 접근할 수 없습니다. 확장을 다시 로드하거나 Options를 다시 여세요."
+      "확장 프로그램 설정에 접근할 수 없습니다. 확장 프로그램을 다시 로드하거나 Options를 다시 여세요."
     );
   });
 
