@@ -1,6 +1,6 @@
 # solve-sync Privacy Policy / 개인정보처리방침
 
-solve-sync는 LeetCode, Programmers, SWEA에서 Accepted 된 풀이를 사용자가 선택한 GitHub 저장소와 branch에 동기화하는 Chrome 확장입니다. 이 방침은 확장이 처리하는 데이터와 보관·전송·삭제 방법을 설명합니다.
+solve-sync는 LeetCode, Programmers, SWEA에서 Accepted 된 풀이를 사용자가 선택한 GitHub 저장소와 branch에 동기화하는 Chrome 확장 프로그램입니다. 이 방침은 확장 프로그램이 처리하는 데이터와 보관·전송·삭제 방법을 설명합니다.
 
 ## 처리하는 데이터와 목적
 
@@ -13,7 +13,7 @@ solve-sync는 LeetCode, Programmers, SWEA에서 Accepted 된 풀이를 사용자
 
 ## 저장과 보관
 
-GitHub access token과 refresh token, 설정, Sync History, 중복 처리 상태와 Retry Bundle은 Chrome 확장의 local storage에 저장됩니다. Chrome 확장 저장소는 디스크 암호화 저장소가 아니므로 공유 컴퓨터와 Chrome 프로필 접근에 주의하세요. Device Flow 진행 중의 device code는 extension session storage에만 저장하며 완료, 거부, 만료 또는 연결 해제 시 삭제합니다.
+GitHub access token과 refresh token, 설정, Sync History, 중복 처리 상태와 Retry Bundle은 Chrome 확장 프로그램의 local storage에 저장됩니다. Chrome 확장 프로그램 저장소는 디스크 암호화 저장소가 아니므로 공유 컴퓨터와 Chrome 프로필 접근에 주의하세요. Device Flow 진행 중의 device code는 extension session storage에만 저장하며 완료, 거부, 만료 또는 연결 해제 시 삭제합니다.
 
 Retry Bundle에는 Accepted solution code가 임시로 들어갈 수 있습니다. Retry Bundle은 최대 20개, 최대 7일 보관하며 성공적으로 재시도하면 삭제합니다. Sync History는 최근 20개를 보관합니다. 중복 처리 기록은 최대 100개, 최대 7일 보관합니다.
 
@@ -29,7 +29,7 @@ Options에서 GitHub 연결을 해제하면 저장된 GitHub access token과 ref
 
 ## Chrome Web Store Limited Use
 
-solve-sync는 [Chrome Web Store User Data Policy의 Limited Use 요건](https://developer.chrome.com/docs/webstore/program-policies/limited-use/)을 따릅니다. 사용자 데이터는 이 확장의 공개된 풀이 동기화 기능을 제공·유지·보호하는 데 필요한 범위에서만 사용하고, 그 기능에 필요한 GitHub·Coding Platform 통신 외에 전송하지 않습니다. 개인화·리타기팅·관심 기반 광고에 사용하지 않습니다. 개발자가 사용자 데이터를 열람하지 않으며, 사용자가 특정 지원 요청을 위해 동의하거나 법적·보안상 필요한 경우 등 정책이 허용하는 예외만 적용합니다.
+solve-sync는 [Chrome Web Store User Data Policy의 Limited Use 요건](https://developer.chrome.com/docs/webstore/program-policies/limited-use/)을 따릅니다. 사용자 데이터는 이 확장 프로그램의 공개된 풀이 동기화 기능을 제공·유지·보호하는 데 필요한 범위에서만 사용하고, 그 기능에 필요한 GitHub·Coding Platform 통신 외에 전송하지 않습니다. 개인화·리타기팅·관심 기반 광고에 사용하지 않습니다. 개발자가 사용자 데이터를 열람하지 않으며, 사용자가 특정 지원 요청을 위해 동의하거나 법적·보안상 필요한 경우 등 정책이 허용하는 예외만 적용합니다.
 
 ## 문의
 

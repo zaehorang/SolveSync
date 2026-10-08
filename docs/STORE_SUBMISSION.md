@@ -23,11 +23,11 @@
 
 한국어 자세한 설명:
 
-> solve-sync는 지원 Coding Platform에서 Accepted 된 풀이를 사용자가 고른 GitHub Sync Repository와 Sync Branch에 저장하는 Chrome 확장입니다. LeetCode, Programmers, SWEA를 지원합니다. 동기화할 때 Solution File과 Solution Catalog를 갱신하고 Solution README에 진행 상황을 표시합니다.
+> solve-sync는 지원 Coding Platform에서 Accepted 된 풀이를 사용자가 고른 GitHub Sync Repository와 Sync Branch에 저장하는 Chrome 확장 프로그램입니다. LeetCode, Programmers, SWEA를 지원합니다. 동기화할 때 Solution File과 Solution Catalog를 갱신하고 Solution README에 진행 상황을 표시합니다.
 >
 > 사용자는 GitHub App Device Flow로 로그인하고, App을 설치한 본인 소유 저장소와 branch를 직접 선택합니다. Auto Sync를 끄거나 다시 켤 수 있으며 Popup에서 최근 Sync History와 실패 상세를 확인하고 retry 가능한 실패를 다시 시도할 수 있습니다.
 >
-> 풀이 코드는 동기화를 위해 선택한 GitHub 저장소에 전송됩니다. 로그인 token, 설정, 최근 기록과 실패 시 임시 Retry Bundle은 확장의 저장소에서 처리됩니다. 별도 개발자 서버, 광고, 데이터 판매는 없습니다. 지원 Coding Platform의 문제 설명 전문은 저장하지 않습니다.
+> 풀이 코드는 동기화를 위해 선택한 GitHub 저장소에 전송됩니다. 로그인 token, 설정, 최근 기록과 실패 시 임시 Retry Bundle은 확장 프로그램의 저장소에서 처리됩니다. 별도 개발자 서버, 광고, 데이터 판매는 없습니다. 지원 Coding Platform의 문제 설명 전문은 저장하지 않습니다.
 >
 > 지원 언어와 플랫폼별 차이, GitHub App 권한, 데이터 처리와 삭제 방법은 홈페이지와 개인정보처리방침을 확인하세요. 본인이 소유하고 GitHub App을 설치한 저장소만 Sync Repository로 선택할 수 있습니다. SWEA는 C++14, JAVA, Python 3 풀이를 지원합니다.
 

@@ -20,6 +20,8 @@ Problem page sync popup/toast는 단순 알림이 아니라 sync 진행, 성공,
 ## Domain Naming In UI
 UI copy의 표준 도메인 용어는 `CONTEXT.md`를 따른다. Options, Popup, Toast에서는 Sync Repository, Sync Branch, Sync History, Retry Bundle, Solution README, Solution Catalog, Coding Platform을 기준으로 표현한다.
 
+한국어 UI는 Chrome 확장 프로그램이라고 쓰고 확장을 단독으로 쓰지 않는다.
+
 사용자에게 내부 storage key나 runtime message type을 노출하지 않는다. 단, Security disclosure에서는 Retry Bundle이 Accepted solution code를 임시 저장할 수 있다는 사실을 명확히 알린다.
 
 Solution Revision Number는 commit message와 Solution Catalog의 추적 정보이며, Popup, Toast, Options, Solution README에는 표시하지 않는다.
