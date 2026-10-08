@@ -2,7 +2,7 @@
 
 이 파일은 AI coding agent를 위한 작업 매뉴얼이다. 제품 명세를 복제하지 말고, 작업 전에 어떤 문서를 확인해야 하는지와 구현 중 절대 놓치면 안 되는 가드레일만 제공한다.
 
-규칙 문서의 실체는 `AGENTS.md`이고, 같은 디렉터리의 `CLAUDE.md`는 그 파일을 가리키는 symlink다. 루트와 module 문서 모두 같다. codex는 `AGENTS.md`를, Claude Code는 `CLAUDE.md`를 읽지만 실체는 하나다. 어느 이름으로 열어 편집해도 같은 파일이 바뀐다. 규칙을 두 파일로 나누면 반드시 어긋나므로 복사본을 만들지 않는다. 문서와 메시지에서 규칙 문서를 가리킬 때는 `AGENTS.md`라고 쓴다. 새 module 문서를 만들 때도 `AGENTS.md`를 만들고 `ln -s AGENTS.md CLAUDE.md`로 symlink를 건다.
+규칙 문서는 각 디렉터리의 `AGENTS.md` 하나뿐이다. 루트와 module 문서 모두 같다. `CLAUDE.md` 같은 도구별 이름의 사본이나 symlink를 두지 않는다. 규칙을 두 파일로 나누면 반드시 어긋난다. Claude Code는 `AGENTS.md`를 자동으로 읽지 않으므로 작업을 시작할 때 루트 `AGENTS.md`를, module을 수정하기 전에 그 module의 `AGENTS.md`를 직접 읽는다.
 
 solve-sync는 LeetCode, Programmers와 SWEA에서 Accepted 된 풀이를 사용자가 선택한 GitHub 저장소로 동기화하는 Chrome extension이다. 배포는 Chrome Web Store와 GitHub Release ZIP(Chrome에서 Load unpacked로 설치) 두 경로다([ADR 0046](docs/adr/0046-chrome-web-store-alongside-release-zip.md)). Store 제출 조건과 Release Gate는 [`docs/CHROME_WEB_STORE.md`](docs/CHROME_WEB_STORE.md)를 따른다.
 
