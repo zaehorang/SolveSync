@@ -45,6 +45,9 @@ export default defineConfig({
         cpSync(resolve(projectRoot, "icons"), resolve(outDir, "icons"), {
           recursive: true
         });
+        cpSync(resolve(projectRoot, "_locales"), resolve(outDir, "_locales"), {
+          recursive: true
+        });
       }
     }
   ]

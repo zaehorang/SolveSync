@@ -50,7 +50,8 @@ flowchart LR
 - Manifest `content_scripts`는 classic script로 실행되므로 content entry는 별도 IIFE bundle인 `dist/content/index.js`로 빌드한다.
 - Content bundle에는 static ESM `import`가 남으면 안 되며 `npm run build`의 build verification이 이를 검사한다.
 - SWEA 풀이 페이지에는 `world: "MAIN"` bridge bundle `dist/content/sweaEditorBridge.js`를 함께 주입한다. 같은 이유로 별도 IIFE build이며 같은 검증을 받는다([ADR 0035](adr/0035-main-world-editor-bridge-for-swea.md)).
-- 일반 `npm run build`는 manifest 선언과 content IIFE를 검증하며 GitHub App 공개 설정이 없는 개발용 build도 허용한다. Release용 `npm run package:chrome`은 Vite의 production 환경에서 `VITE_GITHUB_APP_CLIENT_ID`와 `VITE_GITHUB_APP_SLUG`를 읽고, trim한 값이 하나라도 비어 있거나 placeholder이면 해당 변수명을 포함한 오류로 packaging을 중단한다. 두 공개 설정이 bundle에 포함된 경우에만 Chrome ZIP을 만든다.
+- Vite는 `manifest.json`, `icons/`와 Chrome i18n resource인 `_locales/`를 `dist/`에 복사한다. Manifest의 확장 이름, 짧은 설명, action title은 `__MSG_...__`를 사용하고 `default_locale`은 `en`이다. 따라서 Chrome 화면 언어가 `ko`이면 `_locales/ko/messages.json`을, 그 밖에는 기본 영어 resource를 사용한다. 이는 Options·Popup·Toast의 사용자 Language preference와 별개다.
+- 일반 `npm run build`는 manifest 선언, Chrome i18n resource와 content IIFE를 검증하며 GitHub App 공개 설정이 없는 개발용 build도 허용한다. Release용 `npm run package:chrome`은 Vite의 production 환경에서 `VITE_GITHUB_APP_CLIENT_ID`와 `VITE_GITHUB_APP_SLUG`를 읽고, trim한 값이 하나라도 비어 있거나 placeholder이면 해당 변수명을 포함한 오류로 packaging을 중단한다. 두 공개 설정이 bundle에 포함된 경우에만 Chrome ZIP을 만든다.
 - Content event controller가 `MutationObserver`, route lifecycle, 억제 창과 message emission을 소유한다. Content entry는 controller 시작과 toast wiring만 담당한다.
 - 플랫폼별 판정은 controller가 아니라 Coding Platform Adapter가 소유한다. Adapter는 route를 확정하고, 관찰 대상을 정하고, 이번 mutation이 fresh Accepted 전이인지 판정하고, Accepted Signal에서 event payload를 조립한다. Controller에는 플랫폼 분기가 없다.
 - Adapter를 나눈 이유는 세 플랫폼의 전이 판정이 파라미터가 아니라 **방식**으로 다르기 때문이다. 상세는 [Coding Platform 연동 계약](platforms/README.md#accepted-감지가-갈리는-세-층)을 따른다.
