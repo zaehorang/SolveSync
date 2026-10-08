@@ -25,7 +25,7 @@ Solution code와 문제 식별 정보 및 URL은 동기화를 위해 사용자�
 
 ## 삭제
 
-Options에서 GitHub 연결을 해제하면 저장된 GitHub 인증 정보가 삭제됩니다. 사용자는 Chrome의 확장 프로그램 데이터 삭제 또는 확장 프로그램 제거로 나머지 로컬 데이터를 삭제할 수 있습니다. GitHub 저장소에 이미 commit한 풀이와 Coding Platform 계정의 제출 기록은 Chrome 저장소 삭제로 지워지지 않으며 해당 서비스에서 직접 관리해야 합니다.
+Options에서 GitHub 연결을 해제하면 저장된 GitHub access token과 refresh token, 진행 중인 Device Flow 정보가 삭제됩니다. 확장 프로그램을 제거하면 설정, Sync History, 중복 처리 상태와 Retry Bundle을 포함한 나머지 로컬 데이터 전체가 삭제됩니다. GitHub 저장소에 이미 commit한 풀이와 Coding Platform 계정의 제출 기록은 확장 프로그램 제거로 지워지지 않으며 해당 서비스에서 직접 관리해야 합니다.
 
 ## Chrome Web Store Limited Use
 
@@ -59,7 +59,7 @@ Solution code, problem identifiers, and URLs are sent to the selected GitHub rep
 
 ## Deletion
 
-Disconnecting GitHub in Options deletes stored GitHub credentials. Removing the extension or clearing its extension data deletes remaining local data. These actions do not delete commits already made in a GitHub repository or submissions recorded by a Coding Platform; manage those records with the corresponding service.
+Disconnecting GitHub in Options deletes the stored GitHub access token and refresh token, plus any pending Device Flow state. Removing the extension deletes all remaining local data, including settings, Sync History, deduplication state, and Retry Bundles. These actions do not delete commits already made in a GitHub repository or submissions recorded by a Coding Platform; manage those records with the corresponding service.
 
 ## Chrome Web Store Limited Use
 

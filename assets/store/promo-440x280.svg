@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="440" height="280" viewBox="0 0 440 280" role="img" aria-label="solve-sync promotion">
+<svg xmlns="http://www.w3.org/2000/svg" width="440" height="280" viewBox="0 0 440 280" role="img" aria-label="solve-sync 홍보 이미지">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="440" y2="280" gradientUnits="userSpaceOnUse">
       <stop stop-color="#0f172a"/>
@@ -18,7 +18,7 @@
   <path d="m54 61 7 7 13-16" fill="none" stroke="#16a34a" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
   <text x="115" y="77" fill="#fff" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="700">solve-sync</text>
   <rect x="26" y="129" width="62" height="3" rx="2" fill="#38bdf8"/>
-  <text x="26" y="170" fill="#f8fafc" font-family="Arial, Helvetica, sans-serif" font-size="23" font-weight="700">Accepted solutions,</text>
-  <text x="26" y="203" fill="#f8fafc" font-family="Arial, Helvetica, sans-serif" font-size="23" font-weight="700">synced to GitHub.</text>
+  <text x="26" y="170" fill="#f8fafc" font-family="Arial, Helvetica, sans-serif" font-size="23" font-weight="700">Accepted 풀이를</text>
+  <text x="26" y="203" fill="#f8fafc" font-family="Arial, Helvetica, sans-serif" font-size="23" font-weight="700">GitHub에 동기화.</text>
   <text x="26" y="247" fill="#bfdbfe" font-family="Arial, Helvetica, sans-serif" font-size="15">LeetCode  ·  Programmers  ·  SWEA</text>
 </svg>

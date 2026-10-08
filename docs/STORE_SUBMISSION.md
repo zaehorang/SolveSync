@@ -72,12 +72,12 @@ Remote code: 사용하지 않는다. extension의 실행 코드는 제출 ZIP �
 
 ## Reviewer test instructions
 
-1. 확장의 Options를 열고 `Sign in with GitHub`를 누른다. 일회용 code를 GitHub Device Flow 화면에서 승인한다. 심사자는 자신의 GitHub 계정을 사용할 수 있다.
-2. `Install or configure GitHub App`을 눌러 자신이 소유한 테스트 저장소에 `solve-sync` App을 설치한다. 권한은 Metadata read와 Contents read/write다.
-3. Options로 돌아와 `Load repositories`에서 해당 저장소를 선택한다. 기존 테스트 branch를 선택하거나 `Create branch`를 명시적으로 눌러 branch를 만든다. `Connection test`는 commit을 만들지 않는다.
-4. 로그인된 LeetCode, Programmers 또는 SWEA의 지원 문제에서 지원 언어로 Accepted 제출을 한다. Popup의 Sync History에서 성공 결과와 GitHub commit 링크를 확인한다.
-5. 같은 문제를 다른 지원 언어로 제출하면 언어별 Solution File이 생기고 Solution README에는 한 문제 행이 표시된다. GitHub 연결 해제 후 재연결해도 선택한 저장소와 branch 설정이 유지된다.
-6. 실제 Coding Platform 제출에는 해당 플랫폼 계정이 필요하다. 심사용 테스트 계정이 필요하면 프로젝트 소유자가 Dashboard의 비공개 reviewer 입력란에만 제공한다. 자격증명은 저장소, 공개 설명 또는 screenshot에 넣지 않는다.
+1. Open the extension's Options page and select `Sign in with GitHub`. Approve the one-time code on the GitHub Device Flow page. Reviewers may use their own GitHub account.
+2. Select `Install or configure GitHub App`, then install the `solve-sync` App on a test repository you own. The App requires Metadata read and Contents read/write permissions.
+3. Return to Options, select `Load Sync Repositories`, and choose that repository. Select an existing test branch, or explicitly select `Create Sync Branch` to create one. `Test connection` does not create a commit.
+4. On a supported problem page while signed in to LeetCode, Programmers, or SWEA, submit an Accepted solution in a supported language. In the popup's Sync History, confirm the successful result and GitHub commit link.
+5. Submit the same problem in another supported language and confirm that a language-specific Solution File is created while Solution README shows one problem row. Disconnect and reconnect GitHub; the selected repository and branch settings remain.
+6. A real Coding Platform submission requires an account for that platform. If a reviewer test account is needed, the project owner provides it only in the Dashboard's private reviewer field. Do not put credentials in the repository, public description, or screenshots.
 
 ## 제출 전 대조
 

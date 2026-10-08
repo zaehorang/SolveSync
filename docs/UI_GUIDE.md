@@ -106,7 +106,7 @@ Security disclosure에는 다음 사용자 고지를 표시한다.
 - GitHub access token과 refresh token은 Chrome extension local storage에 저장된다.
 - 실패 Retry Bundle은 Accepted solution code를 local storage에 임시 저장할 수 있다.
 - Retry Bundle은 최대 20개, 최대 7일 보관하고 retry 성공 후 삭제한다.
-- v1 확장은 별도 backend server를 운영하지 않는다.
+- 확장 프로그램은 별도 backend server를 운영하지 않는다.
 - Solution code는 설정된 GitHub sync commit을 위해서만 GitHub로 전송된다.
 - 지원 Coding Platform의 문제 설명 전문은 저장하지 않는다.
 
