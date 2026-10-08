@@ -47,9 +47,9 @@ jobs:
         run: |
           if [ -n "$BASE_REF" ]; then
             git fetch --no-tags origin "$BASE_REF"
-            python3 harness/ci_gate.py FETCH_HEAD
+            python3 workflow/gates/ci_gate.py FETCH_HEAD
           else
-            python3 harness/ci_gate.py "$BEFORE_SHA"
+            python3 workflow/gates/ci_gate.py "$BEFORE_SHA"
           fi
 
       # node 내장 module만 쓰므로 `npm ci` 앞에 둔다. 링크가 깨졌다면 의존성을
@@ -61,7 +61,7 @@ jobs:
         run: npm ci
 
       - name: 하네스 테스트
-        run: python3 -m unittest discover -s harness/tests -t harness
+        run: python3 -m unittest discover -s workflow/gates/tests -t workflow/gates
 
       - name: TypeScript typecheck
         run: npm run typecheck

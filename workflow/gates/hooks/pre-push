@@ -4,7 +4,7 @@
 검사 대상 commit과 working tree가 다르면 성공한 검증이 push 대상에 적용되지
 않는다. 그래서 현재 HEAD만 push하게 하고, 추적 파일의 미커밋 변경도 막는다.
 
-`harness/` 범위 판정은 보조 최적화다. 새 branch의 `origin/main` 또는 remote SHA를
+`workflow/gates/` 범위 판정은 보조 최적화다. 새 branch의 `origin/main` 또는 remote SHA를
 찾지 못하면 자체 테스트를 실행하는 안전한 쪽을 택한다. 자체 테스트를 pre-commit에
 남기지 않는 이유는 CI가 모든 PR에서 이를 항상 다시 실행하기 때문이다.
 """
@@ -78,7 +78,7 @@ def main() -> None:
     run_harness_tests = False
     for local_sha, remote_sha in refs:
         paths = changed_paths(local_sha, remote_sha)
-        if paths is None or any(path.startswith("harness/") for path in paths):
+        if paths is None or any(path.startswith("workflow/gates/") for path in paths):
             run_harness_tests = True
             break
     checks = [
@@ -88,7 +88,7 @@ def main() -> None:
     ]
     if run_harness_tests:
         checks.append(
-            ("harness 자체 테스트", ["python3", "-m", "unittest", "discover", "-s", "harness/tests", "-t", "harness"])
+            ("gate 자체 테스트", ["python3", "-m", "unittest", "discover", "-s", "workflow/gates/tests", "-t", "workflow/gates"])
         )
 
     for name, args in checks:

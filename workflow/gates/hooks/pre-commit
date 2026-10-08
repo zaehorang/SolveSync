@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Git pre-commit gate. core.hooksPath = harness/hooks로 설치된다.
+"""Git pre-commit gate. core.hooksPath = workflow/gates/hooks로 설치된다.
 
 경로가 상대 경로라 각 worktree가 자기 루트를 기준으로 해석하고 자기 branch에
 체크아웃된 hook을 실행한다. git은 hook을 working tree의 최상위에서 실행하므로

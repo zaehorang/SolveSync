@@ -135,17 +135,17 @@ class PrePushTest(unittest.TestCase):
         self.assertEqual(self.repo.commands(), [])
 
     def test_harness_change_runs_harness_tests(self):
-        self.repo.write("harness/policy.py", "# changed\n")
+        self.repo.write("workflow/gates/policy.py", "# changed\n")
         self.repo.commit("harness change")
         result = self.repo.push()
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertEqual(
             self.repo.commands(),
-            ["run typecheck", "test", "run build", "-m unittest discover -s harness/tests -t harness"],
+            ["run typecheck", "test", "run build", "-m unittest discover -s workflow/gates/tests -t workflow/gates"],
         )
 
     def test_new_branch_uses_origin_main_merge_base(self):
-        self.repo.write("harness/policy.py", "# changed\n")
+        self.repo.write("workflow/gates/policy.py", "# changed\n")
         self.repo.commit("harness change")
         result = self.repo.push(remote_sha=ZERO_SHA)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
