@@ -1,0 +1,11 @@
+{
+  "extensionName": {
+    "message": "solve-sync"
+  },
+  "extensionDescription": {
+    "message": "LeetCode, Programmers, SWEA에서 Accepted 된 풀이를 선택한 GitHub 저장소에 자동 동기화합니다."
+  },
+  "actionDefaultTitle": {
+    "message": "solve-sync"
+  }
+}

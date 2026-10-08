@@ -1,0 +1,11 @@
+{
+  "extensionName": {
+    "message": "solve-sync"
+  },
+  "extensionDescription": {
+    "message": "Sync accepted LeetCode, Programmers, and SWEA solutions to a GitHub repository you choose."
+  },
+  "actionDefaultTitle": {
+    "message": "solve-sync"
+  }
+}

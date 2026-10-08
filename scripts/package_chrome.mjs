@@ -89,7 +89,12 @@ const entries = listResult.stdout
   .map((entry) => entry.replace(/^\.\//, ""))
   .filter(Boolean);
 
-const requiredEntries = ["manifest.json", "content/index.js"];
+const requiredEntries = [
+  "manifest.json",
+  "content/index.js",
+  "_locales/en/messages.json",
+  "_locales/ko/messages.json",
+];
 
 for (const requiredEntry of requiredEntries) {
   if (!entries.includes(requiredEntry)) {
@@ -110,11 +115,26 @@ const forbiddenPathParts = new Set([
   "src",
 ]);
 
+const allowedRootEntries = new Set([
+  "_locales",
+  "assets",
+  "background",
+  "content",
+  "icons",
+  "manifest.json",
+  "options",
+  "popup",
+]);
+
 for (const entry of entries) {
   const pathParts = entry.split("/").filter(Boolean);
 
   if (pathParts[0] === "dist") {
     throw new Error("Chrome ZIP must contain dist contents at its root");
+  }
+
+  if (!allowedRootEntries.has(pathParts[0])) {
+    throw new Error(`Chrome ZIP contains unsupported path: ${entry}`);
   }
 
   if (

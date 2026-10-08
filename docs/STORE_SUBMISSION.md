@@ -9,6 +9,7 @@
 | 항목 | 입력값 |
 | --- | --- |
 | 표시 이름 | `solve-sync` |
+| Manifest 기본 locale | `en` (`manifest.json`의 `default_locale`) |
 | 카테고리 | Developer Tools 후보. Dashboard의 실제 선택지에서 확인한다. |
 | 기본 언어 | 한국어 |
 | 추가 언어 | English |
@@ -17,7 +18,9 @@
 | 지원 | `https://github.com/zaehorang/solve-sync/issues` |
 | 개인정보처리방침 | `https://github.com/zaehorang/solve-sync/blob/main/PRIVACY.md` |
 
-한국어 짧은 설명:
+짧은 설명은 Dashboard에 따로 입력하지 않는다. Chrome Web Store Listing은 패키지의 `manifest.json` description을 사용하며, 해당 값은 `_locales/<code>/messages.json`의 `extensionDescription`에서 온다. `default_locale`이 `en`이므로 Chrome 화면 언어가 `ko`이면 한국어, `en`이면 영어, 그 밖에는 영어가 표시된다.
+
+한국어 짧은 설명(`_locales/ko/messages.json`):
 
 > LeetCode, Programmers, SWEA에서 Accepted 된 풀이를 선택한 GitHub 저장소에 자동 동기화합니다.
 
@@ -31,7 +34,7 @@
 >
 > 지원 언어와 플랫폼별 차이, GitHub App 권한, 데이터 처리와 삭제 방법은 홈페이지와 개인정보처리방침을 확인하세요. 본인이 소유하고 GitHub App을 설치한 저장소만 Sync Repository로 선택할 수 있습니다. SWEA는 C++14, JAVA, Python 3 풀이를 지원합니다.
 
-English short description:
+English short description (`_locales/en/messages.json`):
 
 > Sync accepted LeetCode, Programmers, and SWEA solutions to a GitHub repository you choose.
 
