@@ -11,14 +11,14 @@
 | 표시 이름 | `solve-sync` |
 | Manifest 기본 locale | `en` (`manifest.json`의 `default_locale`) |
 | 카테고리 | Developer Tools 후보. Dashboard의 실제 선택지에서 확인한다. |
-| 기본 언어 | 한국어 |
-| 추가 언어 | English |
+| 기본 언어 | English (`default_locale`) |
+| 추가 언어 | 한국어 (`_locales/ko`) |
 | 공개 범위 | Public, 모든 지역, 무료. Dashboard에서 프로젝트 소유자가 확정한다. |
 | 홈페이지 | `https://github.com/zaehorang/solve-sync` |
 | 지원 | `https://github.com/zaehorang/solve-sync/issues` |
 | 개인정보처리방침 | `https://github.com/zaehorang/solve-sync/blob/main/PRIVACY.md` |
 
-짧은 설명은 Dashboard에 따로 입력하지 않는다. Chrome Web Store Listing은 패키지의 `manifest.json` description을 사용하며, 해당 값은 `_locales/<code>/messages.json`의 `extensionDescription`에서 온다. `default_locale`이 `en`이므로 Chrome 화면 언어가 `ko`이면 한국어, `en`이면 영어, 그 밖에는 영어가 표시된다.
+짧은 설명은 Dashboard에 따로 입력하지 않는다. Chrome Web Store Listing은 패키지의 `manifest.json` description을 사용하며, 해당 값은 `_locales/<code>/messages.json`의 `extensionDescription`에서 온다. `default_locale`이 `en`이므로 Chrome 화면 언어가 `ko`이면 한국어, `en`이면 영어, 그 밖에는 영어가 표시된다. 한국어 Chrome 사용자는 한국어 Listing을 본다.
 
 한국어 짧은 설명(`_locales/ko/messages.json`):
 
@@ -52,20 +52,20 @@ English detailed description:
 
 Single purpose:
 
-> 사용자가 Accepted 받은 풀이를 선택한 GitHub Sync Repository와 Sync Branch에 자동 동기화하고, 동기화 상태와 retry를 보여줍니다.
+> Syncs solutions the user got Accepted on LeetCode, Programmers, and SWEA to the GitHub repository and branch the user selects, and shows sync status and retry in the popup.
 
 Permission justification:
 
-| 권한 | 필요 이유 |
+| Permission | Justification |
 | --- | --- |
-| `storage` | GitHub 연결 상태, 사용자 설정, Sync History, 중복 방지 상태와 만료되는 Retry Bundle을 보관한다. |
-| `https://leetcode.com/*` | 로그인된 사용자의 Accepted 결과와 제출 코드 조회에 필요하다. |
-| `https://school.programmers.co.kr/*` | Accepted 전이와 Accepted Editor Snapshot을 문제 페이지에서 읽는다. |
-| `https://swexpertacademy.com/*` | Accepted alert와 editor code를 문제 페이지에서 읽고 MAIN world bridge와 통신한다. |
-| `https://github.com/*` | GitHub App Device Flow의 device code 발급과 token 교환·갱신에 필요하다. |
-| `https://api.github.com/*` | 선택한 저장소와 branch를 조회하고 Solution File·Catalog·README를 commit한다. |
+| `storage` | Stores GitHub connection state, user settings, Sync History, deduplication state, and expiring Retry Bundles. |
+| `https://leetcode.com/*` | Reads the signed-in user's Accepted result and submission code. |
+| `https://school.programmers.co.kr/*` | Reads Accepted transitions and the Accepted Editor Snapshot on problem pages. |
+| `https://swexpertacademy.com/*` | Reads Accepted alerts and editor code on problem pages, and communicates with the MAIN world bridge. |
+| `https://github.com/*` | Sends GitHub App Device Flow requests to `/login/device/code` and `/login/oauth/access_token` to obtain and refresh tokens. Chrome ignores paths in host permissions, so this permission authorizes both request paths. |
+| `https://api.github.com/*` | Reads the selected repository and branch, then commits the Solution File, Solution Catalog, and Solution README. |
 
-User data categories: Authentication information(GitHub App access/refresh token과 Device Flow 진행 상태), User-generated content(solution code), Website content/resources(문제 metadata와 Accepted Editor Snapshot), Web browsing activity(지원 문제 페이지 URL과 Accepted 흐름). GitHub 계정 login과 repository/branch 선택 정보도 처리한다.
+User data categories: Authentication information(GitHub App token, Device Flow state), Website content(solution code, problem metadata, and Accepted Editor Snapshot), Web history(synced problem page URLs). `User-generated content`는 Dashboard 항목이 아니므로 선택하지 않는다. Personally identifiable information도 선택하지 않는다. GitHub login은 표시용으로만 저장하며 이메일이나 실명은 저장하지 않는다.
 
 데이터 전송: GitHub Device Flow와 GitHub API, LeetCode의 Accepted 제출 조회에 HTTPS를 사용한다. 선택한 Sync Repository로 solution code, 문제 metadata, 문제 URL이 포함된 Solution Catalog와 README를 commit한다. Programmers와 SWEA의 Accepted Editor Snapshot은 현재 문제 페이지에서 읽는다. 개발자 서버, 광고 플랫폼, 데이터 브로커로 전송하지 않는다.
 
