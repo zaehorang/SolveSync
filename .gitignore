@@ -30,3 +30,7 @@ test-results/
 
 # 개인 작업 계획과 메모. 저장소에 올리지 않는 로컬 전용 공간이다.
 .local/
+
+# harness-backlog: 스킬 사본과 Codex용 링크는 주 디렉터리에만 둔다
+/.claude/skills/harness-backlog/
+/.agents/skills/harness-backlog
