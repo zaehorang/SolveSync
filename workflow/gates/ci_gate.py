@@ -14,7 +14,7 @@
 커밋에서 지운 secret이 사라진다. 지웠어도 그 값은 이미 push된 history에 남아
 있으므로 회수가 필요하다. 같은 이유로 push 범위의 마지막 커밋만 보지 않는다.
 
-    python3 harness/ci_gate.py <base-ref>
+    python3 workflow/gates/ci_gate.py <base-ref>
 """
 
 from __future__ import annotations
@@ -70,7 +70,7 @@ def added_lines(patch: str) -> str:
 
 def main() -> None:
     if len(sys.argv) != 2:
-        fail("base ref를 하나 받아야 합니다. 예: python3 harness/ci_gate.py origin/main")
+        fail("base ref를 하나 받아야 합니다. 예: python3 workflow/gates/ci_gate.py origin/main")
     base = sys.argv[1]
 
     resolved = subprocess.run(

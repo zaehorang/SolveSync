@@ -428,7 +428,7 @@ flowchart TB
   subgraph AUTO["자동 — 사람이 기억할 필요가 없다"]
     direction TB
     commit["git commit"] --> gate["pre-commit gate<br/>branch·경로·secret 정책"]
-    gate --> push["git push"] --> verify["pre-push gate<br/>typecheck · Vitest · build<br/>harness 변경 시 자체 테스트"]
+    gate --> push["git push"] --> verify["pre-push gate<br/>typecheck · Vitest · build<br/>gate 변경 시 자체 테스트"]
     verify --> pr["Pull Request"] --> ci["CI"]
     ci --> job1["전체 검증<br/>+ 문서 링크 검증"]
     ci --> job2["검증 하네스"]

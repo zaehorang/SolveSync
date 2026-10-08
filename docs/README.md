@@ -31,13 +31,15 @@ Accepted 감지는 content script(플랫폼 페이지 안에서 도는 확장 �
 | Store Listing, Privacy 답변과 reviewer 안내 초안 | [STORE_SUBMISSION](STORE_SUBMISSION.md) |
 | 수집 데이터, 보안 제보 | [PRIVACY](../PRIVACY.md), [SECURITY](../SECURITY.md) |
 | 아직 재현되지 않은 증상 | [investigations](investigations/ABOUT.md) |
+| 코드 폴더별 책임과 변경 절차 | [modules](modules/README.md) |
+| 작업 절차 (branch, PR, 문서 추가, gate) | [workflow](../workflow/README.md) |
 
 ## 개발을 시작한다면
 
 1. [PRD](PRD.md)로 무엇을 만드는지 잡는다.
 2. [CONTEXT](../CONTEXT.md)로 용어를 익힌다. 문서 전체가 이 표기를 쓴다.
 3. [ARCHITECTURE](ARCHITECTURE.md)로 구조를 본다.
-4. [루트 AGENTS.md](../AGENTS.md)로 작업 규칙(branch, worktree, 명령, 금지 사항)을 확인한다.
-5. 고칠 폴더의 `AGENTS.md`(`src/*`, `harness`, `e2e`)를 읽는다.
+4. [루트 AGENTS.md](../AGENTS.md)로 저장소 구조와 절대 규칙을, [workflow/](../workflow/README.md)로 작업 절차(branch, worktree, 명령, 문서 추가)를 확인한다.
+5. 고칠 코드 폴더의 문서를 [docs/modules/](modules/README.md)에서 읽는다.
 
 문서끼리 내용이 다르면 [루트 AGENTS.md](../AGENTS.md)의 Source of Truth 절이 어느 쪽이 맞는지 정한다.

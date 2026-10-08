@@ -4,7 +4,7 @@ Claude Code PreToolUse, git pre-commit과 CI gate가 이 모듈을 import한다.
 pre-commit과 CI gate는 같은 규칙으로 staged 경로와 secret을 검사하고, pre-push는
 프로젝트 검증을 실행한다.
 규칙을 한 곳에만 두기 위해서다. 표준 라이브러리만 쓰고 부수효과를 두지 않는다.
-순수한 판단 로직이며 harness/tests/test_policy.py가 검증한다. subprocess를
+순수한 판단 로직이며 workflow/gates/tests/test_policy.py가 검증한다. subprocess를
 부르지 않으므로 git 상태 같은 바깥 사실은 호출자가 판정해서 인자로 넘긴다.
 
 PreToolUse는 도구 호출 전에, pre-commit은 저장소 보호 규칙을 커밋 시점에 막는다.
@@ -204,7 +204,7 @@ def check_worktree_isolation(git_dir: str, git_common_dir: str) -> str | None:
     return (
         "주 작업 디렉터리에서는 커밋할 수 없습니다. 다른 세션이 이 디렉터리에서 "
         "작업 중일 수 있습니다. `git worktree add -b {type}/{slug} "
-        "../solve-sync-wt/{slug} main`으로 worktree를 만들고 거기서 작업하세요 (AGENTS.md)."
+        "../solve-sync-wt/{slug} main`으로 worktree를 만들고 거기서 작업하세요 (workflow/git-workflow.md)."
     )
 
 
@@ -212,7 +212,7 @@ def check_worktree_isolation(git_dir: str, git_common_dir: str) -> str | None:
 
 BRANCH_TYPES = ("feat", "fix", "docs", "test", "refactor", "chore", "ci")
 
-# AGENTS.md의 Git Workflow가 안내하는 형식과 같아야 한다. 어긋나면 문서대로
+# workflow/git-workflow.md가 안내하는 형식과 같아야 한다. 어긋나면 문서대로
 # 만든 branch에서 커밋하지 못한다.
 # slug는 느슨하게 둔다. slug 형식 검증은 이 gate의 목적이 아니고, 좁히면
 # 정상 branch를 막을 위험만 늘어난다. 이슈 번호도 요구하지 않는다. 이슈는
@@ -242,20 +242,20 @@ def check_branch_name(branch: str) -> str | None:
     if not separator:
         return (
             f"branch 이름 '{branch}'에 type이 없습니다. {_BRANCH_FORM} 형식으로 "
-            f"다시 만드세요 (type: {types}). AGENTS.md의 Git Workflow를 따르세요."
+            f"다시 만드세요 (type: {types}). workflow/git-workflow.md를 따르세요."
         )
 
     if prefix not in BRANCH_TYPES:
         return (
             f"branch type '{prefix}'는 쓸 수 없습니다. {types} 중에서 고르고 "
             f"{_BRANCH_FORM} 형식으로 branch를 다시 만드세요. "
-            "AGENTS.md의 Git Workflow를 따르세요."
+            "workflow/git-workflow.md를 따르세요."
         )
 
     return (
         f"branch 이름 '{branch}'의 slug가 형식에 맞지 않습니다. type 뒤에 "
         f"`/` 없는 kebab-case slug를 붙여 {_BRANCH_FORM} 형식으로 만드세요. "
-        "AGENTS.md의 Git Workflow를 따르세요."
+        "workflow/git-workflow.md를 따르세요."
     )
 
 

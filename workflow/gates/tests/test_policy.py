@@ -80,7 +80,7 @@ class BashRules(unittest.TestCase):
         self.assertIsNone(self.check("gh api /repos/x/y"))
         self.assertIsNone(self.check("git push --force-with-lease"))
         self.assertIsNone(self.check("git worktree add -b feat/issue-20-x ../solve-sync-wt/x main"))
-        self.assertIsNone(self.check("git config core.hooksPath harness/hooks"))
+        self.assertIsNone(self.check("git config core.hooksPath workflow/gates/hooks"))
 
     def test_paths_outside_the_repository_are_allowed(self):
         # scratchpad와 memory는 저장소 밖이고 대화형 세션의 정상 작업이다.
@@ -246,7 +246,7 @@ class BranchNameDiagnosis(unittest.TestCase):
         for branch in ("main", "no-type-here", "chore2/x", "feat/a/b"):
             reason = policy.check_branch_name(branch)
             self.assertIn("{type}/{slug}", reason, branch)
-            self.assertIn("AGENTS.md", reason, branch)
+            self.assertIn("git-workflow.md", reason, branch)
 
 
 if __name__ == "__main__":
