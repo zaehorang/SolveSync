@@ -284,6 +284,8 @@ reviewer test instructions에 포함할 흐름. reviewer가 자기 GitHub 계정
 3. Coding Platform 문제 페이지의 Synced toast
 4. 실패 상세와 Retry 상태
 
+1번과 2번은 `npm run build && npm run store:screenshots`가 `assets/store/screenshot-*.png`로 만든다. 제품 번들을 그대로 로드하고 `chrome.storage.local`에 데모 계정·저장소·Sync History만 심으므로 실제 계정 정보가 화면에 나오지 않는다. 3번 Synced toast는 commit 요청이 background service worker에서 나가는데 Playwright가 그 요청을 가로채지 못해 이 명령으로 만들 수 없다.
+
 안전 규칙:
 
 - test repository와 공개 가능한 sample solution만 사용한다.
