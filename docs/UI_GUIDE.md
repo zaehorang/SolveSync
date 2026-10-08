@@ -51,7 +51,7 @@ Implementation rules:
 - marketing hero나 큰 홍보 영역을 만들지 않는다.
 - v1은 Manifest `options_page` 기반 full-page Options를 사용한다.
 - Device Flow 로그인, GitHub App 설치, repository/branch 선택, branch 생성, connection test 같은 긴 설정 작업은 Popup이 아니라 Options에서 수행한다.
-- 첫 설정 흐름은 `Sign in with GitHub → 일회용 코드 확인 → Copy code and open GitHub → GitHub 승인/App 설치 → Load repositories → Sync Repository → Sync Branch → Create branch → Connection test → Save` 순서로 보여준다.
+- 첫 설정 흐름은 `Sign in with GitHub → 일회용 코드 확인 → Copy code and open GitHub → GitHub 승인/App 설치 → Load repositories → Sync Repository → Sync Branch → Create Sync Branch → Connection test → Save` 순서로 보여준다.
 - embedded options(`options_ui`)나 side panel 전환은 별도 제품 결정 없이는 하지 않는다.
 
 필수 section:
@@ -100,8 +100,8 @@ Sync Repository picker:
 Sync Branch picker:
 - Sync Repository 선택 후 branch 목록을 불러온다.
 - repository default branch를 기본 선택값으로 표시한다.
-- 원하는 Sync Branch가 없으면 Create branch action을 제공한다.
-- Create branch는 사용자가 명시적으로 실행한 경우에만 동작한다.
+- 원하는 Sync Branch가 없으면 Create Sync Branch action을 제공한다.
+- Create Sync Branch는 사용자가 명시적으로 실행한 경우에만 동작한다.
 - branch 생성 실패 시 원인과 다음 행동을 보여준다.
 
 Security disclosure에는 다음 사용자 고지를 표시한다.
