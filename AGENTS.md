@@ -159,3 +159,10 @@ Node는 `package.json`의 `engines`가 하한을 정한다. `.github/workflows/c
 - 추측으로 큰 rewrite를 하지 말고, 현재 관찰한 사실과 막힌 지점을 짧게 정리한다.
 - 여러 해석이 가능한 제품 결정은 관련 docs 후보를 제시하고 사용자 확인을 받는다.
 - repo 상태가 더러우면 사용자가 만든 변경을 되돌리지 말고, 현재 작업과 충돌하는 경우에만 물어본다.
+
+<!-- harness-backlog:start -->
+## 하네스 개선 backlog
+- 하네스(AGENTS.md, 스킬, 규칙, 스크립트, 설정)의 빈틈은 `.local/harness-backlog/`에 제안으로 쌓인다. 세션이 끝나면 다른 모델이 검토해 남긴다.
+- 실수나 교정을 계기로 하네스 파일을 스스로 고치지 않는다. 반영은 사용자가 항목을 보고 "반영해"라고 한 뒤에만 한다. 사용자가 직접 요청한 하네스 작업은 그 범위에서 한다.
+- "backlog 보자", "세션 검토해줘"는 `harness-backlog` 스킬로 처리한다.
+<!-- harness-backlog:end -->
