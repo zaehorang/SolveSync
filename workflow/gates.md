@@ -31,6 +31,7 @@ python3 -m unittest discover -s workflow/gates/tests -t workflow/gates
 - 주의: 파일 존재만 검사하는 gate는 빈 파일 하나로 통과하므로 보호 규칙으로 추가하지 않는다.
 - 주의: 차단 사유는 지시문으로 쓴다. hook이 사유를 그대로 모델에게 돌려주므로 무엇이 잘못됐는지가 아니라 대신 무엇을 하라고 적는다.
 - Why: `policy.py`가 신뢰 경계이므로 규칙 변경에는 실행 가능한 회귀 test가 필요하다.
+- 주의: `.claude/settings.json`·`.codex/hooks.json`의 SessionEnd 훅은 이 폴더 소유가 아니다. 세션 기록을 다른 모델이 검토해 하네스 개선 제안을 `.local/harness-backlog/`에 남기는 `harness-backlog` 스킬의 것이고, 스크립트는 주 디렉터리의 `.claude/skills/harness-backlog/`에 있다(git 제외). 막는 gate가 아니라 세션 종료를 막지 않는다.
 
 ## Dependencies
 - imports: Python standard library만 사용
