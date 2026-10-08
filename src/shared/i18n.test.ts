@@ -64,6 +64,20 @@ describe("i18n foundation", () => {
     }
   });
 
+  it("uses clear Options copy for sync branch creation and failed retries", () => {
+    expect(t("en", "options.field.createBranch")).toBe("Create Sync Branch");
+    expect(t("ko", "options.field.createBranch")).toBe("Sync Branch 만들기");
+    expect(t("en", "options.createBranch.copy")).toBe(
+      "Created from the latest commit on the default branch, only when you click Create Sync Branch."
+    );
+    expect(t("en", "options.page.lede")).toBe(
+      "Sync Accepted solutions from supported Coding Platforms to the GitHub repository and branch you choose."
+    );
+    expect(t("en", "options.security.retryStorage")).toBe(
+      "Retry Bundles for failed syncs can temporarily store Accepted solution code in local storage."
+    );
+  });
+
   it("does not version the separate backend security disclosure", () => {
     expect(t("en", "options.security.noBackend")).toBe(
       "The extension does not run a separate backend server."
