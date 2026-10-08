@@ -284,7 +284,7 @@ reviewer test instructions에 포함할 흐름. reviewer가 자기 GitHub 계정
 3. Coding Platform 문제 페이지의 Synced toast
 4. 실패 상세와 Retry 상태
 
-1번과 2번은 `npm run build && npm run store:screenshots`가 `assets/store/screenshot-*.png`로 만든다. 제품 번들을 그대로 로드하고 `chrome.storage.local`에 데모 계정·저장소·Sync History만 심으므로 실제 계정 정보가 화면에 나오지 않는다. 3번 Synced toast는 commit 요청이 background service worker에서 나가는데 Playwright가 그 요청을 가로채지 못해 이 명령으로 만들 수 없다.
+1번과 2번은 `npm run build && npm run store:screenshots`가 Listing 언어마다 `assets/store/screenshot-*-<en|ko>-1280x800.png`로 만든다. 기본 Listing 언어가 `default_locale`인 영어이므로 영어 세트를 기본 이미지로, 한국어 세트를 한국어 Listing 이미지로 올린다. 작은 홍보 타일도 `promo-440x280-en.png`와 `promo-440x280-ko.png`로 나눈다. 영어 세트는 제목이 영어인 LeetCode 항목을 Sync History 맨 위에 둔다. 제품 번들을 그대로 로드하고 `chrome.storage.local`에 데모 계정·저장소·Sync History만 심으므로 실제 계정 정보가 화면에 나오지 않는다. 3번 Synced toast는 commit 요청이 background service worker에서 나가는데 Playwright가 그 요청을 가로채지 못해 이 명령으로 만들 수 없다.
 
 안전 규칙:
 

@@ -39,6 +39,33 @@ const DEMO_REPOSITORY: SyncRepository = {
 };
 const DEMO_BRANCH = "main";
 
+/** Store Listing 언어마다 한 세트를 찍는다. en이 기본(`default_locale`)이다. */
+const LOCALES = ["en", "ko"] as const;
+type Locale = (typeof LOCALES)[number];
+
+const CAPTIONS: Record<Locale, { options: Caption; popup: Caption }> = {
+  en: {
+    options: {
+      title: "You choose the<br>repository and branch",
+      body: "Sign in with the GitHub App, then pick a repository you own and a Sync Branch. Test connection never creates a commit."
+    },
+    popup: {
+      title: "Accepted solutions<br>land in GitHub",
+      body: "Accepted solutions from LeetCode, Programmers, and SWEA are committed to your repository, and Sync History shows the result."
+    }
+  },
+  ko: {
+    options: {
+      title: "저장소와 branch는<br>직접 고릅니다",
+      body: "GitHub App으로 로그인한 뒤, App을 설치한 본인 저장소와 Sync Branch를 선택합니다. 연결 테스트는 commit을 만들지 않습니다."
+    },
+    popup: {
+      title: "Accepted 풀이가<br>GitHub에 쌓입니다",
+      body: "LeetCode, Programmers, SWEA에서 Accepted 받은 풀이를 선택한 저장소에 commit하고 Sync History로 결과를 보여줍니다."
+    }
+  }
+};
+
 test.describe("Store 스크린샷", () => {
   test.skip(
     process.env.E2E_STORE_SCREENSHOTS !== "1",
@@ -65,47 +92,45 @@ test.describe("Store 스크린샷", () => {
     await extension.close();
   });
 
-  test("연결된 Options와 Popup Sync History", async () => {
-    const extensionId = await extension.extensionId();
+  for (const locale of LOCALES) {
+    test(`연결된 Options와 Popup Sync History (${locale})`, async () => {
+      const extensionId = await extension.extensionId();
+      const caption = CAPTIONS[locale];
 
-    await seedDemoState(extension, demoHistoryEntries());
+      await seedDemoState(extension, demoHistoryEntries(locale), locale);
 
-    const options = await extension.context.newPage();
+      const options = await extension.context.newPage();
 
-    await options.setViewportSize({ width: 1100, height: 1400 });
-    await options.goto(`chrome-extension://${extensionId}/options/index.html`);
-    await expect(options.getByText(DEMO_REPOSITORY.fullName).first()).toBeVisible();
-    await settle(options);
+      await options.setViewportSize({ width: 1100, height: 1400 });
+      await options.goto(`chrome-extension://${extensionId}/options/index.html`);
+      await expect(options.getByText(DEMO_REPOSITORY.fullName).first()).toBeVisible();
+      await settle(options);
 
-    await frameImage(
-      extension,
-      await options.locator("section.setup-panel").screenshot(),
-      {
-        title: "저장소와 branch는<br>직접 고릅니다",
-        body: "GitHub App으로 로그인한 뒤, App을 설치한 본인 저장소와 Sync Branch를 선택합니다. 연결 테스트는 commit을 만들지 않습니다."
-      },
-      resolve(outputDir, "screenshot-options-connected-1280x800.png"),
-      640
-    );
+      await frameImage(
+        extension,
+        await options.locator("section.setup-panel").screenshot(),
+        caption.options,
+        locale,
+        resolve(outputDir, `screenshot-options-connected-${locale}-1280x800.png`),
+        640
+      );
 
-    const popup = await extension.context.newPage();
+      const popup = await extension.context.newPage();
 
-    await popup.setViewportSize({ width: 380, height: 640 });
-    await popup.goto(`chrome-extension://${extensionId}/popup/index.html`);
-    await expect(popup.getByText("두 수의 곱 구하기").first()).toBeVisible();
-    await settle(popup);
-    const popupImage = await popup.screenshot({ fullPage: false });
+      await popup.setViewportSize({ width: 380, height: 640 });
+      await popup.goto(`chrome-extension://${extensionId}/popup/index.html`);
+      await expect(popup.getByText("Two Sum").first()).toBeVisible();
+      await settle(popup);
 
-    await frameImage(
-      extension,
-      popupImage,
-      {
-        title: "Accepted 풀이가<br>GitHub에 쌓입니다",
-        body: "LeetCode, Programmers, SWEA에서 Accepted 받은 풀이를 선택한 저장소에 commit하고 Sync History로 결과를 보여줍니다."
-      },
-      resolve(outputDir, "screenshot-popup-history-1280x800.png")
-    );
-  });
+      await frameImage(
+        extension,
+        await popup.screenshot({ fullPage: false }),
+        caption.popup,
+        locale,
+        resolve(outputDir, `screenshot-popup-history-${locale}-1280x800.png`)
+      );
+    });
+  }
 });
 
 const DEMO_SHA = "0000000000000000000000000000000000000000";
@@ -148,7 +173,8 @@ function mockGitHubResponse(pathname: string): unknown {
 
 async function seedDemoState(
   extension: LoadedExtension,
-  entries: SyncHistoryEntry[]
+  entries: SyncHistoryEntry[],
+  locale: Locale
 ): Promise<void> {
   const extensionId = await extension.extensionId();
   const page = await extension.context.newPage();
@@ -159,13 +185,13 @@ async function seedDemoState(
     login: DEMO_LOGIN
   });
   await page.evaluate(async (values) => chrome.storage.local.set(values), {
-    [STORAGE_KEYS.settings]: demoSettings(),
+    [STORAGE_KEYS.settings]: demoSettings(locale),
     [STORAGE_KEYS.syncHistory]: { version: STORAGE_SCHEMA_VERSION, entries }
   } as Record<string, unknown>);
   await page.close();
 }
 
-function demoSettings(): SettingsState {
+function demoSettings(locale: Locale): SettingsState {
   const now = new Date().toISOString();
 
   return {
@@ -173,13 +199,19 @@ function demoSettings(): SettingsState {
     syncRepository: DEMO_REPOSITORY,
     syncBranch: { name: DEMO_BRANCH, sha: DEMO_SHA, protected: false },
     autoSyncEnabled: true,
-    uiLanguage: "ko",
+    uiLanguage: locale,
     connectionStatus: { code: "connected", checkedAt: now, error: null },
     updatedAt: now
   };
 }
 
-function demoHistoryEntries(): SyncHistoryEntry[] {
+/** 최근 항목이 Popup 맨 위에 온다. 영어 세트는 제목이 영어인 LeetCode를 먼저 둔다.
+ * Programmers와 SWEA는 문제 제목이 원래 한국어다. */
+function demoHistoryEntries(locale: Locale): SyncHistoryEntry[] {
+  const ago =
+    locale === "en"
+      ? { leetcode: 2, programmers: 38, swea: 95 }
+      : { programmers: 2, swea: 38, leetcode: 95 };
   const minutesAgo = (minutes: number) =>
     new Date(Date.now() - minutes * 60 * 1000).toISOString();
 
@@ -194,7 +226,7 @@ function demoHistoryEntries(): SyncHistoryEntry[] {
       supportedLanguage: "swift",
       acceptedSourceId: "programmers:120804:swift:demo",
       solutionPath: "programmers/swift/120804_두_수의_곱_구하기.swift",
-      at: minutesAgo(2)
+      at: minutesAgo(ago.programmers)
     }),
     demoEntry({
       id: "demo-swea",
@@ -206,7 +238,7 @@ function demoHistoryEntries(): SyncHistoryEntry[] {
       supportedLanguage: "python3",
       acceptedSourceId: "swea:AV13zZ7KAAACFAYh:python3:demo",
       solutionPath: "swea/python/AV13zZ7KAAACFAYh_1234_숫자_카드.py",
-      at: minutesAgo(38)
+      at: minutesAgo(ago.swea)
     }),
     demoEntry({
       id: "demo-leetcode",
@@ -218,7 +250,7 @@ function demoHistoryEntries(): SyncHistoryEntry[] {
       supportedLanguage: "python3",
       acceptedSourceId: "leetcode:demo-1",
       solutionPath: "leetcode/python/0001_two_sum.py",
-      at: minutesAgo(95)
+      at: minutesAgo(ago.leetcode)
     })
   ];
 }
@@ -284,6 +316,7 @@ async function frameImage(
   extension: LoadedExtension,
   image: Buffer,
   caption: Caption,
+  locale: Locale,
   path: string,
   imageWidth = 380
 ): Promise<void> {
@@ -292,7 +325,7 @@ async function frameImage(
 
   await frame.setViewportSize(SCREEN);
   await frame.setContent(`<!doctype html>
-<html lang="ko"><head><meta charset="utf-8"><style>
+<html lang="${locale}"><head><meta charset="utf-8"><style>
   body { margin: 0; width: 1280px; height: 800px; display: flex; align-items: center;
     justify-content: center; gap: 72px; background: #eef4fb;
     font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif; }
