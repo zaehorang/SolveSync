@@ -1,14 +1,14 @@
 # Chrome Web Store 배포
 
-> **Description**: solve-sync를 Chrome Web Store에 Public으로 제출하고 출시하기 위한 계획, 제출 항목과 Release Gate를 정의한다.
+> **Description**: solve-sync의 Chrome Web Store 배포 운영 기준, 제출 항목과 Release Gate를 정의한다.
 
 - 공식 Chrome Web Store 문서 확인일: 2026-08-12. 개발자 등록과 게시자 한도는 2026-10-07에 다시 확인했다.
-- 목표 채널: Chrome Web Store Public
-- 현재 기준 버전: `0.1.0`
+- 배포 채널: Chrome Web Store Public
+- 첫 Public 게시: 2026-10-08, `0.1.0`. [Store 설치 페이지](https://chromewebstore.google.com/detail/solve-sync/eggfljkdeiogckhmekhagdjplcbfkada)
 
 배포를 진행한다는 결정은 [ADR 0046](adr/0046-chrome-web-store-alongside-release-zip.md)이다. GitHub Release ZIP 배포도 함께 유지한다. Dashboard 입력 문안은 [Store 제출 문안](STORE_SUBMISSION.md)에 둔다. 각 단계는 `AGENTS.md`의 Git Workflow를 따라 work branch와 PR로 진행한다.
 
-**진행 상황은 이 문서에 적지 않는다.** 무엇을 언제 했는지는 PR과 commit history에 남고, 여기에 적으면 낡는다. 이 문서에는 무엇을 만족해야 제출할 수 있는지만 둔다.
+**진행 상황은 이 문서에 적지 않는다.** 무엇을 언제 했는지는 PR과 commit history에 남고, 여기에 적으면 낡는다. 이 문서에는 배포 운영 기준과 무엇을 만족해야 제출할 수 있는지를 둔다.
 
 ## 1. 목표
 
@@ -46,7 +46,6 @@ GitHub Release ZIP으로만 배포하던 solve-sync를 Chrome Web Store에서도
 - organization/team repository 지원
 - Chrome Web Store Publish API 기반 자동 배포
 - Chrome Web Store 출시와 무관한 UI 또는 architecture 재설계
-- 루트 README의 설치 안내 전환. Store item이 Public이 된 뒤 별도 PR로 한다. 심사 중에 아직 없는 Store 링크를 안내하지 않기 위해서다.
 - background runtime message의 sender 검증([ADR 번호 구멍 0031](adr/README.md#번호-구멍)). manifest에 `externally_connectable`이 없어 웹페이지와 다른 확장은 background로 메시지를 보낼 수 없으므로 출시를 막지 않는다. 출시 후 별도 작업으로 한다.
 
 Store 심사 준비 중 기능 결함이 발견되면 배포 차단 여부를 판단해 최소 수정만 포함한다. 제품 범위 변경이 필요한 경우 `docs/PRD.md`와 관련 ADR을 먼저 갱신한다.
@@ -57,13 +56,13 @@ Store 심사 준비 중 기능 결함이 발견되면 배포 차단 여부를 �
 
 ### 제품과 빌드
 
-- [x] Manifest V3 구조, `storage`와 최소 host permission 선언
-- [x] 16/32/48/128px icon과 build 결과 복사
-- [x] classic content script bundle과 static ESM import 검증
-- [x] `npm run package:chrome`의 ZIP 생성, root/필수/금지 경로 검사
-- [x] 공개 GitHub App Device Flow와 expiring user access token
-- [x] client secret과 private key를 쓰지 않는 build 구조
-- [x] PR마다 typecheck/test/build를 실행하는 CI
+- [ ] Manifest V3 구조, `storage`와 최소 host permission 선언
+- [ ] 16/32/48/128px icon과 build 결과 복사
+- [ ] classic content script bundle과 static ESM import 검증
+- [ ] `npm run package:chrome`의 ZIP 생성, root/필수/금지 경로 검사
+- [ ] 공개 GitHub App Device Flow와 expiring user access token
+- [ ] client secret과 private key를 쓰지 않는 build 구조
+- [ ] PR마다 typecheck/test/build를 실행하는 CI
 - [ ] Options About/Security의 local unpacked 전용 copy를 Store 배포 문구로 전환
 - [ ] 정식 GitHub App 이름(`solve-sync`)과 slug를 build 설정과 Store copy에 반영
 - [ ] `github.com` host permission의 필요성과 실제 Device Flow 요청 경로를 심사 문안에 설명
@@ -83,7 +82,7 @@ Store 심사 준비 중 기능 결함이 발견되면 배포 차단 여부를 �
 
 ### 외부 계정
 
-- [x] Chrome Web Store Developer 계정과 등록비
+- [ ] Chrome Web Store Developer 계정과 등록비
 - [ ] 2-Step Verification과 contact email 인증
 - [ ] publisher name과 contact email
 - [ ] Trader/Non-Trader 선언
@@ -430,7 +429,7 @@ http://
 
 ## 8. Release Gate
 
-다음 항목이 모두 충족되어야 Submit for Review한다.
+version을 올려 다시 제출할 때마다 아래 항목이 모두 충족되어야 Submit for Review한다. 체크 상태는 여기에 남기지 않는다.
 
 - [ ] Developer 계정, 2-Step Verification, publisher 정보가 준비됐다.
 - [ ] Public/All regions/Free/deferred publishing 결정이 완료됐다.
@@ -462,6 +461,16 @@ http://
 11. 루트 README 설치 안내 전환 PR
 
 각 작업은 가능한 작은 목적별 branch와 Pull Request로 진행한다. 최종 ZIP은 모든 관련 변경이 `main`에 병합된 뒤 새 release branch 또는 tag 대상 commit에서 다시 생성한다.
+
+### 후속 버전 업데이트
+
+1. `manifest.json`·`package.json`과 `package-lock.json`의 루트 version을 올리는 PR을 merge한다.
+2. Release Gate를 다시 확인하고 merge commit에서 `npm run package:chrome`을 실행한다.
+3. 같은 commit에 `v<version>` tag를 만들고 정식 GitHub Release(Pre-release 아님)에 생성된 ZIP을 첨부한다.
+4. 사용자가 같은 ZIP을 Store Dashboard에 업로드하고 Submit for Review한다.
+5. 승인·게시 후 Store 설치본으로 smoke test한다.
+
+Store는 이미 게시된 version과 같은 version의 ZIP을 받지 않으므로 다시 올리려면 반드시 version을 올린다([공식 업데이트 절차](https://developer.chrome.com/docs/webstore/update/)). 심사 중에도 기존 공개 version은 계속 제공된다.
 
 ## 10. 참고 문서
 

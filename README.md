@@ -4,7 +4,7 @@
   <img src="assets/brand/solve-sync-icon.svg" alt="solve-sync logo" width="96" height="96">
 </p>
 
-solve-sync는 LeetCode, Programmers와 SW Expert Academy(SWEA)에서 Accepted(정답 판정) 된 풀이를 사용자가 선택한 GitHub 저장소로 자동 동기화하는 Chrome 확장입니다. 현재는 압축을 푼 폴더를 Chrome에 직접 불러오는 방식(local unpacked)으로 설치합니다.
+solve-sync는 LeetCode, Programmers와 SW Expert Academy(SWEA)에서 Accepted(정답 판정) 된 풀이를 사용자가 선택한 GitHub 저장소로 자동 동기화하는 Chrome 확장입니다. Chrome Web Store에서 설치합니다.
 
 문제를 푼 뒤 코드를 복사하고, 파일명을 정하고, GitHub에 commit하고, README 진행표를 갱신하는 반복 작업을 줄이기 위한 도구입니다. Accepted 결과가 감지되면 solve-sync가 풀이 파일(Solution File), 진행표(Solution README), 진행표의 원본 데이터(Solution Catalog)를 한 번의 GitHub commit으로 반영합니다.
 
@@ -12,15 +12,14 @@ solve-sync는 LeetCode, Programmers와 SW Expert Academy(SWEA)에서 Accepted(�
   <img src="assets/readme/public-preview-flow.svg" alt="정답 결과가 선택한 GitHub 저장소로 자동 동기화되는 흐름" width="100%">
 </p>
 
-현재 상태는 GitHub Public Preview(`v0.1.0-preview.4` 기준)입니다. Chrome Web Store 출시를 준비 중이며, 현재는 [GitHub Releases](https://github.com/zaehorang/solve-sync/releases)에서 설치용 ZIP을 받아 설치합니다.
+solve-sync는 [Chrome Web Store](https://chromewebstore.google.com/detail/solve-sync/eggfljkdeiogckhmekhagdjplcbfkada)에 공개됐습니다. 대안 설치 경로로 [GitHub Releases](https://github.com/zaehorang/solve-sync/releases)의 설치용 ZIP도 제공합니다.
 
 ## 다른 사람도 사용할 수 있나요?
 
-네. 별도의 GitHub App을 만들거나 source를 직접 build할 필요 없이 공개 preview를 사용할 수 있습니다.
+네. 별도의 GitHub App을 만들거나 source를 직접 build할 필요 없이 공개된 확장을 사용할 수 있습니다.
 
 - 공개 Release ZIP에는 solve-sync가 운영하는 public GitHub App의 공개 client ID와 slug만 포함됩니다. client secret은 포함되지 않습니다.
 - 각 사용자는 GitHub 로그인 후 [solve-sync GitHub App](https://github.com/apps/solve-sync/installations/new)을 본인이 소유한 repository에 직접 설치합니다.
-- Chrome Web Store 출시 전까지는 Chrome의 Developer mode와 `Load unpacked`가 필요합니다.
 
 ## 지원 범위
 
@@ -45,14 +44,22 @@ solve-sync는 LeetCode, Programmers와 SW Expert Academy(SWEA)에서 Accepted(�
 - 로그인된 LeetCode, Programmers 또는 SWEA 계정
 - 본인이 소유한 GitHub repository
 
+1. [Chrome Web Store](https://chromewebstore.google.com/detail/solve-sync/eggfljkdeiogckhmekhagdjplcbfkada)에서 solve-sync를 설치합니다.
+2. 아래의 공통 GitHub 연결 단계를 진행합니다.
+
+### ZIP으로 설치하기
+
 1. [GitHub Releases](https://github.com/zaehorang/solve-sync/releases)에서 최신 Release에 첨부된 설치용 ZIP을 내려받아 압축을 풉니다.
 2. Chrome에서 `chrome://extensions`를 열고 Developer mode를 켭니다.
 3. `Load unpacked`를 누르고 압축을 푼 폴더를 선택합니다. 폴더 바로 아래에 `manifest.json`이 있어야 합니다.
-4. solve-sync Options에서 `Sign in with GitHub`를 누르고 GitHub에 표시된 일회용 code를 승인합니다.
-5. `Install or configure GitHub App`을 눌러 동기화할 본인 소유 repository만 선택합니다.
-6. Options로 돌아와 Sync Repository와 Sync Branch를 선택하고 connection test를 실행합니다. Connection test는 commit을 만들지 않습니다.
 
 Chrome에서 확장 폴더를 삭제하면 로드할 수 없으므로, 압축을 푼 폴더는 계속 보관하세요.
+
+### GitHub 연결 (두 설치 경로 공통)
+
+1. solve-sync Options에서 `Sign in with GitHub`를 누르고 GitHub에 표시된 일회용 code를 승인합니다.
+2. `Install or configure GitHub App`을 눌러 동기화할 본인 소유 repository만 선택합니다.
+3. Options로 돌아와 Sync Repository와 Sync Branch를 선택하고 connection test를 실행합니다. Connection test는 commit을 만들지 않습니다.
 
 ### GitHub App 쓰기 권한 오류
 
