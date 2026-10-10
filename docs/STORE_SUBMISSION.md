@@ -2,7 +2,9 @@
 
 > **Description**: Chrome Web Store Dashboard에 입력할 문구와 근거를 한곳에 둔다. 제출 전 실제 ZIP, UI, Privacy Policy와 대조한다.
 
-상태: 초안. 프로젝트 소유자가 문구와 Dashboard 답변을 확인한 뒤 사용한다.
+상태: 2026-10-08 제출·Public 게시 완료.
+
+이 문서는 다음 제출 때 실제 Dashboard 값과 대조하는 기준이다.
 
 ## Store Listing
 
